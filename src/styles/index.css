@@ -1,0 +1,124 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import './theme.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--sa-charcoal);
+  background-color: var(--sa-off-white);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6, .brand-font {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  color: var(--sa-charcoal);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: var(--sa-primary-red);
+  text-decoration: none;
+  transition: var(--sa-transition);
+}
+a:hover {
+  color: var(--sa-dark-red);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sa-off-white);
+}
+::-webkit-scrollbar-thumb {
+  background: #d1cbc2;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sa-primary-red);
+}
+
+/* Form Overrides */
+.form-control, .form-select {
+  border: 1.5px solid var(--sa-border);
+  border-radius: var(--sa-radius-md);
+  padding: 0.65rem 0.95rem;
+  font-size: 0.925rem;
+  color: var(--sa-charcoal);
+  background-color: var(--sa-white);
+  transition: var(--sa-transition);
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--sa-primary-red);
+  box-shadow: 0 0 0 0.2rem rgba(169, 31, 31, 0.15);
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sa-charcoal);
+  margin-bottom: 0.35rem;
+}
+
+/* Table Overrides */
+.sa-table-wrapper {
+  background: var(--sa-white);
+  border: 1px solid var(--sa-border);
+  border-radius: var(--sa-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--sa-shadow-sm);
+}
+
+.sa-table {
+  width: 100%;
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.sa-table thead th {
+  background-color: #faf8f5;
+  color: var(--sa-charcoal);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1rem 1.25rem;
+  border-bottom: 1.5px solid var(--sa-border);
+}
+
+.sa-table tbody td {
+  padding: 1rem 1.25rem;
+  font-size: 0.89rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--sa-border);
+  color: var(--sa-charcoal);
+}
+
+.sa-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sa-table tbody tr:hover td {
+  background-color: #fdfbf7;
+}
+
+/* Toastify Container Styling */
+.Toastify__toast--success {
+  background: var(--sa-success-green) !important;
+}
+.Toastify__toast--error {
+  background: var(--sa-primary-red) !important;
+}

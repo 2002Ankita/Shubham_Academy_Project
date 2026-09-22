@@ -1,0 +1,58 @@
+import React, { createContext, useState, useEffect } from 'react';
+import authService, { DEMO_USERS } from '../services/authService';
+
+export const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check saved session on mount
+    const savedUser = authService.getCurrentUser();
+    const token = authService.getToken();
+    if (savedUser && token) {
+      setUser(savedUser);
+    }
+    setLoading(false);
+  }, []);
+
+  const login = async (credentials) => {
+    setLoading(true);
+    try {
+      const data = await authService.login(credentials);
+      setUser(data.user);
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await authService.logout();
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick switch for demo testing in development
+  const switchRole = (roleKey) => {
+    const target = DEMO_USERS[roleKey];
+    if (target) {
+      localStorage.setItem('accessToken', `mock_token_${roleKey}`);
+      localStorage.setItem('user', JSON.stringify(target));
+      setUser(target);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, switchRole }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export default AuthContext;
