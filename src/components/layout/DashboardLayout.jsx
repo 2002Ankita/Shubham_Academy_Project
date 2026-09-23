@@ -1,16 +1,27 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const location = useLocation();
+
+  const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
+  const sidebarWidth = isStudent ? '215px' : 'var(--sa-sidebar-width)';
 
   return (
     <div className="d-flex min-vh-100 bg-sa-off-white">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        width={sidebarWidth}
+        isStudent={isStudent}
+      />
 
       {/* Main Container shifted right on desktop */}
       <div
@@ -22,19 +33,19 @@ export default function DashboardLayout() {
       >
         <div
           className="d-none d-md-block"
-          style={{ width: 'var(--sa-sidebar-width)', flexShrink: 0 }}
+          style={{ width: sidebarWidth, flexShrink: 0 }}
         />
         
         <div
           className="d-flex flex-column flex-grow-1"
           style={{
-            marginLeft: 'var(--sa-sidebar-width)',
+            marginLeft: sidebarWidth,
           }}
           id="main-content-wrapper"
         >
-          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
           
-          <main className="flex-grow-1 p-3 p-md-4">
+          <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : 'p-3 p-md-4'}`}>
             <Outlet />
           </main>
 

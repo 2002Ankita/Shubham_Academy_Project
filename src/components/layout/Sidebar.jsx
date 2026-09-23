@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
   LayoutDashboard,
@@ -21,12 +21,22 @@ import {
   ChevronRight,
   UserCheck2,
   Award,
-  BookCheck
+  BookCheck,
+  Home,
+  FileText,
+  BarChart3,
+  Cloud,
+  Megaphone,
+  User
 } from 'lucide-react';
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
+  const sidebarWidth = width || (isStudent ? '215px' : 'var(--sa-sidebar-width)');
 
   const handleLogout = async () => {
     await logout();
@@ -81,18 +91,18 @@ export default function Sidebar({ isOpen, onClose }) {
       ];
     }
 
-    // student
+    // student: Exact match with reference image icons
     return [
-      { label: 'Student Dashboard', path: '/student/dashboard', icon: LayoutDashboard },
-      { label: 'My Classes & Timetable', path: '/student/classes', icon: BookOpen },
-      { label: 'Attendance Records', path: '/student/attendance', icon: CalendarCheck },
-      { label: 'Fee Details & Receipts', path: '/student/fees', icon: CreditCard },
-      { label: 'Exam Schedules', path: '/student/exams', icon: BookCheck },
-      { label: 'My Results & Rank', path: '/student/results', icon: Award },
-      { label: 'Study Materials', path: '/student/study-materials', icon: BookMarked },
-      { label: 'Notes Book Delivery', path: '/student/notes-delivery', icon: Truck },
-      { label: 'Announcements', path: '/student/announcements', icon: Bell },
-      { label: 'Student Profile', path: '/student/profile', icon: UserCheck2 },
+      { label: 'Dashboard', path: '/student/dashboard', icon: Home },
+      { label: 'My Classes', path: '/student/classes', icon: Users },
+      { label: 'Attendance', path: '/student/attendance', icon: CalendarCheck },
+      { label: 'Fees & Receipts', path: '/student/fees', icon: CreditCard },
+      { label: 'Examinations', path: '/student/exams', icon: FileText },
+      { label: 'Results', path: '/student/results', icon: BarChart3 },
+      { label: 'Study Materials', path: '/student/study-materials', icon: BookOpen },
+      { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud },
+      { label: 'Announcements', path: '/student/announcements', icon: Megaphone },
+      { label: 'My Profile', path: '/student/profile', icon: User },
     ];
   };
 
@@ -114,7 +124,7 @@ export default function Sidebar({ isOpen, onClose }) {
           isOpen ? 'translate-middle-x-none' : 'd-none d-md-flex'
         }`}
         style={{
-          width: 'var(--sa-sidebar-width)',
+          width: sidebarWidth,
           backgroundColor: 'var(--sa-primary-red)',
           zIndex: 1045,
           borderRight: '1px solid rgba(255,255,255,0.08)',
@@ -122,24 +132,29 @@ export default function Sidebar({ isOpen, onClose }) {
         }}
       >
         {/* Brand Header */}
-        <div className="d-flex align-items-center justify-content-center px-3 py-2 border-bottom border-white border-opacity-10" style={{ height: 'var(--sa-header-height)' }}>
+        <div
+          className="d-flex align-items-center justify-content-center px-3 py-2 border-bottom border-white border-opacity-10"
+          style={{ height: 'var(--sa-header-height)' }}
+        >
           <img
             src="/assets/shubham-logo.png"
             alt="Shubham Academy"
-            style={{ maxHeight: '46px', maxWidth: '100%', objectFit: 'contain' }}
+            style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }}
           />
         </div>
 
-        {/* User Role Tag */}
-        <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
-          <span className="text-white text-opacity-75 small text-capitalize fw-medium">
-            Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
-          </span>
-          <span className="badge bg-success small py-1 px-2" style={{ fontSize: '0.65rem' }}>Active</span>
-        </div>
+        {/* User Role Tag - Hidden for Student to match reference */}
+        {!isStudent && (
+          <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
+            <span className="text-white text-opacity-75 small text-capitalize fw-medium">
+              Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
+            </span>
+            <span className="badge bg-success small py-1 px-2" style={{ fontSize: '0.65rem' }}>Active</span>
+          </div>
+        )}
 
         {/* Nav Links */}
-        <div className="flex-grow-1 overflow-y-auto px-3 py-3 d-flex flex-column gap-1">
+        <div className="flex-grow-1 overflow-y-auto px-2 py-2.5 d-flex flex-column gap-1">
           {navLinks.map((item) => {
             const Icon = item.icon;
             return (
@@ -148,37 +163,61 @@ export default function Sidebar({ isOpen, onClose }) {
                 to={item.path}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-white text-decoration-none transition-all ${
+                  `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${
                     isActive
-                      ? 'bg-white text-sa-primary fw-bold shadow-sm'
-                      : 'hover-sidebar-item text-opacity-85'
+                      ? (isStudent ? 'fw-bold' : 'bg-white text-sa-primary fw-bold shadow-sm')
+                      : 'hover-sidebar-item text-opacity-90'
                   }`
                 }
                 style={({ isActive }) => ({
-                  backgroundColor: isActive ? '#FFFFFF' : 'transparent',
-                  color: isActive ? 'var(--sa-primary-red)' : 'rgba(255,255,255,0.92)',
+                  backgroundColor: isActive
+                    ? (isStudent ? 'rgba(255, 255, 255, 0.18)' : '#FFFFFF')
+                    : 'transparent',
+                  color: isActive
+                    ? (isStudent ? '#FFFFFF' : 'var(--sa-primary-red)')
+                    : 'rgba(255,255,255,0.92)',
                   fontWeight: isActive ? 600 : 500,
-                  fontSize: '0.88rem'
+                  fontSize: '0.84rem'
                 })}
               >
-                <div className="d-flex align-items-center gap-3">
-                  <Icon size={18} />
+                <div className="d-flex align-items-center gap-2.5">
+                  <Icon size={17} />
                   <span>{item.label}</span>
                 </div>
-                <ChevronRight size={14} className="opacity-50" />
+                {!isStudent && <ChevronRight size={14} className="opacity-50" />}
               </NavLink>
             );
           })}
         </div>
 
+        {/* Brand Motto for Student view */}
+        {isStudent && (
+          <div className="px-3 pt-2 pb-2 text-center border-top border-white border-opacity-10 bg-black bg-opacity-10">
+            <div
+              className="fw-bold text-white text-opacity-85"
+              style={{ fontSize: '0.68rem', letterSpacing: '0.12em' }}
+            >
+              LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
+            </div>
+            <div
+              className="mx-auto mt-1 rounded-pill"
+              style={{
+                width: '32px',
+                height: '2px',
+                backgroundColor: 'var(--sa-mustard-yellow)'
+              }}
+            />
+          </div>
+        )}
+
         {/* Footer Logout Action */}
-        <div className="p-3 border-top border-white border-opacity-10 bg-black bg-opacity-20">
+        <div className="p-2.5 border-top border-white border-opacity-10 bg-black bg-opacity-20">
           <button
             onClick={handleLogout}
-            className="btn btn-outline-light w-100 btn-sm d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
-            style={{ fontSize: '0.85rem' }}
+            className="btn btn-outline-light w-100 btn-sm d-flex align-items-center justify-content-center gap-2 py-1.5 rounded-2"
+            style={{ fontSize: '0.82rem' }}
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
             <span>Sign Out</span>
           </button>
         </div>
