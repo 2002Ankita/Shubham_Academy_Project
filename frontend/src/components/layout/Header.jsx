@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Header({ onToggleSidebar }) {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -44,15 +44,6 @@ export default function Header({ onToggleSidebar }) {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const handleSwitch = (role) => {
-    switchRole(role);
-    setShowUserMenu(false);
-    if (role === 'super-admin') navigate('/super-admin/dashboard');
-    else if (role === 'admin') navigate('/admin/dashboard');
-    else if (role === 'teacher') navigate('/teacher/dashboard');
-    else if (role === 'student') navigate('/student/dashboard');
   };
 
   return (
@@ -148,23 +139,16 @@ export default function Header({ onToggleSidebar }) {
 
       {/* Right side: Notifications, Profile */}
       <div className="d-flex align-items-center gap-2 gap-md-3">
-        {/* Quick Demo Role Switcher Badge - for non-student roles */}
+        {/* Role Badge - for non-student roles */}
         {!isStudent && (
-          <div className="dropdown d-none d-sm-block">
-            <button
-              className="btn btn-sm btn-light border d-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill"
-              type="button"
-              onClick={() => setShowUserMenu(!showUserMenu)}
-            >
-              <span
-                className="rounded-circle"
-                style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
-              />
-              <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.75rem' }}>
-                Role: <span className="text-sa-primary text-capitalize">{user?.role?.replace('-', ' ')}</span>
-              </span>
-              <ChevronDown size={12} className="text-sa-muted" />
-            </button>
+          <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
+            <span
+              className="rounded-circle"
+              style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
+            />
+            <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.75rem' }}>
+              Role: <span className="text-sa-primary text-capitalize">{user?.role?.replace('-', ' ')}</span>
+            </span>
           </div>
         )}
 
@@ -231,7 +215,7 @@ export default function Header({ onToggleSidebar }) {
             />
             <div className="d-none d-sm-flex align-items-center gap-1.5">
               <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.84rem' }}>
-                {user?.name || 'Aarav Kulkarni'}
+                {user?.name || 'Shubham Sharma'}
               </span>
               <ChevronDown size={13} className="text-sa-muted" />
             </div>
@@ -240,58 +224,44 @@ export default function Header({ onToggleSidebar }) {
           {showUserMenu && (
             <div
               className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-2"
-              style={{ width: '220px', zIndex: 1050 }}
+              style={{ width: '230px', zIndex: 1050 }}
             >
-              <div className="px-3 py-1.5 border-bottom mb-1">
-                <div className="fw-bold text-sa-charcoal small">{user?.name || 'Aarav Kulkarni'}</div>
-                <div className="text-muted" style={{ fontSize: '0.72rem' }}>Class 10 (A) • Roll #12</div>
+              <div className="px-3 py-2 border-bottom mb-1 bg-light rounded-2">
+                <div className="fw-bold text-sa-charcoal small">{user?.name || 'Shubham Sharma'}</div>
+                <div className="text-sa-primary fw-medium" style={{ fontSize: '0.76rem' }}>
+                  {user?.role === 'super-admin'
+                    ? 'Super Administrator'
+                    : user?.title || 'Super Administrator'}
+                </div>
+                <div className="text-muted text-truncate" style={{ fontSize: '0.70rem' }}>
+                  {user?.email || 'superadmin@shubham.edu'}
+                </div>
               </div>
+
               <button
                 type="button"
-                className="dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2"
-                onClick={() => { setShowUserMenu(false); navigate('/student/profile'); }}
+                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2 text-sa-charcoal"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  if (user?.role === 'super-admin') navigate('/super-admin/settings');
+                  else if (user?.role === 'admin') navigate('/admin/dashboard');
+                  else if (user?.role === 'teacher') navigate('/teacher/profile');
+                  else navigate('/student/profile');
+                }}
               >
-                View Profile
+                <UserCircle size={16} className="text-sa-primary" />
+                <span className="fw-medium">View Profile</span>
               </button>
+
               <div className="dropdown-divider my-1"></div>
-              <div className="px-2 py-1 small fw-bold text-sa-muted text-uppercase tracking-wider" style={{ fontSize: '0.68rem' }}>
-                Switch Role (Demo)
-              </div>
+
               <button
                 type="button"
-                className={`dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2 ${user?.role === 'super-admin' ? 'bg-sa-primary text-white' : ''}`}
-                onClick={() => handleSwitch('superadmin')}
-              >
-                Super Admin
-              </button>
-              <button
-                type="button"
-                className={`dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2 ${user?.role === 'admin' ? 'bg-sa-primary text-white' : ''}`}
-                onClick={() => handleSwitch('admin')}
-              >
-                Academy Admin
-              </button>
-              <button
-                type="button"
-                className={`dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2 ${user?.role === 'teacher' ? 'bg-sa-primary text-white' : ''}`}
-                onClick={() => handleSwitch('teacher')}
-              >
-                Teacher (Faculty)
-              </button>
-              <button
-                type="button"
-                className={`dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2 ${user?.role === 'student' ? 'bg-sa-primary text-white' : ''}`}
-                onClick={() => handleSwitch('student')}
-              >
-                Student (Aarav)
-              </button>
-              <div className="dropdown-divider my-1"></div>
-              <button
-                type="button"
-                className="dropdown-item btn btn-sm text-start py-1.5 px-3 rounded-2 text-danger"
+                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 text-danger d-flex align-items-center gap-2"
                 onClick={handleLogout}
               >
-                Logout
+                <LogOut size={16} />
+                <span className="fw-medium">Logout</span>
               </button>
             </div>
           )}
