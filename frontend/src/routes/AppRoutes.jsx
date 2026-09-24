@@ -23,6 +23,7 @@ import SuperAdminUsers from '../pages/super-admin/Users';
 import SuperAdminReports from '../pages/super-admin/Reports';
 import AuditLogs from '../pages/super-admin/AuditLogs';
 import SuperAdminSettings from '../pages/super-admin/Settings';
+import SuperAdminContact from '../pages/super-admin/Contact';
 
 // Academy Admin Pages
 import AdminDashboard from '../pages/admin/Dashboard';
@@ -108,6 +109,7 @@ export default function AppRoutes() {
         <Route path="/super-admin/reports" element={<SuperAdminReports />} />
         <Route path="/super-admin/audit-logs" element={<AuditLogs />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+        <Route path="/super-admin/contact" element={<SuperAdminContact />} />
       </Route>
 
       {/* Academy Admin & Super Admin Protected Routes */}
@@ -138,6 +140,7 @@ export default function AppRoutes() {
         <Route path="/admin/notices" element={<Notices />} />
         <Route path="/admin/notifications" element={<Notifications />} />
         <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/contact" element={<SuperAdminContact />} />
       </Route>
 
       {/* Teacher Protected Routes */}

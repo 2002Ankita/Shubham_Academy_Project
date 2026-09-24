@@ -29,7 +29,8 @@ import {
   Megaphone,
   User,
   IndianRupee,
-  Package
+  Package,
+  PhoneCall
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -80,7 +81,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Examinations', path: '/admin/exams', icon: FileText, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeacherPenIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Notifications', path: '/admin/notifications', icon: Bell, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
-        { label: 'Reports', path: '/super-admin/reports', icon: BarChart3, matchPrefixes: ['/super-admin/reports', '/admin/reports'] },
+        { label: 'Reports', path: '/super-admin/reports', icon: BarChart3, matchPrefixes: ['/super-admin/reports'] },
+        { label: 'Contact', path: '/super-admin/contact', icon: PhoneCall, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
       ];
     }
 
@@ -102,6 +104,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Truck },
         { label: 'Notices Board', path: '/admin/notices', icon: Bell },
         { label: 'Academy Reports', path: '/admin/reports', icon: FileBarChart },
+        { label: 'Contact', path: '/admin/contact', icon: PhoneCall, matchPrefixes: ['/admin/contact', '/super-admin/contact'] },
       ];
     }
 
