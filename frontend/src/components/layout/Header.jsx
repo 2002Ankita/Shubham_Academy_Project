@@ -145,7 +145,6 @@ export default function Header({ onToggleSidebar }) {
             </div>
           )}
         </div>
-      )}
 
       {/* Right side: Notifications, Profile */}
       <div className="d-flex align-items-center gap-2 gap-md-3">
