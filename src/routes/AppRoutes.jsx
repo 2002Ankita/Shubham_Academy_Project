@@ -110,10 +110,10 @@ export default function AppRoutes() {
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
       </Route>
 
-      {/* Academy Admin Protected Routes */}
+      {/* Academy Admin & Super Admin Protected Routes */}
       <Route
         element={
-          <RoleBasedRoute allowedRoles={['admin']}>
+          <RoleBasedRoute allowedRoles={['admin', 'super-admin']}>
             <DashboardLayout />
           </RoleBasedRoute>
         }

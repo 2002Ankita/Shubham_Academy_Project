@@ -82,53 +82,41 @@ export default function Header({ onToggleSidebar }) {
           style={{ maxHeight: '30px', width: 'auto' }}
         />
 
-        {isStudent ? (
-          <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: '0.95rem' }}>
-            Student Dashboard
-          </h5>
-        ) : (
-          <div className="d-none d-sm-flex flex-column">
-            <h5 className="m-0 fw-bold text-sa-charcoal brand-font fs-6">
-              Academy Management System
-            </h5>
-            <span className="small text-sa-muted" style={{ fontSize: '0.78rem' }}>
-              Pune Main Campus • Academic Session 2026-27
-            </span>
-          </div>
-        )}
+        <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: '1.05rem' }}>
+          {isStudent ? 'Student Dashboard' : 'Admin Dashboard'}
+        </h5>
       </div>
 
-      {/* Middle side: Safe Search input for Student */}
-      {isStudent && (
-        <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: '360px' }}>
-          <form onSubmit={handleSearchSubmit}>
-            <div className="position-relative">
-              <Search
-                size={15}
-                className="position-absolute text-muted"
-                style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="text"
-                className="form-control form-control-sm rounded-pill"
-                style={{
-                  height: '34px',
-                  paddingLeft: '34px',
-                  backgroundColor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '0.8rem'
-                }}
-                placeholder="Search classes, materials, announcements..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setShowSearchResults(true);
-                }}
-                onFocus={() => setShowSearchResults(true)}
-                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-              />
-            </div>
-          </form>
+      {/* Middle side: Search input matching reference image */}
+      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: '380px' }}>
+        <form onSubmit={handleSearchSubmit}>
+          <div className="position-relative">
+            <Search
+              size={15}
+              className="position-absolute text-muted"
+              style={{ left: '14px', top: '50%', transform: 'translateY(-50%)' }}
+            />
+            <input
+              type="text"
+              className="form-control form-control-sm rounded-pill"
+              style={{
+                height: '36px',
+                paddingLeft: '38px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                fontSize: '0.84rem'
+              }}
+              placeholder={isStudent ? "Search classes, materials, announcements..." : "Search students, fees, etc..."}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+            />
+          </div>
+        </form>
 
           {/* Quick jump autocomplete dropdown */}
           {showSearchResults && filteredRoutes.length > 0 && (

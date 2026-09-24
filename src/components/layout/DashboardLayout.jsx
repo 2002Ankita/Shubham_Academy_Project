@@ -11,7 +11,8 @@ export default function DashboardLayout() {
   const location = useLocation();
 
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
-  const sidebarWidth = isStudent ? '215px' : 'var(--sa-sidebar-width)';
+  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
+  const sidebarWidth = isSuperAdmin ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)';
 
   return (
     <div className="d-flex min-vh-100 bg-sa-off-white">
@@ -21,36 +22,22 @@ export default function DashboardLayout() {
         onClose={() => setSidebarOpen(false)}
         width={sidebarWidth}
         isStudent={isStudent}
+        isSuperAdmin={isSuperAdmin}
       />
 
-      {/* Main Container shifted right on desktop */}
+      {/* Main Content Area */}
       <div
-        className="d-flex flex-column flex-grow-1"
-        style={{
-          marginLeft: '0px',
-          width: '100%',
-        }}
+        className="d-flex flex-column flex-grow-1 min-vw-0"
+        id="main-content-wrapper"
+        style={{ minWidth: 0 }}
       >
-        <div
-          className="d-none d-md-block"
-          style={{ width: sidebarWidth, flexShrink: 0 }}
-        />
+        <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
         
-        <div
-          className="d-flex flex-column flex-grow-1"
-          style={{
-            marginLeft: sidebarWidth,
-          }}
-          id="main-content-wrapper"
-        >
-          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
-          
-          <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : 'p-3 p-md-4'}`}>
-            <Outlet />
-          </main>
+        <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : 'p-3 p-md-4'}`}>
+          <Outlet />
+        </main>
 
-          <Footer />
-        </div>
+        <Footer />
       </div>
     </div>
   );
