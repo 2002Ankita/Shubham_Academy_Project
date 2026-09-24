@@ -38,13 +38,15 @@ export default function Contact() {
       id: 'kolhapur',
       name: 'Kolhapur Main Campus',
       tag: 'Headquarters & Central Admin',
-      address: 'Shubham Academy Complex, Rajarampuri 5th Lane, Kolhapur, Maharashtra - 416008',
+      address: 'Fourise Software Solutions / Shubham Academy, Kolhapur, Maharashtra',
       admin: 'Shubham Sharma (Super Administrator)',
       phone: '+91 (0231) 2654321 / +91 98220 12345',
       email: 'kolhapur@shubhamacademy.edu.in',
       timing: 'Monday – Saturday: 8:00 AM – 7:30 PM',
       students: '1,248 Enrolled',
-      faculty: '48 Teachers'
+      faculty: '48 Teachers',
+      mapUrl: 'https://maps.app.goo.gl/FhPbHT7oKzyK5PCh8',
+      embedMapUrl: 'https://maps.google.com/maps?q=16.7120332,74.2385115&hl=en&z=16&output=embed'
     },
     {
       id: 'pune',
@@ -56,7 +58,9 @@ export default function Contact() {
       email: 'pune@shubhamacademy.edu.in',
       timing: 'Monday – Saturday: 8:30 AM – 7:00 PM',
       students: '850 Enrolled',
-      faculty: '28 Teachers'
+      faculty: '28 Teachers',
+      mapUrl: 'https://maps.google.com/?q=FC+Road+Pune',
+      embedMapUrl: 'https://maps.google.com/maps?q=Fergusson+College+Road+Shivajinagar+Pune&hl=en&z=15&output=embed'
     },
     {
       id: 'sangli',
@@ -68,7 +72,9 @@ export default function Contact() {
       email: 'sangli@shubhamacademy.edu.in',
       timing: 'Monday – Saturday: 8:30 AM – 6:30 PM',
       students: '620 Enrolled',
-      faculty: '22 Teachers'
+      faculty: '22 Teachers',
+      mapUrl: 'https://maps.google.com/?q=Willingdon+College+Sangli',
+      embedMapUrl: 'https://maps.google.com/maps?q=Willingdon+College+Vishrambag+Sangli&hl=en&z=15&output=embed'
     }
   ];
 
@@ -165,9 +171,18 @@ export default function Contact() {
           </div>
         </div>
 
-        {/* Head Office Location */}
+        {/* Google Map Location */}
         <div className="col-12 col-sm-6 col-lg-3">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column justify-content-between">
+          <a
+            href="https://maps.app.goo.gl/FhPbHT7oKzyK5PCh8"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column justify-content-between text-decoration-none transition-all shadow-hover"
+            style={{
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              cursor: 'pointer'
+            }}
+          >
             <div className="d-flex align-items-center gap-3 mb-2">
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
@@ -177,17 +192,22 @@ export default function Contact() {
               </div>
               <div>
                 <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '0.76rem' }}>
-                  HEADQUARTERS
+                  GOOGLE MAP LOCATION
                 </span>
-                <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
-                  Kolhapur, MH
+                <span className="fw-bold text-sa-charcoal d-flex align-items-center gap-1" style={{ fontSize: '0.98rem' }}>
+                  Kolhapur, MH <ExternalLink size={13} className="text-sa-primary" />
                 </span>
               </div>
             </div>
-            <span className="text-sa-muted small" style={{ fontSize: '0.78rem' }}>
-              Rajarampuri 5th Lane, Central Campus Complex
-            </span>
-          </div>
+            <div className="d-flex align-items-center justify-content-between pt-1 border-top mt-1">
+              <span className="text-sa-muted small text-truncate pe-1" style={{ fontSize: '0.75rem' }}>
+                Fourise Solutions, Kolhapur
+              </span>
+              <span className="text-sa-primary fw-semibold flex-shrink-0" style={{ fontSize: '0.75rem' }}>
+                Open Map ↗
+              </span>
+            </div>
+          </a>
         </div>
 
         {/* Operational Timings */}
@@ -326,6 +346,39 @@ export default function Contact() {
                     Faculty: <span className="fw-semibold text-sa-charcoal">{selected.faculty}</span>
                   </span>
                 </div>
+
+                {/* Embedded Live Google Map */}
+                {selected.embedMapUrl && (
+                  <div className="mt-3">
+                    <div className="d-flex align-items-center justify-content-between mb-1.5">
+                      <span className="small fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '0.76rem' }}>
+                        <MapPin size={14} className="text-sa-primary" />
+                        LIVE GOOGLE MAP LOCATION
+                      </span>
+                      <a
+                        href={selected.mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="small text-sa-primary fw-semibold text-decoration-none d-flex align-items-center gap-1"
+                        style={{ fontSize: '0.76rem' }}
+                      >
+                        Open Full Map <ExternalLink size={11} />
+                      </a>
+                    </div>
+                    <div className="rounded-3 overflow-hidden border shadow-sm" style={{ height: '180px' }}>
+                      <iframe
+                        title={`${selected.name} Google Map`}
+                        src={selected.embedMapUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
