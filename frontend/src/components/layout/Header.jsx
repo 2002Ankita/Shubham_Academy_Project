@@ -13,6 +13,8 @@ export default function Header({ onToggleSidebar }) {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
+  const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
+  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
 
   const studentSearchRoutes = [
     { title: 'My Classes & Timetable', path: '/student/classes', keywords: ['classes', 'timetable', 'schedule', 'lectures'] },
@@ -25,8 +27,21 @@ export default function Header({ onToggleSidebar }) {
     { title: 'Student Profile', path: '/student/profile', keywords: ['profile', 'account', 'settings'] },
   ];
 
+  const teacherSearchRoutes = [
+    { title: 'Today\'s Classes & Schedule', path: '/teacher/classes', keywords: ['classes', 'schedule', 'timetable', 'lectures'] },
+    { title: 'Student Directory', path: '/teacher/students', keywords: ['students', 'directory', 'roll'] },
+    { title: 'Class Attendance', path: '/teacher/attendance', keywords: ['attendance', 'present', 'absent'] },
+    { title: 'Examinations', path: '/teacher/exams', keywords: ['exams', 'examination', 'tests'] },
+    { title: 'Enter Marks', path: '/teacher/marks', keywords: ['marks', 'grades', 'scores', 'entry'] },
+    { title: 'Study Materials', path: '/teacher/study-materials', keywords: ['materials', 'notes', 'study', 'pdf'] },
+    { title: 'Announcements', path: '/teacher/announcements', keywords: ['announcements', 'notices', 'bulletins'] },
+    { title: 'Teacher Profile', path: '/teacher/profile', keywords: ['profile', 'account', 'settings'] },
+  ];
+
+  const activeSearchRoutes = isTeacher ? teacherSearchRoutes : studentSearchRoutes;
+
   const filteredRoutes = searchQuery.trim()
-    ? studentSearchRoutes.filter(r =>
+    ? activeSearchRoutes.filter(r =>
         r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
       )
@@ -48,9 +63,9 @@ export default function Header({ onToggleSidebar }) {
 
   return (
     <header
-      className="position-sticky top-0 bg-white border-bottom px-3 px-md-4 d-flex align-items-center justify-content-between"
+      className={`position-sticky top-0 bg-white border-bottom ${isTeacher ? 'px-3 px-md-3.5' : 'px-3 px-md-4'} d-flex align-items-center justify-content-between`}
       style={{
-        height: isStudent ? '58px' : 'var(--sa-header-height)',
+        height: isStudent ? '58px' : isTeacher ? '48px' : 'var(--sa-header-height)',
         zIndex: 1030,
         borderColor: 'var(--sa-border)'
       }}
@@ -73,31 +88,37 @@ export default function Header({ onToggleSidebar }) {
           style={{ maxHeight: '30px', width: 'auto' }}
         />
 
-        <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: '1.05rem' }}>
-          {isStudent ? 'Student Dashboard' : 'Admin Dashboard'}
+        <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: isTeacher ? '0.94rem' : '1.05rem' }}>
+          {isTeacher ? 'Teacher Dashboard' : isStudent ? 'Student Dashboard' : isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
         </h5>
       </div>
 
       {/* Middle side: Search input matching reference image */}
-      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: '380px' }}>
+      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: isTeacher ? '340px' : '380px' }}>
         <form onSubmit={handleSearchSubmit}>
           <div className="position-relative">
             <Search
-              size={15}
+              size={14}
               className="position-absolute text-muted"
-              style={{ left: '14px', top: '50%', transform: 'translateY(-50%)' }}
+              style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }}
             />
             <input
               type="text"
               className="form-control form-control-sm rounded-pill"
               style={{
-                height: '36px',
-                paddingLeft: '38px',
+                height: isTeacher ? '32px' : '36px',
+                paddingLeft: '34px',
                 backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
-                fontSize: '0.84rem'
+                fontSize: '0.80rem'
               }}
-              placeholder={isStudent ? "Search classes, materials, announcements..." : "Search students, fees, etc..."}
+              placeholder={
+                isTeacher
+                  ? "Search students, classes, materials..."
+                  : isStudent
+                  ? "Search classes, materials, announcements..."
+                  : "Search students, fees, etc..."
+              }
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -156,14 +177,14 @@ export default function Header({ onToggleSidebar }) {
         <div className="position-relative">
           <button
             type="button"
-            className="btn btn-light rounded-circle p-1.5 position-relative text-sa-charcoal"
+            className={`btn btn-light rounded-circle ${isTeacher ? 'p-1' : 'p-1.5'} position-relative text-sa-charcoal`}
             onClick={() => setShowNotifications(!showNotifications)}
             aria-label="Notifications"
           >
-            <Bell size={18} />
+            <Bell size={isTeacher ? 16 : 18} />
             <span
               className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-              style={{ fontSize: '0.62rem', padding: '0.2em 0.45em' }}
+              style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
             >
               4
             </span>
@@ -203,21 +224,26 @@ export default function Header({ onToggleSidebar }) {
         {/* User Profile avatar & info */}
         <div className="position-relative">
           <div
-            className="d-flex align-items-center gap-2 ps-2 border-start cursor-pointer"
+            className="d-flex align-items-center gap-1.5 ps-2 border-start cursor-pointer"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{ cursor: 'pointer' }}
           >
             <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+              src={
+                user?.avatar ||
+                (isTeacher
+                  ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+                  : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
+              }
               alt="Avatar"
               className="rounded-circle object-fit-cover border"
-              style={{ width: '32px', height: '32px' }}
+              style={{ width: isTeacher ? '28px' : '32px', height: isTeacher ? '28px' : '32px' }}
             />
-            <div className="d-none d-sm-flex align-items-center gap-1.5">
-              <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.84rem' }}>
-                {user?.name || 'Shubham Sharma'}
+            <div className="d-none d-sm-flex align-items-center gap-1">
+              <span className="fw-bold text-sa-charcoal" style={{ fontSize: isTeacher ? '0.80rem' : '0.84rem' }}>
+                {user?.name || (isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
               </span>
-              <ChevronDown size={13} className="text-sa-muted" />
+              <ChevronDown size={12} className="text-sa-muted" />
             </div>
           </div>
 

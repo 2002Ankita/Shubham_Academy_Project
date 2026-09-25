@@ -53,14 +53,16 @@ const TeacherPenIcon = ({ size = 21, className = '' }) => (
   </svg>
 );
 
-export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin }) {
+export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin, isTeacher: propIsTeacher }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isSuperAdmin = propIsSuperAdmin ?? (user?.role === 'super-admin' || location.pathname.startsWith('/super-admin'));
   const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
-  const sidebarWidth = width || (isSuperAdmin ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)');
+  const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
+  const useModernShell = isSuperAdmin || isTeacher;
+  const sidebarWidth = width || (useModernShell ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)');
 
   const handleLogout = async () => {
     await logout();
@@ -70,7 +72,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const getNavLinks = () => {
     const role = user?.role || 'admin';
 
-    // ONLY Super Admin gets the 9 items matching reference screenshot
+    // ONLY Super Admin gets the 10 items matching reference screenshot
     if (isSuperAdmin || role === 'super-admin') {
       return [
         { label: 'Dashboard', path: '/super-admin/dashboard', icon: Home, matchPrefixes: ['/super-admin/dashboard'] },
@@ -83,6 +85,21 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Notifications', path: '/admin/notifications', icon: Bell, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: BarChart3, matchPrefixes: ['/super-admin/reports'] },
         { label: 'Contact', path: '/super-admin/contact', icon: PhoneCall, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
+      ];
+    }
+
+    // Teacher nav items matching reference screenshot
+    if (isTeacher || role === 'teacher') {
+      return [
+        { label: 'Dashboard', path: '/teacher/dashboard', icon: Home, matchPrefixes: ['/teacher/dashboard'] },
+        { label: 'My Classes', path: '/teacher/classes', icon: Users, matchPrefixes: ['/teacher/classes'] },
+        { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck, matchPrefixes: ['/teacher/attendance'] },
+        { label: 'Students', path: '/teacher/students', icon: GraduationCap, matchPrefixes: ['/teacher/students'] },
+        { label: 'Examinations', path: '/teacher/exams', icon: FileText, matchPrefixes: ['/teacher/exams'] },
+        { label: 'Enter Marks', path: '/teacher/marks', icon: BarChart3, matchPrefixes: ['/teacher/marks'] },
+        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookOpen, matchPrefixes: ['/teacher/study-materials'] },
+        { label: 'Announcements', path: '/teacher/announcements', icon: Megaphone, matchPrefixes: ['/teacher/announcements'] },
+        { label: 'My Profile', path: '/teacher/profile', icon: User, matchPrefixes: ['/teacher/profile'] },
       ];
     }
 
@@ -166,17 +183,17 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           width: sidebarWidth,
           minWidth: sidebarWidth,
           height: '100vh',
-          background: isSuperAdmin
+          background: useModernShell
             ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
             : 'var(--sa-primary-red)',
           zIndex: 1045,
           borderRight: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: isSuperAdmin ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
+          boxShadow: useModernShell ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
           flexShrink: 0
         }}
       >
-        {/* BRAND HEADER: Actual shubham-logo.png from assets for Super Admin, Original for other roles */}
-        {isSuperAdmin ? (
+        {/* BRAND HEADER: Exact Super Admin structure and design */}
+        {useModernShell ? (
           <div className="d-flex flex-column align-items-center text-center px-3 pt-3.5 pb-2.5 flex-shrink-0">
             <img
               src="/assets/shubham-logo.png"
@@ -210,8 +227,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* User Role Tag - Hidden for Student & Super Admin */}
-        {!isStudent && !isSuperAdmin && (
+        {/* User Role Tag - Hidden for Student, Super Admin, and Teacher */}
+        {!isStudent && !useModernShell && (
           <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
             <span className="text-white text-opacity-75 small text-capitalize fw-medium">
               Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
@@ -220,9 +237,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* NAV LINKS */}
-        {isSuperAdmin ? (
-          /* Super Admin Nav Links matching reference image */
+        {/* NAV LINKS: Exact Super Admin structure and design */}
+        {useModernShell ? (
           <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5">
             {navLinks.map((item) => {
               const Icon = item.icon;
@@ -303,10 +319,10 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* BOTTOM AREA: Super Admin gets Logout above divider + motto; Others get their original footer */}
-        {isSuperAdmin ? (
+        {/* BOTTOM AREA: Exact Super Admin structure and design */}
+        {useModernShell ? (
           <>
-            {/* Super Admin Logout Button placed up above the divider */}
+            {/* Logout Button */}
             <div className="px-3 pt-2 pb-2 flex-shrink-0">
               <button
                 onClick={handleLogout}
@@ -336,8 +352,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               </button>
             </div>
 
-            {/* Super Admin Brand Motto */}
-            <div className="px-3 pt-3 pb-3 text-center flex-shrink-0 border-top border-white border-opacity-10">
+            {/* Brand Motto */}
+            <div className="text-center flex-shrink-0 border-top border-white border-opacity-10 px-3 pt-3 pb-3">
               <div
                 className="fw-bold text-white text-opacity-90"
                 style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
