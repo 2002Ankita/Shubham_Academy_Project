@@ -30,10 +30,7 @@ import {
   User,
   IndianRupee,
   Package,
-  PhoneCall,
-  CalendarDays,
-  Clock,
-  Wallet
+  PhoneCall
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -56,16 +53,14 @@ const TeacherPenIcon = ({ size = 21, className = '' }) => (
   </svg>
 );
 
-export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin, isTeacher: propIsTeacher }) {
+export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isSuperAdmin = propIsSuperAdmin ?? (user?.role === 'super-admin' || location.pathname.startsWith('/super-admin'));
   const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
-  const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
-  const useModernShell = isSuperAdmin || isTeacher;
-  const sidebarWidth = width || (useModernShell ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)');
+  const sidebarWidth = isStudent ? '250px' : (isSuperAdmin ? '245px' : (width || 'var(--sa-sidebar-width)'));
 
   const handleLogout = async () => {
     await logout();
@@ -75,7 +70,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const getNavLinks = () => {
     const role = user?.role || 'admin';
 
-    // ONLY Super Admin gets the 10 items matching reference screenshot
+    // ONLY Super Admin gets the 9 items matching reference screenshot
     if (isSuperAdmin || role === 'super-admin') {
       return [
         { label: 'Dashboard', path: '/super-admin/dashboard', icon: Home, matchPrefixes: ['/super-admin/dashboard'] },
@@ -88,24 +83,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Notifications', path: '/admin/notifications', icon: Bell, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: BarChart3, matchPrefixes: ['/super-admin/reports'] },
         { label: 'Contact', path: '/super-admin/contact', icon: PhoneCall, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
-      ];
-    }
-
-    // Teacher nav items matching reference screenshot
-    if (isTeacher || role === 'teacher') {
-      return [
-        { label: 'Dashboard', path: '/teacher/dashboard', icon: Home, matchPrefixes: ['/teacher/dashboard'] },
-        { label: 'My Classes', path: '/teacher/classes', icon: Users, matchPrefixes: ['/teacher/classes'] },
-        { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck, matchPrefixes: ['/teacher/attendance'] },
-        { label: 'Leave Request', path: '/teacher/leave-request', icon: CalendarDays, matchPrefixes: ['/teacher/leave-request'] },
-        { label: 'Students', path: '/teacher/students', icon: GraduationCap, matchPrefixes: ['/teacher/students'] },
-        { label: 'Examinations', path: '/teacher/exams', icon: FileText, matchPrefixes: ['/teacher/exams'] },
-        { label: 'Enter Marks', path: '/teacher/marks', icon: BarChart3, matchPrefixes: ['/teacher/marks'] },
-        { label: 'Working Time', path: '/teacher/working-time', icon: Clock, matchPrefixes: ['/teacher/working-time'] },
-        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookOpen, matchPrefixes: ['/teacher/study-materials'] },
-        { label: 'Announcements', path: '/teacher/announcements', icon: Megaphone, matchPrefixes: ['/teacher/announcements'] },
-        { label: 'My Salary', path: '/teacher/salary', icon: Wallet, matchPrefixes: ['/teacher/salary'] },
-        { label: 'My Profile', path: '/teacher/profile', icon: User, matchPrefixes: ['/teacher/profile'] },
       ];
     }
 
@@ -136,20 +113,17 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       return [
         { label: 'Teacher Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
-        { label: 'Class Attendance', path: '/teacher/attendance', icon: CalendarCheck },
-        { label: 'Leave Request', path: '/teacher/leave-request', icon: CalendarDays },
         { label: 'Students', path: '/teacher/students', icon: GraduationCap },
+        { label: 'Class Attendance', path: '/teacher/attendance', icon: CalendarCheck },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
-        { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
-        { label: 'My Salary', path: '/teacher/salary', icon: Wallet },
         { label: 'My Profile', path: '/teacher/profile', icon: UserCheck2 },
       ];
     }
 
-    // Unchanged original links for Student
+    // Links for Student (My Profile accessible via top-right profile avatar)
     return [
       { label: 'Dashboard', path: '/student/dashboard', icon: Home },
       { label: 'My Classes', path: '/student/classes', icon: Users },
@@ -160,7 +134,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Study Materials', path: '/student/study-materials', icon: BookOpen },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud },
       { label: 'Announcements', path: '/student/announcements', icon: Megaphone },
-      { label: 'My Profile', path: '/student/profile', icon: User },
     ];
   };
 
@@ -169,6 +142,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isItemActive = (item) => {
     if (item.matchPrefixes) {
       return item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix));
+    }
+    if (isStudent) {
+      if (item.path === '/student/dashboard') {
+        return location.pathname === '/student/dashboard' || location.pathname === '/student';
+      }
+      return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
     }
     return location.pathname === item.path;
   };
@@ -192,26 +171,26 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           width: sidebarWidth,
           minWidth: sidebarWidth,
           height: '100vh',
-          background: useModernShell
+          background: (isSuperAdmin || isStudent)
             ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
             : 'var(--sa-primary-red)',
           zIndex: 1045,
           borderRight: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: useModernShell ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
+          boxShadow: (isSuperAdmin || isStudent) ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
           flexShrink: 0
         }}
       >
-        {/* BRAND HEADER: Exact Super Admin structure and design */}
-        {useModernShell ? (
+        {/* BRAND HEADER: Actual shubham-logo.png from assets for Super Admin & Student, Original for other roles */}
+        {(isSuperAdmin || isStudent) ? (
           <div className="d-flex flex-column align-items-center text-center px-3 pt-3.5 pb-2.5 flex-shrink-0">
             <img
               src="/assets/shubham-logo.png"
               alt="Shubham Academy"
               style={{
                 width: '100%',
-                maxWidth: '180px',
+                maxWidth: isStudent ? '170px' : '180px',
                 height: 'auto',
-                maxHeight: '82px',
+                maxHeight: isStudent ? '75px' : '82px',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))'
               }}
@@ -236,8 +215,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* User Role Tag - Hidden for Student, Super Admin, and Teacher */}
-        {!isStudent && !useModernShell && (
+        {/* User Role Tag - Hidden for Student & Super Admin */}
+        {!isStudent && !isSuperAdmin && (
           <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
             <span className="text-white text-opacity-75 small text-capitalize fw-medium">
               Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
@@ -246,9 +225,10 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* NAV LINKS: Exact Super Admin structure and design - Smoothly Scrollable */}
-        {useModernShell ? (
-          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5 modern-sidebar-scroll">
+        {/* NAV LINKS */}
+        {isSuperAdmin ? (
+          /* Super Admin Nav Links matching reference image */
+          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5">
             {navLinks.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
@@ -258,7 +238,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
-                  className="d-flex align-items-center text-decoration-none transition-all flex-shrink-0"
+                  className="d-flex align-items-center text-decoration-none transition-all"
                   style={{
                     backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
@@ -289,8 +269,61 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               );
             })}
           </div>
+        ) : isStudent ? (
+          /* Student Nav Links inspired by reference design */
+          <div
+            className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column"
+            style={{ gap: '6px' }}
+          >
+            {navLinks.map((item) => {
+              const Icon = item.icon;
+              const active = isItemActive(item);
+
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === '/student/dashboard'}
+                  onClick={onClose}
+                  className="d-flex align-items-center text-decoration-none transition-all"
+                  style={{
+                    backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
+                    color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
+                    fontWeight: active ? 600 : 500,
+                    fontSize: '0.93rem',
+                    borderRadius: '10px',
+                    boxShadow: active ? '0 4px 14px rgba(0, 0, 0, 0.12)' : 'none',
+                    padding: '9px 14px',
+                    gap: '14px',
+                    backdropFilter: active ? 'blur(8px)' : 'none',
+                    minHeight: '42px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
+                    }
+                  }}
+                >
+                  <span
+                    className="d-flex align-items-center justify-content-center flex-shrink-0"
+                    style={{ width: '22px', height: '22px' }}
+                  >
+                    <Icon size={20} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                  </span>
+                  <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
         ) : (
-          /* Original Nav Links for Admin, Teacher, Student */
+          /* Original Nav Links for Admin, Teacher */
           <div className="flex-grow-1 overflow-y-auto px-2 py-2.5 d-flex flex-column gap-1">
             {navLinks.map((item) => {
               const Icon = item.icon;
@@ -302,16 +335,16 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   className={({ isActive }) =>
                     `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${
                       isActive
-                        ? (isStudent ? 'fw-bold' : 'bg-white text-sa-primary fw-bold shadow-sm')
+                        ? 'bg-white text-sa-primary fw-bold shadow-sm'
                         : 'hover-sidebar-item text-opacity-90'
                     }`
                   }
                   style={({ isActive }) => ({
                     backgroundColor: isActive
-                      ? (isStudent ? 'rgba(255, 255, 255, 0.18)' : '#FFFFFF')
+                      ? '#FFFFFF'
                       : 'transparent',
                     color: isActive
-                      ? (isStudent ? '#FFFFFF' : 'var(--sa-primary-red)')
+                      ? 'var(--sa-primary-red)'
                       : 'rgba(255,255,255,0.92)',
                     fontWeight: isActive ? 600 : 500,
                     fontSize: '0.84rem'
@@ -321,17 +354,17 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     <Icon size={17} />
                     <span>{item.label}</span>
                   </div>
-                  {!isStudent && <ChevronRight size={14} className="opacity-50" />}
+                  <ChevronRight size={14} className="opacity-50" />
                 </NavLink>
               );
             })}
           </div>
         )}
 
-        {/* BOTTOM AREA: Exact Super Admin structure and design */}
-        {useModernShell ? (
+        {/* BOTTOM AREA */}
+        {isSuperAdmin ? (
           <>
-            {/* Logout Button */}
+            {/* Super Admin Logout Button placed up above the divider */}
             <div className="px-3 pt-2 pb-2 flex-shrink-0">
               <button
                 onClick={handleLogout}
@@ -361,8 +394,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               </button>
             </div>
 
-            {/* Brand Motto */}
-            <div className="text-center flex-shrink-0 border-top border-white border-opacity-10 px-3 pt-3 pb-3">
+            {/* Super Admin Brand Motto */}
+            <div className="px-3 pt-3 pb-3 text-center flex-shrink-0 border-top border-white border-opacity-10">
               <div
                 className="fw-bold text-white text-opacity-90"
                 style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
@@ -379,40 +412,69 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               />
             </div>
           </>
-        ) : (
-          <>
-            {/* Original Brand Motto for Student view */}
-            {isStudent && (
-              <div className="px-3 pt-2 pb-2 text-center border-top border-white border-opacity-10 bg-black bg-opacity-10">
-                <div
-                  className="fw-bold text-white text-opacity-85"
-                  style={{ fontSize: '0.68rem', letterSpacing: '0.12em' }}
-                >
-                  LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
-                </div>
-                <div
-                  className="mx-auto mt-1 rounded-pill"
-                  style={{
-                    width: '32px',
-                    height: '2px',
-                    backgroundColor: 'var(--sa-mustard-yellow)'
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Original Footer Logout Action for non-superadmin */}
-            <div className="p-2.5 border-top border-white border-opacity-10 bg-black bg-opacity-20">
+        ) : isStudent ? (
+          /* Student Footer with exact existing text: Sign Out & LEARN | GROW | SUCCEED */
+          <div className="flex-shrink-0 mt-auto">
+            {/* Student Sign Out Button */}
+            <div className="px-3 pt-2 pb-2">
               <button
                 onClick={handleLogout}
-                className="btn btn-outline-light w-100 btn-sm d-flex align-items-center justify-content-center gap-2 py-1.5 rounded-2"
-                style={{ fontSize: '0.82rem' }}
+                className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-sm"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                  fontSize: '0.90rem',
+                  fontWeight: 500,
+                  padding: '9px 14px',
+                  borderRadius: '10px',
+                  backdropFilter: 'blur(8px)',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
+                  e.currentTarget.style.color = '#FFFFFF';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.color = '#FFFFFF';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
-                <LogOut size={15} />
-                <span>Sign Out</span>
+                <LogOut size={17} />
+                <span style={{ letterSpacing: '0.02em' }}>Sign Out</span>
               </button>
             </div>
-          </>
+
+            {/* Student Brand Motto */}
+            <div className="px-3 pt-2.5 pb-3 text-center border-top border-white border-opacity-10">
+              <div
+                className="fw-bold text-white text-opacity-90"
+                style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
+              >
+                LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
+              </div>
+              <div
+                className="mx-auto mt-1.5 rounded-pill"
+                style={{
+                  width: '44px',
+                  height: '3px',
+                  backgroundColor: 'var(--sa-mustard-yellow)'
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Original Footer Logout Action for Admin & Teacher */
+          <div className="p-2.5 border-top border-white border-opacity-10 bg-black bg-opacity-20">
+            <button
+              onClick={handleLogout}
+              className="btn btn-outline-light w-100 btn-sm d-flex align-items-center justify-content-center gap-2 py-1.5 rounded-2"
+              style={{ fontSize: '0.82rem' }}
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          </div>
         )}
       </aside>
     </>
