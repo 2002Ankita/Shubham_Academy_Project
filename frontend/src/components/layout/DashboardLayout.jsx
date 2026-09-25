@@ -32,11 +32,11 @@ export default function DashboardLayout() {
         <div
           className="d-flex flex-column flex-grow-1 min-vw-0"
           id="main-content-wrapper"
-          style={{ minWidth: 0 }}
+          style={{ minWidth: 0, overflowX: 'hidden' }}
         >
           <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
           
-          <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : isTeacher ? 'px-2.5 py-2 px-md-3 py-md-2.5' : 'p-3 p-md-4'}`}>
+          <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : isTeacher ? 'px-3 py-3 px-md-4 py-md-3' : 'p-3 p-md-4'}`}>
             <Outlet />
           </main>
 

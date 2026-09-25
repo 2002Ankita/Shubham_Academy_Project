@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search } from 'lucide-react';
+import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -9,6 +9,9 @@ export default function Header({ onToggleSidebar }) {
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('Mon, 26 May 2025');
+  const [isDateHovered, setIsDateHovered] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
@@ -65,7 +68,7 @@ export default function Header({ onToggleSidebar }) {
     <header
       className={`position-sticky top-0 bg-white border-bottom ${isTeacher ? 'px-3 px-md-3.5' : 'px-3 px-md-4'} d-flex align-items-center justify-content-between`}
       style={{
-        height: isStudent ? '58px' : isTeacher ? '48px' : 'var(--sa-header-height)',
+        height: isStudent ? '58px' : isTeacher ? '56px' : 'var(--sa-header-height)',
         zIndex: 1030,
         borderColor: 'var(--sa-border)'
       }}
@@ -158,10 +161,98 @@ export default function Header({ onToggleSidebar }) {
           )}
         </div>
 
-      {/* Right side: Notifications, Profile */}
-      <div className="d-flex align-items-center gap-2 gap-md-3">
-        {/* Role Badge - for non-student roles */}
-        {!isStudent && (
+      {/* Right side: Date Selector, Notifications, Profile */}
+      <div className="d-flex align-items-center" style={{ gap: '14px', paddingRight: '4px' }}>
+        {/* Date Selector for Teacher Header */}
+        {isTeacher && (
+          <div className="position-relative">
+            <div
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              onMouseEnter={() => setIsDateHovered(true)}
+              onMouseLeave={() => setIsDateHovered(false)}
+              className="d-flex align-items-center justify-content-between transition-all"
+              style={{
+                width: '195px',
+                height: '42px',
+                padding: '0 13px',
+                backgroundColor: isDateHovered ? '#FFF8F8' : '#FFFFFF',
+                border: isDateHovered ? '1px solid var(--sa-primary-red)' : '1px solid #E3E7ED',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+              title="Select Date"
+            >
+              <div className="d-flex align-items-center" style={{ gap: '8px' }}>
+                <Calendar size={17} style={{ color: 'var(--sa-primary-red)', flexShrink: 0 }} />
+                <span
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#1E293B',
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <span className="d-none d-sm-inline">{selectedDate.includes('Mon, ') ? 'Mon, ' : ''}</span>
+                  {selectedDate.replace('Mon, ', '')}
+                </span>
+              </div>
+              <ChevronDown
+                size={14}
+                style={{
+                  color: '#64748B',
+                  flexShrink: 0,
+                  marginLeft: '8px',
+                  transition: 'transform 0.2s ease',
+                  transform: showDatePicker ? 'rotate(180deg)' : 'none'
+                }}
+              />
+            </div>
+
+            {/* Dropdown Menu */}
+            {showDatePicker && (
+              <div
+                className="position-absolute end-0 mt-1 bg-white border rounded-3 shadow-lg p-2"
+                style={{
+                  width: '215px',
+                  zIndex: 1060,
+                  borderColor: '#E3E7ED'
+                }}
+              >
+                <div className="px-2 py-1 small text-muted fw-semibold border-bottom mb-1" style={{ fontSize: '11px' }}>
+                  SELECT DATE / PERIOD
+                </div>
+                {[
+                  { label: 'Today (Mon, 26 May 2025)', value: 'Mon, 26 May 2025' },
+                  { label: 'Yesterday (Sun, 25 May 2025)', value: 'Sun, 25 May 2025' },
+                  { label: 'Last Week (Mon, 19 May 2025)', value: 'Mon, 19 May 2025' },
+                  { label: 'This Month (May 2025)', value: 'May 2025' }
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(item.value);
+                      setShowDatePicker(false);
+                    }}
+                    className={`dropdown-item px-2.5 py-1.5 rounded-2 text-start small d-flex align-items-center justify-content-between ${
+                      selectedDate === item.value ? 'bg-light text-danger fw-bold' : 'text-sa-charcoal'
+                    }`}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <span>{item.label}</span>
+                    {selectedDate === item.value && <span className="text-danger fw-bold">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Role Badge - for non-student and non-teacher roles */}
+        {!isStudent && !isTeacher && (
           <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
             <span
               className="rounded-circle"
@@ -173,15 +264,16 @@ export default function Header({ onToggleSidebar }) {
           </div>
         )}
 
-        {/* Notifications Icon */}
-        <div className="position-relative">
+        {/* Notifications Icon with right margin to ensure 18px gap to profile */}
+        <div className="position-relative" style={{ marginRight: '4px' }}>
           <button
             type="button"
-            className={`btn btn-light rounded-circle ${isTeacher ? 'p-1' : 'p-1.5'} position-relative text-sa-charcoal`}
+            className="btn btn-light rounded-circle position-relative text-sa-charcoal border"
+            style={{ width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onClick={() => setShowNotifications(!showNotifications)}
             aria-label="Notifications"
           >
-            <Bell size={isTeacher ? 16 : 18} />
+            <Bell size={17} />
             <span
               className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
               style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
@@ -253,7 +345,7 @@ export default function Header({ onToggleSidebar }) {
               style={{ width: '230px', zIndex: 1050 }}
             >
               <div className="px-3 py-2 border-bottom mb-1 bg-light rounded-2">
-                <div className="fw-bold text-sa-charcoal small">{user?.name || 'Shubham Sharma'}</div>
+                <div className="fw-bold text-sa-charcoal small">{user?.name || (isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}</div>
                 <div className="text-sa-primary fw-medium" style={{ fontSize: '0.76rem' }}>
                   {user?.role === 'super-admin'
                     ? 'Super Administrator'

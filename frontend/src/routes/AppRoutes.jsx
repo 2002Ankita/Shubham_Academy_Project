@@ -57,6 +57,9 @@ import TeacherEnterMarks from '../pages/teacher/EnterMarks';
 import TeacherStudyMaterials from '../pages/teacher/StudyMaterials';
 import TeacherAnnouncements from '../pages/teacher/Announcements';
 import TeacherProfile from '../pages/teacher/Profile';
+import LeaveRequest from '../pages/LeaveRequest';
+import WorkingTime from '../pages/WorkingTime';
+import Salary from '../pages/Salary';
 
 // Student Pages
 import StudentDashboard from '../pages/student/Dashboard';
@@ -155,6 +158,9 @@ export default function AppRoutes() {
         <Route path="/teacher/classes" element={<TeacherMyClasses />} />
         <Route path="/teacher/students" element={<TeacherStudents />} />
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />
+        <Route path="/teacher/leave-request" element={<LeaveRequest />} />
+        <Route path="/teacher/working-time" element={<WorkingTime />} />
+        <Route path="/teacher/salary" element={<Salary />} />
         <Route path="/teacher/exams" element={<TeacherExaminations />} />
         <Route path="/teacher/marks" element={<TeacherEnterMarks />} />
         <Route path="/teacher/study-materials" element={<TeacherStudyMaterials />} />

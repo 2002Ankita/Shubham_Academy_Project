@@ -30,7 +30,10 @@ import {
   User,
   IndianRupee,
   Package,
-  PhoneCall
+  PhoneCall,
+  CalendarDays,
+  Clock,
+  Wallet
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -94,11 +97,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Dashboard', path: '/teacher/dashboard', icon: Home, matchPrefixes: ['/teacher/dashboard'] },
         { label: 'My Classes', path: '/teacher/classes', icon: Users, matchPrefixes: ['/teacher/classes'] },
         { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck, matchPrefixes: ['/teacher/attendance'] },
+        { label: 'Leave Request', path: '/teacher/leave-request', icon: CalendarDays, matchPrefixes: ['/teacher/leave-request'] },
         { label: 'Students', path: '/teacher/students', icon: GraduationCap, matchPrefixes: ['/teacher/students'] },
         { label: 'Examinations', path: '/teacher/exams', icon: FileText, matchPrefixes: ['/teacher/exams'] },
         { label: 'Enter Marks', path: '/teacher/marks', icon: BarChart3, matchPrefixes: ['/teacher/marks'] },
+        { label: 'Working Time', path: '/teacher/working-time', icon: Clock, matchPrefixes: ['/teacher/working-time'] },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookOpen, matchPrefixes: ['/teacher/study-materials'] },
         { label: 'Announcements', path: '/teacher/announcements', icon: Megaphone, matchPrefixes: ['/teacher/announcements'] },
+        { label: 'My Salary', path: '/teacher/salary', icon: Wallet, matchPrefixes: ['/teacher/salary'] },
         { label: 'My Profile', path: '/teacher/profile', icon: User, matchPrefixes: ['/teacher/profile'] },
       ];
     }
@@ -130,12 +136,15 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       return [
         { label: 'Teacher Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
-        { label: 'Students', path: '/teacher/students', icon: GraduationCap },
         { label: 'Class Attendance', path: '/teacher/attendance', icon: CalendarCheck },
+        { label: 'Leave Request', path: '/teacher/leave-request', icon: CalendarDays },
+        { label: 'Students', path: '/teacher/students', icon: GraduationCap },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
+        { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
+        { label: 'My Salary', path: '/teacher/salary', icon: Wallet },
         { label: 'My Profile', path: '/teacher/profile', icon: UserCheck2 },
       ];
     }
@@ -237,9 +246,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* NAV LINKS: Exact Super Admin structure and design */}
+        {/* NAV LINKS: Exact Super Admin structure and design - Smoothly Scrollable */}
         {useModernShell ? (
-          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5">
+          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5 modern-sidebar-scroll">
             {navLinks.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
@@ -249,7 +258,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
-                  className="d-flex align-items-center text-decoration-none transition-all"
+                  className="d-flex align-items-center text-decoration-none transition-all flex-shrink-0"
                   style={{
                     backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
