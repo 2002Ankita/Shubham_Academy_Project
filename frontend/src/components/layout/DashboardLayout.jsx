@@ -35,7 +35,7 @@ export default function DashboardLayout() {
           style={{ minWidth: 0, overflowX: 'hidden' }}
         >
           <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
-          
+
           <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : isTeacher ? 'px-3 py-3 px-md-4 py-md-3' : 'p-3 p-md-4'}`}>
             <Outlet />
           </main>

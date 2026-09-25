@@ -30,7 +30,9 @@ import {
   User,
   IndianRupee,
   Package,
-  PhoneCall
+  PhoneCall,
+  Clock,
+  Calendar
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -53,14 +55,15 @@ const TeacherPenIcon = ({ size = 21, className = '' }) => (
   </svg>
 );
 
-export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin }) {
+export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin, isTeacher: propIsTeacher }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isSuperAdmin = propIsSuperAdmin ?? (user?.role === 'super-admin' || location.pathname.startsWith('/super-admin'));
   const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
-  const sidebarWidth = isStudent ? '250px' : (isSuperAdmin ? '245px' : (width || 'var(--sa-sidebar-width)'));
+  const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
+  const sidebarWidth = (isTeacher || isSuperAdmin) ? '245px' : isStudent ? '250px' : (width || 'var(--sa-sidebar-width)');
 
   const handleLogout = async () => {
     await logout();
@@ -86,6 +89,23 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       ];
     }
 
+    // Teacher navigation
+    if (isTeacher || role === 'teacher') {
+      return [
+        { label: 'Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
+        { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
+        { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck },
+        { label: 'Leave Request', path: '/teacher/leave-request', icon: Calendar },
+        { label: 'Students', path: '/teacher/students', icon: GraduationCap },
+        { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
+        { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
+        { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
+        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
+        { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
+      ];
+    }
+
     // Unchanged original links for Admin
     if (role === 'admin') {
       return [
@@ -108,21 +128,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       ];
     }
 
-    // Unchanged original links for Teacher
-    if (role === 'teacher') {
-      return [
-        { label: 'Teacher Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
-        { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
-        { label: 'Students', path: '/teacher/students', icon: GraduationCap },
-        { label: 'Class Attendance', path: '/teacher/attendance', icon: CalendarCheck },
-        { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
-        { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
-        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
-        { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
-        { label: 'My Profile', path: '/teacher/profile', icon: UserCheck2 },
-      ];
-    }
-
     // Links for Student (My Profile accessible via top-right profile avatar)
     return [
       { label: 'Dashboard', path: '/student/dashboard', icon: Home },
@@ -142,6 +147,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isItemActive = (item) => {
     if (item.matchPrefixes) {
       return item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix));
+    }
+    if (isTeacher) {
+      if (item.path === '/teacher/dashboard') {
+        return location.pathname === '/teacher/dashboard' || location.pathname === '/teacher';
+      }
+      return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
     }
     if (isStudent) {
       if (item.path === '/student/dashboard') {
@@ -171,26 +182,26 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           width: sidebarWidth,
           minWidth: sidebarWidth,
           height: '100vh',
-          background: (isSuperAdmin || isStudent)
+          background: (isSuperAdmin || isStudent || isTeacher)
             ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
             : 'var(--sa-primary-red)',
           zIndex: 1045,
           borderRight: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: (isSuperAdmin || isStudent) ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
+          boxShadow: (isSuperAdmin || isStudent || isTeacher) ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
           flexShrink: 0
         }}
       >
-        {/* BRAND HEADER: Actual shubham-logo.png from assets for Super Admin & Student, Original for other roles */}
-        {(isSuperAdmin || isStudent) ? (
+        {/* BRAND HEADER: Actual shubham-logo.png from assets for Super Admin, Student & Teacher */}
+        {(isSuperAdmin || isStudent || isTeacher) ? (
           <div className="d-flex flex-column align-items-center text-center px-3 pt-3.5 pb-2.5 flex-shrink-0">
             <img
               src="/assets/shubham-logo.png"
               alt="Shubham Academy"
               style={{
                 width: '100%',
-                maxWidth: isStudent ? '170px' : '180px',
+                maxWidth: (isStudent || isTeacher) ? '175px' : '180px',
                 height: 'auto',
-                maxHeight: isStudent ? '75px' : '82px',
+                maxHeight: (isStudent || isTeacher) ? '78px' : '82px',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))'
               }}
@@ -215,8 +226,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* User Role Tag - Hidden for Student & Super Admin */}
-        {!isStudent && !isSuperAdmin && (
+        {/* User Role Tag - Hidden for Student, Super Admin & Teacher */}
+        {!isStudent && !isSuperAdmin && !isTeacher && (
           <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
             <span className="text-white text-opacity-75 small text-capitalize fw-medium">
               Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
@@ -226,9 +237,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         )}
 
         {/* NAV LINKS */}
-        {isSuperAdmin ? (
-          /* Super Admin Nav Links matching reference image */
-          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5">
+        {(isSuperAdmin || isTeacher) ? (
+          /* Super Admin & Teacher Nav Links matching reference design */
+          <div
+            className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column"
+            style={{ gap: isTeacher ? '5px' : '6px' }}
+          >
             {navLinks.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
@@ -243,11 +257,11 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
                     fontWeight: active ? 600 : 500,
-                    fontSize: '0.95rem',
+                    fontSize: isTeacher ? '0.92rem' : '0.95rem',
                     borderRadius: '10px',
                     boxShadow: active ? '0 4px 14px rgba(0, 0, 0, 0.12)' : 'none',
-                    padding: '9.5px 15px',
-                    gap: '15px',
+                    padding: isTeacher ? '8.5px 14px' : '9.5px 15px',
+                    gap: isTeacher ? '14px' : '15px',
                     backdropFilter: active ? 'blur(8px)' : 'none'
                   }}
                   onMouseEnter={(e) => {
@@ -263,8 +277,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     }
                   }}
                 >
-                  <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
-                  <span style={{ letterSpacing: '0.01em' }}>{item.label}</span>
+                  <Icon size={isTeacher ? 20 : 21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                  <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
                 </NavLink>
               );
             })}
@@ -362,7 +376,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         )}
 
         {/* BOTTOM AREA */}
-        {isSuperAdmin ? (
+        {(isSuperAdmin || isTeacher) ? (
           <>
             {/* Super Admin Logout Button placed up above the divider */}
             <div className="px-3 pt-2 pb-2 flex-shrink-0">
