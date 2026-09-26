@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
 import {
@@ -76,6 +76,65 @@ export default function StudentProfile() {
     avatar: profile.avatar
   });
   const [errors, setErrors] = useState({});
+
+  // Dynamic Profile Completion calculation based on existing profile fields
+  const profileFields = useMemo(() => [
+    {
+      key: 'avatar',
+      label: 'Profile Photo',
+      isComplete: Boolean(profile?.avatar && typeof profile.avatar === 'string' && profile.avatar.trim().length > 0)
+    },
+    {
+      key: 'name',
+      label: 'Student Full Name',
+      isComplete: Boolean(profile?.name && typeof profile.name === 'string' && profile.name.trim().length > 0)
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      isComplete: Boolean(profile?.email && typeof profile.email === 'string' && profile.email.trim().length > 0)
+    },
+    {
+      key: 'phone',
+      label: 'Mobile Number',
+      isComplete: Boolean(profile?.phone && typeof profile.phone === 'string' && profile.phone.trim().length > 0)
+    },
+    {
+      key: 'address',
+      label: 'Residential Address',
+      isComplete: Boolean(profile?.address && typeof profile.address === 'string' && profile.address.trim().length > 0)
+    },
+    {
+      key: 'parentName',
+      label: 'Parent/Guardian Name',
+      isComplete: Boolean(profile?.parentName && typeof profile.parentName === 'string' && profile.parentName.trim().length > 0)
+    },
+    {
+      key: 'parentPhone',
+      label: 'Emergency Contact',
+      isComplete: Boolean(profile?.parentPhone && typeof profile.parentPhone === 'string' && profile.parentPhone.trim().length > 0)
+    }
+  ], [profile]);
+
+  const totalApplicableFields = profileFields.length;
+  const completedFieldsCount = profileFields.filter((f) => f.isComplete).length;
+  const missingFields = profileFields.filter((f) => !f.isComplete);
+  const completionPercentage = totalApplicableFields > 0
+    ? Math.round((completedFieldsCount / totalApplicableFields) * 100)
+    : 0;
+
+  const getStatusMessage = (percentage) => {
+    if (percentage === 100) {
+      return 'Your profile is complete.';
+    }
+    if (percentage >= 80) {
+      return 'Your profile is almost complete. Add the remaining details.';
+    }
+    if (percentage >= 50) {
+      return 'Complete a few more details to finish your profile.';
+    }
+    return 'Complete your profile information to keep your account details up to date.';
+  };
 
   // Sync if auth user updates externally
   useEffect(() => {
@@ -464,6 +523,131 @@ export default function StudentProfile() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* Profile Completion Status Widget                                          */}
+          {/* ========================================================================= */}
+          <div className="sa-card p-3.5 p-sm-4">
+            <div className="d-flex flex-column">
+              {/* Top Row: Title & Subtitle on Left, Percentage on Right */}
+              <div className="d-flex flex-row align-items-start justify-content-between gap-3">
+                <div className="d-flex flex-column">
+                  <div className="d-flex align-items-center gap-2">
+                    <Award
+                      size={17}
+                      className={completionPercentage === 100 ? 'text-success' : 'text-sa-primary'}
+                    />
+                    <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.975rem', lineHeight: 1.25 }}>
+                      Profile Completion
+                    </span>
+                  </div>
+                  <span
+                    className="text-sa-muted"
+                    style={{ fontSize: '0.8rem', lineHeight: 1.3, marginTop: '4px' }}
+                  >
+                    {completedFieldsCount} of {totalApplicableFields} applicable fields completed
+                  </span>
+                </div>
+
+                <div className="d-flex align-items-baseline gap-2 flex-shrink-0 pt-0.5">
+                  <span
+                    className="brand-font fw-bold"
+                    style={{
+                      fontSize: '1.25rem',
+                      letterSpacing: '-0.02em',
+                      color: completionPercentage === 100 ? 'var(--sa-success-green, #168554)' : 'var(--sa-primary-red, #A91D22)',
+                      lineHeight: 1
+                    }}
+                  >
+                    {completionPercentage}%
+                  </span>
+                  <span
+                    className="fw-semibold text-sa-charcoal"
+                    style={{ fontSize: '0.825rem', lineHeight: 1 }}
+                  >
+                    Complete
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar with comfortable spacing */}
+              <div
+                className="w-100"
+                style={{
+                  height: '7px',
+                  backgroundColor: '#EEF2F6',
+                  borderRadius: '9999px',
+                  overflow: 'hidden',
+                  marginTop: '14px',
+                  marginBottom: '10px'
+                }}
+                role="progressbar"
+                aria-valuenow={completionPercentage}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label={`Profile completion: ${completionPercentage}% Complete`}
+              >
+                <div
+                  style={{
+                    width: `${completionPercentage}%`,
+                    height: '100%',
+                    borderRadius: '9999px',
+                    background: completionPercentage === 100
+                      ? 'linear-gradient(90deg, #10B981 0%, var(--sa-success-green, #168554) 100%)'
+                      : 'linear-gradient(90deg, #C4272D 0%, var(--sa-primary-red, #A91D22) 100%)',
+                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                />
+              </div>
+
+              {/* Completion Status Message */}
+              <div className="d-flex align-items-center gap-2">
+                {completionPercentage === 100 ? (
+                  <CheckCircle2 size={15} className="text-success flex-shrink-0" />
+                ) : (
+                  <AlertCircle size={15} className="text-sa-primary flex-shrink-0" />
+                )}
+                <span className="text-sa-charcoal fw-medium" style={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  {getStatusMessage(completionPercentage)}
+                </span>
+              </div>
+
+              {/* Missing Information & Direct Edit Profile Action (Shown when incomplete) */}
+              {missingFields.length > 0 && (
+                <div className="pt-3 mt-2.5 border-top d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5">
+                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                    <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.78rem' }}>
+                      Missing:
+                    </span>
+                    {missingFields.map((field) => (
+                      <span
+                        key={field.key}
+                        className="badge rounded-pill fw-medium px-2 py-0.5"
+                        style={{
+                          backgroundColor: '#FFF1F2',
+                          color: '#BE123C',
+                          border: '1px solid #FECDD3',
+                          fontSize: '0.74rem'
+                        }}
+                      >
+                        • {field.label}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-sa-primary d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-2 fw-semibold flex-shrink-0"
+                    style={{ fontSize: '0.78rem', height: '30px' }}
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Pencil size={12} />
+                    <span>Edit Profile</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
