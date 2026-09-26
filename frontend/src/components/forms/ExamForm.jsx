@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 
-export default function ExamForm({ onSubmit, loading, onCancel }) {
+export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
   const [formData, setFormData] = useState({
     title: 'Mid-Term Assessment 2026',
     standard: '12th Science',
@@ -13,8 +13,15 @@ export default function ExamForm({ onSubmit, loading, onCancel }) {
     duration: '3 Hours',
     maxMarks: 100,
     passingMarks: 35,
-    roomNo: 'Hall A & B'
+    roomNo: 'Hall A & B',
+    teacher_id: ''
   });
+
+  useEffect(() => {
+    if (teachers.length > 0 && !formData.teacher_id) {
+      setFormData(prev => ({ ...prev, teacher_id: teachers[0].id }));
+    }
+  }, [teachers]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -62,13 +69,23 @@ export default function ExamForm({ onSubmit, loading, onCancel }) {
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-6">
           <Select
             label="Subject"
             name="subject"
             value={formData.subject}
             onChange={handleChange}
             options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics']}
+          />
+        </div>
+
+        <div className="col-12 col-md-6">
+          <Select
+            label="Assign Invigilator / Teacher"
+            name="teacher_id"
+            value={formData.teacher_id}
+            onChange={handleChange}
+            options={teachers.map(t => ({ value: t.id, label: t.name }))}
           />
         </div>
 
@@ -105,7 +122,7 @@ export default function ExamForm({ onSubmit, loading, onCancel }) {
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-6">
           <Input
             label="Maximum Marks"
             name="maxMarks"
@@ -116,7 +133,7 @@ export default function ExamForm({ onSubmit, loading, onCancel }) {
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-6">
           <Input
             label="Assigned Examination Hall"
             name="roomNo"

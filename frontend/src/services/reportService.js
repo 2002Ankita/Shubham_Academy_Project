@@ -43,7 +43,10 @@ export const reportService = {
   getAll: async () => {
     try {
       const res = await api.get('/reports');
-      return res.data;
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+      return MOCK_REPORTS; // Fallback if API returns an object (e.g., dashboard report stats)
     } catch {
       return MOCK_REPORTS;
     }

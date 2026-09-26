@@ -37,7 +37,13 @@ export const noticeService = {
   getAll: async (params = {}) => {
     try {
       const res = await api.get('/notices', { params });
-      return res.data;
+      return res.data.map(n => ({
+        ...n,
+        targetAudience: n.target_audiences?.[0] || 'All',
+        publishedDate: n.created_at?.split('T')[0],
+        category: 'General',
+        priority: 'Normal'
+      }));
     } catch {
       return MOCK_NOTICES;
     }
@@ -45,8 +51,17 @@ export const noticeService = {
 
   create: async (data) => {
     try {
-      const res = await api.post('/notices', data);
-      return res.data;
+      const payload = {
+        title: data.title,
+        content: data.content,
+        target_audiences: [data.targetAudience || 'All Students & Teachers']
+      };
+      const res = await api.post('/notices', payload);
+      return {
+        ...res.data,
+        targetAudience: res.data.target_audiences[0],
+        publishedDate: res.data.created_at?.split('T')[0]
+      };
     } catch {
       const newNotice = {
         ...data,

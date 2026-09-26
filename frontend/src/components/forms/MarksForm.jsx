@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 
 export default function MarksForm({ students = [], exams = [], onSubmit, loading }) {
   const [formData, setFormData] = useState({
-    studentId: students[0]?.id || 'STU-001',
-    examTitle: exams[0]?.title || 'Mid-Term Assessment 2026',
+    studentId: students[0]?.id || '',
+    examId: exams[0]?.id || '',
     subject: 'Physics',
     maxMarks: 100,
     obtainedMarks: '',
     remarks: 'Consistent academic performance'
   });
+
+  useEffect(() => {
+    if (students.length > 0 && !formData.studentId) setFormData(prev => ({ ...prev, studentId: students[0].id }));
+    if (exams.length > 0 && !formData.examId) setFormData(prev => ({ ...prev, examId: exams[0].id }));
+  }, [students, exams]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,10 +25,12 @@ export default function MarksForm({ students = [], exams = [], onSubmit, loading
   const handleSubmit = (e) => {
     e.preventDefault();
     const selectedStu = students.find(s => s.id === formData.studentId) || students[0];
+    const selectedExam = exams.find(e => e.id === formData.examId) || exams[0];
     onSubmit({
       ...formData,
       studentName: selectedStu?.name,
       rollNumber: selectedStu?.rollNumber,
+      examTitle: selectedExam?.title,
       maxMarks: Number(formData.maxMarks),
       obtainedMarks: Number(formData.obtainedMarks)
     });
@@ -49,15 +56,10 @@ export default function MarksForm({ students = [], exams = [], onSubmit, loading
         <div className="col-12 col-md-6">
           <Select
             label="Examination"
-            name="examTitle"
-            value={formData.examTitle}
+            name="examId"
+            value={formData.examId}
             onChange={handleChange}
-            options={[
-              'Mid-Term Assessment 2026',
-              'Unit Test 1 (Physics & Chemistry)',
-              'Unit Test 2 (Mathematics)',
-              'Preliminary Board Exam 2026'
-            ]}
+            options={exams.map(e => ({ value: e.id, label: e.title }))}
           />
         </div>
 

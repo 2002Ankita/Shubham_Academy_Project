@@ -3,39 +3,45 @@ import ExamForm from '../../components/forms/ExamForm';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import examService from '../../services/examService';
+import teacherService from '../../services/teacherService';
 import { Calendar, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function CreateExam() {
   const [exams, setExams] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const fetchExams = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await examService.getAll();
-      setExams(data);
+      const [eList, tList] = await Promise.all([
+        examService.getAll(),
+        teacherService.getAll()
+      ]);
+      setExams(eList);
+      setTeachers(tList);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchExams();
+    fetchData();
   }, []);
 
   const handleCreate = async (formData) => {
     await examService.create(formData);
     toast.success('Examination scheduled successfully!');
     setShowCreateForm(false);
-    fetchExams();
+    fetchData();
   };
 
   const handleDelete = async (id) => {
     await examService.delete(id);
     toast.success('Exam schedule cancelled');
-    fetchExams();
+    fetchData();
   };
 
   return (
@@ -60,6 +66,7 @@ export default function CreateExam() {
 
       {showCreateForm && (
         <ExamForm
+          teachers={teachers}
           onSubmit={handleCreate}
           onCancel={() => setShowCreateForm(false)}
         />

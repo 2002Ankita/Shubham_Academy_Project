@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import authService, { DEMO_USERS } from '../services/authService';
+import authService from '../services/authService';
 
 export const AuthContext = createContext(null);
 
@@ -8,7 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check saved session on mount
     const savedUser = authService.getCurrentUser();
     const token = authService.getToken();
     if (savedUser && token) {
