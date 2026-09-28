@@ -10,8 +10,8 @@ export const salaryService = {
     }
   },
 
-  updateSalary: async (salaryId, allowances, deductions) => {
-    const res = await api.put(`/salary/${salaryId}`, { allowances, deductions });
+  updateSalary: async (salaryId, baseSalary, allowances, deductions, netPayable) => {
+    const res = await api.put(`/salary/${salaryId}`, { baseSalary, allowances, deductions, netPayable });
     return res.data;
   },
 

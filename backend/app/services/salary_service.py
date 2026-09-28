@@ -41,14 +41,15 @@ async def get_all_salaries() -> list[dict]:
     salaries = await SalaryPayment.find_all().to_list()
     return [await _format_salary(s) for s in salaries]
 
-async def update_salary(id: str, allowances: float, deductions: float) -> dict:
+async def update_salary(id: str, base_salary: float, allowances: float, deductions: float, net_payable: float) -> dict:
     try:
         s = await SalaryPayment.get(ObjectId(id))
         if not s:
             raise Exception()
+        s.base_salary = base_salary
         s.allowances = allowances
         s.deductions = deductions
-        s.net_payable = s.base_salary + allowances - deductions
+        s.net_payable = net_payable
         await s.save()
         return await _format_salary(s)
     except:

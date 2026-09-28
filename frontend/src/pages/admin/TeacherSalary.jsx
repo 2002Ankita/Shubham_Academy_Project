@@ -12,7 +12,7 @@ export default function TeacherSalary() {
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [editForm, setEditForm] = useState({ allowances: 0, deductions: 0 });
+  const [editForm, setEditForm] = useState({ baseSalary: 0, allowances: 0, deductions: 0, netPayable: 0 });
   const [generating, setGenerating] = useState(false);
 
   const fetchSalaries = async () => {
@@ -55,15 +55,34 @@ export default function TeacherSalary() {
 
   const handleEditClick = (row) => {
     setSelectedRow(row);
-    setEditForm({ allowances: row.allowances, deductions: row.deductions });
+    setEditForm({ 
+      baseSalary: row.baseSalary, 
+      allowances: row.allowances, 
+      deductions: row.deductions,
+      netPayable: row.netPayable 
+    });
     setEditModalOpen(true);
   };
+
+  // Auto calculate net payable when base, allowances or deductions change
+  useEffect(() => {
+    if (editModalOpen) {
+      const net = Number(editForm.baseSalary) + Number(editForm.allowances) - Number(editForm.deductions);
+      setEditForm(prev => ({ ...prev, netPayable: net }));
+    }
+  }, [editForm.baseSalary, editForm.allowances, editForm.deductions]);
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!selectedRow) return;
     try {
-      await salaryService.updateSalary(selectedRow.id, Number(editForm.allowances), Number(editForm.deductions));
+      await salaryService.updateSalary(
+        selectedRow.id, 
+        Number(editForm.baseSalary), 
+        Number(editForm.allowances), 
+        Number(editForm.deductions),
+        Number(editForm.netPayable)
+      );
       toast.success('Salary updated successfully');
       setEditModalOpen(false);
       fetchSalaries();
@@ -161,13 +180,18 @@ export default function TeacherSalary() {
       <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title={`Edit Salary: ${selectedRow?.teacherName}`}>
         <form onSubmit={handleSaveEdit}>
           <div className="mb-3">
-            <label className="form-label fw-bold text-sa-charcoal small">Base Salary</label>
-            <div className="form-control bg-light">₹ {selectedRow?.baseSalary?.toLocaleString()}</div>
+            <Input
+              label="Base Salary (₹) *"
+              type="number"
+              value={editForm.baseSalary}
+              onChange={(e) => setEditForm({ ...editForm, baseSalary: e.target.value })}
+              required
+            />
           </div>
           <div className="row g-3">
             <div className="col-12 col-md-6">
               <Input
-                label="Allowances (₹)"
+                label="Allowances (₹) *"
                 type="number"
                 value={editForm.allowances}
                 onChange={(e) => setEditForm({ ...editForm, allowances: e.target.value })}
@@ -176,7 +200,7 @@ export default function TeacherSalary() {
             </div>
             <div className="col-12 col-md-6">
               <Input
-                label="Deductions (₹)"
+                label="Deductions (₹) *"
                 type="number"
                 value={editForm.deductions}
                 onChange={(e) => setEditForm({ ...editForm, deductions: e.target.value })}
@@ -185,10 +209,13 @@ export default function TeacherSalary() {
             </div>
           </div>
           <div className="mb-3 mt-3">
-            <label className="form-label fw-bold text-sa-charcoal small">Net Payable (Auto-calculated)</label>
-            <div className="form-control bg-light text-sa-primary fw-bold">
-              ₹ {((selectedRow?.baseSalary || 0) + Number(editForm.allowances) - Number(editForm.deductions)).toLocaleString()}
-            </div>
+            <Input
+              label="Net Payable (₹) *"
+              type="number"
+              value={editForm.netPayable}
+              onChange={(e) => setEditForm({ ...editForm, netPayable: e.target.value })}
+              required
+            />
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" type="button" onClick={() => setEditModalOpen(false)}>Cancel</Button>

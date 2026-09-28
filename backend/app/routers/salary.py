@@ -15,7 +15,7 @@ async def list_salaries(token: str = Depends(oauth2_scheme)):
 @router.put("/{id}", response_model=SalaryPaymentResponse)
 async def update_salary_endpoint(id: str, req: SalaryUpdateRequest, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    return await update_salary(id, req.allowances, req.deductions)
+    return await update_salary(id, req.baseSalary, req.allowances, req.deductions, req.netPayable)
 
 @router.post("/disburse/{id}", response_model=SalaryPaymentResponse)
 async def disburse_salary_endpoint(id: str, token: str = Depends(oauth2_scheme)):

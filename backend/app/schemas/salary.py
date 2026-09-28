@@ -16,5 +16,7 @@ class SalaryPaymentResponse(BaseModel):
     transactionRef: str
 
 class SalaryUpdateRequest(BaseModel):
+    baseSalary: float
     allowances: float
     deductions: float
+    netPayable: float
