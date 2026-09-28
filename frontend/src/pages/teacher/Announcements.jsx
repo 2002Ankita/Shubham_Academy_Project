@@ -37,45 +37,58 @@ export default function TeacherAnnouncements() {
   };
 
   return (
-    <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+    <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
         <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+          <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
             Class Announcements & Circulars
-          </h3>
-          <span className="small text-sa-muted">
+          </h1>
+          <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
             Send assignment deadlines, lab instructions, and test dates to students
-          </span>
+          </p>
         </div>
 
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
-          Create Class Announcement
-        </Button>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="btn d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs"
+          style={{
+            backgroundColor: '#8B1216',
+            fontSize: '13px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+        >
+          <Plus size={16} />
+          <span>Create Class Announcement</span>
+        </button>
       </div>
 
-      <div className="sa-card p-4">
-        <Table
-          columns={[
-            {
-              key: 'title',
-              title: 'Announcement Title',
-              render: (val, row) => (
-                <div>
-                  <span className="fw-semibold text-sa-charcoal d-block">{val}</span>
-                  <p className="text-sa-muted small mb-0 mt-1 line-clamp-2" style={{ fontSize: '0.8rem' }}>
-                    {row.content}
-                  </p>
-                </div>
-              )
-            },
-            { key: 'category', title: 'Category' },
-            { key: 'targetAudience', title: 'Target Class' },
-            { key: 'publishedDate', title: 'Date' },
-            { key: 'author', title: 'Issued By' }
-          ]}
-          data={notices}
-        />
-      </div>
+      <Table
+        columns={[
+          {
+            key: 'title',
+            title: 'Announcement Title',
+            render: (val, row) => (
+              <div>
+                <span className="fw-semibold text-sa-charcoal d-block">{val}</span>
+                <p className="text-secondary small mb-0 mt-1 line-clamp-2" style={{ fontSize: '0.82rem', color: '#64748B' }}>
+                  {row.content}
+                </p>
+              </div>
+            )
+          },
+          { key: 'category', title: 'Category' },
+          { key: 'targetAudience', title: 'Target Class' },
+          { key: 'publishedDate', title: 'Date' },
+          { key: 'author', title: 'Issued By' }
+        ]}
+        data={notices}
+      />
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Post Class Announcement">
         <form onSubmit={handlePost}>

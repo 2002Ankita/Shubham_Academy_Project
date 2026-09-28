@@ -33,7 +33,8 @@ import {
   PhoneCall,
   CalendarDays,
   Clock,
-  Wallet
+  Wallet,
+  StickyNote
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -103,6 +104,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Enter Marks', path: '/teacher/marks', icon: BarChart3, matchPrefixes: ['/teacher/marks'] },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock, matchPrefixes: ['/teacher/working-time'] },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookOpen, matchPrefixes: ['/teacher/study-materials'] },
+        { label: 'Notes', path: '/teacher/notes', icon: StickyNote, matchPrefixes: ['/teacher/notes'] },
         { label: 'Announcements', path: '/teacher/announcements', icon: Megaphone, matchPrefixes: ['/teacher/announcements'] },
         { label: 'My Salary', path: '/teacher/salary', icon: Wallet, matchPrefixes: ['/teacher/salary'] },
         { label: 'My Profile', path: '/teacher/profile', icon: User, matchPrefixes: ['/teacher/profile'] },
@@ -143,6 +145,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Notes', path: '/teacher/notes', icon: StickyNote },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: Wallet },
         { label: 'My Profile', path: '/teacher/profile', icon: UserCheck2 },
@@ -158,6 +161,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Examinations', path: '/student/exams', icon: FileText },
       { label: 'Results', path: '/student/results', icon: BarChart3 },
       { label: 'Study Materials', path: '/student/study-materials', icon: BookOpen },
+      { label: 'Teacher Notes', path: '/student/notes', icon: StickyNote },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud },
       { label: 'Announcements', path: '/student/announcements', icon: Megaphone },
       { label: 'My Profile', path: '/student/profile', icon: User },
@@ -203,22 +207,22 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       >
         {/* BRAND HEADER: Exact Super Admin structure and design */}
         {useModernShell ? (
-          <div className="d-flex flex-column align-items-center text-center px-3 pt-3.5 pb-2.5 flex-shrink-0">
+          <div className="d-flex flex-column align-items-center text-center px-3 pt-3 pb-2 flex-shrink-0">
             <img
               src="/assets/shubham-logo.png"
               alt="Shubham Academy"
               style={{
                 width: '100%',
-                maxWidth: '180px',
+                maxWidth: '160px',
                 height: 'auto',
-                maxHeight: '82px',
+                maxHeight: '70px',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))'
               }}
             />
             <div
-              className="text-white text-opacity-90 mt-1.5"
-              style={{ fontSize: '0.74rem', letterSpacing: '0.02em', fontWeight: 400 }}
+              className="text-white text-opacity-90 mt-1"
+              style={{ fontSize: '0.72rem', letterSpacing: '0.02em', fontWeight: 400 }}
             >
               Education Builds Brighter Future
             </div>
@@ -248,7 +252,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
         {/* NAV LINKS: Exact Super Admin structure and design - Smoothly Scrollable */}
         {useModernShell ? (
-          <div className="flex-grow-1 overflow-y-auto px-3 py-2 d-flex flex-column gap-1.5 modern-sidebar-scroll">
+          <div className="flex-grow-1 overflow-y-auto px-3 py-1.5 d-flex flex-column gap-1 modern-sidebar-scroll">
             {navLinks.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
@@ -263,11 +267,11 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
                     fontWeight: active ? 600 : 500,
-                    fontSize: '0.95rem',
-                    borderRadius: '10px',
-                    boxShadow: active ? '0 4px 14px rgba(0, 0, 0, 0.12)' : 'none',
-                    padding: '9.5px 15px',
-                    gap: '15px',
+                    fontSize: '0.88rem',
+                    borderRadius: '8px',
+                    boxShadow: active ? '0 3px 10px rgba(0, 0, 0, 0.12)' : 'none',
+                    padding: '7px 12px',
+                    gap: '12px',
                     backdropFilter: active ? 'blur(8px)' : 'none'
                   }}
                   onMouseEnter={(e) => {
@@ -283,7 +287,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     }
                   }}
                 >
-                  <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                  <Icon size={18} className={active ? 'text-white' : 'text-white text-opacity-90'} />
                   <span style={{ letterSpacing: '0.01em' }}>{item.label}</span>
                 </NavLink>
               );
@@ -328,57 +332,55 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           </div>
         )}
 
-        {/* BOTTOM AREA: Exact Super Admin structure and design */}
+        {/* BOTTOM AREA: Logout & Brand Motto */}
         {useModernShell ? (
-          <>
+          <div className="flex-shrink-0 px-3 pt-2 pb-3">
             {/* Logout Button */}
-            <div className="px-3 pt-2 pb-2 flex-shrink-0">
-              <button
-                onClick={handleLogout}
-                className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-sm"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                  fontSize: '0.90rem',
-                  fontWeight: 500,
-                  padding: '9.5px 15px',
-                  borderRadius: '10px',
-                  backdropFilter: 'blur(8px)',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <LogOut size={17} />
-                <span style={{ letterSpacing: '0.02em' }}>Logout</span>
-              </button>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-xs"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.13)',
+                fontSize: '0.88rem',
+                fontWeight: 500,
+                padding: '8.5px 14px',
+                borderRadius: '10px',
+                backdropFilter: 'blur(8px)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.13)';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <LogOut size={16} />
+              <span style={{ letterSpacing: '0.02em' }}>Logout</span>
+            </button>
 
-            {/* Brand Motto */}
-            <div className="text-center flex-shrink-0 border-top border-white border-opacity-10 px-3 pt-3 pb-3">
+            {/* Brand Motto: LEARN | GROW | SUCCEED */}
+            <div className="text-center mt-3">
               <div
-                className="fw-bold text-white text-opacity-90"
-                style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
+                className="fw-bold text-white text-opacity-95"
+                style={{ fontSize: '0.70rem', letterSpacing: '0.12em' }}
               >
-                LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
+                LEARN <span style={{ color: '#F59E0B', margin: '0 4px' }}>|</span> GROW <span style={{ color: '#F59E0B', margin: '0 4px' }}>|</span> SUCCEED
               </div>
               <div
-                className="mx-auto mt-2 rounded-pill"
+                className="mx-auto mt-1.5 rounded-pill"
                 style={{
-                  width: '48px',
+                  width: '46px',
                   height: '3px',
-                  backgroundColor: 'var(--sa-mustard-yellow)'
+                  backgroundColor: '#F59E0B'
                 }}
               />
             </div>
-          </>
+          </div>
         ) : (
           <>
             {/* Original Brand Motto for Student view */}

@@ -30,59 +30,72 @@ export default function TeacherStudyMaterials() {
   };
 
   return (
-    <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+    <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
         <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+          <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
             Study Materials & Lecture Notes
-          </h3>
-          <span className="small text-sa-muted">
+          </h1>
+          <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
             Share chapter summaries, practice problems, and laboratory guides
-          </span>
+          </p>
         </div>
 
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
-          Upload New Material
-        </Button>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="btn d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs"
+          style={{
+            backgroundColor: '#8B1216',
+            fontSize: '13px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+        >
+          <Plus size={16} />
+          <span>Upload New Material</span>
+        </button>
       </div>
 
-      <div className="sa-card p-4">
-        <Table
-          columns={[
-            { key: 'id', title: 'Ref No.', render: (val) => <span className="fw-bold">{val}</span> },
-            {
-              key: 'title',
-              title: 'Resource Title',
-              render: (val) => (
-                <div className="d-flex align-items-center gap-2">
-                  <FileText size={18} className="text-sa-primary" />
-                  <span className="fw-semibold text-sa-charcoal">{val}</span>
-                </div>
-              )
-            },
-            { key: 'standard', title: 'Target Class' },
-            { key: 'subject', title: 'Subject' },
-            { key: 'fileType', title: 'Type' },
-            { key: 'size', title: 'Size' },
-            { key: 'uploadDate', title: 'Uploaded On' },
-            {
-              key: 'id',
-              title: 'Action',
-              align: 'end',
-              render: () => (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
-                  onClick={() => toast.info('Simulating notes file download...')}
-                >
-                  <Download size={14} /> Download
-                </button>
-              )
-            }
-          ]}
-          data={materials}
-        />
-      </div>
+      <Table
+        columns={[
+          { key: 'id', title: 'Ref No.', render: (val) => <span className="fw-bold" style={{ color: '#8B1216' }}>{val}</span> },
+          {
+            key: 'title',
+            title: 'Resource Title',
+            render: (val) => (
+              <div className="d-flex align-items-center gap-2">
+                <FileText size={16} style={{ color: '#8B1216' }} />
+                <span className="fw-semibold text-sa-charcoal">{val}</span>
+              </div>
+            )
+          },
+          { key: 'standard', title: 'Target Class' },
+          { key: 'subject', title: 'Subject' },
+          { key: 'fileType', title: 'Type' },
+          { key: 'size', title: 'Size' },
+          { key: 'uploadDate', title: 'Uploaded On' },
+          {
+            key: 'id',
+            title: 'Action',
+            align: 'end',
+            render: () => (
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                onClick={() => toast.info('Simulating notes file download...')}
+              >
+                <Download size={14} /> Download
+              </button>
+            )
+          }
+        ]}
+        data={materials}
+      />
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Upload Study Material">
         <form onSubmit={handleUpload}>
