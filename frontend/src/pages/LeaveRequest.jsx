@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LeaveSummary from '../components/leave/LeaveSummary';
 import LeaveForm from '../components/leave/LeaveForm';
 import LeaveHistory from '../components/leave/LeaveHistory';
