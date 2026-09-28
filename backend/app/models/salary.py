@@ -1,16 +1,18 @@
 from beanie import Document, Link
 from datetime import datetime
 from app.models.teacher import Teacher
+from typing import Optional
 
 class SalaryPayment(Document):
     teacher: Link[Teacher]
-    month: int
-    year: int
-    total_hours: float
-    hourly_rate: float
-    amount_paid: float
-    payment_date: datetime = datetime.utcnow()
-    remarks: str = ""
+    month_name: str
+    base_salary: float
+    allowances: float = 0.0
+    deductions: float = 0.0
+    net_payable: float = 0.0
+    status: str = "Processing"
+    transaction_ref: str = "--"
+    disbursed_date: Optional[datetime] = None
 
     class Settings:
         name = "salary_payments"

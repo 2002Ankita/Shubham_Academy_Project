@@ -3,11 +3,18 @@ from datetime import datetime
 
 class SalaryPaymentResponse(BaseModel):
     id: str
-    teacher_id: str
-    month: int
-    year: int
-    total_hours: float
-    hourly_rate: float
-    amount_paid: float
-    payment_date: datetime
-    remarks: str
+    teacherId: str
+    teacherName: str
+    subject: str
+    month: str
+    baseSalary: float
+    allowances: float
+    deductions: float
+    netPayable: float
+    status: str
+    disbursedDate: str
+    transactionRef: str
+
+class SalaryUpdateRequest(BaseModel):
+    allowances: float
+    deductions: float
