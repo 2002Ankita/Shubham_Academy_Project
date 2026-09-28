@@ -6,8 +6,13 @@ from fastapi import HTTPException
 from bson import ObjectId
 
 async def _format_exam(exam: Exam) -> dict:
-    if not getattr(exam, 'teacher', None) or not isinstance(exam.teacher, Teacher):
-        await exam.fetch_link(Exam.teacher)
+    teacher_obj = None
+    if isinstance(exam.teacher, Teacher):
+        teacher_obj = exam.teacher
+    elif getattr(exam, 'teacher', None):
+        teacher_obj = await Teacher.get(exam.teacher.ref.id)
+        exam.teacher = teacher_obj
+        
     return {
         "id": str(exam.id),
         "exam_name": exam.exam_name,
@@ -19,14 +24,24 @@ async def _format_exam(exam: Exam) -> dict:
         "end_time": exam.end_time,
         "max_marks": exam.max_marks,
         "passing_marks": exam.passing_marks,
-        "teacher_id": str(exam.teacher.id) if exam.teacher else ""
+        "teacher_id": str(exam.teacher.id) if exam.teacher else "",
+        "status": getattr(exam, "status", "Scheduled")
     }
 
 async def _format_mark(mark: Mark) -> dict:
-    if not getattr(mark, 'exam', None) or not isinstance(mark.exam, Exam):
-        await mark.fetch_link(Mark.exam)
-    if not getattr(mark, 'student', None) or not isinstance(mark.student, Student):
-        await mark.fetch_link(Mark.student)
+    exam_obj = None
+    if isinstance(mark.exam, Exam):
+        exam_obj = mark.exam
+    elif getattr(mark, 'exam', None):
+        exam_obj = await Exam.get(mark.exam.ref.id)
+        mark.exam = exam_obj
+
+    student_obj = None
+    if isinstance(mark.student, Student):
+        student_obj = mark.student
+    elif getattr(mark, 'student', None):
+        student_obj = await Student.get(mark.student.ref.id)
+        mark.student = student_obj
         
     pass_status = False
     grade = "F"
@@ -40,10 +55,25 @@ async def _format_mark(mark: Mark) -> dict:
         elif pct >= 50: grade = "D"
         else: grade = "F"
         
+    student_name = ""
+    roll_number = ""
+    if student_obj:
+        roll_number = student_obj.student_id
+        if getattr(student_obj, "user", None):
+            from app.models.user import User
+            user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
+            if user_obj:
+                student_name = user_obj.full_name
+
     return {
         "id": str(mark.id),
         "student_id": str(mark.student.id) if mark.student else "",
+        "student_name": student_name,
+        "roll_number": roll_number,
         "exam_id": str(mark.exam.id) if mark.exam else "",
+        "exam_name": exam_obj.exam_name if exam_obj else "",
+        "subject": exam_obj.subject if exam_obj else "",
+        "max_marks": exam_obj.max_marks if exam_obj else 100,
         "marks_obtained": mark.marks_obtained,
         "remarks": mark.remarks,
         "grade": grade,
@@ -51,10 +81,8 @@ async def _format_mark(mark: Mark) -> dict:
     }
 
 async def create_exam(exam_in: ExamCreate) -> dict:
-    try:
-        teacher = await Teacher.get(ObjectId(exam_in.teacher_id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid teacher ID")
+    from app.services.teacher_service import resolve_teacher
+    teacher = await resolve_teacher(exam_in.teacher_id)
         
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
@@ -79,11 +107,12 @@ async def get_all_exams() -> list[dict]:
     return [await _format_exam(e) for e in exams]
 
 async def enter_marks(mark_in: MarkCreate) -> dict:
+    from app.services.student_service import resolve_student
+    student = await resolve_student(mark_in.student_id)
     try:
-        student = await Student.get(ObjectId(mark_in.student_id))
         exam = await Exam.get(ObjectId(mark_in.exam_id))
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ID")
+        exam = None
     
     if not student or not exam:
         raise HTTPException(status_code=404, detail="Student or Exam not found")
@@ -101,17 +130,41 @@ async def enter_marks(mark_in: MarkCreate) -> dict:
     return await _format_mark(mark)
 
 async def get_student_results(student_id: str) -> list[dict]:
-    try:
-        student = await Student.get(ObjectId(student_id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid student ID")
+    from app.services.student_service import resolve_student
+    student = await resolve_student(student_id)
         
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
         
-    marks = await Mark.find(Mark.student.id == student.id, fetch_links=True).to_list()
+    marks = await Mark.find(Mark.student.id == student.id).to_list()
     return [await _format_mark(m) for m in marks]
 
 async def get_all_marks() -> list[dict]:
-    marks = await Mark.find_all(fetch_links=True).to_list()
+    marks = await Mark.find_all().to_list()
     return [await _format_mark(m) for m in marks]
+
+async def delete_exam(id: str):
+    from bson.errors import InvalidId
+    from bson import ObjectId
+    try:
+        exam = await Exam.get(ObjectId(id))
+        if exam:
+            await exam.delete()
+    except InvalidId:
+        pass
+
+async def update_exam(id: str, exam_in: dict) -> dict:
+    from bson.errors import InvalidId
+    from bson import ObjectId
+    try:
+        exam = await Exam.get(ObjectId(id))
+        if exam:
+            if "status" in exam_in:
+                exam.status = exam_in["status"]
+            if "exam_name" in exam_in:
+                exam.exam_name = exam_in["exam_name"]
+            await exam.save()
+            return await _format_exam(exam)
+    except InvalidId:
+        pass
+    raise Exception("Exam not found")

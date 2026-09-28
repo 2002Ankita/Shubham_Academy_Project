@@ -3,20 +3,56 @@ import LeaveSummary from '../components/leave/LeaveSummary';
 import LeaveForm from '../components/leave/LeaveForm';
 import LeaveHistory from '../components/leave/LeaveHistory';
 import LeaveDetailsModal from '../components/leave/LeaveDetailsModal';
-import { initialLeaveBalance, initialLeaveRequests } from '../data/leaveData';
+import { initialLeaveBalance } from '../data/leaveData';
+import leaveService from '../services/leaveService';
+import useAuth from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
 export default function LeaveRequest() {
   const [balance, setBalance] = useState(initialLeaveBalance);
-  const [requests, setRequests] = useState(initialLeaveRequests);
+  const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const { user } = useAuth();
 
-  const handleApplySuccess = (newRequest) => {
-    setRequests(prev => [newRequest, ...prev]);
-    setBalance(prev => ({
-      ...prev,
-      pending: prev.pending + 1
-    }));
+  useEffect(() => {
+    fetchRequests();
+  }, [user]);
+
+  const fetchRequests = async () => {
+    try {
+      if (!user) return;
+      const data = await leaveService.getTeacherLeaveRequests(user.id);
+      // Map data to frontend format
+      const formatted = data.map(r => ({
+        id: r.id,
+        leaveType: r.leave_type,
+        fromDate: r.from_date.split('T')[0],
+        toDate: r.to_date.split('T')[0],
+        days: r.number_of_days,
+        reason: r.reason,
+        appliedDate: new Date(r.created_at).toLocaleDateString(),
+        status: r.status,
+        adminComment: r.admin_comment
+      }));
+      setRequests(formatted);
+      // Optional: recalculate balance based on approved leaves
+    } catch (err) {
+      toast.error('Failed to load leave requests');
+    }
+  };
+
+  const handleApplySuccess = async (requestPayload, resetFormCallback) => {
+    try {
+      if (!user) return;
+      requestPayload.teacher_id = user.id;
+      await leaveService.createLeaveRequest(requestPayload);
+      toast.success('Leave application submitted successfully!');
+      resetFormCallback();
+      fetchRequests();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to submit leave request');
+      resetFormCallback();
+    }
   };
 
   const handleCancelRequest = (requestId) => {

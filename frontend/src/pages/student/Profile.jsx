@@ -148,6 +148,38 @@ export default function StudentProfile() {
     }
   }, [user]);
 
+  // Fetch real data from backend
+  useEffect(() => {
+    const fetchRealProfile = async () => {
+      if (!user?.id) return;
+      try {
+        const data = await studentService.getById(user.id);
+        if (data) {
+          const updatedProfile = {
+            ...profile,
+            name: data.name || profile.name,
+            email: data.email || profile.email,
+            phone: data.phone || profile.phone,
+            parentName: data.parent_name || profile.parentName,
+            parentPhone: data.parentPhone || profile.parentPhone,
+            address: data.address || profile.address,
+            rollNumber: data.rollNumber || profile.rollNumber,
+            standard: data.standard || profile.standard,
+            batch: data.batch || profile.batch,
+            academicYear: data.academic_year || profile.academicYear,
+            rfidCard: data.rfid_tag || profile.rfidCard,
+            id: data.student_id || profile.id
+          };
+          setProfile(updatedProfile);
+          localStorage.setItem('student_profile_data', JSON.stringify(updatedProfile));
+        }
+      } catch (err) {
+        console.error("Failed to fetch real profile data:", err);
+      }
+    };
+    fetchRealProfile();
+  }, [user?.id]);
+
   // Keep form data in sync when entering edit mode
   useEffect(() => {
     if (isEditing) {

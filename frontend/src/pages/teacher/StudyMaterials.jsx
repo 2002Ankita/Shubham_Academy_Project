@@ -1,32 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { BookMarked, Plus, Download, FileText } from 'lucide-react';
+import { Plus, Download, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
+import materialService from '../../services/materialService';
 
 export default function TeacherStudyMaterials() {
-  const [materials, setMaterials] = useState([
-    { id: 'MAT-01', title: 'Wave Optics: Formulas & Derivations', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', size: '3.4 MB', uploadDate: '2026-09-15' },
-    { id: 'MAT-02', title: 'Rotational Dynamics Problem Bank (100 Qs)', standard: '11th Science', subject: 'Physics', fileType: 'PDF Document', size: '4.8 MB', uploadDate: '2026-09-10' },
-    { id: 'MAT-03', title: 'NEET 2026 Physics High-Yield Revision Sheet', standard: 'NEET Special', subject: 'Physics', fileType: 'Handwritten Notes', size: '2.2 MB', uploadDate: '2026-09-05' },
-  ]);
-
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [newMat, setNewMat] = useState({ title: '', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', size: '2.5 MB' });
+  const [newMat, setNewMat] = useState({ title: '', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', description: '' });
+  const fileInputRef = useRef(null);
+  
+  const fetchMaterials = async () => {
+    try {
+      setLoading(true);
+      const data = await materialService.getMaterials();
+      setMaterials(data);
+    } catch (err) {
+      toast.error('Failed to load materials');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleUpload = (e) => {
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
+
+  const handleUpload = async (e) => {
     e.preventDefault();
-    const item = {
-      ...newMat,
-      id: `MAT-0${materials.length + 1}`,
-      uploadDate: new Date().toISOString().split('T')[0]
-    };
-    setMaterials([item, ...materials]);
-    toast.success('Study notes uploaded to student portal!');
-    setModalOpen(false);
+    const file = fileInputRef.current?.files[0];
+    if (!file) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', newMat.title);
+    formData.append('standard', newMat.standard);
+    formData.append('subject', newMat.subject);
+    formData.append('fileType', newMat.fileType);
+    if (newMat.description) {
+      formData.append('description', newMat.description);
+    }
+
+    try {
+      await materialService.uploadMaterial(formData);
+      toast.success('Study notes uploaded to student portal!');
+      setModalOpen(false);
+      setNewMat({ title: '', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', description: '' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      fetchMaterials();
+    } catch (err) {
+      toast.error('Failed to upload material');
+    }
   };
 
   return (
@@ -69,11 +101,19 @@ export default function TeacherStudyMaterials() {
               key: 'id',
               title: 'Action',
               align: 'end',
-              render: () => (
+              render: (val, item) => (
                 <button
                   type="button"
                   className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
-                  onClick={() => toast.info('Simulating notes file download...')}
+                  onClick={async () => {
+                    try {
+                      toast.info(`Downloading "${item.title}"...`);
+                      await materialService.downloadMaterial(item.id, item.title);
+                      toast.success('Download complete');
+                    } catch (err) {
+                      toast.error('Failed to download file');
+                    }
+                  }}
                 >
                   <Download size={14} /> Download
                 </button>
@@ -81,6 +121,7 @@ export default function TeacherStudyMaterials() {
             }
           ]}
           data={materials}
+          loading={loading}
         />
       </div>
 
@@ -95,7 +136,7 @@ export default function TeacherStudyMaterials() {
             required
           />
           <div className="row g-2">
-            <div className="col-6">
+            <div className="col-12 col-md-4">
               <Select
                 label="Class / Stream"
                 name="standard"
@@ -104,7 +145,16 @@ export default function TeacherStudyMaterials() {
                 options={['12th Science', '11th Science', '12th Commerce', '11th Commerce', 'NEET Special']}
               />
             </div>
-            <div className="col-6">
+            <div className="col-12 col-md-4">
+              <Select
+                label="Subject"
+                name="subject"
+                value={newMat.subject}
+                onChange={(e) => setNewMat({ ...newMat, subject: e.target.value })}
+                options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English']}
+              />
+            </div>
+            <div className="col-12 col-md-4">
               <Select
                 label="Material Type"
                 name="fileType"
@@ -113,6 +163,24 @@ export default function TeacherStudyMaterials() {
                 options={['PDF Document', 'Handwritten Notes', 'Question Bank', 'Presentation Slides']}
               />
             </div>
+          </div>
+          
+          <Input
+            label="Description (Optional)"
+            name="description"
+            value={newMat.description}
+            onChange={(e) => setNewMat({ ...newMat, description: e.target.value })}
+            placeholder="Brief description of the material..."
+          />
+          
+          <div className="mb-3 mt-2">
+            <label className="form-label small fw-bold">Select File</label>
+            <input 
+              type="file" 
+              className="form-control" 
+              ref={fileInputRef} 
+              required
+            />
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" onClick={() => setModalOpen(false)}>Cancel</Button>

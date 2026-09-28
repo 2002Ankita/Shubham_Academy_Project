@@ -42,7 +42,8 @@ export const noticeService = {
         targetAudience: n.target_audiences?.[0] || 'All',
         publishedDate: n.created_at?.split('T')[0],
         category: 'General',
-        priority: 'Normal'
+        priority: 'Normal',
+        author: n.created_by_name || 'Admin'
       }));
     } catch {
       return MOCK_NOTICES;

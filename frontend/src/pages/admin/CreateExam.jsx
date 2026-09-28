@@ -12,6 +12,7 @@ export default function CreateExam() {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingExam, setEditingExam] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -39,8 +40,18 @@ export default function CreateExam() {
   };
 
   const handleDelete = async (id) => {
-    await examService.delete(id);
-    toast.success('Exam schedule cancelled');
+    if (window.confirm('Are you sure you want to delete this exam?')) {
+      await examService.delete(id);
+      toast.success('Exam schedule cancelled');
+      fetchData();
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    await examService.update(editingExam.id, { status: editingExam.status });
+    toast.success('Exam updated successfully');
+    setEditingExam(null);
     fetchData();
   };
 
@@ -72,6 +83,25 @@ export default function CreateExam() {
         />
       )}
 
+      {editingExam && (
+        <form onSubmit={handleUpdate} className="sa-card p-4 bg-light">
+          <h5>Edit Exam: {editingExam.title}</h5>
+          <div className="d-flex align-items-center gap-3 mt-3">
+            <select 
+              className="form-select w-auto"
+              value={editingExam.status}
+              onChange={e => setEditingExam({...editingExam, status: e.target.value})}
+            >
+              <option value="Scheduled">Scheduled</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <Button type="submit" variant="primary">Save Changes</Button>
+            <Button variant="outline" onClick={() => setEditingExam(null)}>Cancel</Button>
+          </div>
+        </form>
+      )}
+
       <div className="sa-card p-4">
         <h5 className="brand-font fw-bold text-sa-charcoal mb-3 fs-6">
           Scheduled & Completed Examinations
@@ -99,15 +129,25 @@ export default function CreateExam() {
               key: 'id',
               title: 'Action',
               align: 'end',
-              render: (val) => (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light border p-1 text-danger"
-                  onClick={() => handleDelete(val)}
-                  title="Delete Exam"
-                >
-                  <Trash2 size={15} />
-                </button>
+              render: (val, row) => (
+                <div className="d-flex gap-2 justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-1 text-primary"
+                    onClick={() => setEditingExam(row)}
+                    title="Edit Status"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-1 text-danger"
+                    onClick={() => handleDelete(val)}
+                    title="Delete Exam"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               )
             }
           ]}

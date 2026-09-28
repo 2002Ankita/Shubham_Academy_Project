@@ -15,7 +15,31 @@ async def create_attendance(
     await get_current_user(token)
     return await mark_attendance(attendance_in)
 
-@router.get("/{student_id}", response_model=List[AttendanceResponse])
+@router.get("/student/{student_id}", response_model=List[AttendanceResponse])
 async def list_student_attendance(student_id: str, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     return await get_student_attendance(student_id)
+
+@router.get("/teacher/{teacher_id}", response_model=List[AttendanceResponse])
+async def list_teacher_attendance(teacher_id: str, token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    from app.services.attendance_service import get_teacher_attendance
+    return await get_teacher_attendance(teacher_id)
+
+@router.post("/check-in", response_model=AttendanceResponse)
+async def check_in(
+    attendance_in: AttendanceCreate, 
+    token: str = Depends(oauth2_scheme)
+):
+    await get_current_user(token)
+    from app.services.attendance_service import check_in_teacher
+    return await check_in_teacher(attendance_in)
+
+@router.post("/check-out", response_model=AttendanceResponse)
+async def check_out(
+    attendance_in: AttendanceCreate, 
+    token: str = Depends(oauth2_scheme)
+):
+    await get_current_user(token)
+    from app.services.attendance_service import check_out_teacher
+    return await check_out_teacher(attendance_in)

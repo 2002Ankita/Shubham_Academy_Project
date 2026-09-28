@@ -6,14 +6,18 @@ from bson import ObjectId
 import uuid
 
 async def _format_teacher(teacher: Teacher) -> dict:
-    if not isinstance(teacher.user, User):
-        await teacher.fetch_link(Teacher.user)
+    user_obj = None
+    if isinstance(teacher.user, User):
+        user_obj = teacher.user
+    elif teacher.user:
+        user_obj = await User.get(teacher.user.ref.id)
+        teacher.user = user_obj
     
     return {
         "id": str(teacher.id),
         "employee_id": teacher.employee_id,
-        "full_name": teacher.user.full_name if teacher.user else "",
-        "email": teacher.user.email if teacher.user else "",
+        "full_name": user_obj.full_name if user_obj else "",
+        "email": user_obj.email if user_obj else "",
         "mobile_number": teacher.mobile_number,
         "subjects": teacher.subjects,
         "assigned_batches": teacher.assigned_batches,
@@ -25,13 +29,19 @@ async def _format_teacher(teacher: Teacher) -> dict:
 async def create_teacher(teacher_in: TeacherCreate) -> dict:
     employee_id = f"EMP-{uuid.uuid4().hex[:6].upper()}"
     
+    from pymongo.errors import DuplicateKeyError
+    from fastapi import HTTPException
+
     user = User(
         email=teacher_in.email,
         hashed_password=get_password_hash("password123"), # Default password
         full_name=teacher_in.full_name,
         role="TEACHER"
     )
-    await user.insert()
+    try:
+        await user.insert()
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     teacher = Teacher(
         user=user,
@@ -48,36 +58,52 @@ async def get_teachers() -> list[dict]:
     teachers = await Teacher.find_all().to_list()
     return [await _format_teacher(t) for t in teachers]
 
-async def get_teacher_by_id(id: str) -> dict:
+async def resolve_teacher(id_str: str) -> Teacher:
     from bson.errors import InvalidId
+    from bson import ObjectId
+    teacher = None
     try:
-        teacher = await Teacher.get(ObjectId(id))
+        teacher = await Teacher.get(ObjectId(id_str))
     except InvalidId:
-        return None
+        pass
+    if not teacher:
+        try:
+            user_obj_id = ObjectId(id_str)
+            teacher = await Teacher.find_one(Teacher.user.id == user_obj_id)
+        except InvalidId:
+            pass
+    if not teacher:
+        teacher = await Teacher.find_one(Teacher.employee_id == id_str)
+    return teacher
+
+async def get_teacher_by_id(id: str) -> dict:
+    teacher = await resolve_teacher(id)
     if not teacher:
         return None
     return await _format_teacher(teacher)
 
 async def update_teacher(id: str, teacher_in: dict) -> dict:
-    from bson.errors import InvalidId
-    try:
-        teacher = await Teacher.get(ObjectId(id))
-    except InvalidId:
-        raise Exception("Teacher not found")
+    teacher = await resolve_teacher(id)
         
     if not teacher:
         raise Exception("Teacher not found")
         
     if "full_name" in teacher_in or "email" in teacher_in:
+        from pymongo.errors import DuplicateKeyError
+        from fastapi import HTTPException
         if not isinstance(teacher.user, User):
-            await teacher.fetch_link(Teacher.user)
+            user_obj = await User.get(teacher.user.ref.id)
+            teacher.user = user_obj
         if "full_name" in teacher_in:
             teacher.user.full_name = teacher_in["full_name"]
             del teacher_in["full_name"]
         if "email" in teacher_in:
             teacher.user.email = teacher_in["email"]
             del teacher_in["email"]
-        await teacher.user.save()
+        try:
+            await teacher.user.save()
+        except DuplicateKeyError:
+            raise HTTPException(status_code=400, detail="Email already in use")
         
     if teacher_in:
         await teacher.set(teacher_in)
@@ -85,15 +111,14 @@ async def update_teacher(id: str, teacher_in: dict) -> dict:
     return await _format_teacher(teacher)
 
 async def delete_teacher(id: str):
-    from bson.errors import InvalidId
-    try:
-        teacher = await Teacher.get(ObjectId(id))
-    except InvalidId:
+    teacher = await resolve_teacher(id)
+    if not teacher:
         raise Exception("Teacher not found")
         
     if teacher:
         if not isinstance(teacher.user, User):
-            await teacher.fetch_link(Teacher.user)
+            user_obj = await User.get(teacher.user.ref.id)
+            teacher.user = user_obj
         if teacher.user:
             teacher.user.is_active = False
             await teacher.user.save()

@@ -258,8 +258,8 @@ export default function Header({ onToggleSidebar }) {
               className="rounded-circle"
               style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
             />
-            <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.75rem' }}>
-              Role: <span className="text-sa-primary text-capitalize">{user?.role?.replace('-', ' ')}</span>
+            <span className="fw-semibold text-sa-primary text-capitalize" style={{ fontSize: '0.75rem' }}>
+              {user?.role?.replace('-', ' ')}
             </span>
           </div>
         )}

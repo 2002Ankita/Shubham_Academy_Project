@@ -3,17 +3,36 @@ import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import { BookMarked, Download, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
+import materialService from '../../services/materialService';
+import useAuth from '../../hooks/useAuth';
+import { useState, useEffect } from 'react';
 
 export default function StudentStudyMaterials() {
-  const materials = [
-    { id: 'MAT-01', title: 'Physics Wave Optics: Key Formulas & Derivations', subject: 'Physics', author: 'Dr. Priya Kulkarni', fileType: 'PDF Document', size: '3.4 MB', date: '2026-09-15' },
-    { id: 'MAT-02', title: 'Mathematics Calculus Practice Problem Bank (100 Qs)', subject: 'Mathematics', author: 'Prof. Amit Sawant', fileType: 'PDF Document', size: '4.8 MB', date: '2026-09-10' },
-    { id: 'MAT-03', title: 'Organic Chemistry Reactions Summary Sheet', subject: 'Chemistry', author: 'Mrs. Neha Deshpande', fileType: 'PDF Document', size: '2.8 MB', date: '2026-09-08' },
-    { id: 'MAT-04', title: 'Electrostatics DPP & Previous Year Questions', subject: 'Physics', author: 'Dr. Priya Kulkarni', fileType: 'PDF Document', size: '5.1 MB', date: '2026-08-28' },
-  ];
+  const [materials, setMaterials] = useState([]);
+  const { user } = useAuth();
 
-  const handleDownload = (title) => {
-    toast.info(`Downloading "${title}"...`);
+  useEffect(() => {
+    fetchMaterials();
+  }, []);
+
+  const fetchMaterials = async () => {
+    try {
+      const data = await materialService.getMaterials();
+      // Optional: Filter by student course if data was available on user object
+      setMaterials(data);
+    } catch (err) {
+      toast.error('Failed to load study materials');
+    }
+  };
+
+  const handleDownload = async (item) => {
+    try {
+      toast.info(`Downloading "${item.title}"...`);
+      await materialService.downloadMaterial(item.id, item.title);
+      toast.success('Download complete');
+    } catch (err) {
+      toast.error('Failed to download file');
+    }
   };
 
   return (
@@ -41,20 +60,20 @@ export default function StudentStudyMaterials() {
               )
             },
             { key: 'subject', title: 'Subject', render: (val) => <span className="badge bg-light text-dark border">{val}</span> },
-            { key: 'author', title: 'Faculty' },
+            { key: 'teacherName', title: 'Faculty' },
             { key: 'fileType', title: 'Type' },
             { key: 'size', title: 'Size' },
-            { key: 'date', title: 'Uploaded' },
+            { key: 'uploadDate', title: 'Uploaded' },
             {
-              key: 'title',
+              key: 'id',
               title: 'Action',
               align: 'end',
-              render: (val) => (
+              render: (val, item) => (
                 <Button
                   size="sm"
                   variant="outline"
                   icon={Download}
-                  onClick={() => handleDownload(val)}
+                  onClick={() => handleDownload(item)}
                 >
                   Download
                 </Button>

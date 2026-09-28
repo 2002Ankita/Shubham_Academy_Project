@@ -6,14 +6,33 @@ from bson import ObjectId
 
 async def _format_fee_payment(payment: FeePayment) -> dict:
     student_id_str = ""
+    student_name = ""
+    roll_number = "N/A"
     if isinstance(payment.student, Student):
-        student_id_str = str(payment.student.id)
+        student_obj = payment.student
     elif payment.student:
-        student_id_str = str(getattr(payment.student, 'ref', payment.student).id)
-        
+        student_obj = await Student.get(payment.student.ref.id)
+    else:
+        student_obj = None
+
+    if student_obj:
+        student_id_str = str(student_obj.id)
+        roll_number = student_obj.student_id
+        if getattr(student_obj, "user", None):
+            from app.models.user import User
+            user_obj = None
+            if isinstance(student_obj.user, User):
+                user_obj = student_obj.user
+            else:
+                user_obj = await User.get(student_obj.user.ref.id)
+            if user_obj:
+                student_name = user_obj.full_name
+
     return {
         "id": str(payment.id),
         "student_id": student_id_str,
+        "student_name": student_name,
+        "roll_number": roll_number,
         "amount_paid": payment.amount_paid,
         "payment_method": payment.payment_method,
         "transaction_reference": payment.transaction_reference,
@@ -38,10 +57,8 @@ async def get_fee_structures() -> list[dict]:
     return res
 
 async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
-    try:
-        student = await Student.get(ObjectId(payment_in.student_id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid student ID")
+    from app.services.student_service import resolve_student
+    student = await resolve_student(payment_in.student_id)
     
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -61,10 +78,8 @@ async def get_all_fee_payments() -> list[dict]:
     return [await _format_fee_payment(p) for p in payments]
 
 async def get_fee_details(student_id: str) -> FeeDetailsResponse:
-    try:
-        student = await Student.get(ObjectId(student_id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid student ID")
+    from app.services.student_service import resolve_student
+    student = await resolve_student(student_id)
         
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -103,7 +118,8 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
     paid_map = {}
     for p in payments:
         if not isinstance(p.student, Student):
-            await p.fetch_link(FeePayment.student)
+            student_obj = await Student.get(p.student.ref.id)
+            p.student = student_obj
         if p.student:
             s_id = str(p.student.id)
             paid_map[s_id] = paid_map.get(s_id, 0.0) + p.amount_paid
@@ -124,7 +140,9 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
                 if hasattr(student.user, "full_name"):
                     student_name = student.user.full_name
                 else:
-                    await student.fetch_link(Student.user)
+                    from app.models.user import User
+                    user_obj = await User.get(student.user.ref.id)
+                    student.user = user_obj
                     if student.user:
                         student_name = student.user.full_name
                         

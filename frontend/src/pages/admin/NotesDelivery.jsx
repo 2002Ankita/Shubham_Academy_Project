@@ -12,6 +12,8 @@ export default function NotesDelivery() {
     { id: 'DEL-994', studentName: 'Tanvi Kulkarni', rollNumber: 'SA-2026-1045', bookTitle: 'Economics Term 1 Question Bank', status: 'Pending Pickup', date: '--', verifiedBy: '--' },
   ]);
 
+  const [editingDelivery, setEditingDelivery] = useState(null);
+
   const handleMarkDelivered = (id, studentName) => {
     setDeliveries(deliveries.map(d => {
       if (d.id === id) {
@@ -27,6 +29,13 @@ export default function NotesDelivery() {
     toast.success(`Book set delivery logged for ${studentName}!`);
   };
 
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    setDeliveries(deliveries.map(d => d.id === editingDelivery.id ? editingDelivery : d));
+    setEditingDelivery(null);
+    toast.success('Delivery record updated successfully!');
+  };
+
   return (
     <div className="d-flex flex-column gap-4">
       <div>
@@ -37,6 +46,37 @@ export default function NotesDelivery() {
           Verify physical study material handout upon student RFID card scan
         </span>
       </div>
+
+      {editingDelivery && (
+        <form onSubmit={handleUpdate} className="sa-card p-4 bg-light">
+          <h5>Edit Delivery: {editingDelivery.id}</h5>
+          <div className="row g-3 mt-2">
+            <div className="col-12 col-md-4">
+              <label className="form-label small fw-bold">Student Name</label>
+              <input type="text" className="form-control" value={editingDelivery.studentName} onChange={e => setEditingDelivery({...editingDelivery, studentName: e.target.value})} required />
+            </div>
+            <div className="col-12 col-md-4">
+              <label className="form-label small fw-bold">Roll No.</label>
+              <input type="text" className="form-control" value={editingDelivery.rollNumber} onChange={e => setEditingDelivery({...editingDelivery, rollNumber: e.target.value})} required />
+            </div>
+            <div className="col-12 col-md-4">
+              <label className="form-label small fw-bold">Material Package</label>
+              <input type="text" className="form-control" value={editingDelivery.bookTitle} onChange={e => setEditingDelivery({...editingDelivery, bookTitle: e.target.value})} required />
+            </div>
+            <div className="col-12 col-md-4">
+              <label className="form-label small fw-bold">Delivery Status</label>
+              <select className="form-select" value={editingDelivery.status} onChange={e => setEditingDelivery({...editingDelivery, status: e.target.value})}>
+                <option value="Pending Pickup">Pending Pickup</option>
+                <option value="Delivered">Delivered</option>
+              </select>
+            </div>
+            <div className="col-12 d-flex align-items-end gap-2">
+              <Button type="submit" variant="primary">Save Changes</Button>
+              <Button variant="outline" onClick={() => setEditingDelivery(null)}>Cancel</Button>
+            </div>
+          </div>
+        </form>
+      )}
 
       <div className="sa-card p-4">
         <Table
@@ -61,17 +101,26 @@ export default function NotesDelivery() {
               title: 'Action',
               align: 'end',
               render: (val, row) => (
-                row.status === 'Pending Pickup' ? (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleMarkDelivered(val, row.studentName)}
+                <div className="d-flex gap-2 justify-content-end align-items-center">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-1 text-primary"
+                    onClick={() => setEditingDelivery(row)}
                   >
-                    Confirm Handover
-                  </Button>
-                ) : (
-                  <span className="small text-success fw-semibold">Completed</span>
-                )
+                    Edit
+                  </button>
+                  {row.status === 'Pending Pickup' ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => handleMarkDelivered(val, row.studentName)}
+                    >
+                      Confirm Handover
+                    </Button>
+                  ) : (
+                    <span className="small text-success fw-semibold">Completed</span>
+                  )}
+                </div>
               )
             }
           ]}

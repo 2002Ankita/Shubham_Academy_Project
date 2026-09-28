@@ -123,6 +123,53 @@ export const attendanceService = {
         ]
       };
     }
+  },
+
+  checkIn: async (teacherId) => {
+    const payload = {
+      teacher_id: teacherId,
+      date: new Date().toISOString(),
+      status: 'Present'
+    };
+    const res = await api.post('/attendance/check-in', payload);
+    return res.data;
+  },
+
+  checkOut: async (teacherId) => {
+    const payload = {
+      teacher_id: teacherId,
+      date: new Date().toISOString(),
+      status: 'Present'
+    };
+    const res = await api.post('/attendance/check-out', payload);
+    return res.data;
+  },
+
+  getWorkingTime: async (teacherId) => {
+    const res = await api.get(`/attendance/teacher/${teacherId}`);
+    return res.data.map(r => {
+      const checkInDate = r.check_in_time ? new Date(r.check_in_time) : null;
+      const checkOutDate = r.check_out_time ? new Date(r.check_out_time) : null;
+      
+      let totalHours = '--';
+      if (checkInDate && checkOutDate) {
+        const diffMs = checkOutDate - checkInDate;
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        totalHours = `${diffHrs}h ${diffMins}m`;
+      }
+
+      return {
+        id: r.id,
+        date: new Date(r.date).toISOString().split('T')[0],
+        day: new Date(r.date).toLocaleDateString('en-US', { weekday: 'long' }),
+        checkIn: checkInDate ? checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+        checkOut: checkOutDate ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+        breakTime: '1h 00m',
+        totalHours: totalHours,
+        status: r.status
+      };
+    });
   }
 };
 

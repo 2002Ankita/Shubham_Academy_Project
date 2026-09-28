@@ -6,14 +6,18 @@ from bson import ObjectId
 import uuid
 
 async def _format_student(student: Student) -> dict:
-    if not isinstance(student.user, User):
-        await student.fetch_link(Student.user)
+    user_obj = None
+    if isinstance(student.user, User):
+        user_obj = student.user
+    elif student.user:
+        user_obj = await User.get(student.user.ref.id)
+        student.user = user_obj
     
     return {
         "id": str(student.id),
         "student_id": student.student_id,
-        "full_name": student.user.full_name if student.user else "",
-        "email": student.user.email if student.user else "",
+        "full_name": user_obj.full_name if user_obj else "",
+        "email": user_obj.email if user_obj else "",
         "mobile_number": student.mobile_number,
         "date_of_birth": student.date_of_birth,
         "gender": student.gender,
@@ -31,13 +35,19 @@ async def create_student(student_in: StudentCreate) -> dict:
     # 1. Create User account for student
     student_id = f"STU-{uuid.uuid4().hex[:6].upper()}"
     
+    from pymongo.errors import DuplicateKeyError
+    from fastapi import HTTPException
+    
     user = User(
         email=student_in.email if student_in.email else f"{student_id}@academy.com",
         hashed_password=get_password_hash("password123"), # Default password
         full_name=student_in.full_name,
         role="STUDENT"
     )
-    await user.insert()
+    try:
+        await user.insert()
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     # 2. Create Student profile
     student = Student(
@@ -60,32 +70,52 @@ async def get_students() -> list[dict]:
     students = await Student.find_all().to_list()
     return [await _format_student(s) for s in students]
 
-async def get_student_by_id(id: str) -> dict:
+async def resolve_student(id_str: str) -> Student:
     from bson.errors import InvalidId
+    from bson import ObjectId
+    student = None
     try:
-        student = await Student.get(ObjectId(id))
+        student = await Student.get(ObjectId(id_str))
     except InvalidId:
-        return None
+        pass
+    if not student:
+        try:
+            user_obj_id = ObjectId(id_str)
+            student = await Student.find_one(Student.user.id == user_obj_id)
+        except InvalidId:
+            pass
+    if not student:
+        student = await Student.find_one(Student.student_id == id_str)
+    return student
+
+async def get_student_by_id(id: str) -> dict:
+    student = await resolve_student(id)
     if not student:
         return None
     return await _format_student(student)
 
 async def update_student(id: str, student_in: dict) -> dict:
-    student = await Student.get(ObjectId(id))
+    student = await resolve_student(id)
     if not student:
         raise Exception("Student not found")
         
     # We might need to update user profile as well if full_name or email is passed
     if "full_name" in student_in or "email" in student_in:
+        from pymongo.errors import DuplicateKeyError
+        from fastapi import HTTPException
         if not isinstance(student.user, User):
-            await student.fetch_link(Student.user)
+            user_obj = await User.get(student.user.ref.id)
+            student.user = user_obj
         if "full_name" in student_in:
             student.user.full_name = student_in["full_name"]
             del student_in["full_name"]
         if "email" in student_in:
             student.user.email = student_in["email"]
             del student_in["email"]
-        await student.user.save()
+        try:
+            await student.user.save()
+        except DuplicateKeyError:
+            raise HTTPException(status_code=400, detail="Email already in use")
         
     if student_in:
         await student.set(student_in)
@@ -93,10 +123,11 @@ async def update_student(id: str, student_in: dict) -> dict:
     return await _format_student(student)
 
 async def delete_student(id: str):
-    student = await Student.get(ObjectId(id))
+    student = await resolve_student(id)
     if student:
         if not isinstance(student.user, User):
-            await student.fetch_link(Student.user)
+            user_obj = await User.get(student.user.ref.id)
+            student.user = user_obj
         if student.user:
             await student.user.delete()
         await student.delete()

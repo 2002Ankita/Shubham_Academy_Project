@@ -57,31 +57,23 @@ export default function LeaveForm({ onSubmitSuccess }) {
 
     setIsSubmitting(true);
 
-    const newRequest = {
-      id: `LR-2026-${Math.floor(100 + Math.random() * 900)}`,
-      leaveType,
-      fromDate,
-      toDate,
-      days: days || 1,
-      reason: reason.trim(),
-      appliedDate: 'Today',
-      status: 'Pending',
-      adminComment: 'Submitted. Pending Coordinator review.',
-      attachmentName: attachment ? attachment.name : null
+    const requestPayload = {
+      leave_type: leaveType,
+      from_date: fromDate,
+      to_date: toDate,
+      reason: reason.trim()
     };
 
-    setTimeout(() => {
-      onSubmitSuccess(newRequest);
+    onSubmitSuccess(requestPayload, () => {
       setIsSubmitting(false);
-      // Reset form
       setLeaveType('Casual Leave');
       setFromDate('');
       setToDate('');
       setDays(0);
       setReason('');
       setAttachment(null);
-      toast.success('Leave application submitted successfully!');
-    }, 400);
+    });
+    // Handled by callback
   };
 
   return (

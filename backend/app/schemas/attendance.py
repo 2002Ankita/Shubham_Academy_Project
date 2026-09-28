@@ -8,6 +8,8 @@ class AttendanceCreate(BaseModel):
     date: datetime
     status: str
     rfid_scan_time: Optional[datetime] = None
+    check_in_time: Optional[datetime] = None
+    check_out_time: Optional[datetime] = None
     remarks: Optional[str] = None
 
 class AttendanceResponse(AttendanceCreate):

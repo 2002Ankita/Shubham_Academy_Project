@@ -2,9 +2,20 @@ import api from './api';
 
 export const marksService = {
   getAll: async (params = {}) => {
-    // The backend currently does not support a global GET /api/marks endpoint.
-    // It only supports getting marks per student.
-    return [];
+    const res = await api.get('/marks', { params });
+    return res.data.map(mark => ({
+      id: mark.id,
+      studentId: mark.student_id,
+      studentName: mark.student_name || 'Student ID: ' + mark.student_id.substring(mark.student_id.length - 6),
+      rollNumber: mark.roll_number || 'N/A',
+      examTitle: mark.exam_name || `Exam ID: ${mark.exam_id}`,
+      subject: mark.subject || 'N/A',
+      maxMarks: mark.max_marks || 100,
+      obtainedMarks: mark.marks_obtained,
+      percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
+      grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+      remarks: mark.remarks
+    }));
   },
 
   getStudentResults: async (studentId) => {
@@ -12,13 +23,13 @@ export const marksService = {
     return res.data.map(mark => ({
       id: mark.id,
       studentId: mark.student_id,
-      studentName: 'Student ID: ' + mark.student_id.substring(mark.student_id.length - 6),
-      rollNumber: 'N/A',
-      examTitle: `Exam ID: ${mark.exam_id}`,
-      subject: 'N/A', // Subject not embedded in backend response
-      maxMarks: 100, // Mocked since not in backend response
+      studentName: mark.student_name || 'Student ID: ' + mark.student_id.substring(mark.student_id.length - 6),
+      rollNumber: mark.roll_number || 'N/A',
+      examTitle: mark.exam_name || `Exam ID: ${mark.exam_id}`,
+      subject: mark.subject || 'N/A',
+      maxMarks: mark.max_marks || 100,
       obtainedMarks: mark.marks_obtained,
-      percentage: mark.marks_obtained, // Mocked assuming max is 100
+      percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
       grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
       remarks: mark.remarks
     }));

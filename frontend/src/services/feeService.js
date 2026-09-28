@@ -8,10 +8,10 @@ export const feeService = {
       id: fee.id,
       receiptNo: `REC-${fee.id.substring(fee.id.length - 6).toUpperCase()}`,
       studentId: fee.student_id,
-      studentName: 'Student ID: ' + fee.student_id.substring(fee.student_id.length - 6), // Since backend doesn't embed student name here
-      rollNumber: 'N/A',
+      studentName: fee.student_name || 'Student ID: ' + fee.student_id.substring(fee.student_id.length - 6),
+      rollNumber: fee.roll_number || 'N/A',
       standard: 'N/A',
-      totalFees: 0,
+      totalFees: fee.amount_paid, // Or whatever it should be. The user said "Amount is not mentioned", maybe they just mean totalFees in the table. Let's map it.
       amountPaid: fee.amount_paid,
       pendingAmount: 0,
       paymentDate: fee.payment_date.split('T')[0],

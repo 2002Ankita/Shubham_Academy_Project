@@ -14,7 +14,7 @@ export const examService = {
       maxMarks: exam.max_marks,
       passingMarks: exam.passing_marks,
       roomNo: 'N/A', // Not stored in backend
-      status: new Date(exam.exam_date) < new Date() ? 'Completed' : 'Scheduled'
+      status: exam.status || (new Date(exam.exam_date) < new Date() ? 'Completed' : 'Scheduled')
     }));
   },
 
@@ -41,8 +41,15 @@ export const examService = {
   },
 
   delete: async (id) => {
-    // Note: Backend might not have DELETE /exams yet, but we will call it anyway.
     const res = await api.delete(`/exams/${id}`);
+    return res.data;
+  },
+
+  update: async (id, data) => {
+    const payload = {};
+    if (data.status) payload.status = data.status;
+    if (data.title) payload.exam_name = data.title;
+    const res = await api.put(`/exams/${id}`, payload);
     return res.data;
   }
 };

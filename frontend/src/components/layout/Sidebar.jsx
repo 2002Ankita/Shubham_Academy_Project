@@ -228,9 +228,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
         {/* User Role Tag - Hidden for Student, Super Admin & Teacher */}
         {!isStudent && !isSuperAdmin && !isTeacher && (
-          <div className="px-4 py-2 bg-black bg-opacity-15 d-flex align-items-center justify-content-between">
-            <span className="text-white text-opacity-75 small text-capitalize fw-medium">
-              Role: <strong className="text-warning">{user?.role?.replace('-', ' ')}</strong>
+          <div className="px-4 py-2 d-flex align-items-center justify-content-between">
+            <span className="text-white small text-capitalize fw-bold">
+              {user?.role?.replace('-', ' ')}
             </span>
             <span className="badge bg-success small py-1 px-2" style={{ fontSize: '0.65rem' }}>Active</span>
           </div>
@@ -478,16 +478,22 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
             </div>
           </div>
         ) : (
-          /* Original Footer Logout Action for Admin & Teacher */
-          <div className="p-2.5 border-top border-white border-opacity-10 bg-black bg-opacity-20">
-            <button
-              onClick={handleLogout}
-              className="btn btn-outline-light w-100 btn-sm d-flex align-items-center justify-content-center gap-2 py-1.5 rounded-2"
-              style={{ fontSize: '0.82rem' }}
+          /* Footer Brand Motto for Admin & Teacher */
+          <div className="px-3 pt-3 pb-3 text-center border-top border-white border-opacity-10 mt-auto">
+            <div
+              className="fw-bold text-white text-opacity-90"
+              style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
             >
-              <LogOut size={15} />
-              <span>Sign Out</span>
-            </button>
+              LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
+            </div>
+            <div
+              className="mx-auto mt-2 rounded-pill"
+              style={{
+                width: '48px',
+                height: '3px',
+                backgroundColor: 'var(--sa-mustard-yellow)'
+              }}
+            />
           </div>
         )}
       </aside>

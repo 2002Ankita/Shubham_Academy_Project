@@ -14,6 +14,7 @@ class Exam(Document):
     max_marks: float
     passing_marks: float
     teacher: Link[Teacher]
+    status: str = "Scheduled"
     created_at: datetime = datetime.utcnow()
 
     class Settings:

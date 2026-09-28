@@ -11,6 +11,8 @@ class Attendance(Document):
     date: datetime
     status: str # Present, Absent, Late, Leave, Half Day, Holiday
     rfid_scan_time: Optional[datetime] = None
+    check_in_time: Optional[datetime] = None
+    check_out_time: Optional[datetime] = None
     remarks: Optional[str] = None
 
     class Settings:

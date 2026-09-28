@@ -27,12 +27,12 @@ async def list_notices(token: str = Depends(oauth2_scheme)):
     notices = await get_notices()
     return [
         NoticeResponse(
-            id=str(n.id),
-            title=n.title,
-            content=n.content,
-            target_audiences=n.target_audiences,
-            target_batches=n.target_batches,
-            created_at=n.created_at,
-            created_by_name=n.created_by.full_name
+            id=str(n.get("id")),
+            title=n.get("title"),
+            content=n.get("content"),
+            target_audiences=n.get("target_audiences", []),
+            target_batches=n.get("target_batches", []),
+            created_at=n.get("created_at"),
+            created_by_name=n.get("created_by", {}).get("full_name") if n.get("created_by") else "Admin"
         ) for n in notices
     ]

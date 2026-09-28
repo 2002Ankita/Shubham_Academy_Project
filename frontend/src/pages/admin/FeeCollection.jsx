@@ -78,6 +78,11 @@ export default function FeeCollection() {
             { key: 'rollNumber', title: 'Roll No.' },
             { key: 'feeHead', title: 'Fee Particulars' },
             {
+              key: 'totalFees',
+              title: 'Total Amount',
+              render: (val) => <span className="fw-semibold">₹ {val?.toLocaleString() || 0}</span>
+            },
+            {
               key: 'amountPaid',
               title: 'Amount Paid',
               render: (val) => <span className="fw-bold text-success">₹ {val?.toLocaleString()}</span>

@@ -16,6 +16,7 @@ class ExamCreate(BaseModel):
 
 class ExamResponse(ExamCreate):
     id: str
+    status: str = "Scheduled"
 
 class MarkCreate(BaseModel):
     student_id: str
@@ -27,3 +28,8 @@ class MarkResponse(MarkCreate):
     id: str
     grade: str
     pass_status: bool
+    student_name: Optional[str] = ""
+    roll_number: Optional[str] = ""
+    exam_name: Optional[str] = ""
+    subject: Optional[str] = ""
+    max_marks: Optional[float] = 100
