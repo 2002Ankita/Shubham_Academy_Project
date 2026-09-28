@@ -21,7 +21,7 @@ export const salaryService = {
   },
 
   generateDrafts: async (monthName) => {
-    const res = await api.post(`/salary/generate/${monthName}`);
+    const res = await api.post(`/salary/generate/${encodeURIComponent(monthName)}`);
     return res.data;
   }
 };
