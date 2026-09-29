@@ -4,8 +4,9 @@ from typing import Optional
 
 class ExamCreate(BaseModel):
     exam_name: str
-    course: str
+    standard: str
     batch: str
+    branch: str
     subject: str
     exam_date: datetime
     start_time: datetime

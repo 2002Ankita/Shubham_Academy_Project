@@ -5,23 +5,29 @@ import marksService from '../../services/marksService';
 import { Award, Trophy, Download } from 'lucide-react';
 import reportService from '../../services/reportService';
 import { toast } from 'react-toastify';
+import useAuth from '../../hooks/useAuth';
 
 export default function StudentResults() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     const fetchResults = async () => {
+      if (!user) return;
       setLoading(true);
       try {
-        const data = await marksService.getStudentResults('STU-001');
+        const data = await marksService.getStudentResults(user.id);
         setResults(data);
+      } catch (err) {
+        toast.error('Failed to load results');
       } finally {
         setLoading(false);
       }
     };
     fetchResults();
-  }, []);
+  }, [user]);
 
   const handleDownload = () => {
     reportService.downloadReport('AARAV_DESHMUKH_REPORT_CARD_TERM1');

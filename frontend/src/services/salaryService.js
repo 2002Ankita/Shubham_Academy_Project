@@ -10,6 +10,15 @@ export const salaryService = {
     }
   },
 
+  getMySalaries: async () => {
+    try {
+      const res = await api.get('/salary/me');
+      return res.data;
+    } catch {
+      return [];
+    }
+  },
+
   updateSalary: async (salaryId, baseSalary, allowances, deductions, netPayable) => {
     const res = await api.put(`/salary/${salaryId}`, { baseSalary, allowances, deductions, netPayable });
     return res.data;

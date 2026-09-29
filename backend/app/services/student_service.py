@@ -24,8 +24,9 @@ async def _format_student(student: Student) -> dict:
         "address": student.address,
         "parent_name": student.parent_name,
         "parent_mobile": student.parent_mobile,
-        "course": student.course,
+        "standard": student.standard,
         "batch": student.batch,
+        "branch": student.branch,
         "academic_year": student.academic_year,
         "rfid_tag": student.rfid_tag,
         "admission_date": student.admission_date,
@@ -59,8 +60,9 @@ async def create_student(student_in: StudentCreate) -> dict:
         address=student_in.address,
         parent_name=student_in.parent_name,
         parent_mobile=student_in.parent_mobile,
-        course=student_in.course,
+        standard=student_in.standard,
         batch=student_in.batch,
+        branch=student_in.branch,
         academic_year=student_in.academic_year
     )
     await student.insert()

@@ -11,8 +11,9 @@ class StudentCreate(BaseModel):
     address: str
     parent_name: str
     parent_mobile: str
-    course: str
+    standard: str
     batch: str
+    branch: str
     academic_year: str
 
 class StudentResponse(StudentCreate):

@@ -36,9 +36,9 @@ export default function TeacherList() {
   };
 
   const filtered = teachers.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.subject.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase())
+    (t.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.subject || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (

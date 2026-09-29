@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from typing import List
 from app.schemas.salary import SalaryPaymentResponse, SalaryUpdateRequest
-from app.services.salary_service import get_all_salaries, update_salary, disburse_salary, generate_monthly_salaries
+from app.services.salary_service import get_all_salaries, update_salary, disburse_salary, generate_monthly_salaries, get_my_salaries
 from app.services.auth_service import get_current_user
 from app.routers.auth import oauth2_scheme
 
@@ -11,6 +11,11 @@ router = APIRouter(prefix="/salary", tags=["Salary"])
 async def list_salaries(token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     return await get_all_salaries()
+
+@router.get("/me", response_model=List[SalaryPaymentResponse])
+async def list_my_salaries(token: str = Depends(oauth2_scheme)):
+    user = await get_current_user(token)
+    return await get_my_salaries(user.id)
 
 @router.put("/{id}", response_model=SalaryPaymentResponse)
 async def update_salary_endpoint(id: str, req: SalaryUpdateRequest, token: str = Depends(oauth2_scheme)):

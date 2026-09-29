@@ -362,7 +362,7 @@ export default function Header({ onToggleSidebar }) {
                 onClick={() => {
                   setShowUserMenu(false);
                   if (user?.role === 'super-admin') navigate('/super-admin/settings');
-                  else if (user?.role === 'admin') navigate('/admin/dashboard');
+                  else if (user?.role === 'admin') navigate('/admin/profile');
                   else if (user?.role === 'teacher') navigate('/teacher/profile');
                   else navigate('/student/profile');
                 }}

@@ -7,6 +7,8 @@ class Notice(Document):
     content: str
     target_audiences: list[str] # e.g., ["STUDENT", "TEACHER", "ALL"]
     target_batches: list[str] = [] # empty means all batches
+    category: str = "General"
+    priority: str = "Normal"
     created_by: Link[User]
     created_at: datetime = datetime.utcnow()
 

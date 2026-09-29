@@ -48,12 +48,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Update user profile in state and localStorage
-  const updateUser = (updatedData) => {
-    setUser((prev) => {
-      const merged = { ...prev, ...updatedData };
-      localStorage.setItem('user', JSON.stringify(merged));
-      return merged;
-    });
+  const updateUser = async (updatedData) => {
+    try {
+      const merged = { ...user, ...updatedData };
+      const updatedBackend = await authService.updateProfile(merged);
+      setUser(updatedBackend);
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      // Fallback to local update if backend fails during dev
+      setUser((prev) => {
+        const merged = { ...prev, ...updatedData };
+        localStorage.setItem('user', JSON.stringify(merged));
+        return merged;
+      });
+    }
   };
 
   return (

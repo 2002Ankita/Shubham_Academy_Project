@@ -15,8 +15,8 @@ export default function StudentRegistration() {
       const created = await studentService.create(formData);
       toast.success(`Student ${created.name} registered with Roll No: ${created.rollNumber}!`);
       navigate('/admin/students');
-    } catch {
-      toast.error('Failed to register student');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to register student');
     } finally {
       setLoading(false);
     }

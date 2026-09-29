@@ -8,6 +8,8 @@ async def create_notice(notice_in: NoticeCreate, current_user: User) -> Notice:
         content=notice_in.content,
         target_audiences=notice_in.target_audiences,
         target_batches=notice_in.target_batches,
+        category=notice_in.category,
+        priority=notice_in.priority,
         created_by=current_user
     )
     await notice.insert()
@@ -24,3 +26,13 @@ async def get_notices() -> list[dict]:
         d["id"] = str(n.id)
         res.append(d)
     return res
+
+async def delete_notice(id: str):
+    from bson.errors import InvalidId
+    from bson import ObjectId
+    try:
+        notice = await Notice.get(ObjectId(id))
+        if notice:
+            await notice.delete()
+    except InvalidId:
+        pass

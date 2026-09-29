@@ -19,8 +19,9 @@ class FeeDetailsResponse(BaseModel):
     pending_fees: float
 
 class FeeStructureCreate(BaseModel):
-    course: str
+    standard: str
     batch: str
+    branch: str
     academic_year: str
     total_fee: float
     installment_amount: float
@@ -34,8 +35,9 @@ class FeeStructureResponse(FeeStructureCreate):
 class PendingFeeResponse(BaseModel):
     student_id: str
     student_name: str
-    course: str
+    standard: str
     batch: str
+    branch: str
     total_fees: float
     amount_paid: float
     pending_fees: float

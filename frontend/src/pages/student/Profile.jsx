@@ -37,7 +37,7 @@ export default function StudentProfile() {
     rollNumber: user?.rollNumber || 'SA-2026-1042',
     admissionId: 'ADM-2024-089',
     standard: user?.standard || '12th Science',
-    batch: user?.batch || 'Batch Alpha (Morning)',
+    batch: user?.batch || '12th pcm tarabai park',
     rfidCard: user?.rfidCard || 'RFID-984210',
     status: 'Active Student',
     feesStatus: 'Paid',

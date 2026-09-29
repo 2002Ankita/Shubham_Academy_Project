@@ -3,8 +3,9 @@ from datetime import datetime
 from app.models.student import Student
 
 class FeeStructure(Document):
-    course: str
+    standard: str
     batch: str
+    branch: str
     academic_year: str
     total_fee: float
     installment_amount: float

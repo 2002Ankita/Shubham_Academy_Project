@@ -184,7 +184,10 @@ export default function TeacherSalary() {
               label="Base Salary (₹) *"
               type="number"
               value={editForm.baseSalary}
-              onChange={(e) => setEditForm({ ...editForm, baseSalary: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEditForm(prev => ({ ...prev, baseSalary: val }));
+              }}
               required
             />
           </div>
@@ -194,7 +197,10 @@ export default function TeacherSalary() {
                 label="Allowances (₹) *"
                 type="number"
                 value={editForm.allowances}
-                onChange={(e) => setEditForm({ ...editForm, allowances: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditForm(prev => ({ ...prev, allowances: val }));
+                }}
                 required
               />
             </div>
@@ -203,7 +209,10 @@ export default function TeacherSalary() {
                 label="Deductions (₹) *"
                 type="number"
                 value={editForm.deductions}
-                onChange={(e) => setEditForm({ ...editForm, deductions: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditForm(prev => ({ ...prev, deductions: val }));
+                }}
                 required
               />
             </div>
@@ -213,7 +222,10 @@ export default function TeacherSalary() {
               label="Net Payable (₹) *"
               type="number"
               value={editForm.netPayable}
-              onChange={(e) => setEditForm({ ...editForm, netPayable: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEditForm(prev => ({ ...prev, netPayable: val }));
+              }}
               required
             />
           </div>

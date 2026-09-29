@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import WorkingTimeSummary from '../components/working-time/WorkingTimeSummary';
 import WorkingTimeProgress from '../components/working-time/WorkingTimeProgress';
 import WorkingTimeTable from '../components/working-time/WorkingTimeTable';
-import { workingTimeSummary } from '../data/workingTimeData';
 import attendanceService from '../services/attendanceService';
 import useAuth from '../hooks/useAuth';
 import { toast } from 'react-toastify';
@@ -48,6 +47,36 @@ export default function WorkingTime() {
       toast.error(err.response?.data?.detail || 'Failed to check out');
     }
   };
+
+  const totalRequired = 160;
+  let totalWorked = 0;
+  let presentDays = 0;
+  let absentDays = 0;
+  let lateDays = 0;
+
+  records.forEach(r => {
+    if (r.status === 'Present') presentDays++;
+    else if (r.status === 'Absent') absentDays++;
+    else if (r.status === 'Late') lateDays++;
+    
+    // Naive parse like "8h 15m" to hours
+    if (r.totalHours) {
+      const match = r.totalHours.match(/(\d+)h/);
+      if (match) {
+        totalWorked += parseInt(match[1]);
+      }
+    }
+  });
+
+  const workingTimeSummary = {
+    totalWorkedHours: `${totalWorked}h 00m`,
+    totalRequiredHours: `${totalRequired}h`,
+    averageDailyHours: presentDays > 0 ? `${(totalWorked / presentDays).toFixed(1)}h` : '0h',
+    presentDays,
+    absentDays,
+    lateDays
+  };
+
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '22px' }}>
       {/* 1. Page Header */}

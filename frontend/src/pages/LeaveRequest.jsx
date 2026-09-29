@@ -3,13 +3,12 @@ import LeaveSummary from '../components/leave/LeaveSummary';
 import LeaveForm from '../components/leave/LeaveForm';
 import LeaveHistory from '../components/leave/LeaveHistory';
 import LeaveDetailsModal from '../components/leave/LeaveDetailsModal';
-import { initialLeaveBalance } from '../data/leaveData';
 import leaveService from '../services/leaveService';
 import useAuth from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
 export default function LeaveRequest() {
-  const [balance, setBalance] = useState(initialLeaveBalance);
+  const [balance, setBalance] = useState({ total: 24, taken: 0, pending: 0, available: 24 });
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const { user } = useAuth();
@@ -35,7 +34,23 @@ export default function LeaveRequest() {
         adminComment: r.admin_comment
       }));
       setRequests(formatted);
-      // Optional: recalculate balance based on approved leaves
+      
+      // Recalculate balance based on approved leaves
+      let taken = 0;
+      let pending = 0;
+      formatted.forEach(r => {
+        if (r.status === 'Approved') taken += r.days;
+        if (r.status === 'Pending') pending += 1;
+      });
+      
+      const total = 24;
+      setBalance({
+        total,
+        taken,
+        pending,
+        available: total - taken
+      });
+
     } catch (err) {
       toast.error('Failed to load leave requests');
     }
@@ -55,16 +70,16 @@ export default function LeaveRequest() {
     }
   };
 
-  const handleCancelRequest = (requestId) => {
-    setRequests(prev =>
-      prev.map(r => (r.id === requestId ? { ...r, status: 'Cancelled', adminComment: 'Cancelled by teacher.' } : r))
-    );
-    setBalance(prev => ({
-      ...prev,
-      pending: Math.max(0, prev.pending - 1)
-    }));
-    setSelectedRequest(null);
-    toast.info(`Leave request ${requestId} has been cancelled.`);
+  const handleCancelRequest = async (requestId) => {
+    try {
+      // API call to cancel the request
+      await leaveService.updateLeaveStatus(requestId, 'Cancelled', 'Cancelled by teacher.');
+      toast.info(`Leave request has been cancelled.`);
+      fetchRequests();
+      setSelectedRequest(null);
+    } catch (err) {
+      toast.error('Failed to cancel leave request.');
+    }
   };
 
   return (

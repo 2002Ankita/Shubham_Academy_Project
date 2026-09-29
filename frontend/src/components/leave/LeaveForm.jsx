@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, FileText, Paperclip, Send } from 'lucide-react';
-import { leaveTypes } from '../../data/leaveData';
 import { toast } from 'react-toastify';
+
+const leaveTypes = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Maternity Leave', 'Paternity Leave', 'Other'];
 
 export default function LeaveForm({ onSubmitSuccess }) {
   const [leaveType, setLeaveType] = useState('Casual Leave');

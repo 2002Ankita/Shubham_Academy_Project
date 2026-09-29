@@ -16,11 +16,12 @@ async def init_db():
     from app.models.salary import SalaryPayment
     from app.models.material import Material
     from app.models.leave_request import LeaveRequest
+    from app.models.inventory import InventoryItem, InventoryDelivery
     
     # We will add our models to the document_models list later as we create them
     await init_beanie(
         database=database, 
         document_models=[
-            User, Student, Teacher, Attendance, FeeStructure, FeePayment, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest
+            User, Student, Teacher, Attendance, FeeStructure, FeePayment, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery
         ]
     )
