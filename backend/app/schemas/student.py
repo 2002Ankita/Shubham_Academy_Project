@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
 
-class StudentCreate(BaseModel):
+class StudentBase(BaseModel):
     full_name: str
     email: Optional[EmailStr] = None
     mobile_number: str
@@ -16,7 +16,10 @@ class StudentCreate(BaseModel):
     branch: str
     academic_year: str
 
-class StudentResponse(StudentCreate):
+class StudentCreate(StudentBase):
+    password: str
+
+class StudentResponse(StudentBase):
     id: str
     student_id: str
     rfid_tag: Optional[str] = None

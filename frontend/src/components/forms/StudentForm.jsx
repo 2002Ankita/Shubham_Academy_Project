@@ -15,6 +15,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     parentName: initialData?.parentName || '',
     parentPhone: initialData?.parentPhone || '',
     address: initialData?.address || '',
+    password: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -30,6 +31,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     if (!formData.email.trim()) newErrors.email = 'Email address is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.parentPhone.trim()) newErrors.parentPhone = 'Parent phone is required';
+    if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -76,6 +78,19 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
             onChange={handleChange}
             error={errors.phone}
             required
+          />
+        </div>
+
+        <div className="col-12 col-md-6">
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            placeholder="Enter password"
+            value={formData.password}
+            onChange={handleChange}
+            error={errors.password}
+            required={!initialData}
           />
         </div>
 

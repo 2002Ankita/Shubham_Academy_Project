@@ -38,6 +38,7 @@ export const teacherService = {
     const payload = {
       full_name: data.name || data.full_name,
       email: data.email,
+      password: data.password,
       mobile_number: data.phone || data.mobile_number,
       subjects: [data.subject || 'General'],
       assigned_batches: data.assignedClasses || [],

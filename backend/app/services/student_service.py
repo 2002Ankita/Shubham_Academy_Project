@@ -41,7 +41,7 @@ async def create_student(student_in: StudentCreate) -> dict:
     
     user = User(
         email=student_in.email if student_in.email else f"{student_id}@academy.com",
-        hashed_password=get_password_hash("password123"), # Default password
+        hashed_password=get_password_hash(student_in.password),
         full_name=student_in.full_name,
         role="STUDENT"
     )
@@ -83,7 +83,7 @@ async def resolve_student(id_str: str) -> Student:
     if not student:
         try:
             user_obj_id = ObjectId(id_str)
-            student = await Student.find_one(Student.user.id == user_obj_id)
+            student = await Student.find_one({"user.$id": user_obj_id})
         except InvalidId:
             pass
     if not student:

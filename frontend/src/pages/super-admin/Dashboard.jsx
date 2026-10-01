@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import studentService from '../../services/studentService';
+import attendanceService from '../../services/attendanceService';
+import feeService from '../../services/feeService';
+import examService from '../../services/examService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -24,9 +28,7 @@ import {
   UserPlus,
   Package,
   FileText,
-  ChevronDown,
-  ArrowRight,
-  Clock
+  ChevronDown
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
@@ -36,53 +38,90 @@ export default function SuperAdminDashboard() {
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
   const [feePeriod, setFeePeriod] = useState('This Month');
 
+  // Dynamic Data States
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [presentToday, setPresentToday] = useState(0);
+  const [monthlyFees, setMonthlyFees] = useState(0);
+  const [pendingFees, setPendingFees] = useState(0);
+  const [recentAdmissions, setRecentAdmissions] = useState([]);
+  const [upcomingExams, setUpcomingExams] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [studentsRes, attendanceRes, feesRes, examsRes] = await Promise.allSettled([
+          studentService.getAll(),
+          attendanceService.getLogs(),
+          feeService.getAll(),
+          examService.getAll()
+        ]);
+
+        if (studentsRes.status === 'fulfilled') {
+          const students = studentsRes.value || [];
+          setTotalStudents(students.length);
+          
+          // Sort for recent admissions (mock logic, based on ID for now)
+          const sorted = [...students].reverse().slice(0, 5).map((s, idx) => ({
+            id: idx + 1,
+            name: s.name,
+            class: s.standard || 'N/A',
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            status: s.status || 'Active'
+          }));
+          setRecentAdmissions(sorted);
+        }
+
+        if (attendanceRes.status === 'fulfilled') {
+          // just an example of dynamic count
+          setPresentToday(attendanceRes.value?.length || 0);
+        }
+
+        if (feesRes.status === 'fulfilled') {
+          const fees = feesRes.value || [];
+          const collected = fees.reduce((acc, f) => acc + (Number(f.amountPaid) || 0), 0);
+          const pending = fees.reduce((acc, f) => acc + (Number(f.pendingAmount) || 0), 0);
+          setMonthlyFees(collected);
+          setPendingFees(pending);
+        }
+
+        if (examsRes.status === 'fulfilled') {
+          const exams = examsRes.value || [];
+          const upcoming = exams.slice(0, 4).map(e => ({
+            day: new Date(e.date || Date.now()).getDate().toString().padStart(2, '0'),
+            month: new Date(e.date || Date.now()).toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+            title: e.title,
+            class: e.classBatch || 'All',
+            countdown: 'Upcoming'
+          }));
+          setUpcomingExams(upcoming);
+        }
+      } catch (err) {
+        console.error('Error fetching admin dashboard data:', err);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   // Exact data from reference screenshot
   const attendanceData = [
-    { day: 'Mon', present: 1052, absent: 196 },
-    { day: 'Tue', present: 1089, absent: 159 },
-    { day: 'Wed', present: 1076, absent: 172 },
-    { day: 'Thu', present: 1103, absent: 145 },
-    { day: 'Fri', present: 1086, absent: 162 },
-    { day: 'Sat', present: 980, absent: 268 },
-    { day: 'Sun', present: 910, absent: 338 },
+    { day: 'Mon', present: 0, absent: 0 },
+    { day: 'Tue', present: 0, absent: 0 },
+    { day: 'Wed', present: 0, absent: 0 },
+    { day: 'Thu', present: 0, absent: 0 },
+    { day: 'Fri', present: 0, absent: 0 },
+    { day: 'Sat', present: 0, absent: 0 },
+    { day: 'Sun', present: 0, absent: 0 },
   ];
 
   const feeData = [
-    { name: 'Collected', value: 86.9, amount: '₹8.45L', color: '#8B1216' },
-    { name: 'Pending', value: 13.1, amount: '₹1.28L', color: '#F5A900' }
+    { name: 'Collected', value: 0, amount: '₹0', color: '#8B1216' },
+    { name: 'Pending', value: 0, amount: '₹0', color: '#F5A900' }
   ];
 
-  const scheduleList = [
-    { time: '09:00 AM', title: 'Mathematics (Class 10)', color: '#8B1216' },
-    { time: '10:00 AM', title: 'Physics (Class 12)', color: '#F5A900' },
-    { time: '11:00 AM', title: 'English (Class 9)', color: '#F5A900' },
-    { time: '12:00 PM', title: 'Chemistry (Class 11)', color: '#8B1216' },
-    { time: '02:00 PM', title: 'Doubt Session', color: '#F5A900' },
-    { time: '04:00 PM', title: 'Parent Meeting', color: '#8B1216' },
-  ];
+  const scheduleList = [];
 
-  const recentAdmissions = [
-    { id: 1, name: 'Aarav Sharma', class: '11th', date: '26 May 2025', status: 'Active' },
-    { id: 2, name: 'Sneha Verma', class: '9th', date: '25 May 2025', status: 'Active' },
-    { id: 3, name: 'Rohan Patel', class: '12th', date: '24 May 2025', status: 'Active' },
-    { id: 4, name: 'Isha Maurya', class: '10th', date: '24 May 2025', status: 'Active' },
-    { id: 5, name: 'Kunal Singh', class: '9th', date: '23 May 2025', status: 'Active' },
-  ];
-
-  const lowStockItems = [
-    { name: 'Classmate Notebook (200 Pages)', count: '8 left', type: 'danger' },
-    { name: 'Blue Ball Pen', count: '12 left', type: 'danger' },
-    { name: 'A4 Practical File', count: '15 left', type: 'warning' },
-    { name: 'White Board Marker', count: '7 left', type: 'danger' },
-    { name: 'Exam Answer Sheet', count: '18 left', type: 'warning' },
-  ];
-
-  const upcomingExams = [
-    { day: '28', month: 'MAY', title: 'Unit Test - Mathematics', class: 'Class 10', countdown: '3 days left' },
-    { day: '30', month: 'MAY', title: 'Monthly Test - Science', class: 'Class 9', countdown: '5 days left' },
-    { day: '02', month: 'JUN', title: 'Half Yearly - English', class: 'Class 12', countdown: '8 days left' },
-    { day: '05', month: 'JUN', title: 'Unit Test - Social Science', class: 'Class 8', countdown: '11 days left' },
-  ];
+  const lowStockItems = [];
 
   return (
     <div className="d-flex flex-column gap-3.5 pb-4">
@@ -131,10 +170,10 @@ export default function SuperAdminDashboard() {
                 Total Students
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.6rem', lineHeight: 1.15 }}>
-                1,248
+                {totalStudents}
               </div>
               <span className="fw-semibold" style={{ fontSize: '0.78rem', color: '#168554' }}>
-                ↗ +12 this month
+                ↗ +0 this month
               </span>
             </div>
           </div>
@@ -158,10 +197,10 @@ export default function SuperAdminDashboard() {
                 Present Today
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.6rem', lineHeight: 1.15 }}>
-                1,086
+                {presentToday}
               </div>
               <span className="fw-semibold" style={{ fontSize: '0.78rem', color: '#168554' }}>
-                ↗ 87.1% attendance
+                ↗ 0% attendance
               </span>
             </div>
           </div>
@@ -185,10 +224,10 @@ export default function SuperAdminDashboard() {
                 Monthly Fees
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.6rem', lineHeight: 1.15 }}>
-                ₹8.45L
+                ₹{monthlyFees.toLocaleString('en-IN')}
               </div>
               <span className="fw-semibold" style={{ fontSize: '0.78rem', color: '#168554' }}>
-                ↗ +6.2% from last month
+                ↗ +0% from last month
               </span>
             </div>
           </div>
@@ -212,10 +251,10 @@ export default function SuperAdminDashboard() {
                 Pending Fees
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.6rem', lineHeight: 1.15 }}>
-                ₹1.28L
+                ₹{pendingFees.toLocaleString('en-IN')}
               </div>
               <span className="fw-semibold" style={{ fontSize: '0.78rem', color: '#DC2626' }}>
-                ↗ +4.8% from last month
+                ↗ +0% from last month
               </span>
             </div>
           </div>
@@ -356,7 +395,7 @@ export default function SuperAdminDashboard() {
               {/* Center Text */}
               <div className="position-absolute top-50 start-50 translate-middle text-center" style={{ pointerEvents: 'none' }}>
                 <div className="fw-extrabold text-sa-charcoal" style={{ fontSize: '1.10rem', lineHeight: 1.1 }}>
-                  ₹8.45L
+                  ₹{monthlyFees.toLocaleString('en-IN')}
                 </div>
                 <div className="text-sa-muted" style={{ fontSize: '0.72rem' }}>
                   Collected
@@ -368,11 +407,11 @@ export default function SuperAdminDashboard() {
             <div className="d-flex align-items-center justify-content-center gap-3 pt-2 border-top mt-1" style={{ fontSize: '0.78rem' }}>
               <div className="d-flex align-items-center gap-1.5">
                 <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#8B1216' }} />
-                <span className="text-sa-charcoal fw-semibold">Collected ₹8.45L</span>
+                <span className="text-sa-charcoal fw-semibold">Collected ₹{monthlyFees.toLocaleString('en-IN')}</span>
               </div>
               <div className="d-flex align-items-center gap-1.5">
                 <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#F5A900' }} />
-                <span className="text-sa-charcoal fw-semibold">Pending ₹1.28L</span>
+                <span className="text-sa-charcoal fw-semibold">Pending ₹{pendingFees.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>

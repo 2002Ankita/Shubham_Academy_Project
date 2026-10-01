@@ -9,6 +9,7 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const location = useLocation();
+  const [globalDateFilter, setGlobalDateFilter] = useState(new Date().toISOString().split('T')[0]);
 
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
   const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
@@ -34,10 +35,14 @@ export default function DashboardLayout() {
           id="main-content-wrapper"
           style={{ minWidth: 0, overflowX: 'hidden' }}
         >
-          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
+          <Header 
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
+            globalDateFilter={globalDateFilter} 
+            setGlobalDateFilter={setGlobalDateFilter} 
+          />
 
           <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : isTeacher ? 'px-3 py-3 px-md-4 py-md-3' : 'p-3 p-md-4'}`}>
-            <Outlet />
+            <Outlet context={{ globalDateFilter, setGlobalDateFilter }} />
           </main>
 
           {!isTeacher && <Footer />}

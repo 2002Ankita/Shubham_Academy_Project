@@ -34,7 +34,7 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
 
     user = User(
         email=teacher_in.email,
-        hashed_password=get_password_hash("password123"), # Default password
+        hashed_password=get_password_hash(teacher_in.password),
         full_name=teacher_in.full_name,
         role="TEACHER"
     )
@@ -69,7 +69,7 @@ async def resolve_teacher(id_str: str) -> Teacher:
     if not teacher:
         try:
             user_obj_id = ObjectId(id_str)
-            teacher = await Teacher.find_one(Teacher.user.id == user_obj_id)
+            teacher = await Teacher.find_one({"user.$id": user_obj_id})
         except InvalidId:
             pass
     if not teacher:

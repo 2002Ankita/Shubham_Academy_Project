@@ -132,6 +132,7 @@ export default function AppRoutes() {
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
+        <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<RFIDAttendance />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
         <Route path="/admin/fees" element={<FeeCollection />} />

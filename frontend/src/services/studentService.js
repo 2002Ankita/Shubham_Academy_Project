@@ -41,6 +41,7 @@ export const studentService = {
     const payload = {
       full_name: data.name || data.full_name,
       email: data.email,
+      password: data.password,
       mobile_number: data.phone || data.mobile_number,
       date_of_birth: data.date_of_birth || new Date().toISOString(),
       gender: data.gender || 'Male',
