@@ -6,7 +6,8 @@ import {
   ScanLine,
   FilePlus,
   BookOpen,
-  Bell
+  Bell,
+  StickyNote
 } from 'lucide-react';
 
 export default function QuickActions({ role = 'admin', onTriggerAction }) {
@@ -25,8 +26,8 @@ export default function QuickActions({ role = 'admin', onTriggerAction }) {
       return [
         { label: 'Mark Attendance', icon: ScanLine, path: '/teacher/attendance', color: '#A91F1F' },
         { label: 'Enter Exam Marks', icon: FilePlus, path: '/teacher/marks', color: '#D5A61C' },
-        { label: 'Upload Materials', icon: BookOpen, path: '/teacher/study-materials', color: '#168554' },
-        { label: 'Post Notice', icon: Bell, path: '/teacher/announcements', color: '#D97718' },
+        { label: 'Teacher Notes', icon: StickyNote, path: '/teacher/notes', color: '#168554' },
+        { label: 'Upload Materials', icon: BookOpen, path: '/teacher/study-materials', color: '#D97718' },
       ];
     }
     // student

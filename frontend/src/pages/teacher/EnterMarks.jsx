@@ -39,14 +39,15 @@ export default function EnterMarks() {
   };
 
   return (
-    <div className="d-flex flex-column gap-4">
-      <div>
-        <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+    <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
+      {/* Header */}
+      <div className="d-flex flex-column pt-0 pb-0.5">
+        <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
           Faculty Marks Entry Portal
-        </h3>
-        <span className="small text-sa-muted">
+        </h1>
+        <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
           Record student theory and practical marks with feedback
-        </span>
+        </p>
       </div>
 
       <MarksForm
@@ -55,27 +56,31 @@ export default function EnterMarks() {
         onSubmit={handleMarksSubmit}
       />
 
-      <div className="sa-card p-4">
-        <h5 className="brand-font fw-bold text-sa-charcoal mb-3 fs-6">
+      <div className="d-flex flex-column gap-2 mt-2">
+        <h2 className="brand-font fw-bold m-0 fs-6" style={{ color: '#0F172A' }}>
           Recent Marks Evaluations
-        </h5>
+        </h2>
 
         <Table
           columns={[
-            { key: 'studentName', title: 'Student', render: (val) => <span className="fw-bold">{val}</span> },
+            { key: 'studentName', title: 'Student', render: (val) => <span className="fw-semibold text-sa-charcoal">{val}</span> },
             { key: 'rollNumber', title: 'Roll No.' },
             { key: 'examTitle', title: 'Exam' },
             { key: 'subject', title: 'Subject' },
             {
               key: 'obtainedMarks',
               title: 'Score',
-              render: (val, row) => <span className="fw-bold text-sa-primary">{val} / {row.maxMarks}</span>
+              render: (val, row) => <span className="fw-bold" style={{ color: '#8B1216' }}>{val} / {row.maxMarks}</span>
             },
             { key: 'percentage', title: '%', render: (val) => `${val}%` },
             {
               key: 'grade',
               title: 'Grade',
-              render: (val) => <span className="badge bg-success small">{val}</span>
+              render: (val) => (
+                <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-2 fw-medium">
+                  {val}
+                </span>
+              )
             },
             { key: 'remarks', title: 'Faculty Remark' }
           ]}

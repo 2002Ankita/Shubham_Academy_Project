@@ -32,7 +32,9 @@ import {
   Package,
   PhoneCall,
   Clock,
-  Calendar
+  Calendar,
+  Wallet,
+  StickyNote
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -102,8 +104,10 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Notes', path: '/teacher/notes', icon: StickyNote },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
+        { label: 'My Profile', path: '/teacher/profile', icon: User },
       ];
     }
 
@@ -139,6 +143,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Examinations', path: '/student/exams', icon: FileText },
       { label: 'Results', path: '/student/results', icon: BarChart3 },
       { label: 'Study Materials', path: '/student/study-materials', icon: BookOpen },
+      { label: 'Teacher Notes', path: '/student/notes', icon: StickyNote },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud },
       { label: 'Announcements', path: '/student/announcements', icon: Megaphone },
     ];
@@ -209,8 +214,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               }}
             />
             <div
-              className="text-white text-opacity-90 mt-1.5"
-              style={{ fontSize: '0.74rem', letterSpacing: '0.02em', fontWeight: 400 }}
+              className="text-white text-opacity-90 mt-1"
+              style={{ fontSize: '0.72rem', letterSpacing: '0.02em', fontWeight: 400 }}
             >
               Education Builds Brighter Future
             </div>
@@ -413,17 +418,17 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
             {/* Super Admin Brand Motto */}
             <div className="px-3 pt-3 pb-3 text-center flex-shrink-0 border-top border-white border-opacity-10">
               <div
-                className="fw-bold text-white text-opacity-90"
-                style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
+                className="fw-bold text-white text-opacity-95"
+                style={{ fontSize: '0.70rem', letterSpacing: '0.12em' }}
               >
-                LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
+                LEARN <span style={{ color: '#F59E0B', margin: '0 4px' }}>|</span> GROW <span style={{ color: '#F59E0B', margin: '0 4px' }}>|</span> SUCCEED
               </div>
               <div
-                className="mx-auto mt-2 rounded-pill"
+                className="mx-auto mt-1.5 rounded-pill"
                 style={{
-                  width: '48px',
+                  width: '46px',
                   height: '3px',
-                  backgroundColor: 'var(--sa-mustard-yellow)'
+                  backgroundColor: '#F59E0B'
                 }}
               />
             </div>
