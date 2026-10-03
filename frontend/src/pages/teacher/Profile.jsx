@@ -47,17 +47,25 @@ export default function TeacherProfile() {
   };
 
   return (
-    <div className="d-flex flex-column gap-4" style={{ maxWidth: '800px' }}>
-      <div>
-        <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+    <div className="d-flex flex-column w-100" style={{ gap: '16px', maxWidth: '820px', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="d-flex flex-column pt-0 pb-0.5">
+        <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
           Faculty Profile
-        </h3>
-        <span className="small text-sa-muted">
+        </h1>
+        <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
           Your credentials, contact information, and teaching portfolio
-        </span>
+        </p>
       </div>
 
-      <div className="sa-card p-4">
+      <div
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+          padding: '24px'
+        }}
+      >
         <div className="d-flex align-items-center gap-4 pb-4 border-bottom mb-4">
           {/* Avatar with Camera upload badge button */}
           <div className="position-relative flex-shrink-0">
@@ -152,9 +160,21 @@ export default function TeacherProfile() {
           </div>
 
           <div className="d-flex justify-content-end mt-4 pt-3 border-top">
-            <Button type="submit" variant="primary">
+            <button
+              type="submit"
+              className="btn text-white fw-semibold shadow-xs"
+              style={{
+                backgroundColor: '#8B1216',
+                borderRadius: '8px',
+                fontSize: '13px',
+                padding: '8px 20px',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+            >
               Save Profile Changes
-            </Button>
+            </button>
           </div>
         </form>
       </div>

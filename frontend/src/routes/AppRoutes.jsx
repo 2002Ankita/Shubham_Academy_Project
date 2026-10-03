@@ -57,6 +57,7 @@ import TeacherAttendance from '../pages/teacher/Attendance';
 import TeacherExaminations from '../pages/teacher/Examinations';
 import TeacherEnterMarks from '../pages/teacher/EnterMarks';
 import TeacherStudyMaterials from '../pages/teacher/StudyMaterials';
+import TeacherNotes from '../pages/teacher/Notes';
 import TeacherAnnouncements from '../pages/teacher/Announcements';
 import TeacherProfile from '../pages/teacher/Profile';
 import LeaveRequest from '../pages/LeaveRequest';
@@ -71,6 +72,7 @@ import StudentFees from '../pages/student/Fees';
 import StudentExaminations from '../pages/student/Examinations';
 import StudentResults from '../pages/student/Results';
 import StudentStudyMaterials from '../pages/student/StudyMaterials';
+import StudentNotes from '../pages/student/Notes';
 import StudentNotesDelivery from '../pages/student/NotesDelivery';
 import StudentAnnouncements from '../pages/student/Announcements';
 import StudentProfile from '../pages/student/Profile';
@@ -172,6 +174,7 @@ export default function AppRoutes() {
         <Route path="/teacher/exams" element={<TeacherExaminations />} />
         <Route path="/teacher/marks" element={<TeacherEnterMarks />} />
         <Route path="/teacher/study-materials" element={<TeacherStudyMaterials />} />
+        <Route path="/teacher/notes" element={<TeacherNotes />} />
         <Route path="/teacher/announcements" element={<TeacherAnnouncements />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
       </Route>
@@ -191,6 +194,7 @@ export default function AppRoutes() {
         <Route path="/student/exams" element={<StudentExaminations />} />
         <Route path="/student/results" element={<StudentResults />} />
         <Route path="/student/study-materials" element={<StudentStudyMaterials />} />
+        <Route path="/student/notes" element={<StudentNotes />} />
         <Route path="/student/notes-delivery" element={<StudentNotesDelivery />} />
         <Route path="/student/announcements" element={<StudentAnnouncements />} />
         <Route path="/student/profile" element={<StudentProfile />} />
