@@ -79,7 +79,7 @@ export default function SalarySummary({ summary }) {
               {summary.workingHours}
             </div>
             <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10.5px', color: '#168554' }}>
-              68% of 48 hrs quota
+              {summary.workingHoursSubtext}
             </span>
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function SalarySummary({ summary }) {
               {summary.hourlyRate}
             </div>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10.5px' }}>
-              Contract teaching slab
+              {summary.hourlyRateSubtext}
             </span>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function SalarySummary({ summary }) {
               {summary.paymentStatus}
             </div>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10.5px' }}>
-              Disbursement by 5th Oct
+              {summary.paymentStatusSubtext}
             </span>
           </div>
         </div>

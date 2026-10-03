@@ -13,6 +13,7 @@ class Attendance(Document):
     rfid_scan_time: Optional[datetime] = None
     check_in_time: Optional[datetime] = None
     check_out_time: Optional[datetime] = None
+    total_hours: Optional[str] = None
     remarks: Optional[str] = None
 
     class Settings:

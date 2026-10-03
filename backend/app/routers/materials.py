@@ -39,7 +39,9 @@ async def upload_material(
     from app.services.teacher_service import resolve_teacher
     teacher = await resolve_teacher(str(user.id))
     
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    import uuid
+    safe_filename = f"{uuid.uuid4().hex}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
@@ -100,4 +102,7 @@ async def download_material(id: str, token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=404, detail="Material not found")
     if not os.path.exists(mat.file_path):
         raise HTTPException(status_code=404, detail="File not found on server")
-    return FileResponse(mat.file_path, filename=os.path.basename(mat.file_path))
+    filename = os.path.basename(mat.file_path)
+    if "_" in filename and len(filename.split("_")[0]) == 32:
+        filename = filename[33:]
+    return FileResponse(mat.file_path, filename=filename)

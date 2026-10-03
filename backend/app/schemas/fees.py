@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 class FeePaymentCreate(BaseModel):
     student_id: str
@@ -7,10 +8,15 @@ class FeePaymentCreate(BaseModel):
     payment_method: str
     transaction_reference: str
     remarks: str
+    total_course_fees_override: Optional[float] = None
 
 class FeePaymentResponse(FeePaymentCreate):
     id: str
     payment_date: datetime
+    student_name: str
+    roll_number: str
+    total_fees: float
+    pending_fees: float
 
 class FeeDetailsResponse(BaseModel):
     student_id: str

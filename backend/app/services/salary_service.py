@@ -80,10 +80,11 @@ async def generate_monthly_salaries(month_name: str):
     for t in teachers:
         # Check if already exists for this month
         existing = await SalaryPayment.find_one(SalaryPayment.teacher.id == t.id, SalaryPayment.month_name == month_name)
+        base = t.hourly_rate * 160 if hasattr(t, 'hourly_rate') and t.hourly_rate else 60000
+        if not base or base < 1000:
+            base = 60000
+            
         if not existing:
-            base = getattr(t, 'base_salary', 60000)
-            if not base or base < 1000:
-                base = 60000
             new_s = SalaryPayment(
                 teacher=t,
                 month_name=month_name,
@@ -95,3 +96,7 @@ async def generate_monthly_salaries(month_name: str):
                 transaction_ref="--"
             )
             await new_s.insert()
+        elif existing.status == "Processing" and existing.base_salary != base:
+            existing.base_salary = base
+            existing.net_payable = base + existing.allowances - existing.deductions
+            await existing.save()

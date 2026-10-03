@@ -47,41 +47,28 @@ export default function Results() {
 
       {/* Top Scorers Cards */}
       <div className="row g-3">
-        <div className="col-12 col-md-4">
-          <div className="sa-card p-4 border-warning border-2 position-relative">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span className="badge bg-warning text-dark fw-bold">Rank #1 (Physics)</span>
-              <Trophy size={24} className="text-warning" />
+        {[...results].sort((a, b) => b.percentage - a.percentage).slice(0, 3).map((scorer, index) => (
+          <div key={index} className="col-12 col-md-4">
+            <div className={`sa-card p-4 position-relative ${index === 0 ? 'border-warning border-2' : index === 1 ? 'border-primary border-2' : ''}`}>
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <span className={`badge ${index === 0 ? 'bg-warning text-dark' : index === 1 ? 'bg-sa-primary text-white' : 'bg-secondary text-white'} fw-bold`}>
+                  Rank #{index + 1} ({scorer.subject})
+                </span>
+                {index === 0 ? <Trophy size={24} className="text-warning" /> : <Medal size={24} className={index === 1 ? 'text-sa-primary' : 'text-secondary'} />}
+              </div>
+              <h4 className="brand-font fw-extrabold text-sa-charcoal m-0">{scorer.studentName}</h4>
+              <span className="small text-sa-muted d-block mb-2">{scorer.rollNumber} • {scorer.examTitle}</span>
+              <div className="fw-extrabold text-success fs-5">{scorer.percentage}% ({scorer.obtainedMarks}/{scorer.maxMarks})</div>
             </div>
-            <h4 className="brand-font fw-extrabold text-sa-charcoal m-0">Aarav Deshmukh</h4>
-            <span className="small text-sa-muted d-block mb-2">SA-2026-1042 • 12th Science</span>
-            <div className="fw-extrabold text-success fs-5">94% (47/50)</div>
           </div>
-        </div>
-
-        <div className="col-12 col-md-4">
-          <div className="sa-card p-4 border-primary border-2 position-relative">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span className="badge bg-sa-primary text-white fw-bold">Rank #1 (Maths)</span>
-              <Medal size={24} className="text-sa-primary" />
+        ))}
+        {results.length === 0 && !loading && (
+          <div className="col-12">
+            <div className="alert alert-light border text-center text-muted m-0">
+              No results available yet to determine rankings.
             </div>
-            <h4 className="brand-font fw-extrabold text-sa-charcoal m-0">Rohan Joshi</h4>
-            <span className="small text-sa-muted d-block mb-2">SA-2026-1044 • 11th Science</span>
-            <div className="fw-extrabold text-success fs-5">96% (48/50)</div>
           </div>
-        </div>
-
-        <div className="col-12 col-md-4">
-          <div className="sa-card p-4 position-relative">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span className="badge bg-secondary text-white fw-bold">Rank #2 (Physics)</span>
-              <Medal size={24} className="text-secondary" />
-            </div>
-            <h4 className="brand-font fw-extrabold text-sa-charcoal m-0">Ananya Sharma</h4>
-            <span className="small text-sa-muted d-block mb-2">SA-2026-1043 • 12th Science</span>
-            <div className="fw-extrabold text-success fs-5">84% (42/50)</div>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="sa-card p-4">

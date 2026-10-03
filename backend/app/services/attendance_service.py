@@ -63,7 +63,9 @@ async def check_in_teacher(attendance_in: AttendanceCreate) -> Attendance:
         remarks=attendance_in.remarks
     )
     await attendance.insert()
-    return attendance
+    res = attendance.model_dump()
+    res["id"] = str(attendance.id)
+    return res
 
 async def check_out_teacher(attendance_in: AttendanceCreate) -> Attendance:
     from app.services.teacher_service import resolve_teacher
@@ -89,9 +91,19 @@ async def check_out_teacher(attendance_in: AttendanceCreate) -> Attendance:
     if existing.check_out_time:
         raise HTTPException(status_code=400, detail="Already checked out")
 
-    existing.check_out_time = datetime.utcnow()
+    now = datetime.utcnow()
+    existing.check_out_time = now
+    
+    if existing.check_in_time:
+        diff = now - existing.check_in_time
+        hours, remainder = divmod(diff.total_seconds(), 3600)
+        minutes, _ = divmod(remainder, 60)
+        existing.total_hours = f"{int(hours)}h {int(minutes)}m"
+
     await existing.save()
-    return existing
+    res = existing.model_dump()
+    res["id"] = str(existing.id)
+    return res
 
 async def get_teacher_attendance(teacher_id: str) -> list[dict]:
     from app.services.teacher_service import resolve_teacher
@@ -101,9 +113,11 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
     records = await Attendance.find(Attendance.teacher.id == teacher.id).to_list()
     res = []
     for r in records:
-        d = dict(r)
+        d = r.model_dump()
         d["id"] = str(r.id)
         d["teacher_id"] = str(teacher.id)
         d["student_id"] = ""
+        d.pop("teacher", None)
+        d.pop("student", None)
         res.append(d)
     return res

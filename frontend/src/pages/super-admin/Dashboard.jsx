@@ -77,11 +77,11 @@ export default function SuperAdminDashboard() {
         }
 
         if (feesRes.status === 'fulfilled') {
-          const fees = feesRes.value || [];
-          const collected = fees.reduce((acc, f) => acc + (Number(f.amountPaid) || 0), 0);
-          const pending = fees.reduce((acc, f) => acc + (Number(f.pendingAmount) || 0), 0);
-          setMonthlyFees(collected);
-          setPendingFees(pending);
+          try {
+            const stats = await feeService.getFeeStats();
+            setMonthlyFees(stats.collected);
+            setPendingFees(stats.pending);
+          } catch {}
         }
 
         if (examsRes.status === 'fulfilled') {
@@ -115,8 +115,8 @@ export default function SuperAdminDashboard() {
   ];
 
   const feeData = [
-    { name: 'Collected', value: 0, amount: '₹0', color: '#8B1216' },
-    { name: 'Pending', value: 0, amount: '₹0', color: '#F5A900' }
+    { name: 'Collected', value: monthlyFees > 0 ? monthlyFees : 1, amount: `₹${monthlyFees.toLocaleString()}`, color: '#8B1216' },
+    { name: 'Pending', value: pendingFees > 0 ? pendingFees : 1, amount: `₹${pendingFees.toLocaleString()}`, color: '#F5A900' }
   ];
 
   const scheduleList = [];

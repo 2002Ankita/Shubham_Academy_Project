@@ -51,7 +51,8 @@ export const studentService = {
       standard: data.standard || data.course,
       batch: data.batch,
       branch: data.branch || 'Tarabai Park',
-      academic_year: data.academic_year || '2023-2024'
+      academic_year: data.academic_year || '2023-2024',
+      total_fees: Number(data.totalFees) || 0
     };
     const res = await api.post('/students', payload);
     return res.data;

@@ -31,6 +31,7 @@ import feeService from '../../services/feeService';
 import examService from '../../services/examService';
 import marksService from '../../services/marksService';
 import noticeService from '../../services/noticeService';
+import batchService from '../../services/batchService';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -42,6 +43,8 @@ export default function StudentDashboard() {
   const [exams, setExams] = useState([]);
   const [results, setResults] = useState([]);
   const [fees, setFees] = useState([]);
+  const [feeDetails, setFeeDetails] = useState({ total_fees: 0, amount_paid: 0, pending_fees: 0 });
+  const [todaysClasses, setTodaysClasses] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [loading, setLoading] = useState(true);
@@ -58,14 +61,18 @@ export default function StudentDashboard() {
           examsData,
           marksData,
           feesData,
-          attendanceData
+          attendanceData,
+          detailsData,
+          batchesDataRes
         ] = await Promise.allSettled([
           studentService.getById(studentId),
           noticeService.getAll(),
           examService.getAll(),
           marksService.getStudentResults(studentId),
           feeService.getAll(),
-          attendanceService.getLogs()
+          attendanceService.getLogs(),
+          feeService.getFeeDetails(studentId),
+          batchService.getBatches()
         ]);
 
         if (studentData.status === 'fulfilled' && studentData.value) {
@@ -88,6 +95,56 @@ export default function StudentDashboard() {
         }
         if (attendanceData.status === 'fulfilled' && Array.isArray(attendanceData.value)) {
           setAttendanceLogs(attendanceData.value);
+        }
+        
+        if (detailsData?.status === 'fulfilled' && detailsData.value) {
+           setFeeDetails(detailsData.value);
+        }
+        if (batchesDataRes?.status === 'fulfilled' && Array.isArray(batchesDataRes.value)) {
+           const stu = studentData.status === 'fulfilled' ? studentData.value : null;
+           if (stu) {
+              const isMatch = (b, stu) => {
+                 const bName = (b.name || '').toLowerCase();
+                 const bStd = (b.standard || '').toLowerCase();
+                 const sBatch = (stu.batch || '').toLowerCase();
+                 const sStd = (stu.standard || '').toLowerCase();
+                 const subj = (b.subject || '').toLowerCase();
+                 
+                 if (bName === sBatch && bName !== '') return true;
+                 
+                 const bStdPrefix = (bName.split(' ')[0] || bStd.split(' ')[0] || '').replace(/\s+/g, '').replace('th','').replace('st','').replace('nd','').replace('rd','');
+                 const sStdPrefix = (sBatch.split(' ')[0] || sStd.split(' ')[0] || '').replace(/\s+/g, '').replace('th','').replace('st','').replace('nd','').replace('rd','');
+                 const sStream = sBatch.split(' ')[1] || '';
+                 
+                 if (bStdPrefix === sStdPrefix && sStream) {
+                    let subjectMatched = false;
+                    let hasSubjectCheck = false;
+                    
+                    if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+                    if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+                    if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+                    if (subj.includes('biology')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+                    
+                    if (hasSubjectCheck) return subjectMatched;
+                    
+                    if (sStream.includes('pcmb') && (bName.includes('pcm') || bName.includes('pcb'))) return true;
+                    if (bName.includes('pcmb') && (sStream.includes('pcm') || sStream.includes('pcb'))) return true;
+                 }
+                 
+                 if (bStd === sStd && bStd !== '' && !bName.includes('pcm') && !bName.includes('pcb')) return true;
+                 return false;
+              };
+              const matchedBatches = batchesDataRes.value.filter(b => isMatch(b, stu));
+              setTodaysClasses(matchedBatches.map(b => ({
+                 id: b.id || Math.random().toString(),
+                 time: b.time || '10:00 AM',
+                 subject: b.subject,
+                 teacher: b.teacher_name,
+                 room: b.room || 'N/A',
+                 status: 'Scheduled',
+                 isOngoing: false
+              })));
+           }
         }
       } catch (err) {
         console.warn('Dashboard service loading fallback:', err);
@@ -130,15 +187,9 @@ export default function StudentDashboard() {
     return 0;
   })();
 
-  const totalFeeAmount = fees.length > 0
-    ? fees.reduce((acc, f) => acc + (Number(f.totalFees) || 0), 0)
-    : 0;
-  const paidFeeAmount = fees.length > 0
-    ? fees.reduce((acc, f) => acc + (Number(f.amountPaid) || 0), 0)
-    : 0;
-  const pendingFeeAmount = fees.length > 0
-    ? fees.reduce((acc, f) => acc + (Number(f.pendingAmount) || 0), 0)
-    : 0;
+  const totalFeeAmount = feeDetails.total_fees || 0;
+  const paidFeeAmount = feeDetails.amount_paid || 0;
+  const pendingFeeAmount = feeDetails.pending_fees || 0;
 
   const overallScore = (() => {
     if (results.length > 0) {
@@ -161,22 +212,43 @@ export default function StudentDashboard() {
   ];
 
   // 3. Today's Classes List
-  const todaysClasses = [];
+  // dynamically populated via setTodaysClasses
 
   // 4. Upcoming Examinations List
-  const upcomingExaminations = [];
+  const upcomingExaminations = scheduledExams.slice(0, 3).map(e => {
+    const examDate = new Date(e.exam_date || e.date);
+    const diffDays = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
+    return {
+      date: examDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      subject: e.subject || e.exam_name,
+      class: e.standard || 'All',
+      countdown: diffDays > 0 ? `${diffDays} Days` : diffDays === 0 ? 'Today' : 'Passed'
+    };
+  });
 
   // 5. Recent Results List
   const recentResultsList = results.length > 0
     ? results.slice(0, 4).map(r => ({
-        subject: `${r.subject} (${r.examTitle || 'Unit Test'})`,
-        marks: `${r.obtainedMarks} / ${r.maxMarks}`,
+        subject: `${r.subject} (${r.exam_name || 'Unit Test'})`,
+        marks: `${r.marks_obtained || 0} / ${r.max_marks || 100}`,
         grade: r.grade || 'A'
       }))
     : [];
 
   // 6. Study Materials List
-  const studyMaterialsList = [];
+  const [studyMaterialsList, setStudyMaterialsList] = useState([]);
+  useEffect(() => {
+    import('../../services/materialService').then(mod => {
+      mod.default.getMaterials().then(data => {
+        setStudyMaterialsList(data.slice(0, 3).map(m => ({
+          id: m.id,
+          title: m.title,
+          uploadDate: m.uploadDate,
+          file: m
+        })));
+      });
+    });
+  }, []);
 
   // 7. Announcements List
   const announcementsList = notices.length > 0
@@ -186,8 +258,15 @@ export default function StudentDashboard() {
       }))
     : [];
 
-  const handleDownloadMaterial = (title) => {
-    toast.success(`Downloading "${title}"...`);
+  const handleDownloadMaterial = async (id, title) => {
+    try {
+      toast.info(`Downloading "${title}"...`);
+      const mod = await import('../../services/materialService');
+      await mod.default.downloadMaterial(id, title);
+      toast.success('Download complete');
+    } catch (err) {
+      toast.error('Failed to download file');
+    }
   };
 
   const handlePayNow = () => {
@@ -774,7 +853,7 @@ export default function StudentDashboard() {
                         <button
                           type="button"
                           className="btn-download-pink"
-                          onClick={() => handleDownloadMaterial(mat.title)}
+                          onClick={() => handleDownloadMaterial(mat.id, mat.title)}
                         >
                           Download
                         </button>

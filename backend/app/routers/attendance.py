@@ -31,7 +31,10 @@ async def check_in(
     attendance_in: AttendanceCreate, 
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    user = await get_current_user(token)
+    if user.role == "TEACHER":
+        attendance_in.teacher_id = str(user.id)
+        
     from app.services.attendance_service import check_in_teacher
     return await check_in_teacher(attendance_in)
 
@@ -40,6 +43,9 @@ async def check_out(
     attendance_in: AttendanceCreate, 
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    user = await get_current_user(token)
+    if user.role == "TEACHER":
+        attendance_in.teacher_id = str(user.id)
+        
     from app.services.attendance_service import check_out_teacher
     return await check_out_teacher(attendance_in)

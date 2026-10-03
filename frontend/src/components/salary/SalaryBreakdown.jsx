@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 
 export default function SalaryBreakdown({ breakdown }) {
   const handleDownloadSlip = () => {
-    toast.info('Downloading Salary Slip (September 2026)...');
+    toast.info(`Downloading Salary Slip (${breakdown.payPeriod || 'Current Month'})...`);
     setTimeout(() => {
       toast.success('Payslip downloaded successfully!');
     }, 1000);
@@ -112,11 +112,11 @@ export default function SalaryBreakdown({ breakdown }) {
             <div className="d-flex flex-column" style={{ fontSize: '13px' }}>
               <div className="d-flex justify-content-between align-items-center py-2 border-bottom border-light" style={{ minHeight: '38px' }}>
                 <span className="text-sa-charcoal">Professional Tax (PT)</span>
-                <span className="fw-semibold text-danger">-₹200</span>
+                <span className="fw-semibold text-danger">-₹{breakdown.pt.toLocaleString()}</span>
               </div>
               <div className="d-flex justify-content-between align-items-center py-2 border-bottom border-light" style={{ minHeight: '38px' }}>
                 <span className="text-sa-charcoal">Leave Without Pay / Deductions</span>
-                <span className="fw-semibold text-danger">-₹300</span>
+                <span className="fw-semibold text-danger">-₹{breakdown.otherDeductions.toLocaleString()}</span>
               </div>
               <div className="d-flex justify-content-between align-items-center py-2 border-bottom border-light" style={{ minHeight: '38px' }}>
                 <span className="text-sa-charcoal fw-medium">Total Deductions</span>
@@ -136,7 +136,7 @@ export default function SalaryBreakdown({ breakdown }) {
               Total Net Salary Payable
             </span>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '11.5px', marginTop: '2px' }}>
-              Calculated on 32.5 working hours logged
+              Calculated on {breakdown.workingHours} working hours logged
             </span>
           </div>
           <div className="text-end flex-shrink-0 ms-3">

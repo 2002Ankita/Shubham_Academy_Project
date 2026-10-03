@@ -1,34 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
+import feeService from '../../services/feeService';
 
 export default function FeeForm({ students = [], onSubmit, loading }) {
   const [formData, setFormData] = useState({
-    studentId: students[0]?.id || 'STU-001',
+    studentId: '',
     feeHead: 'Term 1 Tuition & Lab Fees',
-    totalFees: 45000,
-    amountPaid: 15000,
+    amountPaid: 0,
     paymentMode: 'UPI / Online Transfer',
     transactionRef: '',
-    remarks: 'Payment acknowledged'
+    remarks: 'Payment acknowledged',
+    totalFees: 0,
+    alreadyPaid: 0,
+    pendingAmount: 0
   });
+
+  useEffect(() => {
+    if (students.length > 0 && !formData.studentId) {
+      setFormData(prev => ({ ...prev, studentId: students[0].id }));
+    }
+  }, [students]);
+
+  useEffect(() => {
+    if (formData.studentId) {
+      feeService.getFeeDetails(formData.studentId)
+        .then(data => {
+          setFormData(prev => {
+             const pending = Number(data.total_fees) - Number(data.amount_paid) - Number(prev.amountPaid || 0);
+             return {
+               ...prev,
+               totalFees: data.total_fees,
+               alreadyPaid: data.amount_paid,
+               pendingAmount: Math.max(0, pending)
+             };
+          });
+        })
+        .catch(err => console.error(err));
+    }
+  }, [formData.studentId]);
 
   const handleChange = (e) => {
     const val = e.target.value;
     const name = e.target.name;
 
     if (name === 'studentId') {
-      const selected = students.find(s => s.id === val);
       setFormData({
         ...formData,
         studentId: val,
-        totalFees: selected?.totalFees || 45000
+        amountPaid: 0
       });
       return;
     }
 
-    setFormData({ ...formData, [name]: val });
+    setFormData(prev => {
+      const newData = { ...prev, [name]: val };
+      if (['totalFees', 'alreadyPaid', 'amountPaid'].includes(name)) {
+        const pending = Number(newData.totalFees) - Number(newData.alreadyPaid) - Number(newData.amountPaid || 0);
+        newData.pendingAmount = Math.max(0, pending);
+      }
+      return newData;
+    });
   };
 
   const handleSubmit = (e) => {
@@ -78,25 +111,46 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-3">
           <Input
             label="Total Course Fees (₹)"
             name="totalFees"
             type="number"
             value={formData.totalFees}
             onChange={handleChange}
-            disabled
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-3">
           <Input
-            label="Amount Paid (₹)"
+            label="Already Paid (₹)"
+            name="alreadyPaid"
+            type="number"
+            value={formData.alreadyPaid}
+            onChange={handleChange}
+            disabled={true}
+          />
+        </div>
+
+        <div className="col-12 col-md-3">
+          <Input
+            label="New Amount Paid (₹)"
             name="amountPaid"
             type="number"
             value={formData.amountPaid}
             onChange={handleChange}
             required
+          />
+        </div>
+
+        <div className="col-12 col-md-3">
+          <Input
+            label="Balance Pending (₹)"
+            name="pendingAmount"
+            type="number"
+            value={formData.pendingAmount}
+            onChange={handleChange}
+            disabled={true}
           />
         </div>
 

@@ -47,6 +47,7 @@ import Notices from '../pages/admin/Notices';
 import Notifications from '../pages/admin/Notifications';
 import AdminReports from '../pages/admin/Reports';
 import LeaveApprovals from '../pages/admin/LeaveApprovals';
+import BatchManagement from '../pages/admin/BatchManagement';
 
 // Teacher Pages
 import TeacherDashboard from '../pages/teacher/Dashboard';
@@ -141,6 +142,7 @@ export default function AppRoutes() {
         <Route path="/admin/exams" element={<CreateExam />} />
         <Route path="/admin/marks/entry" element={<MarksEntry />} />
         <Route path="/admin/results" element={<Results />} />
+        <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/notes/stock" element={<NotesStock />} />
         <Route path="/admin/notes/delivery" element={<NotesDelivery />} />
         <Route path="/admin/notices" element={<Notices />} />
@@ -184,6 +186,7 @@ export default function AppRoutes() {
         <Route path="/student/classes" element={<StudentMyClasses />} />
         <Route path="/student/attendance" element={<StudentAttendance />} />
         <Route path="/student/fees" element={<StudentFees />} />
+        <Route path="/student/fees/receipt" element={<FeeReceipt />} />
         <Route path="/student/exams" element={<StudentExaminations />} />
         <Route path="/student/results" element={<StudentResults />} />
         <Route path="/student/study-materials" element={<StudentStudyMaterials />} />

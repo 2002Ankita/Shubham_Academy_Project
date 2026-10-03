@@ -63,6 +63,11 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
         
+    # Update total fees if an override was provided in the UI
+    if getattr(payment_in, 'total_course_fees_override', None) is not None and payment_in.total_course_fees_override > 0:
+        student.total_fees = payment_in.total_course_fees_override
+        await student.save()
+        
     payment = FeePayment(
         student=student,
         amount_paid=payment_in.amount_paid,
@@ -71,11 +76,67 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
         remarks=payment_in.remarks
     )
     await payment.insert()
-    return await _format_fee_payment(payment)
+    
+    res = await _format_fee_payment(payment)
+    
+    # Calculate total and pending fees for response
+    student_custom_fee = getattr(student, 'total_fees', 0.0)
+    if student_custom_fee > 0:
+        total_fees = student_custom_fee
+    else:
+        structure = await FeeStructure.find_one(
+            FeeStructure.standard == student.standard,
+            FeeStructure.batch == student.batch,
+            FeeStructure.branch == student.branch,
+            FeeStructure.academic_year == student.academic_year
+        )
+        total_fees = structure.total_fee if structure else 0.0
+        
+    payments = await FeePayment.find({"student.$id": student.id}).to_list()
+    total_paid = sum(p.amount_paid for p in payments)
+    
+    res["total_fees"] = total_fees
+    res["pending_fees"] = total_fees - total_paid
+    return res
 
 async def get_all_fee_payments() -> list[dict]:
+    structures = await FeeStructure.find_all().to_list()
+    struct_map = {}
+    for s in structures:
+        struct_map[(s.standard, s.batch, s.branch, s.academic_year)] = s.total_fee
+
     payments = await FeePayment.find_all().to_list()
-    return [await _format_fee_payment(p) for p in payments]
+    
+    paid_map = {}
+    for p in payments:
+        if not isinstance(p.student, Student):
+            student_obj = await Student.get(p.student.ref.id)
+            p.student = student_obj
+        if p.student:
+            s_id = str(p.student.id)
+            paid_map[s_id] = paid_map.get(s_id, 0.0) + p.amount_paid
+
+    res = []
+    for p in payments:
+        formatted = await _format_fee_payment(p)
+        total_fees = 0.0
+        pending_fees = 0.0
+        
+        if p.student:
+            student_custom_fee = getattr(p.student, 'total_fees', 0.0)
+            if student_custom_fee > 0:
+                total_fees = student_custom_fee
+            else:
+                total_fees = struct_map.get((p.student.standard, p.student.batch, p.student.branch, p.student.academic_year), 0.0)
+            # The pending fee is the total minus total paid across all payments for this student
+            total_paid = paid_map.get(str(p.student.id), 0.0)
+            pending_fees = total_fees - total_paid
+
+        formatted["total_fees"] = total_fees
+        formatted["pending_fees"] = pending_fees
+        res.append(formatted)
+        
+    return res
 
 async def get_fee_details(student_id: str) -> FeeDetailsResponse:
     from app.services.student_service import resolve_student
@@ -85,17 +146,22 @@ async def get_fee_details(student_id: str) -> FeeDetailsResponse:
         raise HTTPException(status_code=404, detail="Student not found")
         
     # Get all payments
-    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
+    payments = await FeePayment.find({"student.$id": student.id}).to_list()
     total_paid = sum(p.amount_paid for p in payments)
     
-    # Fetch real fee structure
-    structure = await FeeStructure.find_one(
-        FeeStructure.standard == student.standard,
-        FeeStructure.batch == student.batch,
-        FeeStructure.branch == student.branch,
-        FeeStructure.academic_year == student.academic_year
-    )
-    total_fees = structure.total_fee if structure else 0.0
+    # Fetch real fee structure or use custom total_fees
+    student_custom_fee = getattr(student, 'total_fees', 0.0)
+    if student_custom_fee > 0:
+        total_fees = student_custom_fee
+    else:
+        structure = await FeeStructure.find_one(
+            FeeStructure.standard == student.standard,
+            FeeStructure.batch == student.batch,
+            FeeStructure.branch == student.branch,
+            FeeStructure.academic_year == student.academic_year
+        )
+        total_fees = structure.total_fee if structure else 0.0
+        
     pending_fees = total_fees - total_paid
     
     return FeeDetailsResponse(
@@ -127,7 +193,12 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
             
     pending_list = []
     for student in students:
-        total_fees = struct_map.get((student.standard, student.batch, student.branch, student.academic_year), 0.0)
+        student_custom_fee = getattr(student, 'total_fees', 0.0)
+        if student_custom_fee > 0:
+            total_fees = student_custom_fee
+        else:
+            total_fees = struct_map.get((student.standard, student.batch, student.branch, student.academic_year), 0.0)
+            
         amount_paid = paid_map.get(str(student.id), 0.0)
         pending_fees = total_fees - amount_paid
         

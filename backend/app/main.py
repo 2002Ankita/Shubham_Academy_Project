@@ -22,9 +22,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
-from app.routers import auth, students, teachers, attendance, marks, exams, fees, salary, notices, reports, materials, leave_requests, inventory
+from app.routers import auth, students, teachers, attendance, marks, exams, fees, salary, notices, reports, materials, leave_requests, inventory, batches
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(students.router, prefix=settings.API_V1_STR)
 app.include_router(teachers.router, prefix=settings.API_V1_STR)
@@ -38,6 +39,7 @@ app.include_router(reports.router, prefix=settings.API_V1_STR)
 app.include_router(materials.router, prefix=settings.API_V1_STR)
 app.include_router(leave_requests.router, prefix=settings.API_V1_STR)
 app.include_router(inventory.router, prefix=settings.API_V1_STR)
+app.include_router(batches.router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": "Welcome to Shubham Academy Management System API"}

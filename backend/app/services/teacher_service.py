@@ -29,8 +29,24 @@ async def _format_teacher(teacher: Teacher) -> dict:
 async def create_teacher(teacher_in: TeacherCreate) -> dict:
     employee_id = f"EMP-{uuid.uuid4().hex[:6].upper()}"
     
-    from pymongo.errors import DuplicateKeyError
     from fastapi import HTTPException
+    import re
+
+    # Validation
+    if not teacher_in.email:
+        raise HTTPException(status_code=400, detail="Email is required")
+        
+    existing_user = await User.find_one(User.email == teacher_in.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+        
+    clean_mobile = re.sub(r'\D', '', teacher_in.mobile_number)
+    if len(clean_mobile) < 10:
+        raise HTTPException(status_code=400, detail="Invalid mobile number format")
+        
+    existing_mobile = await Teacher.find_one(Teacher.mobile_number == teacher_in.mobile_number)
+    if existing_mobile:
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
 
     user = User(
         email=teacher_in.email,
@@ -38,10 +54,7 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
         full_name=teacher_in.full_name,
         role="TEACHER"
     )
-    try:
-        await user.insert()
-    except DuplicateKeyError:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    await user.insert()
 
     teacher = Teacher(
         user=user,
@@ -52,6 +65,27 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
         hourly_rate=teacher_in.hourly_rate
     )
     await teacher.insert()
+    
+    # Auto-add to payroll for current month
+    from datetime import datetime
+    from app.models.salary import SalaryPayment
+    current_month = datetime.now().strftime("%B %Y")
+    base = teacher.hourly_rate * 160 if hasattr(teacher, 'hourly_rate') and teacher.hourly_rate else 60000
+    if not base or base < 1000:
+        base = 60000
+    
+    new_s = SalaryPayment(
+        teacher=teacher,
+        month_name=current_month,
+        base_salary=base,
+        allowances=0,
+        deductions=0,
+        net_payable=base,
+        status="Processing",
+        transaction_ref="--"
+    )
+    await new_s.insert()
+    
     return await _format_teacher(teacher)
 
 async def get_teachers() -> list[dict]:
@@ -106,7 +140,10 @@ async def update_teacher(id: str, teacher_in: dict) -> dict:
             raise HTTPException(status_code=400, detail="Email already in use")
         
     if teacher_in:
-        await teacher.set(teacher_in)
+        try:
+            await teacher.set(teacher_in)
+        except DuplicateKeyError:
+            raise HTTPException(status_code=400, detail="Mobile number already in use")
     
     return await _format_teacher(teacher)
 
