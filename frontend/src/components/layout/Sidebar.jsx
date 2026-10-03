@@ -26,6 +26,7 @@ import {
   Home,
   FileText,
   BarChart3,
+  BarChart2,
   Cloud,
   Megaphone,
   User,
