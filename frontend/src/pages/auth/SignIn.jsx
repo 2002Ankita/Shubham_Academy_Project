@@ -43,28 +43,28 @@ export default function SignIn() {
   };
 
   return (
-    <div className="sa-card p-4 p-sm-5 border-0 shadow-lg">
+    <div className="sa-card p-3 p-sm-4 border-0 shadow-lg">
       {/* Official Shubham Academy 3D Logo */}
-      <div className="text-center mb-3">
+      <div className="text-center mb-2">
         <img
           src="/assets/shubham-logo.png"
           alt="Shubham Academy"
           className="img-fluid"
-          style={{ maxHeight: '68px', width: 'auto', objectFit: 'contain' }}
+          style={{ maxHeight: '52px', width: 'auto', objectFit: 'contain' }}
         />
       </div>
 
-      <div className="text-center mb-4">
-        <h3 className="brand-font fw-extrabold text-sa-charcoal fs-4 mb-1">
+      <div className="text-center mb-3">
+        <h3 className="brand-font fw-extrabold text-sa-charcoal fs-5 mb-1">
           Welcome to Shubham Academy
         </h3>
-        <p className="small text-sa-muted mb-0">
+        <p className="small text-sa-muted mb-0" style={{ fontSize: '0.82rem' }}>
           Select your portal role and sign in to access your academy dashboard.
         </p>
       </div>
 
       {/* Role Selector Tabs */}
-      <div className="row g-2 mb-4">
+      <div className="row g-2 mb-3">
         {[
           { id: 'admin', label: 'Academy Admin', icon: School, email: 'admin@shubham.edu' },
           { id: 'teacher', label: 'Teacher', icon: UserCheck, email: 'priya.k@shubham.edu' },
@@ -131,12 +131,12 @@ export default function SignIn() {
       </form>
 
       {/* Quick Demo Credentials Info Callout */}
-      <div className="mt-4 p-3 bg-sa-off-white rounded-3 border">
+      <div className="mt-3 p-2.5 px-3 bg-sa-off-white rounded-3 border">
         <div className="d-flex align-items-center justify-content-between mb-1">
-          <span className="text-xs fw-bold text-sa-charcoal" style={{ fontSize: '0.78rem' }}>Demo Quick-Login:</span>
-          <span className="badge bg-success small">Ready</span>
+          <span className="text-xs fw-bold text-sa-charcoal" style={{ fontSize: '0.76rem' }}>Demo Quick-Login:</span>
+          <span className="badge bg-success small py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>Ready</span>
         </div>
-        <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.76rem' }}>
+        <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.74rem' }}>
           Select any tab above; credentials will auto-populate for immediate role simulation and testing.
         </p>
       </div>

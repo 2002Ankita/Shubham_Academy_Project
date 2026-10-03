@@ -13,10 +13,14 @@ export default function DashboardLayout() {
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
   const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
-  const sidebarWidth = (isTeacher || isSuperAdmin) ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)';
+  const isAdmin = !isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin'));
+  const isPearlGlass = isSuperAdmin || isAdmin;
+  const sidebarWidth = (isAdmin || isSuperAdmin) ? '265px' : isTeacher ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)';
 
   return (
-    <div className="d-flex bg-sa-off-white min-vh-100">
+    <div
+      className={`d-flex min-vh-100 ${isPearlGlass ? 'super-admin-pearl-glass' : 'bg-sa-off-white'}`}
+    >
       <div className="d-flex w-100" style={{ minHeight: '100vh' }}>
         {/* Sidebar */}
         <Sidebar
@@ -26,6 +30,7 @@ export default function DashboardLayout() {
           isStudent={isStudent}
           isSuperAdmin={isSuperAdmin}
           isTeacher={isTeacher}
+          isAdmin={isAdmin}
         />
 
         {/* Main Content Area */}
@@ -36,8 +41,17 @@ export default function DashboardLayout() {
         >
           <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} isStudent={isStudent} />
 
-          <main className={`flex-grow-1 ${isStudent ? 'px-3 py-2.5 px-md-3 py-md-2.5' : isTeacher ? 'px-3 py-3 px-md-4 py-md-3' : 'p-3 p-md-4'}`}>
-            <Outlet />
+          <main
+            className={`flex-grow-1 ${isStudent
+                ? 'p-3 p-md-3.5'
+                : isTeacher
+                  ? 'p-3 p-md-4'
+                  : 'p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4'
+              }`}
+          >
+            <div className="w-100" style={{ maxWidth: '1440px', margin: '0 auto' }}>
+              <Outlet />
+            </div>
           </main>
 
           {!isTeacher && <Footer />}

@@ -22,14 +22,13 @@ import {
   Bell,
   Eye,
   EyeOff,
-  Sliders,
   Check
 } from 'lucide-react';
 
 export default function SuperAdminProfile() {
   const { user, updateUser } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security' | 'system'
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [isSaving, setIsSaving] = useState(false);
 
   // Profile Form State
@@ -213,18 +212,18 @@ export default function SuperAdminProfile() {
             </div>
             <p className="text-sa-primary fw-medium mb-2 small">{profileData.title}</p>
 
-            <div className="d-flex flex-wrap gap-y-2 gap-x-4 text-sa-muted small">
-              <span className="d-inline-flex align-items-center gap-1.5">
-                <Mail size={14} className="text-sa-primary" />
-                {profileData.email}
+            <div className="d-flex flex-wrap align-items-center text-sa-muted small" style={{ rowGap: '8px', columnGap: '22px' }}>
+              <span className="d-inline-flex align-items-center" style={{ gap: '7px' }}>
+                <Mail size={15} className="text-sa-primary flex-shrink-0" />
+                <span>{profileData.email}</span>
               </span>
-              <span className="d-inline-flex align-items-center gap-1.5">
-                <Phone size={14} className="text-sa-primary" />
-                {profileData.phone}
+              <span className="d-inline-flex align-items-center" style={{ gap: '7px' }}>
+                <Phone size={15} className="text-sa-primary flex-shrink-0" />
+                <span>{profileData.phone}</span>
               </span>
-              <span className="d-inline-flex align-items-center gap-1.5">
-                <MapPin size={14} className="text-sa-primary" />
-                {profileData.branch}
+              <span className="d-inline-flex align-items-center" style={{ gap: '7px' }}>
+                <MapPin size={15} className="text-sa-primary flex-shrink-0" />
+                <span>{profileData.branch}</span>
               </span>
             </div>
           </div>
@@ -257,19 +256,6 @@ export default function SuperAdminProfile() {
         >
           <Lock size={16} />
           Security & Password
-        </button>
-
-        <button
-          type="button"
-          className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all ${
-            activeTab === 'system'
-              ? 'bg-sa-primary text-white shadow-sm'
-              : 'btn-light text-sa-charcoal border'
-          }`}
-          onClick={() => setActiveTab('system')}
-        >
-          <Sliders size={16} />
-          System & API Settings
         </button>
       </div>
 
@@ -536,82 +522,6 @@ export default function SuperAdminProfile() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* TAB 3: System & API Settings */}
-      {activeTab === 'system' && (
-        <form onSubmit={handleSaveSystem} className="sa-card p-4 rounded-3 border bg-white d-flex flex-column gap-4">
-          <div>
-            <h6 className="fw-bold text-sa-charcoal d-flex align-items-center gap-2 mb-1">
-              <Server size={18} className="text-sa-primary" />
-              FastAPI Backend Connection
-            </h6>
-            <p className="text-sa-muted small m-0">Configure microservices endpoint and authentication parameters</p>
-          </div>
-
-          <div className="row g-3">
-            <div className="col-12 col-md-8">
-              <Input
-                label="API Endpoint URL"
-                name="fastApiUrl"
-                value={systemSettings.fastApiUrl}
-                onChange={(e) => setSystemSettings({ ...systemSettings, fastApiUrl: e.target.value })}
-                helperText="Active FastAPI microservices base URL"
-                required
-              />
-            </div>
-            <div className="col-12 col-md-4">
-              <Input
-                label="JWT Expiry (Minutes)"
-                name="jwtExpiryMinutes"
-                type="number"
-                value={systemSettings.jwtExpiryMinutes}
-                onChange={(e) => setSystemSettings({ ...systemSettings, jwtExpiryMinutes: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <hr className="my-1 text-muted opacity-25" />
-
-          <div>
-            <h6 className="fw-bold text-sa-charcoal d-flex align-items-center gap-2 mb-1">
-              <Bell size={18} className="text-sa-primary" />
-              Hardware & SMS Integrations
-            </h6>
-            <p className="text-sa-muted small m-0">RFID turnstiles and automated SMS notification gateways</p>
-          </div>
-
-          <div className="row g-3">
-            <div className="col-12 col-md-6">
-              <Input
-                label="RFID Sensor Gate Gateway IP"
-                name="rfidGatewayIp"
-                value={systemSettings.rfidGatewayIp}
-                onChange={(e) => setSystemSettings({ ...systemSettings, rfidGatewayIp: e.target.value })}
-                helperText="Local hardware broker address"
-                required
-              />
-            </div>
-            <div className="col-12 col-md-6">
-              <Input
-                label="Parent SMS Gateway API Secret"
-                name="smsGatewayKey"
-                type="password"
-                value={systemSettings.smsGatewayKey}
-                onChange={(e) => setSystemSettings({ ...systemSettings, smsGatewayKey: e.target.value })}
-                helperText="Used for automated gate-scan alerts"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="d-flex justify-content-end pt-2 border-top">
-            <Button type="submit" variant="primary" icon={Save}>
-              Save System Configuration
-            </Button>
-          </div>
-        </form>
       )}
     </div>
   );

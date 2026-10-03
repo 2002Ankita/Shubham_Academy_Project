@@ -46,6 +46,7 @@ import NotesDelivery from '../pages/admin/NotesDelivery';
 import Notices from '../pages/admin/Notices';
 import Notifications from '../pages/admin/Notifications';
 import AdminReports from '../pages/admin/Reports';
+import AdminProfile from '../pages/admin/Profile';
 
 // Teacher Pages
 import TeacherDashboard from '../pages/teacher/Dashboard';
@@ -108,7 +109,10 @@ export default function AppRoutes() {
       >
         <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
         <Route path="/super-admin/academies" element={<Academies />} />
+        <Route path="/super-admin/admins" element={<SuperAdminUsers />} />
         <Route path="/super-admin/users" element={<SuperAdminUsers />} />
+        <Route path="/super-admin/subscriptions" element={<SuperAdminReports />} />
+        <Route path="/super-admin/payments" element={<SuperAdminReports />} />
         <Route path="/super-admin/reports" element={<SuperAdminReports />} />
         <Route path="/super-admin/audit-logs" element={<AuditLogs />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
@@ -144,6 +148,7 @@ export default function AppRoutes() {
         <Route path="/admin/notifications" element={<Notifications />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/contact" element={<SuperAdminContact />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
       </Route>
 
       {/* Teacher Protected Routes */}

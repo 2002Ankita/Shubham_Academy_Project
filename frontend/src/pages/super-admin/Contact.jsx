@@ -47,34 +47,6 @@ export default function Contact() {
       faculty: '48 Teachers',
       mapUrl: 'https://maps.app.goo.gl/FhPbHT7oKzyK5PCh8',
       embedMapUrl: 'https://maps.google.com/maps?q=16.7120332,74.2385115&hl=en&z=16&output=embed'
-    },
-    {
-      id: 'pune',
-      name: 'Pune Campus',
-      tag: 'Branch Campus & Science Wing',
-      address: 'Plot 42, Fergusson College Road, Shivajinagar, Pune, Maharashtra - 411005',
-      admin: 'Prof. Rajesh Patil (Campus Principal)',
-      phone: '+91 (020) 25531000 / +91 98220 54321',
-      email: 'pune@shubhamacademy.edu.in',
-      timing: 'Monday – Saturday: 8:30 AM – 7:00 PM',
-      students: '850 Enrolled',
-      faculty: '28 Teachers',
-      mapUrl: 'https://maps.google.com/?q=FC+Road+Pune',
-      embedMapUrl: 'https://maps.google.com/maps?q=Fergusson+College+Road+Shivajinagar+Pune&hl=en&z=15&output=embed'
-    },
-    {
-      id: 'sangli',
-      name: 'Sangli Campus',
-      tag: 'Branch Campus & Commerce Wing',
-      address: 'Opp. Willingdon College, Vishrambag, Sangli, Maharashtra - 416415',
-      admin: 'Dr. Priya Kulkarni (Branch Dean)',
-      phone: '+91 (0233) 2441234 / +91 98220 67890',
-      email: 'sangli@shubhamacademy.edu.in',
-      timing: 'Monday – Saturday: 8:30 AM – 6:30 PM',
-      students: '620 Enrolled',
-      faculty: '22 Teachers',
-      mapUrl: 'https://maps.google.com/?q=Willingdon+College+Sangli',
-      embedMapUrl: 'https://maps.google.com/maps?q=Willingdon+College+Vishrambag+Sangli&hl=en&z=15&output=embed'
     }
   ];
 
@@ -237,7 +209,7 @@ export default function Contact() {
       </div>
 
       {/* Main Section: Campus Directory & Direct Contact Form */}
-      <div className="row g-4">
+      <div className="row g-4 align-items-start">
         {/* Left Col: Campus Locations */}
         <div className="col-12 col-lg-6 d-flex flex-column gap-3">
           <div className="d-flex align-items-center justify-content-between">
@@ -245,7 +217,7 @@ export default function Contact() {
               <Building2 size={19} className="text-sa-primary" />
               Campus Directory & Locations
             </h5>
-            <span className="badge bg-light text-muted border">{campuses.length} Campuses</span>
+            <span className="badge bg-light text-muted border">{campuses.length} {campuses.length === 1 ? 'Campus' : 'Campuses'}</span>
           </div>
 
           {/* Campus Selector Pills */}
@@ -254,15 +226,14 @@ export default function Contact() {
               <button
                 key={campus.id}
                 type="button"
-                className={`btn btn-sm px-3 py-1.5 rounded-pill fw-medium transition-all ${
-                  activeCampus === campus.id
-                    ? 'btn-danger text-white shadow-sm'
-                    : 'btn-light border text-sa-charcoal'
-                }`}
+                className="btn btn-sm px-3.5 py-1.5 rounded-pill fw-semibold transition-all"
                 style={{
-                  backgroundColor: activeCampus === campus.id ? 'var(--sa-primary)' : '',
-                  borderColor: activeCampus === campus.id ? 'var(--sa-primary)' : 'var(--sa-border)',
-                  fontSize: '0.82rem'
+                  backgroundColor: activeCampus === campus.id ? 'var(--sa-dark-red)' : '#FFFFFF',
+                  borderColor: activeCampus === campus.id ? 'var(--sa-dark-red)' : 'var(--sa-border)',
+                  color: activeCampus === campus.id ? '#FFFFFF' : 'var(--sa-charcoal)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  boxShadow: activeCampus === campus.id ? '0 2px 8px rgba(139, 18, 22, 0.28)' : 'none'
                 }}
                 onClick={() => setActiveCampus(campus.id)}
               >
@@ -382,41 +353,13 @@ export default function Contact() {
               </div>
             );
           })()}
-
-          {/* Emergency Escalations Alert Box */}
-          <div className="sa-card p-3 rounded-3 border bg-white">
-            <h6 className="fw-bold text-sa-charcoal mb-2 d-flex align-items-center gap-1.5" style={{ fontSize: '0.88rem' }}>
-              <AlertCircle size={16} className="text-danger" />
-              24/7 Emergency & Escalation Numbers
-            </h6>
-            <div className="row g-2">
-              <div className="col-12 col-sm-4">
-                <div className="p-2 rounded bg-light border">
-                  <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>CAMPUS SECURITY</span>
-                  <span className="fw-bold text-sa-charcoal small">+91 98220 99911</span>
-                </div>
-              </div>
-              <div className="col-12 col-sm-4">
-                <div className="p-2 rounded bg-light border">
-                  <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>FIRST AID / MEDICAL</span>
-                  <span className="fw-bold text-sa-charcoal small">+91 98220 99922</span>
-                </div>
-              </div>
-              <div className="col-12 col-sm-4">
-                <div className="p-2 rounded bg-light border">
-                  <span className="text-muted d-block" style={{ fontSize: '0.7rem' }}>IT INFRASTRUCTURE</span>
-                  <span className="fw-bold text-sa-charcoal small">+91 98220 99933</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Right Col: Interactive Support & Contact Form */}
-        <div className="col-12 col-lg-6">
+        <div className="col-12 col-lg-6 d-flex flex-column gap-3">
           <form
             onSubmit={handleSubmit}
-            className="sa-card p-4 rounded-3 border bg-white d-flex flex-column gap-3 h-100"
+            className="sa-card p-4 rounded-3 border bg-white d-flex flex-column gap-3"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
           >
             <div>
@@ -495,9 +438,8 @@ export default function Contact() {
                     <button
                       key={pri}
                       type="button"
-                      className={`btn btn-sm flex-grow-1 py-1.5 rounded fw-semibold transition-all ${
-                        formData.priority === pri ? 'text-white shadow-sm' : 'btn-light border text-sa-charcoal'
-                      }`}
+                      className={`btn btn-sm flex-grow-1 py-1.5 rounded fw-semibold transition-all ${formData.priority === pri ? 'text-white shadow-sm' : 'btn-light border text-sa-charcoal'
+                        }`}
                       style={{
                         backgroundColor: formData.priority === pri ? 'var(--sa-primary)' : '#f8fafc',
                         borderColor: formData.priority === pri ? 'var(--sa-primary)' : 'var(--sa-border)',
@@ -541,12 +483,40 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="d-flex justify-content-end pt-2 border-top mt-auto">
+            <div className="d-flex justify-content-end pt-3 border-top mt-2">
               <Button type="submit" variant="primary" icon={Send} disabled={isSubmitting}>
                 {isSubmitting ? 'Transmitting Request...' : 'Send Message / Raise Ticket'}
               </Button>
             </div>
           </form>
+
+          {/* 24/7 Emergency & Escalation Numbers (Small Size under Administrative Support Desk) */}
+          <div className="sa-card p-3 rounded-3 border bg-white" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <h6 className="fw-bold text-sa-charcoal mb-2 d-flex align-items-center gap-1.5" style={{ fontSize: '0.82rem' }}>
+              <AlertCircle size={15} className="text-danger flex-shrink-0" />
+              24/7 Emergency & Escalation Numbers
+            </h6>
+            <div className="row g-2">
+              <div className="col-12 col-sm-4">
+                <div className="p-2 rounded bg-light border">
+                  <span className="text-muted d-block" style={{ fontSize: '0.67rem', fontWeight: 600 }}>CAMPUS SECURITY</span>
+                  <span className="fw-bold text-sa-charcoal small d-block mt-0.5">+91 98220 99911</span>
+                </div>
+              </div>
+              <div className="col-12 col-sm-4">
+                <div className="p-2 rounded bg-light border">
+                  <span className="text-muted d-block" style={{ fontSize: '0.67rem', fontWeight: 600 }}>FIRST AID / MEDICAL</span>
+                  <span className="fw-bold text-sa-charcoal small d-block mt-0.5">+91 98220 99922</span>
+                </div>
+              </div>
+              <div className="col-12 col-sm-4">
+                <div className="p-2 rounded bg-light border">
+                  <span className="text-muted d-block" style={{ fontSize: '0.67rem', fontWeight: 600 }}>IT INFRASTRUCTURE</span>
+                  <span className="fw-bold text-sa-charcoal small d-block mt-0.5">+91 98220 99933</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -15,9 +15,26 @@ export default function Header({ onToggleSidebar }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
+  const userMenuRef = useRef(null);
+
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
   const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
+  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin') || (!isStudent && !isTeacher && !isSuperAdmin);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
 
   const studentSearchRoutes = [
     { title: 'My Classes & Timetable', path: '/student/classes', keywords: ['classes', 'timetable', 'schedule', 'lectures'] },
@@ -116,7 +133,9 @@ export default function Header({ onToggleSidebar }) {
                 fontSize: '0.80rem'
               }}
               placeholder={
-                isTeacher
+                isSuperAdmin
+                  ? "Search academies, users, plans, payments..."
+                  : isTeacher
                   ? "Search students, classes, materials..."
                   : isStudent
                   ? "Search classes, materials, announcements..."
@@ -251,17 +270,48 @@ export default function Header({ onToggleSidebar }) {
           </div>
         )}
 
-        {/* Role Badge - for non-student and non-teacher roles */}
-        {!isStudent && !isTeacher && (
-          <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
+        {/* Role Badge - for Academy Admin matching Image 2 */}
+        {isAdmin && !isSuperAdmin && (
+          <div
+            className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-white border shadow-xs"
+            style={{ border: '1px solid #e2e8f0', borderRadius: '9999px' }}
+          >
             <span
               className="rounded-circle"
-              style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
+              style={{ width: '8px', height: '8px', backgroundColor: '#10b981', display: 'inline-block' }}
             />
-            <span className="fw-semibold text-sa-primary text-capitalize" style={{ fontSize: '0.75rem' }}>
-              {user?.role?.replace('-', ' ')}
+            <span className="fw-semibold" style={{ fontSize: '0.80rem', color: '#c53030' }}>
+              Admin
             </span>
           </div>
+        )}
+
+        {/* Role Badge for Super Admin */}
+        {isSuperAdmin && (
+          <>
+            <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
+              <span
+                className="rounded-circle"
+                style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
+              />
+              <span className="fw-semibold text-sa-primary text-capitalize" style={{ fontSize: '0.75rem' }}>
+                Super Admin
+              </span>
+            </div>
+            <div
+              className="d-none d-lg-flex align-items-center gap-1.5 px-3 py-1 rounded-pill"
+              style={{
+                backgroundColor: '#F0FDF4',
+                border: '1px solid #BBF7D0',
+                fontSize: '0.78rem',
+                color: '#15803d',
+                fontWeight: 600
+              }}
+            >
+              <span className="rounded-circle bg-success" style={{ width: '7px', height: '7px', display: 'inline-block' }} />
+              <span>System Online</span>
+            </div>
+          </>
         )}
 
         {/* Notifications Icon with right margin to ensure 18px gap to profile */}
@@ -278,7 +328,7 @@ export default function Header({ onToggleSidebar }) {
               className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
               style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
             >
-              4
+              {isSuperAdmin ? 5 : 4}
             </span>
           </button>
 
@@ -289,7 +339,7 @@ export default function Header({ onToggleSidebar }) {
             >
               <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
                 <span className="fw-bold small text-sa-charcoal">Notifications</span>
-                <span className="badge bg-sa-primary small">4 New</span>
+                <span className="badge bg-sa-primary small">{isSuperAdmin ? '5 New' : '4 New'}</span>
               </div>
               <div className="d-flex flex-column gap-2">
                 <div className="p-2 bg-sa-off-white rounded-2">
@@ -314,72 +364,95 @@ export default function Header({ onToggleSidebar }) {
         </div>
 
         {/* User Profile avatar & info */}
-        <div className="position-relative">
+        <div className="position-relative" ref={userMenuRef}>
           <div
-            className="d-flex align-items-center gap-1.5 ps-2 border-start cursor-pointer"
+            className="d-flex align-items-center gap-2 ps-2 border-start cursor-pointer"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{ cursor: 'pointer' }}
           >
-            <img
-              src={
-                user?.avatar ||
-                (isTeacher
-                  ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
-                  : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
-              }
-              alt="Avatar"
-              className="rounded-circle object-fit-cover border"
-              style={{ width: isTeacher ? '28px' : '32px', height: isTeacher ? '28px' : '32px' }}
-            />
-            <div className="d-none d-sm-flex align-items-center gap-1">
-              <span className="fw-bold text-sa-charcoal" style={{ fontSize: isTeacher ? '0.80rem' : '0.84rem' }}>
-                {user?.name || (isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
+            {isSuperAdmin ? (
+              <div
+                className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                style={{ width: '34px', height: '34px', backgroundColor: '#3B0709', fontSize: '0.90rem' }}
+              >
+                S
+              </div>
+            ) : (
+              <img
+                src={
+                  user?.avatar ||
+                  (isAdmin
+                    ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+                    : isTeacher
+                    ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+                    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
+                }
+                alt="Avatar"
+                className="rounded-circle object-fit-cover border"
+                style={{ width: isTeacher ? '28px' : '34px', height: isTeacher ? '28px' : '34px' }}
+              />
+            )}
+            <div className="d-none d-sm-flex flex-column text-start" style={{ lineHeight: 1.15 }}>
+              <span className="fw-bold text-sa-charcoal" style={{ fontSize: isTeacher ? '0.80rem' : '0.85rem' }}>
+                {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
               </span>
-              <ChevronDown size={12} className="text-sa-muted" />
+              <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
+                {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : 'Administrator'}
+              </span>
             </div>
+            <ChevronDown size={13} className="text-sa-muted ms-1" />
           </div>
 
           {showUserMenu && (
             <div
-              className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-2"
-              style={{ width: '230px', zIndex: 1050 }}
+              className="position-absolute end-0 mt-2 bg-white border shadow-lg p-2.5"
+              style={{
+                width: '240px',
+                zIndex: 1050,
+                borderRadius: '14px',
+                border: '1px solid #edf2f7',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
+              }}
             >
-              <div className="px-3 py-2 border-bottom mb-1 bg-light rounded-2">
-                <div className="fw-bold text-sa-charcoal small">{user?.name || (isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}</div>
-                <div className="text-sa-primary fw-medium" style={{ fontSize: '0.76rem' }}>
-                  {user?.role === 'super-admin'
-                    ? 'Super Administrator'
-                    : user?.title || 'Super Administrator'}
+              <div
+                className="px-3 py-2.5 mb-2 rounded-3"
+                style={{ backgroundColor: '#F8FAFC' }}
+              >
+                <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.94rem', lineHeight: 1.25 }}>
+                  {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
                 </div>
-                <div className="text-muted text-truncate" style={{ fontSize: '0.70rem' }}>
-                  {user?.email || 'superadmin@shubham.edu'}
+                <div className="fw-medium mt-1" style={{ fontSize: '0.82rem', color: '#c53030' }}>
+                  {isAdmin ? 'admin' : isSuperAdmin ? 'super-admin' : (user?.role || 'admin')}
+                </div>
+                <div className="text-muted text-truncate mt-0.5" style={{ fontSize: '0.78rem' }}>
+                  {user?.email || (isAdmin ? 'admin@shubham.edu' : 'superadmin@shubham.edu')}
                 </div>
               </div>
 
               <button
                 type="button"
-                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2 text-sa-charcoal"
+                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2.5 w-100 text-sa-charcoal"
+                style={{ cursor: 'pointer' }}
                 onClick={() => {
                   setShowUserMenu(false);
-                  if (user?.role === 'super-admin') navigate('/super-admin/settings');
-                  else if (user?.role === 'admin') navigate('/admin/dashboard');
-                  else if (user?.role === 'teacher') navigate('/teacher/profile');
+                  if (isAdmin || user?.role === 'admin') navigate('/admin/profile');
+                  else if (isSuperAdmin || user?.role === 'super-admin') navigate('/super-admin/settings');
+                  else if (isTeacher || user?.role === 'teacher') navigate('/teacher/profile');
                   else navigate('/student/profile');
                 }}
               >
-                <UserCircle size={16} className="text-sa-primary" />
-                <span className="fw-medium">View Profile</span>
+                <UserCircle size={18} style={{ color: '#c53030', flexShrink: 0 }} />
+                <span className="fw-semibold" style={{ color: '#1e293b', fontSize: '0.88rem' }}>View Profile</span>
               </button>
-
-              <div className="dropdown-divider my-1"></div>
 
               <button
                 type="button"
-                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 text-danger d-flex align-items-center gap-2"
+                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2.5 w-100 mt-1"
+                style={{ color: '#ef4444', cursor: 'pointer' }}
                 onClick={handleLogout}
               >
-                <LogOut size={16} />
-                <span className="fw-medium">Logout</span>
+                <LogOut size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
+                <span className="fw-semibold" style={{ color: '#ef4444', fontSize: '0.88rem' }}>Logout</span>
               </button>
             </div>
           )}

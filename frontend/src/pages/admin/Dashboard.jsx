@@ -83,38 +83,56 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="d-flex flex-column gap-3.5 pb-4">
-      {/* Top Welcome Banner */}
-      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pt-1">
-        <div>
-          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '1.65rem' }}>
-            Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
-          </h1>
-          <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '0.90rem' }}>
-            Here's what's happening at Shubham Academy today.
-          </p>
-        </div>
-
-        <div className="d-none d-md-flex flex-column align-items-end text-end">
-          <div
-            className="text-sa-charcoal fw-semibold"
-            style={{ fontSize: '0.82rem', letterSpacing: '0.02em', fontStyle: 'normal' }}
-          >
-            "Discipline Today<br />A Brighter Tomorrow"
+    <div className="d-flex flex-column gap-4 pb-4">
+      {/* Top Welcome Hero Banner */}
+      <div
+        className="bg-white rounded-4 border overflow-hidden shadow-xs"
+        style={{
+          borderRadius: '18px',
+          boxShadow: '0 2px 14px rgba(0, 0, 0, 0.04)',
+          borderColor: 'rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        <div className="row g-0 align-items-center">
+          {/* Left Text */}
+          <div className="col-12 col-md-5 col-lg-5 p-4 ps-md-4 ps-xl-5 py-md-4">
+            <h1
+              className="fw-bold brand-font text-sa-charcoal m-0"
+              style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
+            >
+              Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
+            </h1>
+            <p
+              className="text-sa-charcoal text-opacity-75 m-0 mt-2"
+              style={{ fontSize: '0.95rem', fontWeight: 400 }}
+            >
+              Discipline Today, A Brighter Tomorrow.
+            </p>
           </div>
-          <div
-            className="rounded-pill mt-1.5"
-            style={{ width: '48px', height: '3px', backgroundColor: 'var(--sa-mustard-yellow)' }}
-          />
+
+          {/* Right Hero Illustration */}
+          <div className="col-12 col-md-7 col-lg-7 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3">
+            <img
+              src="/assets/superadminhero.png"
+              alt="Shubham Academy Celebration"
+              className="img-fluid"
+              style={{
+                maxHeight: '155px',
+                width: 'auto',
+                objectFit: 'contain',
+                objectPosition: 'bottom right'
+              }}
+            />
+          </div>
         </div>
       </div>
 
       {/* Row 1: KPI Stat Cards */}
-      <div className="row g-3">
+      <div className="row g-3 g-xl-4">
         {/* Total Students */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
+            className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
             onClick={() => navigate('/admin/students')}
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
           >
@@ -141,7 +159,7 @@ export default function AdminDashboard() {
         {/* Present Today */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
+            className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
             onClick={() => navigate('/admin/attendance')}
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
           >
@@ -168,7 +186,7 @@ export default function AdminDashboard() {
         {/* Monthly Fees */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
+            className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
             onClick={() => navigate('/admin/fees')}
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
           >
@@ -195,7 +213,7 @@ export default function AdminDashboard() {
         {/* Pending Fees */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
+            className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex align-items-center gap-3 transition-all cursor-pointer"
             onClick={() => navigate('/admin/fees/pending')}
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
           >
@@ -221,12 +239,12 @@ export default function AdminDashboard() {
       </div>
 
       {/* Row 2: Analytics & Schedule (3 Cards) */}
-      <div className="row g-3">
+      <div className="row g-3 g-xl-4">
         {/* Attendance Overview Card */}
         <div className="col-12 col-xl-5">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
                 <BarChart2 size={18} style={{ color: 'var(--sa-primary-red)' }} />
                 <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
@@ -378,7 +396,7 @@ export default function AdminDashboard() {
 
         {/* Today's Schedule Card */}
         <div className="col-12 col-xl-4">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
@@ -420,10 +438,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* Row 3: Activity & Inventory (3 Cards) */}
-      <div className="row g-3">
+      <div className="row g-3 g-xl-4">
         {/* Recent Admissions */}
         <div className="col-12 col-lg-4">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
@@ -478,7 +496,7 @@ export default function AdminDashboard() {
 
         {/* Low Stock Alert */}
         <div className="col-12 col-lg-4">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
@@ -525,7 +543,7 @@ export default function AdminDashboard() {
 
         {/* Upcoming Examinations */}
         <div className="col-12 col-lg-4">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
