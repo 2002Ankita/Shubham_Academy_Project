@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import studentService from '../../services/studentService';
 import examService from '../../services/examService';
 import noticeService from '../../services/noticeService';
+import batchService from '../../services/batchService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -36,14 +37,16 @@ export default function TeacherDashboard() {
   const [upcomingExamsList, setUpcomingExamsList] = useState([]);
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [totalExams, setTotalExams] = useState(0);
+  const [scheduleRows, setScheduleRows] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [studentsRes, examsRes, noticesRes] = await Promise.allSettled([
+        const [studentsRes, examsRes, noticesRes, batchesRes] = await Promise.allSettled([
           studentService.getAll(),
           examService.getAll(),
-          noticeService.getAll()
+          noticeService.getAll(),
+          batchService.getBatches()
         ]);
 
         if (studentsRes.status === 'fulfilled') {
@@ -72,6 +75,30 @@ export default function TeacherDashboard() {
           }));
           setRecentAnnouncements(recent);
         }
+
+        if (batchesRes.status === 'fulfilled') {
+          const batches = batchesRes.value || [];
+          let filteredBatches = batches;
+          if (user && user.role === 'teacher' && user.name) {
+            const firstName = user.name.split(' ')[0].toLowerCase();
+            filteredBatches = batches.filter(b => 
+              b.teacher_name && 
+              (b.teacher_name.toLowerCase().includes(firstName) || 
+               user.name.toLowerCase().includes(b.teacher_name.toLowerCase()))
+            );
+          }
+          const formattedRows = filteredBatches.map(b => ({
+            time: b.time || 'TBD',
+            subject: b.subject,
+            classBatch: b.name,
+            room: b.room || 'TBD',
+            status: 'Scheduled',
+            actionType: 'start',
+            actionText: 'Start Class',
+            path: '/teacher/attendance'
+          }));
+          setScheduleRows(formattedRows);
+        }
       } catch (err) {
         console.error('Error fetching teacher dashboard data:', err);
       }
@@ -85,8 +112,6 @@ export default function TeacherDashboard() {
   const toggleTask = (id) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
-
-  const scheduleRows = [];
 
   const attendanceDonutData = [
     { name: 'Present', value: 0, percentage: '0%', color: '#8B1216' },

@@ -22,8 +22,26 @@ export const materialService = {
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    // Attempt to extract extension from title if present, otherwise just use title
-    link.setAttribute('download', title);
+    let filename = title;
+    const contentDisposition = res.headers['content-disposition'];
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch && filenameMatch.length === 2) {
+        filename = filenameMatch[1];
+      }
+    } else {
+      // Fallback
+    }
+
+    if (!filename.includes('.')) {
+      if (res.data.type === 'application/pdf') {
+        filename += '.pdf';
+      } else {
+        filename += '.pdf'; // Default fallback
+      }
+    }
+    
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     link.remove();

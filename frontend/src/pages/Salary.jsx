@@ -30,31 +30,45 @@ export default function Salary() {
   // Get current month's salary (assuming first one or latest one is current)
   const currentSalary = salaries.length > 0 ? salaries[salaries.length - 1] : null;
 
+  const safeNum = (val) => Number(val) || 0;
+
   const summary = currentSalary ? {
-    currentMonthSalary: `₹${currentSalary.netPayable.toLocaleString()}`,
-    payPeriod: currentSalary.month,
-    workingHours: '160 hrs', // Default, could be calculated
-    hourlyRate: '₹' + Math.round(currentSalary.baseSalary / 160).toString(),
-    paymentStatus: currentSalary.status,
+    currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
+    payPeriod: currentSalary.month || 'N/A',
+    workingHours: '160 hrs', // Default assumption
+    workingHoursSubtext: 'Standard monthly quota',
+    hourlyRate: '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
+    hourlyRateSubtext: 'Standard slab rate',
+    paymentStatus: currentSalary.status || 'N/A',
+    paymentStatusSubtext: currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Disbursement by 5th',
   } : {
-    currentMonthSalary: '₹0', payPeriod: 'N/A', workingHours: '0 hrs', hourlyRate: '₹0', paymentStatus: 'N/A'
+    currentMonthSalary: '₹0', payPeriod: 'N/A', workingHours: '0 hrs', workingHoursSubtext: '-', hourlyRate: '₹0', hourlyRateSubtext: '-', paymentStatus: 'N/A', paymentStatusSubtext: '-'
   };
 
+  const deductions = safeNum(currentSalary?.deductions);
+  const pt = Math.min(200, deductions);
+  
   const breakdown = currentSalary ? {
-    basicPay: `₹${currentSalary.baseSalary.toLocaleString()}`,
-    allowance: `₹${currentSalary.allowances.toLocaleString()}`,
-    taxDeduction: `₹${currentSalary.deductions.toLocaleString()}`,
-    netPayable: `₹${currentSalary.netPayable.toLocaleString()}`,
-  } : { basicPay: '₹0', allowance: '₹0', taxDeduction: '₹0', netPayable: '₹0' };
+    basicSalary: safeNum(currentSalary.baseSalary),
+    workingHoursPay: 0,
+    overtime: 0,
+    allowances: safeNum(currentSalary.allowances),
+    deductions: deductions,
+    pt: pt,
+    otherDeductions: deductions - pt,
+    netSalary: safeNum(currentSalary.netPayable),
+    workingHours: 160,
+    payPeriod: currentSalary.month || 'N/A'
+  } : { basicSalary: 0, workingHoursPay: 0, overtime: 0, allowances: 0, deductions: 0, pt: 0, otherDeductions: 0, netSalary: 0, workingHours: 0, payPeriod: 'N/A' };
 
   const history = salaries.map(s => ({
-    month: s.month,
+    month: s.month || 'N/A',
     workingHours: '160 hrs',
-    grossSalary: `₹${(s.baseSalary + s.allowances).toLocaleString()}`,
-    deductions: s.deductions.toLocaleString(),
-    netSalary: `₹${s.netPayable.toLocaleString()}`,
-    paymentDate: s.disbursedDate !== '--' ? s.disbursedDate : 'Pending',
-    status: s.status,
+    grossSalary: `₹${(safeNum(s.baseSalary) + safeNum(s.allowances)).toLocaleString()}`,
+    deductions: safeNum(s.deductions).toLocaleString(),
+    netSalary: `₹${safeNum(s.netPayable).toLocaleString()}`,
+    paymentDate: s.disbursedDate && s.disbursedDate !== '--' ? s.disbursedDate : 'Pending',
+    status: s.status || 'Processing',
   })).reverse();
 
   return (

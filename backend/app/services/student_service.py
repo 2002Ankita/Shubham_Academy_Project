@@ -29,18 +29,38 @@ async def _format_student(student: Student) -> dict:
         "branch": student.branch,
         "academic_year": student.academic_year,
         "rfid_tag": student.rfid_tag,
+        "total_fees": student.total_fees,
         "admission_date": student.admission_date,
     }
 
 async def create_student(student_in: StudentCreate) -> dict:
     # 1. Create User account for student
     student_id = f"STU-{uuid.uuid4().hex[:6].upper()}"
-    
-    from pymongo.errors import DuplicateKeyError
     from fastapi import HTTPException
-    
+    from pymongo.errors import DuplicateKeyError
+    import re
+
+    # Validation
+    if not student_in.email:
+        raise HTTPException(status_code=400, detail="Email is required")
+        
+    existing_user = await User.find_one(User.email == student_in.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+        
+    if student_in.mobile_number == student_in.parent_mobile:
+        raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
+        
+    clean_mobile = re.sub(r'\D', '', student_in.mobile_number)
+    if len(clean_mobile) < 10:
+        raise HTTPException(status_code=400, detail="Invalid mobile number format")
+        
+    existing_mobile = await Student.find_one(Student.mobile_number == student_in.mobile_number)
+    if existing_mobile:
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
+
     user = User(
-        email=student_in.email if student_in.email else f"{student_id}@academy.com",
+        email=student_in.email,
         hashed_password=get_password_hash(student_in.password),
         full_name=student_in.full_name,
         role="STUDENT"
@@ -63,7 +83,8 @@ async def create_student(student_in: StudentCreate) -> dict:
         standard=student_in.standard,
         batch=student_in.batch,
         branch=student_in.branch,
-        academic_year=student_in.academic_year
+        academic_year=student_in.academic_year,
+        total_fees=student_in.total_fees
     )
     await student.insert()
     return await _format_student(student)
@@ -120,7 +141,16 @@ async def update_student(id: str, student_in: dict) -> dict:
             raise HTTPException(status_code=400, detail="Email already in use")
         
     if student_in:
-        await student.set(student_in)
+        new_mobile = student_in.get("mobile_number", student.mobile_number)
+        new_parent_mobile = student_in.get("parent_mobile", student.parent_mobile)
+        if new_mobile == new_parent_mobile:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
+            
+        try:
+            await student.set(student_in)
+        except DuplicateKeyError:
+            raise HTTPException(status_code=400, detail="Mobile number already in use")
     
     return await _format_student(student)
 

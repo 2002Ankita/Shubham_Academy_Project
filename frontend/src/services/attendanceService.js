@@ -68,8 +68,9 @@ export const attendanceService = {
   getWorkingTime: async (teacherId) => {
     const res = await api.get(`/attendance/teacher/${teacherId}`);
     return res.data.map(r => {
-      const checkInDate = r.check_in_time ? new Date(r.check_in_time) : null;
-      const checkOutDate = r.check_out_time ? new Date(r.check_out_time) : null;
+      const ensureUtc = (dt) => dt ? (dt.endsWith('Z') || dt.includes('+') ? dt : dt + 'Z') : null;
+      const checkInDate = r.check_in_time ? new Date(ensureUtc(r.check_in_time)) : null;
+      const checkOutDate = r.check_out_time ? new Date(ensureUtc(r.check_out_time)) : null;
       
       let totalHours = '--';
       if (checkInDate && checkOutDate) {
@@ -81,12 +82,12 @@ export const attendanceService = {
 
       return {
         id: r.id,
-        date: new Date(r.date).toISOString().split('T')[0],
-        day: new Date(r.date).toLocaleDateString('en-US', { weekday: 'long' }),
+        date: new Date(ensureUtc(r.date)).toISOString().split('T')[0],
+        day: new Date(ensureUtc(r.date)).toLocaleDateString('en-US', { weekday: 'long' }),
         checkIn: checkInDate ? checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
         checkOut: checkOutDate ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
         breakTime: '1h 00m',
-        totalHours: totalHours,
+        totalHours: r.total_hours || totalHours,
         status: r.status
       };
     });

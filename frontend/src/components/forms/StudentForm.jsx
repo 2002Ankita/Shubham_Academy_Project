@@ -19,6 +19,27 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
   });
 
   const [errors, setErrors] = useState({});
+  const [feeStructures, setFeeStructures] = useState([]);
+
+  useEffect(() => {
+    import('../../services/api').then(mod => {
+      mod.default.get('/fees/structures').then(res => {
+        setFeeStructures(res.data);
+      }).catch(err => console.error(err));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (feeStructures.length > 0) {
+      const match = feeStructures.find(s => 
+        s.standard === formData.standard && 
+        s.batch === formData.batch
+      );
+      if (match) {
+        setFormData(prev => ({ ...prev, totalFees: match.total_fee }));
+      }
+    }
+  }, [formData.standard, formData.batch, feeStructures]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,6 +52,9 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     if (!formData.email.trim()) newErrors.email = 'Email address is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.parentPhone.trim()) newErrors.parentPhone = 'Parent phone is required';
+    if (formData.phone.trim() && formData.parentPhone.trim() && formData.phone.trim() === formData.parentPhone.trim()) {
+      newErrors.parentPhone = 'Student and parent mobile numbers must be different';
+    }
     if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
     if (Object.keys(newErrors).length > 0) {
@@ -176,6 +200,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
             type="number"
             value={formData.totalFees}
             onChange={handleChange}
+            helperText="Fetched automatically based on assigned standard/batch, but can be overridden"
             required
           />
         </div>

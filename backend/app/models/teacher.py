@@ -6,7 +6,7 @@ from app.models.user import User
 class Teacher(Document):
     user: Link[User]
     employee_id: Annotated[str, Indexed(unique=True)]
-    mobile_number: str
+    mobile_number: Annotated[str, Indexed(unique=True)]
     subjects: List[str]
     branch: str = "Tarabai Park"
     assigned_batches: List[str] = []

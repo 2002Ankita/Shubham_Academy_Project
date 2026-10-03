@@ -11,9 +11,9 @@ export const feeService = {
       studentName: fee.student_name || 'Student ID: ' + fee.student_id.substring(fee.student_id.length - 6),
       rollNumber: fee.roll_number || 'N/A',
       standard: 'N/A',
-      totalFees: fee.amount_paid, // Or whatever it should be. The user said "Amount is not mentioned", maybe they just mean totalFees in the table. Let's map it.
+      totalFees: fee.total_fees || 0,
       amountPaid: fee.amount_paid,
-      pendingAmount: 0,
+      pendingAmount: fee.pending_fees || 0,
       paymentDate: fee.payment_date.split('T')[0],
       paymentMode: fee.payment_method,
       transactionId: fee.transaction_reference,
@@ -44,9 +44,23 @@ export const feeService = {
   },
 
   getReceipt: async (receiptNo) => {
-    // Note: If you need to actually fetch a specific receipt, we need an endpoint for it.
-    // For now, let's just throw or return a stub since we removed mock data.
-    return { receiptNo };
+    try {
+      const data = await feeService.getAll();
+      const found = data.find(f => f.receiptNo === receiptNo);
+      if (!found) return { receiptNo };
+      
+      const details = await api.get(`/fees/${found.studentId}`);
+      found.totalFees = details.data.total_fees;
+      found.pendingAmount = details.data.pending_fees;
+      return found;
+    } catch {
+      return { receiptNo };
+    }
+  },
+
+  getFeeDetails: async (studentId) => {
+    const res = await api.get(`/fees/${studentId}`);
+    return res.data;
   },
 
   collectFee: async (data) => {
@@ -55,7 +69,8 @@ export const feeService = {
       amount_paid: Number(data.amountPaid),
       payment_method: data.paymentMode || 'Online',
       transaction_reference: `TXN-${Date.now()}`,
-      remarks: data.feeHead || 'Manual Collection'
+      remarks: data.feeHead || 'Manual Collection',
+      total_course_fees_override: Number(data.totalFees) || null
     };
     const res = await api.post('/fees', payload);
     const receiptNo = `REC-${res.data.id.substring(res.data.id.length - 6).toUpperCase()}`;

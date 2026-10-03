@@ -6,7 +6,7 @@ import Button from '../common/Button';
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
   const [formData, setFormData] = useState({
     title: 'Mid-Term Assessment 2026',
-    standard: '12th Science',
+    standard: '',
     subject: 'Physics',
     date: '2026-10-15',
     startTime: '10:00 AM',
@@ -60,12 +60,20 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
             value={formData.standard}
             onChange={handleChange}
             options={[
-              '12th Science',
-              '11th Science',
-              '12th Commerce',
-              '11th Commerce',
-              '10th Foundation'
+              '11th pcm tarabai park',
+              '11th pcb tarabai park',
+              '11th pcmb tarabai park',
+              '12th pcm tarabai park',
+              '12th pcb tarabai park',
+              '12th pcmb tarabai park',
+              '11th pcm Mangalvar peth',
+              '11th pcb Mangalvar peth',
+              '11th pcmb Mangalvar peth',
+              '12th pcm Mangalvar peth',
+              '12th pcb Mangalvar peth',
+              '12th pcmb Mangalvar peth'
             ]}
+            required
           />
         </div>
 

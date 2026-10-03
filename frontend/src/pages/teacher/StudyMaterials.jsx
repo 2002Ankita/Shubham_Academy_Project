@@ -12,7 +12,7 @@ export default function TeacherStudyMaterials() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [newMat, setNewMat] = useState({ title: '', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', description: '' });
+  const [newMat, setNewMat] = useState({ title: '', standard: '', subject: 'Physics', fileType: 'PDF Document', description: '' });
   const fileInputRef = useRef(null);
   
   const fetchMaterials = async () => {
@@ -53,7 +53,7 @@ export default function TeacherStudyMaterials() {
       await materialService.uploadMaterial(formData);
       toast.success('Study notes uploaded to student portal!');
       setModalOpen(false);
-      setNewMat({ title: '', standard: '12th Science', subject: 'Physics', fileType: 'PDF Document', description: '' });
+      setNewMat({ title: '', standard: '', subject: 'Physics', fileType: 'PDF Document', description: '' });
       if (fileInputRef.current) fileInputRef.current.value = '';
       fetchMaterials();
     } catch (err) {
@@ -142,7 +142,21 @@ export default function TeacherStudyMaterials() {
                 name="standard"
                 value={newMat.standard}
                 onChange={(e) => setNewMat({ ...newMat, standard: e.target.value })}
-                options={['12th Science', '11th Science', '12th Commerce', '11th Commerce', 'NEET Special']}
+                options={[
+                  '11th pcm tarabai park',
+                  '11th pcb tarabai park',
+                  '11th pcmb tarabai park',
+                  '12th pcm tarabai park',
+                  '12th pcb tarabai park',
+                  '12th pcmb tarabai park',
+                  '11th pcm Mangalvar peth',
+                  '11th pcb Mangalvar peth',
+                  '11th pcmb Mangalvar peth',
+                  '12th pcm Mangalvar peth',
+                  '12th pcb Mangalvar peth',
+                  '12th pcmb Mangalvar peth'
+                ]}
+                required
               />
             </div>
             <div className="col-12 col-md-4">

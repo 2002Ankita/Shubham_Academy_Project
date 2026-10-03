@@ -1,20 +1,7 @@
-import asyncio
-from app.core.database import init_db
-from app.services.salary_service import generate_monthly_salaries
+import requests
 
-async def test():
-    await init_db()
-    from app.services.salary_service import get_all_salaries
-    try:
-        res = await get_all_salaries()
-        print("Total salaries found:", len(res))
-        if len(res) > 0:
-            print(res[0])
-        print("SUCCESS fetch")
-    except Exception as e:
-        print("ERROR:", e)
-        import traceback
-        traceback.print_exc()
+login = requests.post('http://127.0.0.1:8000/api/auth/login', json={'email': 'teacher1@test.com', 'password': 'password123'})
+token = login.json().get('access_token')
 
-if __name__ == "__main__":
-    asyncio.run(test())
+res = requests.get('http://127.0.0.1:8000/api/salary/me', headers={'Authorization': 'Bearer '+token})
+print("My Salaries:", res.status_code, res.text)

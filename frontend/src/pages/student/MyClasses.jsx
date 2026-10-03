@@ -1,17 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import { BookOpen, UserCheck, Clock, MapPin } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import studentService from '../../services/studentService';
+import batchService from '../../services/batchService';
+import { toast } from 'react-toastify';
 
 export default function StudentClasses() {
-  const timetable = [
-    { day: 'Monday', time: '08:00 AM - 09:30 AM', subject: 'Physics (Advanced Mechanics)', teacher: 'Dr. Priya Kulkarni', room: 'Hall 2' },
-    { day: 'Monday', time: '10:00 AM - 11:30 AM', subject: 'Mathematics (Calculus)', teacher: 'Prof. Amit Sawant', room: 'Hall 2' },
-    { day: 'Tuesday', time: '08:00 AM - 09:30 AM', subject: 'Chemistry (Physical Chemistry)', teacher: 'Mrs. Neha Deshpande', room: 'Hall 2' },
-    { day: 'Wednesday', time: '08:00 AM - 09:30 AM', subject: 'Physics (Wave Optics)', teacher: 'Dr. Priya Kulkarni', room: 'Hall 2' },
-    { day: 'Wednesday', time: '10:00 AM - 11:30 AM', subject: 'Mathematics (Vectors)', teacher: 'Prof. Amit Sawant', room: 'Hall 2' },
-    { day: 'Thursday', time: '08:00 AM - 10:00 AM', subject: 'Physics Practical Lab', teacher: 'Dr. Priya Kulkarni', room: 'Physics Lab 1' },
-    { day: 'Friday', time: '08:00 AM - 09:30 AM', subject: 'Chemistry (Organic Reaction Mechanisms)', teacher: 'Mrs. Neha Deshpande', room: 'Hall 2' },
-  ];
+  const { user } = useAuth();
+  const [timetable, setTimetable] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [studentInfo, setStudentInfo] = useState(null);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoading(true);
+        if (user && user.id) {
+          const studentRes = await studentService.getById(user.id);
+          setStudentInfo(studentRes);
+
+          const batchesRes = await batchService.getBatches();
+          
+          // Filter batches assigned to the student's batch name
+          const myBatches = batchesRes.filter(b => 
+            b.name && studentRes.batch &&
+            b.name.toLowerCase().replace(/\s+/g, '') === studentRes.batch.toLowerCase().replace(/\s+/g, '')
+          );
+
+          // Build timetable format
+          const formatted = myBatches.map(b => {
+            // Extract day and time if it matches something like "Mon( 8:00 to 10:00)"
+            let day = 'Scheduled';
+            let time = b.time || 'TBD';
+            if (b.time && b.time.includes('(')) {
+              const parts = b.time.split('(');
+              day = parts[0].trim();
+              time = parts[1].replace(')', '').trim();
+            }
+
+            return {
+              day: day,
+              time: time,
+              subject: b.subject,
+              teacher: b.teacher_name || 'TBD',
+              room: b.room || 'TBD'
+            };
+          });
+          
+          setTimetable(formatted);
+        }
+      } catch (err) {
+        console.error("Failed to load classes", err);
+        toast.error('Failed to load classes');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClasses();
+  }, [user]);
 
   return (
     <div className="d-flex flex-column gap-4">
@@ -20,7 +67,7 @@ export default function StudentClasses() {
           My Weekly Class Schedule & Timetable
         </h3>
         <span className="small text-sa-muted">
-          Class 12th Science (12th pcm tarabai park) • Pune Main Campus
+          {studentInfo ? `${studentInfo.standard} (${studentInfo.batch}) • ${studentInfo.branch}` : 'Loading...'}
         </span>
       </div>
 
@@ -34,6 +81,7 @@ export default function StudentClasses() {
             { key: 'room', title: 'Classroom / Lab', render: (val) => <span className="badge bg-light text-dark border">{val}</span> }
           ]}
           data={timetable}
+          loading={loading}
         />
       </div>
     </div>

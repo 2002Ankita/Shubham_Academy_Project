@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import List, Optional
 
 class TeacherBase(BaseModel):
     full_name: str
     email: EmailStr
-    mobile_number: str
+    mobile_number: str = Field(..., pattern=r"^\d{10}$", json_schema_extra={"description": "10 digit mobile number"})
     subjects: List[str]
     assigned_batches: List[str]
     hourly_rate: float

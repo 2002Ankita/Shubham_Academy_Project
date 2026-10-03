@@ -13,6 +13,16 @@ export default function AddTeacher() {
     setLoading(true);
     try {
       const created = await teacherService.create(formData);
+      
+      // Auto-generate salary drafts for the new teacher so they appear in the payroll register
+      try {
+        const salaryService = (await import('../../services/salaryService')).default;
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        await salaryService.generateDrafts(currentMonth);
+      } catch (e) {
+        console.warn('Could not auto-generate salary draft', e);
+      }
+      
       toast.success(`Faculty ${created.name} onboarded successfully!`);
       navigate('/admin/teachers');
     } catch {
