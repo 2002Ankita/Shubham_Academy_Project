@@ -5,8 +5,9 @@ from app.models.student import Student
 
 class Exam(Document):
     exam_name: str
-    course: str
-    batch: str
+    standard: str = "12th Science"
+    batch: str = "11th pcm tarabai park"
+    branch: str = "Tarabai Park"
     subject: str
     exam_date: datetime
     start_time: datetime

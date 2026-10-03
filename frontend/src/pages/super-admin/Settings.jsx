@@ -100,13 +100,13 @@ export default function SuperAdminProfile() {
   ];
 
   // Save Profile Handler
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     setIsSaving(true);
 
-    setTimeout(() => {
+    try {
       if (updateUser) {
-        updateUser({
+        await updateUser({
           name: profileData.name,
           email: profileData.email,
           phone: profileData.phone,
@@ -117,13 +117,16 @@ export default function SuperAdminProfile() {
           bio: profileData.bio,
         });
       }
-      setIsSaving(false);
       toast.success('Super Admin profile updated successfully!');
-    }, 400);
+    } catch (error) {
+      toast.error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Save Password Handler
-  const handleSavePassword = (e) => {
+  const handleSavePassword = async (e) => {
     e.preventDefault();
     if (!passwords.currentPassword) {
       toast.error('Please enter your current password.');
@@ -137,9 +140,16 @@ export default function SuperAdminProfile() {
       toast.error('New password and confirm password do not match.');
       return;
     }
-
-    toast.success('Security password updated successfully!');
-    setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    
+    try {
+      if (updateUser) {
+        await updateUser({ password: passwords.newPassword });
+      }
+      toast.success('Security password updated successfully!');
+      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      toast.error('Failed to update password');
+    }
   };
 
   // Save System Settings Handler
@@ -154,12 +164,14 @@ export default function SuperAdminProfile() {
       <div className="d-flex flex-column flex-sm-row sm:align-items-center justify-content-between gap-2">
         <div>
           <div className="d-flex align-items-center gap-2">
-            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Super Admin Profile</h3>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+              {user?.role === 'super-admin' ? 'Super Admin Profile' : 'Admin Profile'}
+            </h3>
             <span
               className="badge px-2.5 py-1 rounded-pill"
               style={{ backgroundColor: '#FDF0F0', color: 'var(--sa-primary)', fontSize: '0.75rem' }}
             >
-              Master Account
+              {user?.role === 'super-admin' ? 'Master Account' : 'Administrator'}
             </span>
           </div>
           <span className="small text-sa-muted">
@@ -257,6 +269,20 @@ export default function SuperAdminProfile() {
           <Lock size={16} />
           Security & Password
         </button>
+        {user?.role === 'super-admin' && (
+          <button
+            type="button"
+            className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all ${
+              activeTab === 'system'
+                ? 'bg-sa-primary text-white shadow-sm'
+                : 'btn-light text-sa-charcoal border'
+            }`}
+            onClick={() => setActiveTab('system')}
+          >
+            <Sliders size={16} />
+            System & API Settings
+          </button>
+        )}
       </div>
 
       {/* TAB 1: Profile Information */}

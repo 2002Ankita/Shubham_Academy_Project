@@ -41,6 +41,13 @@ async def get_all_salaries() -> list[dict]:
     salaries = await SalaryPayment.find_all().to_list()
     return [await _format_salary(s) for s in salaries]
 
+async def get_my_salaries(user_id: ObjectId) -> list[dict]:
+    teacher = await Teacher.find_one(Teacher.user.id == user_id)
+    if not teacher:
+        return []
+    salaries = await SalaryPayment.find(SalaryPayment.teacher.id == teacher.id).to_list()
+    return [await _format_salary(s) for s in salaries]
+
 async def update_salary(id: str, base_salary: float, allowances: float, deductions: float, net_payable: float) -> dict:
     try:
         s = await SalaryPayment.get(ObjectId(id))

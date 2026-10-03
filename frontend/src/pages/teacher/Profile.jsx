@@ -90,7 +90,7 @@ export default function TeacherProfile() {
           </div>
 
           <div>
-            <h4 className="brand-font fw-bold m-0 text-sa-charcoal">{user?.name || 'Dr. Priya Kulkarni'}</h4>
+            <h4 className="brand-font fw-bold m-0 text-sa-charcoal">{user?.name || 'Teacher'}</h4>
             <span className="text-sa-primary fw-semibold small d-block mb-1">
               Senior Faculty • Physics & Applied Mechanics
             </span>
@@ -104,7 +104,7 @@ export default function TeacherProfile() {
               <Input
                 label="Full Name"
                 name="name"
-                defaultValue={user?.name || 'Dr. Priya Kulkarni'}
+                defaultValue={user?.name || ''}
                 icon={User}
                 required
               />
@@ -114,7 +114,7 @@ export default function TeacherProfile() {
               <Input
                 label="Registered Email"
                 name="email"
-                defaultValue={user?.email || 'priya.k@shubham.edu'}
+                defaultValue={user?.email || ''}
                 icon={Mail}
                 disabled
               />

@@ -6,7 +6,7 @@ export const examService = {
     return res.data.map(exam => ({
       id: exam.id,
       title: exam.exam_name,
-      standard: exam.course + (exam.batch ? ` - ${exam.batch}` : ''),
+      standard: exam.standard + (exam.batch ? ` - ${exam.batch}` : '') + (exam.branch ? ` - ${exam.branch}` : ''),
       subject: exam.subject,
       date: exam.exam_date?.split('T')[0] || 'N/A',
       startTime: exam.start_time?.split('T')[1]?.substring(0, 5) || '10:00', // Mocking time display if backend sends ISO
@@ -22,8 +22,9 @@ export const examService = {
     // Map frontend data to backend payload
     const payload = {
       exam_name: data.title || 'New Exam',
-      course: data.standard?.split(' - ')[0] || 'General',
+      standard: data.standard?.split(' - ')[0] || 'General',
       batch: data.standard?.split(' - ')[1] || 'General',
+      branch: data.standard?.split(' - ')[2] || 'Tarabai Park',
       subject: data.subject || 'General',
       exam_date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
       start_time: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),

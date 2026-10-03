@@ -46,6 +46,7 @@ import NotesDelivery from '../pages/admin/NotesDelivery';
 import Notices from '../pages/admin/Notices';
 import Notifications from '../pages/admin/Notifications';
 import AdminReports from '../pages/admin/Reports';
+import LeaveApprovals from '../pages/admin/LeaveApprovals';
 import AdminProfile from '../pages/admin/Profile';
 
 // Teacher Pages
@@ -134,6 +135,8 @@ export default function AppRoutes() {
         <Route path="/admin/teachers" element={<TeacherList />} />
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
+        <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
+        <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<RFIDAttendance />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
         <Route path="/admin/fees" element={<FeeCollection />} />

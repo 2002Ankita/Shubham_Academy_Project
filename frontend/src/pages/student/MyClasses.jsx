@@ -20,7 +20,7 @@ export default function StudentClasses() {
           My Weekly Class Schedule & Timetable
         </h3>
         <span className="small text-sa-muted">
-          Class 12th Science (Batch Alpha) • Pune Main Campus
+          Class 12th Science (12th pcm tarabai park) • Pune Main Campus
         </span>
       </div>
 

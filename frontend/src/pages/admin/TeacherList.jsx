@@ -4,7 +4,7 @@ import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
 import Button from '../../components/common/Button';
 import teacherService from '../../services/teacherService';
-import { UserPlus, Mail, Phone, Trash2 } from 'lucide-react';
+import { UserPlus, Mail, Phone, Trash2, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function TeacherList() {
@@ -36,9 +36,9 @@ export default function TeacherList() {
   };
 
   const filtered = teachers.filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.subject.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase())
+    (t.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.subject || '').toLowerCase().includes(search.toLowerCase()) ||
+    (t.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -116,14 +116,24 @@ export default function TeacherList() {
               title: 'Action',
               align: 'end',
               render: (val, row) => (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light border p-1 text-danger"
-                  title="Remove"
-                  onClick={() => handleDelete(val, row.name)}
-                >
-                  <Trash2 size={15} />
-                </button>
+                <div className="d-flex justify-content-end gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-1 text-primary"
+                    title="View Working Time"
+                    onClick={() => navigate(`/admin/teachers/${val}/working-time`)}
+                  >
+                    <Clock size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-1 text-danger"
+                    title="Remove"
+                    onClick={() => handleDelete(val, row.name)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               )
             }
           ]}

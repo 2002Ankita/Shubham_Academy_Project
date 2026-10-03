@@ -24,8 +24,9 @@ async def _format_student(student: Student) -> dict:
         "address": student.address,
         "parent_name": student.parent_name,
         "parent_mobile": student.parent_mobile,
-        "course": student.course,
+        "standard": student.standard,
         "batch": student.batch,
+        "branch": student.branch,
         "academic_year": student.academic_year,
         "rfid_tag": student.rfid_tag,
         "admission_date": student.admission_date,
@@ -40,7 +41,7 @@ async def create_student(student_in: StudentCreate) -> dict:
     
     user = User(
         email=student_in.email if student_in.email else f"{student_id}@academy.com",
-        hashed_password=get_password_hash("password123"), # Default password
+        hashed_password=get_password_hash(student_in.password),
         full_name=student_in.full_name,
         role="STUDENT"
     )
@@ -59,8 +60,9 @@ async def create_student(student_in: StudentCreate) -> dict:
         address=student_in.address,
         parent_name=student_in.parent_name,
         parent_mobile=student_in.parent_mobile,
-        course=student_in.course,
+        standard=student_in.standard,
         batch=student_in.batch,
+        branch=student_in.branch,
         academic_year=student_in.academic_year
     )
     await student.insert()
@@ -81,7 +83,7 @@ async def resolve_student(id_str: str) -> Student:
     if not student:
         try:
             user_obj_id = ObjectId(id_str)
-            student = await Student.find_one(Student.user.id == user_obj_id)
+            student = await Student.find_one({"user.$id": user_obj_id})
         except InvalidId:
             pass
     if not student:

@@ -9,12 +9,13 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     email: initialData?.email || '',
     phone: initialData?.phone || '',
     standard: initialData?.standard || '12th Science',
-    batch: initialData?.batch || 'Batch Alpha (Morning)',
+    batch: initialData?.batch || '11th pcm tarabai park',
     rfidCard: initialData?.rfidCard || 'RFID-' + Math.floor(100000 + Math.random() * 900000),
     totalFees: initialData?.totalFees || 45000,
     parentName: initialData?.parentName || '',
     parentPhone: initialData?.parentPhone || '',
     address: initialData?.address || '',
+    password: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -30,6 +31,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     if (!formData.email.trim()) newErrors.email = 'Email address is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.parentPhone.trim()) newErrors.parentPhone = 'Parent phone is required';
+    if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -81,6 +83,19 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
 
         <div className="col-12 col-md-6">
           <Input
+            label="Password"
+            name="password"
+            type="password"
+            placeholder="Enter password"
+            value={formData.password}
+            onChange={handleChange}
+            error={errors.password}
+            required={!initialData}
+          />
+        </div>
+
+        <div className="col-12 col-md-6">
+          <Input
             label="Assigned RFID Smart Card"
             name="rfidCard"
             placeholder="RFID-XXXXXX"
@@ -114,10 +129,18 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
             value={formData.batch}
             onChange={handleChange}
             options={[
-              'Batch Alpha (Morning: 07:30 - 11:30)',
-              'Batch Beta (Evening: 03:30 - 07:30)',
-              'NEET Intensive Batch',
-              'Foundation Weekend Batch'
+              '11th pcm tarabai park',
+              '11th pcb tarabai park',
+              '11th pcmb tarabai park',
+              '12th pcm tarabai park',
+              '12th pcb tarabai park',
+              '12th pcmb tarabai park',
+              '11th pcm Mangalvar peth',
+              '11th pcb Mangalvar peth',
+              '11th pcmb Mangalvar peth',
+              '12th pcm Mangalvar peth',
+              '12th pcb Mangalvar peth',
+              '12th pcmb Mangalvar peth'
             ]}
           />
         </div>

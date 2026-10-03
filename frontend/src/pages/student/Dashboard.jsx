@@ -114,10 +114,10 @@ export default function StudentDashboard() {
   });
 
   // 1. Dynamic Metric Calculations from Services
-  const attendanceRate = student?.attendancePercent ?? 89.8;
+  const attendanceRate = student?.attendancePercent ?? 0;
 
   const scheduledExams = exams.filter(e => e.status === 'Scheduled' || !e.status);
-  const upcomingExamsCount = scheduledExams.length > 0 ? scheduledExams.length : 3;
+  const upcomingExamsCount = scheduledExams.length > 0 ? scheduledExams.length : 0;
 
   const nextExamDaysRemaining = (() => {
     if (scheduledExams.length > 0 && scheduledExams[0].date) {
@@ -125,34 +125,34 @@ export default function StudentDashboard() {
       const today = new Date();
       const diffTime = examDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : 5;
+      return diffDays > 0 ? diffDays : 0;
     }
-    return 5;
+    return 0;
   })();
 
   const totalFeeAmount = fees.length > 0
     ? fees.reduce((acc, f) => acc + (Number(f.totalFees) || 0), 0)
-    : 60000;
+    : 0;
   const paidFeeAmount = fees.length > 0
     ? fees.reduce((acc, f) => acc + (Number(f.amountPaid) || 0), 0)
-    : 47500;
+    : 0;
   const pendingFeeAmount = fees.length > 0
     ? fees.reduce((acc, f) => acc + (Number(f.pendingAmount) || 0), 0)
-    : 12500;
+    : 0;
 
   const overallScore = (() => {
     if (results.length > 0) {
       const totalScore = results.reduce((acc, r) => acc + (Number(r.percentage) || 0), 0);
       return (totalScore / results.length).toFixed(1);
     }
-    return '82.4';
+    return '0';
   })();
 
   // 2. Donut Chart Breakdown (Attendance Overview)
-  const totalDays = 186;
-  const presentDays = Math.round((attendanceRate / 100) * totalDays);
-  const absentDays = Math.round((9.7 / 100) * totalDays);
-  const lateDays = Math.max(0, totalDays - presentDays - absentDays);
+  const totalDays = 0;
+  const presentDays = 0;
+  const absentDays = 0;
+  const lateDays = 0;
 
   const donutData = [
     { name: 'Present', value: presentDays, color: '#A91D22' },
@@ -161,62 +161,10 @@ export default function StudentDashboard() {
   ];
 
   // 3. Today's Classes List
-  const todaysClasses = [
-    {
-      time: '8:00 AM',
-      subject: 'Mathematics',
-      teacher: 'Ms. Neha Verma',
-      room: 'Room 101',
-      status: 'Ongoing',
-      isOngoing: true
-    },
-    {
-      time: '10:00 AM',
-      subject: 'Physics',
-      teacher: 'Mr. Rohit Mehta',
-      room: 'Room 102',
-      status: 'Upcoming',
-      isOngoing: false
-    },
-    {
-      time: '12:00 PM',
-      subject: 'Chemistry',
-      teacher: 'Dr. Anjali Rao',
-      room: 'Room 201',
-      status: 'Upcoming',
-      isOngoing: false
-    },
-    {
-      time: '2:00 PM',
-      subject: 'English',
-      teacher: 'Ms. Kavita Singh',
-      room: 'Room 103',
-      status: 'Upcoming',
-      isOngoing: false
-    }
-  ];
+  const todaysClasses = [];
 
   // 4. Upcoming Examinations List
-  const upcomingExaminations = [
-    {
-      date: '31 May 2025',
-      subject: 'Mathematics',
-      class: 'Class 10 (A)',
-      countdown: '5 days'
-    },
-    {
-      date: '4 Jun 2025',
-      subject: 'Physics',
-      class: 'Class 10 (A)',
-      countdown: '9 days'
-    },
-    {
-      date: '10 Jun 2025',
-      subject: 'Chemistry',
-      class: 'Class 10 (A)',
-      countdown: '15 days'
-    }
-  ];
+  const upcomingExaminations = [];
 
   // 5. Recent Results List
   const recentResultsList = results.length > 0
@@ -225,34 +173,10 @@ export default function StudentDashboard() {
         marks: `${r.obtainedMarks} / ${r.maxMarks}`,
         grade: r.grade || 'A'
       }))
-    : [
-        { subject: 'Science (Unit Test)', marks: '85 / 100', grade: 'A' },
-        { subject: 'Mathematics (Unit Test)', marks: '78 / 100', grade: 'B+' },
-        { subject: 'English (Unit Test)', marks: '82 / 100', grade: 'A' },
-        { subject: 'Social Science (Unit Test)', marks: '76 / 100', grade: 'B+' }
-      ];
+    : [];
 
   // 6. Study Materials List
-  const studyMaterialsList = [
-    {
-      id: 'mat-01',
-      title: 'Class 10 - Science Notes (Ch 1-3)',
-      uploadDate: '24 May 2025',
-      fileName: 'Science_Notes_Ch1-3.pdf'
-    },
-    {
-      id: 'mat-02',
-      title: 'Mathematics Formulas Sheet',
-      uploadDate: '22 May 2025',
-      fileName: 'Math_Formula_CheatSheet.pdf'
-    },
-    {
-      id: 'mat-03',
-      title: 'English Practice Questions',
-      uploadDate: '20 May 2025',
-      fileName: 'English_Practice_Bank.pdf'
-    }
-  ];
+  const studyMaterialsList = [];
 
   // 7. Announcements List
   const announcementsList = notices.length > 0
@@ -260,11 +184,7 @@ export default function StudentDashboard() {
         title: n.title,
         date: n.publishedDate || '25 May 2025'
       }))
-    : [
-        { title: 'Unit Test Schedule Released', date: '25 May 2025' },
-        { title: 'Library Hours Extended', date: '24 May 2025' },
-        { title: 'Career Guidance Session', date: '22 May 2025' }
-      ];
+    : [];
 
   const handleDownloadMaterial = (title) => {
     toast.success(`Downloading "${title}"...`);
@@ -596,7 +516,7 @@ export default function StudentDashboard() {
                 <div className="d-flex align-items-center gap-3">
                   <span className="fw-bold text-sa-charcoal">{absentDays}</span>
                   <span className="text-sa-muted" style={{ minWidth: '38px', textAlign: 'right' }}>
-                    9.7%
+                    0%
                   </span>
                 </div>
               </div>
@@ -612,7 +532,7 @@ export default function StudentDashboard() {
                 <div className="d-flex align-items-center gap-3">
                   <span className="fw-bold text-sa-charcoal">{lateDays}</span>
                   <span className="text-sa-muted" style={{ minWidth: '38px', textAlign: 'right' }}>
-                    3.2%
+                    0%
                   </span>
                 </div>
               </div>

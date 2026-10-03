@@ -16,8 +16,9 @@ async def _format_exam(exam: Exam) -> dict:
     return {
         "id": str(exam.id),
         "exam_name": exam.exam_name,
-        "course": exam.course,
+        "standard": exam.standard,
         "batch": exam.batch,
+        "branch": exam.branch,
         "subject": exam.subject,
         "exam_date": exam.exam_date,
         "start_time": exam.start_time,
@@ -89,8 +90,9 @@ async def create_exam(exam_in: ExamCreate) -> dict:
         
     exam = Exam(
         exam_name=exam_in.exam_name,
-        course=exam_in.course,
+        standard=exam_in.standard,
         batch=exam_in.batch,
+        branch=exam_in.branch,
         subject=exam_in.subject,
         exam_date=exam_in.exam_date,
         start_time=exam_in.start_time,

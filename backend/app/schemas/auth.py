@@ -25,3 +25,13 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    phone: Optional[str] = None
+    title: Optional[str] = None
+    branch: Optional[str] = None
+    officeRoom: Optional[str] = None
+    bio: Optional[str] = None

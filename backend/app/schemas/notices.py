@@ -7,6 +7,8 @@ class NoticeCreate(BaseModel):
     content: str
     target_audiences: List[str]
     target_batches: Optional[List[str]] = []
+    category: Optional[str] = "General"
+    priority: Optional[str] = "Normal"
 
 class NoticeResponse(NoticeCreate):
     id: str

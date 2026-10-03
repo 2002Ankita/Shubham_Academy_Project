@@ -90,8 +90,9 @@ async def get_fee_details(student_id: str) -> FeeDetailsResponse:
     
     # Fetch real fee structure
     structure = await FeeStructure.find_one(
-        FeeStructure.course == student.course,
+        FeeStructure.standard == student.standard,
         FeeStructure.batch == student.batch,
+        FeeStructure.branch == student.branch,
         FeeStructure.academic_year == student.academic_year
     )
     total_fees = structure.total_fee if structure else 0.0
@@ -109,10 +110,10 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
     structures = await FeeStructure.find_all().to_list()
     payments = await FeePayment.find_all().to_list()
     
-    # Map structures by (course, batch, academic_year)
+    # Map structures by (standard, batch, branch, academic_year)
     struct_map = {}
     for s in structures:
-        struct_map[(s.course, s.batch, s.academic_year)] = s.total_fee
+        struct_map[(s.standard, s.batch, s.branch, s.academic_year)] = s.total_fee
         
     # Map payments by student_id
     paid_map = {}
@@ -126,7 +127,7 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
             
     pending_list = []
     for student in students:
-        total_fees = struct_map.get((student.course, student.batch, student.academic_year), 0.0)
+        total_fees = struct_map.get((student.standard, student.batch, student.branch, student.academic_year), 0.0)
         amount_paid = paid_map.get(str(student.id), 0.0)
         pending_fees = total_fees - amount_paid
         
@@ -149,8 +150,9 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
             pending_list.append(PendingFeeResponse(
                 student_id=str(student.id),
                 student_name=student_name,
-                course=student.course,
+                standard=student.standard,
                 batch=student.batch,
+                branch=student.branch,
                 total_fees=total_fees,
                 amount_paid=amount_paid,
                 pending_fees=pending_fees

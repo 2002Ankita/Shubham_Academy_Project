@@ -205,8 +205,8 @@ export default function StudentRegistration() {
       toast.success(`Student ${formData.fullName} successfully registered! Admission ID: ${formData.studentId}`);
       localStorage.removeItem('sa_registration_draft');
       navigate('/admin/students');
-    } catch {
-      toast.error('Could not complete registration. Check backend connection.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to register student');
     } finally {
       setLoading(false);
     }

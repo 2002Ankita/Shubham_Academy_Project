@@ -38,10 +38,10 @@ export default function StudentList() {
   };
 
   const filtered = students.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.rollNumber.toLowerCase().includes(search.toLowerCase()) ||
-    s.rfidCard.toLowerCase().includes(search.toLowerCase()) ||
-    s.standard.toLowerCase().includes(search.toLowerCase())
+    (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.rollNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.rfidCard || '').toLowerCase().includes(search.toLowerCase()) ||
+    (s.standard || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (

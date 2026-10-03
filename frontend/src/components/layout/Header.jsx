@@ -3,19 +3,42 @@ import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calen
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export default function Header({ onToggleSidebar }) {
+export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDateFilter }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('Mon, 26 May 2025');
   const [isDateHovered, setIsDateHovered] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
+<<<<<<< HEAD
   const userMenuRef = useRef(null);
+=======
+  // Dynamic Date calculation
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  const lastWeek = new Date(); lastWeek.setDate(today.getDate() - 7);
+
+  const formatDateForDisplay = (date) => {
+    return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  const formatDateValue = (date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const dateOptions = [
+    { label: `Today (${formatDateForDisplay(today)})`, value: formatDateValue(today) },
+    { label: `Yesterday (${formatDateForDisplay(yesterday)})`, value: formatDateValue(yesterday) },
+    { label: `Last Week (${formatDateForDisplay(lastWeek)})`, value: formatDateValue(lastWeek) },
+    { label: `This Month (${today.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })})`, value: 'month' }
+  ];
+
+  const selectedOption = dateOptions.find(o => o.value === globalDateFilter) || dateOptions[0];
+
+>>>>>>> origin/main
 
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
@@ -214,8 +237,10 @@ export default function Header({ onToggleSidebar }) {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  <span className="d-none d-sm-inline">{selectedDate.includes('Mon, ') ? 'Mon, ' : ''}</span>
-                  {selectedDate.replace('Mon, ', '')}
+                  <span className="d-none d-sm-inline">{selectedOption.label.split('(')[0]}</span>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>
+                    {selectedOption.label.match(/\((.*?)\)/)?.[1] || selectedOption.label}
+                  </span>
                 </span>
               </div>
               <ChevronDown
@@ -243,26 +268,21 @@ export default function Header({ onToggleSidebar }) {
                 <div className="px-2 py-1 small text-muted fw-semibold border-bottom mb-1" style={{ fontSize: '11px' }}>
                   SELECT DATE / PERIOD
                 </div>
-                {[
-                  { label: 'Today (Mon, 26 May 2025)', value: 'Mon, 26 May 2025' },
-                  { label: 'Yesterday (Sun, 25 May 2025)', value: 'Sun, 25 May 2025' },
-                  { label: 'Last Week (Mon, 19 May 2025)', value: 'Mon, 19 May 2025' },
-                  { label: 'This Month (May 2025)', value: 'May 2025' }
-                ].map((item, idx) => (
+                {dateOptions.map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => {
-                      setSelectedDate(item.value);
+                      if (setGlobalDateFilter) setGlobalDateFilter(item.value);
                       setShowDatePicker(false);
                     }}
                     className={`dropdown-item px-2.5 py-1.5 rounded-2 text-start small d-flex align-items-center justify-content-between ${
-                      selectedDate === item.value ? 'bg-light text-danger fw-bold' : 'text-sa-charcoal'
+                      globalDateFilter === item.value ? 'bg-light text-danger fw-bold' : 'text-sa-charcoal'
                     }`}
                     style={{ fontSize: '12px' }}
                   >
                     <span>{item.label}</span>
-                    {selectedDate === item.value && <span className="text-danger fw-bold">✓</span>}
+                    {globalDateFilter === item.value && <span className="text-danger fw-bold">✓</span>}
                   </button>
                 ))}
               </div>
@@ -414,12 +434,21 @@ export default function Header({ onToggleSidebar }) {
                 boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
               }}
             >
+<<<<<<< HEAD
               <div
                 className="px-3 py-2.5 mb-2 rounded-3"
                 style={{ backgroundColor: '#F8FAFC' }}
               >
                 <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.94rem', lineHeight: 1.25 }}>
                   {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
+=======
+              <div className="px-3 py-2 border-bottom mb-1 bg-light rounded-2">
+                <div className="fw-bold text-sa-charcoal small">{user?.name || (isTeacher ? 'Teacher' : 'Student')}</div>
+                <div className="text-sa-primary fw-medium" style={{ fontSize: '0.76rem' }}>
+                  {user?.role === 'super-admin'
+                    ? 'Super Administrator'
+                    : user?.title || 'Super Administrator'}
+>>>>>>> origin/main
                 </div>
                 <div className="fw-medium mt-1" style={{ fontSize: '0.82rem', color: '#c53030' }}>
                   {isAdmin ? 'admin' : isSuperAdmin ? 'super-admin' : (user?.role || 'admin')}
@@ -435,9 +464,15 @@ export default function Header({ onToggleSidebar }) {
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
                   setShowUserMenu(false);
+<<<<<<< HEAD
                   if (isAdmin || user?.role === 'admin') navigate('/admin/profile');
                   else if (isSuperAdmin || user?.role === 'super-admin') navigate('/super-admin/settings');
                   else if (isTeacher || user?.role === 'teacher') navigate('/teacher/profile');
+=======
+                  if (user?.role === 'super-admin') navigate('/super-admin/settings');
+                  else if (user?.role === 'admin') navigate('/admin/profile');
+                  else if (user?.role === 'teacher') navigate('/teacher/profile');
+>>>>>>> origin/main
                   else navigate('/student/profile');
                 }}
               >

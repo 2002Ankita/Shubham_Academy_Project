@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import studentService from '../../services/studentService';
+import examService from '../../services/examService';
+import noticeService from '../../services/noticeService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -29,68 +32,69 @@ export default function TeacherDashboard() {
 
   const [attendancePeriod, setAttendancePeriod] = useState('This Month');
 
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [upcomingExamsList, setUpcomingExamsList] = useState([]);
+  const [recentAnnouncements, setRecentAnnouncements] = useState([]);
+  const [totalExams, setTotalExams] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [studentsRes, examsRes, noticesRes] = await Promise.allSettled([
+          studentService.getAll(),
+          examService.getAll(),
+          noticeService.getAll()
+        ]);
+
+        if (studentsRes.status === 'fulfilled') {
+          const students = studentsRes.value || [];
+          setTotalStudents(students.length);
+        }
+
+        if (examsRes.status === 'fulfilled') {
+          const exams = examsRes.value || [];
+          setTotalExams(exams.length);
+          const upcoming = exams.slice(0, 3).map(e => ({
+            date: new Date(e.date || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            subject: e.title,
+            classBatch: e.classBatch || 'All Classes'
+          }));
+          setUpcomingExamsList(upcoming);
+        }
+
+        if (noticesRes.status === 'fulfilled') {
+          const notices = noticesRes.value || [];
+          const recent = notices.slice(0, 3).map((n, idx) => ({
+            id: idx,
+            title: n.title,
+            date: new Date(n.publishedDate || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            dotColor: '#A91D22'
+          }));
+          setRecentAnnouncements(recent);
+        }
+      } catch (err) {
+        console.error('Error fetching teacher dashboard data:', err);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
   // Interactive pending tasks state
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Enter marks for Class 10 Unit Test',
-      subtext: '24 students • Due by 28 May',
-      priority: 'High',
-      completed: false,
-      link: '/teacher/marks'
-    },
-    {
-      id: 2,
-      title: 'Upload study material for Class 12',
-      subtext: 'Physics – Chapter 2',
-      priority: 'Medium',
-      completed: false,
-      link: '/teacher/study-materials'
-    },
-    {
-      id: 3,
-      title: 'Review attendance for Class 9',
-      subtext: 'Last 3 working days',
-      priority: 'Medium',
-      completed: false,
-      link: '/teacher/attendance'
-    }
-  ]);
+  const [tasks, setTasks] = useState([]);
 
   const toggleTask = (id) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
 
-  // Schedule rows matching reference image
-  const scheduleRows = [
-    { time: '8:00 AM', subject: 'Mathematics', classBatch: 'Class 10 (A)', room: 'Room 101', status: 'Completed', actionText: 'View', actionType: 'view', path: '/teacher/classes' },
-    { time: '9:00 AM', subject: 'Physics', classBatch: 'Class 12 (A)', room: 'Room 201', status: 'Completed', actionText: 'View', actionType: 'view', path: '/teacher/classes' },
-    { time: '11:00 AM', subject: 'Science', classBatch: 'Class 9 (B)', room: 'Room 102', status: 'Next Class', actionText: 'Start Class', actionType: 'start', path: '/teacher/classes' },
-    { time: '1:00 PM', subject: 'Mathematics', classBatch: 'Class 10 (B)', room: 'Room 103', status: 'Scheduled', actionText: 'View', actionType: 'view', path: '/teacher/classes' },
-    { time: '2:30 PM', subject: 'Doubt Session', classBatch: 'All Classes', room: 'Online', status: 'Scheduled', actionText: 'Join', actionType: 'join', path: '/teacher/classes' },
-  ];
+  const scheduleRows = [];
 
-  // Attendance donut data matching reference image
   const attendanceDonutData = [
-    { name: 'Present', value: 162, percentage: '87.1%', color: '#8B1216' },
-    { name: 'Absent', value: 18, percentage: '9.7%', color: '#D97718' },
-    { name: 'Late', value: 6, percentage: '3.2%', color: '#E11D48' },
+    { name: 'Present', value: 0, percentage: '0%', color: '#8B1216' },
+    { name: 'Absent', value: 0, percentage: '0%', color: '#D97718' },
+    { name: 'Late', value: 0, percentage: '0%', color: '#E11D48' },
   ];
 
-  // Upcoming examinations matching reference image
-  const upcomingExams = [
-    { date: '28 May 2025', subject: 'Mathematics', classBatch: 'Class 10 (A)' },
-    { date: '30 May 2025', subject: 'Physics', classBatch: 'Class 12 (A)' },
-    { date: '2 Jun 2025', subject: 'Science', classBatch: 'Class 9 (A)' },
-  ];
-
-  // Announcements matching reference image
-  const recentAnnouncements = [
-    { id: '1', title: 'Unit Test Schedule Released', date: '25 May 2025', dotColor: '#A91D22' },
-    { id: '2', title: 'Parent-Teacher Meet', date: '24 May 2025', dotColor: '#D97718' },
-    { id: '3', title: 'Holiday Notice', date: '22 May 2025', dotColor: '#D97718' },
-    { id: '4', title: 'Class 10 Sample Papers', date: '10 May 2025', dotColor: '#0284C7' }
-  ];
+  const upcomingExams = upcomingExamsList;
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '12px' }}>
@@ -165,7 +169,7 @@ export default function TeacherDashboard() {
         {/* Left: Greeting & Subtitle */}
         <div>
           <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '20px', lineHeight: 1.2 }}>
-            Good Morning, Priya Ma'am
+            Good Morning, {user?.name || 'Teacher'}
           </h1>
           <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '12.5px' }}>
             Ready to inspire young minds today?
@@ -211,10 +215,10 @@ export default function TeacherDashboard() {
               Today's Classes
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              5
+              0
             </div>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10px' }}>
-              2 completed, 3 remaining
+              0 completed, 0 remaining
             </span>
           </div>
         </div>
@@ -236,10 +240,10 @@ export default function TeacherDashboard() {
               Total Students
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              186
+              {totalStudents}
             </div>
             <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10px', color: '#168554' }}>
-              ↗ +12 from last month
+              ↗ Total assigned
             </span>
           </div>
         </div>
@@ -261,10 +265,10 @@ export default function TeacherDashboard() {
               Pending Marks
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              24
+              0
             </div>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10px' }}>
-              Across 3 examinations
+              Across 0 examinations
             </span>
           </div>
         </div>
@@ -286,10 +290,10 @@ export default function TeacherDashboard() {
               Working Hours
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              32.5 hrs
+              0 hrs
             </div>
             <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10px', color: '#168554' }}>
-              ↗ 68% of 48 hrs this month
+              ↗ 0% of 0 hrs this month
             </span>
           </div>
         </div>
@@ -440,7 +444,7 @@ export default function TeacherDashboard() {
             </ResponsiveContainer>
             <div className="position-absolute text-center" style={{ pointerEvents: 'none', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '15px', lineHeight: 1 }}>
-                186
+                0
               </div>
               <div className="text-sa-muted" style={{ fontSize: '9px', lineHeight: 1, marginTop: '1.5px' }}>
                 Students
@@ -702,17 +706,17 @@ export default function TeacherDashboard() {
             <div>
               <div className="d-flex align-items-baseline justify-content-between">
                 <div>
-                  <span className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '14.5px' }}>32.5</span>
-                  <span className="text-muted" style={{ fontSize: '10.5px' }}> / 48 hrs</span>
+                  <span className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '14.5px' }}>0</span>
+                  <span className="text-muted" style={{ fontSize: '10.5px' }}> / 0 hrs</span>
                 </div>
-                <span className="text-muted fw-semibold" style={{ fontSize: '10px' }}>68%</span>
+                <span className="text-muted fw-semibold" style={{ fontSize: '10px' }}>0%</span>
               </div>
               <div className="progress mt-1" style={{ height: '4.5px', backgroundColor: '#F1F5F9' }}>
                 <div
                   className="progress-bar"
                   role="progressbar"
-                  style={{ width: '68%', backgroundColor: '#A91D22', borderRadius: '3px' }}
-                  aria-valuenow="68"
+                  style={{ width: '0%', backgroundColor: '#A91D22', borderRadius: '3px' }}
+                  aria-valuenow="0"
                   aria-valuemin="0"
                   aria-valuemax="100"
                 />
@@ -746,10 +750,10 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
                 <div className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '14px', lineHeight: 1.15 }}>
-                  ₹26,000
+                  ₹0
                 </div>
                 <div className="text-sa-muted" style={{ fontSize: '8.5px', lineHeight: 1 }}>
-                  Based on 48 hrs/month
+                  Based on 0 hrs/month
                 </div>
               </div>
             </div>

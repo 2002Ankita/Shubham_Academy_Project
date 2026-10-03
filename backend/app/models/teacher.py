@@ -8,7 +8,8 @@ class Teacher(Document):
     employee_id: Annotated[str, Indexed(unique=True)]
     mobile_number: str
     subjects: List[str]
-    assigned_batches: List[str]
+    branch: str = "Tarabai Park"
+    assigned_batches: List[str] = []
     joining_date: datetime = datetime.utcnow()
     hourly_rate: float = 0.0
     status: str = "Active"

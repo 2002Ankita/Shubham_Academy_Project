@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -6,31 +6,54 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { BookMarked, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import inventoryService from '../../services/inventoryService';
 
 export default function NotesStock() {
-  const [stock, setStock] = useState([
-    { id: 'NT-101', title: 'Physics Vol. 1: Mechanics & Heat', standard: '11th Science', inStock: 120, reorderLevel: 25, unitCost: 350 },
-    { id: 'NT-102', title: 'Physics Vol. 2: Optics & Waves', standard: '12th Science', inStock: 18, reorderLevel: 30, unitCost: 420 },
-    { id: 'NT-103', title: 'Chemistry Vol. 1: Organic Foundations', standard: '11th Science', inStock: 85, reorderLevel: 20, unitCost: 380 },
-    { id: 'NT-104', title: 'Mathematics: Calculus & Vectors Guide', standard: '12th Science', inStock: 64, reorderLevel: 25, unitCost: 450 },
-    { id: 'NT-105', title: 'Biology: Human Physiology Workbook', standard: '12th NEET', inStock: 9, reorderLevel: 20, unitCost: 400 },
-  ]);
+  const [stock, setStock] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStock = async () => {
+    try {
+      const data = await inventoryService.getItems();
+      setStock(data.map(item => ({
+        id: item.id,
+        title: item.title,
+        standard: item.standard,
+        inStock: item.in_stock,
+        reorderLevel: item.reorder_level,
+        unitCost: item.unit_cost
+      })));
+    } catch (err) {
+      toast.error('Failed to load inventory stock');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStock();
+  }, []);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [newBook, setNewBook] = useState({ title: '', standard: '12th Science', inStock: 50, reorderLevel: 20, unitCost: 400 });
+  const [newBook, setNewBook] = useState({ title: '', standard: '11th pcm tarabai park', inStock: 50, reorderLevel: 20, unitCost: 400 });
 
-  const handleAddStock = (e) => {
+  const handleAddStock = async (e) => {
     e.preventDefault();
-    const item = {
-      ...newBook,
-      id: `NT-${Math.floor(100 + Math.random() * 900)}`,
-      inStock: Number(newBook.inStock),
-      reorderLevel: Number(newBook.reorderLevel),
-      unitCost: Number(newBook.unitCost),
-    };
-    setStock([...stock, item]);
-    toast.success(`Book inventory for "${newBook.title}" updated!`);
-    setModalOpen(false);
+    try {
+      await inventoryService.createItem({
+        title: newBook.title,
+        standard: newBook.standard,
+        in_stock: Number(newBook.inStock),
+        reorder_level: Number(newBook.reorderLevel),
+        unit_cost: Number(newBook.unitCost)
+      });
+      toast.success(`Book inventory for "${newBook.title}" updated!`);
+      setModalOpen(false);
+      setNewBook({ title: '', standard: '11th pcm tarabai park', inStock: 50, reorderLevel: 20, unitCost: 400 });
+      fetchStock();
+    } catch (err) {
+      toast.error('Failed to add book stock');
+    }
   };
 
   return (
@@ -85,6 +108,7 @@ export default function NotesStock() {
             { key: 'unitCost', title: 'Cost per Unit', render: (val) => `₹ ${val}` }
           ]}
           data={stock}
+          loading={loading}
         />
       </div>
 
@@ -103,7 +127,20 @@ export default function NotesStock() {
             name="standard"
             value={newBook.standard}
             onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
-            options={['12th Science', '11th Science', '12th Commerce', '11th Commerce', '12th NEET']}
+            options={[
+              '11th pcm tarabai park',
+              '11th pcb tarabai park',
+              '11th pcmb tarabai park',
+              '12th pcm tarabai park',
+              '12th pcb tarabai park',
+              '12th pcmb tarabai park',
+              '11th pcm Mangalvar peth',
+              '11th pcb Mangalvar peth',
+              '11th pcmb Mangalvar peth',
+              '12th pcm Mangalvar peth',
+              '12th pcb Mangalvar peth',
+              '12th pcmb Mangalvar peth'
+            ]}
           />
           <div className="row g-2">
             <div className="col-6">

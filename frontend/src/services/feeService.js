@@ -31,7 +31,7 @@ export const feeService = {
       studentId: fee.student_id,
       studentName: fee.student_name,
       rollNumber: fee.student_id.substring(fee.student_id.length - 6),
-      standard: fee.course + ' - ' + fee.batch,
+      standard: fee.standard + ' - ' + fee.batch + ' - ' + fee.branch,
       totalFees: fee.total_fees,
       amountPaid: fee.amount_paid,
       pendingAmount: fee.pending_fees,
@@ -67,16 +67,37 @@ export const feeService = {
   },
 
   getFeeStats: async () => {
-    // Fallback since there is no /fees/stats yet on backend
-    return {
-      totalTarget: 18500000,
-      collected: 15200000,
-      pending: 3300000,
-      collectionRate: 82.16,
-      chartData: [
-        { month: 'Apr', collected: 2100000, pending: 400000 }
-      ]
-    };
+    try {
+      // Calculate dynamically
+      const pendingRes = await api.get('/fees/pending');
+      const allRes = await api.get('/fees');
+      
+      const pendingFeesArray = pendingRes.data;
+      const allFeesArray = allRes.data;
+
+      const pending = pendingFeesArray.reduce((acc, curr) => acc + (curr.pending_fees || 0), 0);
+      const collected = allFeesArray.reduce((acc, curr) => acc + (curr.amount_paid || 0), 0);
+      const totalTarget = collected + pending;
+      const collectionRate = totalTarget > 0 ? ((collected / totalTarget) * 100).toFixed(2) : 0;
+
+      return {
+        totalTarget,
+        collected,
+        pending,
+        collectionRate,
+        chartData: [
+          { month: 'Current', collected, pending }
+        ]
+      };
+    } catch {
+      return {
+        totalTarget: 0,
+        collected: 0,
+        pending: 0,
+        collectionRate: 0,
+        chartData: []
+      };
+    }
   }
 };
 

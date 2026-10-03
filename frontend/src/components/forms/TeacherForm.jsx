@@ -13,6 +13,7 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
     experience: initialData?.experience || '5 Years',
     monthlySalary: initialData?.monthlySalary || 65000,
     status: initialData?.status || 'Active',
+    password: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -27,6 +28,7 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
     if (!formData.name.trim()) newErrors.name = 'Teacher name is required';
     if (!formData.email.trim()) newErrors.email = 'Email address is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -73,6 +75,19 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
             onChange={handleChange}
             error={errors.phone}
             required
+          />
+        </div>
+
+        <div className="col-12 col-md-6">
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            placeholder="Enter password"
+            value={formData.password}
+            onChange={handleChange}
+            error={errors.password}
+            required={!initialData}
           />
         </div>
 

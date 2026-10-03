@@ -13,8 +13,9 @@ class Student(Document):
     address: str
     parent_name: str
     parent_mobile: str
-    course: str
-    batch: str
+    standard: str = "12th Science"
+    batch: str = "11th pcm tarabai park"
+    branch: str = "Tarabai Park"
     academic_year: str
     rfid_tag: Optional[str] = None
     admission_date: datetime = datetime.utcnow()

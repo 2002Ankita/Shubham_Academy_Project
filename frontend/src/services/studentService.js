@@ -9,7 +9,8 @@ export const studentService = {
       name: student.full_name,
       phone: student.mobile_number,
       parentPhone: student.parent_mobile,
-      standard: student.course,
+      standard: student.standard,
+      branch: student.branch,
       status: student.is_active !== false ? 'Active' : 'Inactive',
       // Provide defaults for missing frontend-specific mock fields
       rollNumber: student.student_id || 'N/A',
@@ -28,7 +29,8 @@ export const studentService = {
       name: student.full_name,
       phone: student.mobile_number,
       parentPhone: student.parent_mobile,
-      standard: student.course,
+      standard: student.standard,
+      branch: student.branch,
       status: student.is_active !== false ? 'Active' : 'Inactive',
       rollNumber: student.student_id || 'N/A'
     };
@@ -39,14 +41,16 @@ export const studentService = {
     const payload = {
       full_name: data.name || data.full_name,
       email: data.email,
+      password: data.password,
       mobile_number: data.phone || data.mobile_number,
       date_of_birth: data.date_of_birth || new Date().toISOString(),
       gender: data.gender || 'Male',
       address: data.address || '',
       parent_name: data.parentName || data.parent_name || '',
       parent_mobile: data.parentPhone || data.parent_mobile || '',
-      course: data.standard || data.course,
+      standard: data.standard || data.course,
       batch: data.batch,
+      branch: data.branch || 'Tarabai Park',
       academic_year: data.academic_year || '2023-2024'
     };
     const res = await api.post('/students', payload);
@@ -58,7 +62,8 @@ export const studentService = {
     if (data.name) payload.full_name = data.name;
     if (data.phone) payload.mobile_number = data.phone;
     if (data.parentPhone) payload.parent_mobile = data.parentPhone;
-    if (data.standard) payload.course = data.standard;
+    if (data.standard) payload.standard = data.standard;
+    if (data.branch) payload.branch = data.branch;
     
     const res = await api.put(`/students/${id}`, payload);
     return res.data;
