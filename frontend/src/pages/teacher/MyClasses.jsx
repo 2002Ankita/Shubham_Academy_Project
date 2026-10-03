@@ -1,17 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import { BookOpen, Users, Calendar, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import batchService from '../../services/batchService';
+import { toast } from 'react-toastify';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function MyClasses() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const classes = [
-    { id: 'CLS-12A', name: '12th Science - Alpha (Morning)', subject: 'Physics (Advanced)', studentsCount: 60, time: 'Mon, Wed, Fri (08:00 AM)', room: 'Lecture Hall 2' },
-    { id: 'CLS-11B', name: '11th Science - Beta (Evening)', subject: 'Physics (Foundations)', studentsCount: 65, time: 'Tue, Thu, Sat (03:30 PM)', room: 'Lecture Hall 4' },
-    { id: 'CLS-NEET', name: 'NEET Intensive Physics Special', subject: 'Mechanics & Modern Physics', studentsCount: 45, time: 'Sunday (09:00 AM - 01:00 PM)', room: 'Auditorium' },
-  ];
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoading(true);
+        const data = await batchService.getBatches();
+        
+        let filteredData = data;
+        if (user && user.role === 'teacher') {
+          filteredData = data.filter(b => 
+            b.teacher_name && 
+            b.teacher_name.toLowerCase().replace(/\s+/g, '') === user.name.toLowerCase().replace(/\s+/g, '')
+          );
+        }
+        
+        setClasses(filteredData);
+      } catch (err) {
+        console.error("Failed to load classes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClasses();
+  }, [user]);
+
+
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
@@ -41,7 +68,11 @@ export default function MyClasses() {
       </div>
 
       <div className="row g-3">
-        {classes.map((c, i) => (
+        {loading ? (
+          <div className="text-center p-4">Loading classes...</div>
+        ) : classes.length === 0 ? (
+          <div className="text-center p-4 text-sa-muted">No classes assigned yet.</div>
+        ) : classes.map((c, i) => (
           <div key={i} className="col-12 col-md-4">
             <div className="teacher-class-card p-3.5 h-100 d-flex flex-column justify-content-between" style={{ padding: '18px 20px' }}>
               <div>
@@ -57,27 +88,27 @@ export default function MyClasses() {
                     borderRadius: '6px'
                   }}
                 >
-                  {c.id}
+                  {c.batch_id || `CLS-${i+1}`}
                 </span>
                 <h2 className="brand-font fw-bold m-0 mb-1" style={{ fontSize: '16px', color: '#0F172A' }}>
                   {c.name}
                 </h2>
                 <span className="small fw-semibold d-block mb-3" style={{ color: '#D97706', fontSize: '12.5px' }}>
-                  {c.subject}
+                  {c.subject || 'All Subjects'}
                 </span>
 
                 <div className="d-flex flex-column gap-2 small text-secondary">
                   <div className="d-flex align-items-center gap-2">
                     <Users size={15} style={{ color: '#64748B' }} />
-                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.studentsCount} Students Enrolled</span>
+                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.studentsCount || 0} Students Enrolled</span>
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <Calendar size={15} style={{ color: '#64748B' }} />
-                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.time}</span>
+                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.schedule || c.time || 'Schedule TBD'}</span>
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <MapPin size={15} style={{ color: '#64748B' }} />
-                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.room}</span>
+                    <span style={{ fontSize: '12.5px', color: '#475569' }}>{c.room || 'Room TBD'}</span>
                   </div>
                 </div>
               </div>
