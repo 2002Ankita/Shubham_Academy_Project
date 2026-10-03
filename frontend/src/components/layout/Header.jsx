@@ -14,9 +14,8 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-<<<<<<< HEAD
   const userMenuRef = useRef(null);
-=======
+
   // Dynamic Date calculation
   const today = new Date();
   const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
@@ -37,8 +36,6 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
   ];
 
   const selectedOption = dateOptions.find(o => o.value === globalDateFilter) || dateOptions[0];
-
->>>>>>> origin/main
 
   const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
@@ -434,21 +431,12 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
               }}
             >
-<<<<<<< HEAD
               <div
                 className="px-3 py-2.5 mb-2 rounded-3"
                 style={{ backgroundColor: '#F8FAFC' }}
               >
                 <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.94rem', lineHeight: 1.25 }}>
                   {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
-=======
-              <div className="px-3 py-2 border-bottom mb-1 bg-light rounded-2">
-                <div className="fw-bold text-sa-charcoal small">{user?.name || (isTeacher ? 'Teacher' : 'Student')}</div>
-                <div className="text-sa-primary fw-medium" style={{ fontSize: '0.76rem' }}>
-                  {user?.role === 'super-admin'
-                    ? 'Super Administrator'
-                    : user?.title || 'Super Administrator'}
->>>>>>> origin/main
                 </div>
                 <div className="fw-medium mt-1" style={{ fontSize: '0.82rem', color: '#c53030' }}>
                   {isAdmin ? 'admin' : isSuperAdmin ? 'super-admin' : (user?.role || 'admin')}
@@ -464,15 +452,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
                   setShowUserMenu(false);
-<<<<<<< HEAD
                   if (isAdmin || user?.role === 'admin') navigate('/admin/profile');
                   else if (isSuperAdmin || user?.role === 'super-admin') navigate('/super-admin/settings');
                   else if (isTeacher || user?.role === 'teacher') navigate('/teacher/profile');
-=======
-                  if (user?.role === 'super-admin') navigate('/super-admin/settings');
-                  else if (user?.role === 'admin') navigate('/admin/profile');
-                  else if (user?.role === 'teacher') navigate('/teacher/profile');
->>>>>>> origin/main
                   else navigate('/student/profile');
                 }}
               >
