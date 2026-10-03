@@ -217,19 +217,30 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const getNavLinks = () => {
     const role = user?.role || 'admin';
 
-    // ONLY Super Admin gets the 10 items matching reference design
+    // Super Admin gets platform management + academy management
     if (isSuperAdmin || role === 'super-admin') {
       return [
-        { label: 'Dashboard', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
+        { label: 'Platform Overview', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
+        { label: 'Academies', path: '/super-admin/academies', icon: Building2, matchPrefixes: ['/super-admin/academies'] },
+        { label: 'Platform Users', path: '/super-admin/users', icon: Users, matchPrefixes: ['/super-admin/users'] },
+        { label: 'Audit Logs', path: '/super-admin/audit-logs', icon: FileText, matchPrefixes: ['/super-admin/audit-logs'] },
+        { label: 'Settings', path: '/super-admin/settings', icon: FileText, matchPrefixes: ['/super-admin/settings'] },
+        // Below are Academy-specific links (for the default academy they are managing)
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
-        { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
-        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
+        { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
+        { label: 'Attendance Reports', path: '/admin/attendance/report', icon: FileText, matchPrefixes: ['/admin/attendance/report'] },
+        { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
+        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
+        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams'] },
+        { label: 'Marks Entry', path: '/admin/marks/entry', icon: ClipboardList, matchPrefixes: ['/admin/marks/entry'] },
+        { label: 'Results & Rankings', path: '/admin/results', icon: BarChart2, matchPrefixes: ['/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
+        { label: 'Teacher Salary', path: '/admin/teachers/salary', icon: CreditCard, matchPrefixes: ['/admin/teachers/salary'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
+        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications'] },
+        { label: 'Notices Board', path: '/admin/notices', icon: Bell, matchPrefixes: ['/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
         { label: 'Contact', path: '/super-admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
       ];
@@ -260,12 +271,18 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
+        { label: 'Attendance Reports', path: '/admin/attendance/report', icon: FileText, matchPrefixes: ['/admin/attendance/report'] },
         { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
-        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
+        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
+        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams'] },
+        { label: 'Marks Entry', path: '/admin/marks/entry', icon: ClipboardList, matchPrefixes: ['/admin/marks/entry'] },
+        { label: 'Results & Rankings', path: '/admin/results', icon: BarChart2, matchPrefixes: ['/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
+        { label: 'Teacher Salary', path: '/admin/teachers/salary', icon: CreditCard, matchPrefixes: ['/admin/teachers/salary'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
+        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications'] },
+        { label: 'Notices Board', path: '/admin/notices', icon: Bell, matchPrefixes: ['/admin/notices'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },
         { label: 'Contact', path: '/admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/admin/contact'] },
       ];
