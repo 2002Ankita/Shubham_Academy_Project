@@ -4,7 +4,7 @@ echo   Starting Shubham Academy Management System
 echo ===================================================
 echo.
 echo Launching Backend (FastAPI on http://127.0.0.1:8000)...
-start "Shubham Academy - Backend API" cmd /k "cd /d "%~dp0backend" && python app.py"
+start "Shubham Academy - Backend API" cmd /k "cd /d "%~dp0backend" && (if exist "venv\Scripts\python.exe" (venv\Scripts\python.exe app.py) else (python app.py))"
 
 echo Launching Frontend (Vite on http://localhost:5173)...
 start "Shubham Academy - Frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"

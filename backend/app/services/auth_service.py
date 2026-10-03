@@ -32,7 +32,8 @@ async def authenticate(user_in: UserLogin) -> str:
 
 async def get_current_user(token: str) -> User:
     # Basic mockup, real implementation requires decoding JWT and fetching from DB
-    from jose import jwt, JWTError
+    import jwt
+    from jwt.exceptions import PyJWTError as JWTError
     from app.core.config import settings
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
