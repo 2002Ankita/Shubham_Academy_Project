@@ -222,6 +222,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       return [
         { label: 'Dashboard', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
+        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
         { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
@@ -257,6 +258,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Overview', path: '/admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/admin/dashboard'] },
         { label: 'Admissions', path: '/admin/students/register', icon: AdmissionsIcon, matchPrefixes: ['/admin/students/register'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
+        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
         { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
