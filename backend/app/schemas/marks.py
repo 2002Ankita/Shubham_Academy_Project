@@ -34,3 +34,5 @@ class MarkResponse(MarkCreate):
     exam_name: Optional[str] = ""
     subject: Optional[str] = ""
     max_marks: Optional[float] = 100
+    exam_date: Optional[str] = ""
+    teacher: Optional[str] = ""

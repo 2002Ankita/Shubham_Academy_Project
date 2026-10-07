@@ -7,13 +7,15 @@ export const examService = {
       id: exam.id,
       title: exam.exam_name,
       standard: exam.standard + (exam.batch ? ` - ${exam.batch}` : '') + (exam.branch ? ` - ${exam.branch}` : ''),
+      batch: exam.batch || '12th Science - Alpha',
       subject: exam.subject,
       date: exam.exam_date?.split('T')[0] || 'N/A',
       startTime: exam.start_time?.split('T')[1]?.substring(0, 5) || '10:00', // Mocking time display if backend sends ISO
       duration: '3 Hours', // Or calculate from start_time and end_time
+      totalMarks: exam.max_marks || 100,
       maxMarks: exam.max_marks,
       passingMarks: exam.passing_marks,
-      roomNo: 'N/A', // Not stored in backend
+      roomNo: 'Exam Hall 101', // Not stored in backend
       status: exam.status || (new Date(exam.exam_date) < new Date() ? 'Completed' : 'Scheduled')
     }));
   },

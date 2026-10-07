@@ -157,11 +157,12 @@ export default function StudentDashboard() {
     loadDashboardData();
   }, [user]);
 
-  // Derived Dynamic Greeting
+  // Derived Dynamic Greeting & Student Name
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12 ? 'Good Morning' : currentHour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const studentFirstName = user?.name ? user.name.split(' ')[0] : 'Aarav';
+  const studentFullName = user?.full_name || user?.name || student?.name || 'Aarav';
+  const studentFirstName = studentFullName.split(' ')[0] || 'Aarav';
 
   // Dynamic Date string matching reference format
   const formattedDate = new Date().toLocaleDateString('en-GB', {
@@ -216,7 +217,7 @@ export default function StudentDashboard() {
   // dynamically populated via setTodaysClasses
 
   // 4. Upcoming Examinations List
-  const upcomingExaminations = scheduledExams.slice(0, 3).map(e => {
+  const upcomingExaminations = scheduledExams.slice(0, 5).map(e => {
     const examDate = new Date(e.exam_date || e.date);
     const diffDays = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
     return {
@@ -227,96 +228,46 @@ export default function StudentDashboard() {
     };
   });
 
-  // 5. Recent Results List
-  const recentResultsList = results.length > 0
-    ? results.slice(0, 4).map(r => ({
-        subject: `${r.subject} (${r.exam_name || 'Unit Test'})`,
-        marks: `${r.marks_obtained || 0} / ${r.max_marks || 100}`,
-        grade: r.grade || 'A'
-      }))
-    : [];
 
-  // 6. Study Materials List
-  const [studyMaterialsList, setStudyMaterialsList] = useState([]);
-  useEffect(() => {
-    import('../../services/materialService').then(mod => {
-      mod.default.getMaterials().then(data => {
-        setStudyMaterialsList(data.slice(0, 3).map(m => ({
-          id: m.id,
-          title: m.title,
-          uploadDate: m.uploadDate,
-          file: m
-        })));
-      });
-    });
-  }, []);
-
-  // 7. Announcements List
-  const announcementsList = notices.length > 0
-    ? notices.slice(0, 3).map(n => ({
-        title: n.title,
-        date: n.publishedDate || '25 May 2025'
-      }))
-    : [];
-
-  const handleDownloadMaterial = async (id, title) => {
-    try {
-      toast.info(`Downloading "${title}"...`);
-      const mod = await import('../../services/materialService');
-      await mod.default.downloadMaterial(id, title);
-      toast.success('Download complete');
-    } catch (err) {
-      toast.error('Failed to download file');
-    }
-  };
-
-  const handlePayNow = () => {
-    navigate('/student/fees');
-  };
 
   return (
     <div className="d-flex flex-column gap-3 pb-3">
       {/* ========================================================================= */}
-      {/* 1. TOP WELCOME SECTION                                                    */}
+      {/* 1. TOP WELCOME SECTION WITH DYNAMIC GREETING                              */}
       {/* ========================================================================= */}
-      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-0">
-        <div>
-          <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-3">
-            {greeting}, {studentFirstName}!
-          </h2>
-          <p className="text-sa-muted small mb-0 mt-1" style={{ fontSize: '0.88rem' }}>
-            Keep learning—your progress looks great.
-          </p>
-        </div>
-
-        <div className="d-flex flex-wrap align-items-center gap-3">
-          {/* Date Picker Badge */}
-          <div
-            className="d-flex align-items-center gap-2 px-3 py-1.5 bg-white rounded-3 border shadow-xs"
-            style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sa-charcoal)' }}
-          >
-            <Calendar size={15} className="text-sa-primary" />
-            <span>{formattedDate}</span>
-            <ChevronDown size={13} className="text-muted ms-1" />
-          </div>
-
-          {/* Motivational Quote with yellow underline */}
-          <div
-            className="d-none d-sm-flex flex-column justify-content-center px-3 py-1.5 bg-white rounded-3 border shadow-xs text-center"
-            style={{ minHeight: '40px' }}
-          >
-            <span
-              className="text-sa-charcoal fst-italic"
-              style={{ fontSize: '0.76rem', fontWeight: 500 }}
+      <div
+        className="bg-white rounded-4 border overflow-hidden shadow-xs"
+        style={{
+          borderRadius: '18px',
+          boxShadow: '0 2px 14px rgba(0, 0, 0, 0.04)',
+          borderColor: 'rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        <div className="row g-0 align-items-center">
+          <div className="col-12 col-md-6 col-lg-6 p-4 ps-md-4 ps-xl-5 py-md-4">
+            <h1
+              className="fw-bold brand-font text-sa-charcoal m-0"
+              style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
             >
-              "A little progress each day adds up to big results."
-            </span>
-            <div
-              className="mt-1 mx-auto rounded-pill"
+              {greeting}, {studentFirstName}!
+            </h1>
+            <p
+              className="text-sa-charcoal text-opacity-75 m-0 mt-2"
+              style={{ fontSize: '0.95rem', fontWeight: 400 }}
+            >
+              Keep learning—your progress looks great.
+            </p>
+          </div>
+          <div className="col-12 col-md-6 col-lg-6 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3 overflow-hidden">
+            <img
+              src="/assets/superadminhero.png"
+              alt="Shubham Academy Celebration"
+              className="img-fluid"
               style={{
-                width: '36px',
-                height: '2px',
-                backgroundColor: 'var(--sa-mustard-yellow)'
+                maxHeight: '160px',
+                width: 'auto',
+                objectFit: 'contain',
+                objectPosition: 'bottom right'
               }}
             />
           </div>
@@ -432,75 +383,127 @@ export default function StudentDashboard() {
       {/* 3. MIDDLE SECTION (Today's Classes, Attendance Overview, Quick Actions)     */}
       {/* ========================================================================= */}
       <div className="row g-3">
-        {/* Panel 1: Today's Classes (~50% width) */}
+        {/* Panel 1: Upcoming Examinations (~50% width) */}
         <div className="col-12 col-xl-6">
-          <div className="sa-card p-3 h-100 d-flex flex-column">
-            <div className="sa-section-header mb-2">
-              <h5 className="sa-section-title">
-                <Calendar size={18} className="text-sa-primary" />
-                <span>Today's Classes</span>
-              </h5>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/classes')}
-              >
-                <span>View Full Timetable</span>
-                <ArrowRight size={13} />
-              </button>
+          <div className="d-flex flex-column gap-3 h-100">
+            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
+              <div className="sa-section-header mb-2">
+                <h5 className="sa-section-title">
+                  <BookOpen size={18} className="text-sa-primary" />
+                  <span>Today's Classes</span>
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 sa-link-more"
+                  onClick={() => navigate('/student/classes')}
+                >
+                  <span>View Full Timetable</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+
+              <div className="table-responsive flex-grow-1">
+                <table className="table align-middle table-borderless m-0">
+                  <thead>
+                    <tr className="sa-table-header-row">
+                      <th className="rounded-start">Time / Date</th>
+                      <th>Subject</th>
+                      <th>Teacher</th>
+                      <th>Room</th>
+                      <th>Status</th>
+                      <th className="text-end rounded-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="sa-table-compact">
+                    {todaysClasses.map((cls, idx) => (
+                      <tr key={idx} className="border-bottom border-light">
+                        <td className="text-sa-charcoal">
+                          <div className="fw-bold">{cls.time}</div>
+                          {cls.date && <div className="text-sa-muted" style={{ fontSize: '0.75rem' }}>{cls.date}</div>}
+                        </td>
+                        <td className="fw-semibold text-sa-charcoal">{cls.subject}</td>
+                        <td className="text-sa-muted">{cls.teacher}</td>
+                        <td className="text-sa-muted">{cls.room}</td>
+                        <td>
+                          <span className={cls.isOngoing ? 'badge-status-ongoing' : 'badge-status-upcoming'}>
+                            {cls.status}
+                          </span>
+                        </td>
+                        <td className="text-end">
+                          {cls.isOngoing ? (
+                            <button
+                              type="button"
+                              className="btn-view-class-ongoing"
+                              onClick={() => navigate('/student/classes')}
+                            >
+                              <Play size={9} fill="currentColor" />
+                              <span>View Class</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-action-view-soft"
+                              onClick={() => navigate('/student/classes')}
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="table-responsive flex-grow-1">
-              <table className="table align-middle table-borderless m-0">
-                <thead>
-                  <tr className="sa-table-header-row">
-                    <th className="rounded-start">Time</th>
-                    <th>Subject</th>
-                    <th>Teacher</th>
-                    <th>Room</th>
-                    <th>Status</th>
-                    <th className="text-end rounded-end">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="sa-table-compact">
-                  {todaysClasses.map((cls, idx) => (
-                    <tr key={idx} className="border-bottom border-light">
-                      <td className="text-sa-charcoal">
-                        <div className="fw-bold">{cls.time}</div>
-                        {cls.date && <div className="text-sa-muted" style={{ fontSize: '0.75rem' }}>{cls.date}</div>}
-                      </td>
-                      <td className="fw-semibold text-sa-charcoal">{cls.subject}</td>
-                      <td className="text-sa-muted">{cls.teacher}</td>
-                      <td className="text-sa-muted">{cls.room}</td>
-                      <td>
-                        <span className={cls.isOngoing ? 'badge-status-ongoing' : 'badge-status-upcoming'}>
-                          {cls.status}
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        {cls.isOngoing ? (
-                          <button
-                            type="button"
-                            className="btn-view-class-ongoing"
-                            onClick={() => navigate('/student/classes')}
-                          >
-                            <Play size={9} fill="currentColor" />
-                            <span>View Class</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-action-view-soft"
-                            onClick={() => navigate('/student/classes')}
-                          >
-                            View
-                          </button>
-                        )}
-                      </td>
+            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
+              <div className="sa-section-header mb-2">
+                <h5 className="sa-section-title">
+                  <FileText size={18} className="text-sa-primary" />
+                  <span>Upcoming Examinations</span>
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 sa-link-more"
+                  onClick={() => navigate('/student/exams')}
+                >
+                  <span>View Full Schedule</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+
+              <div className="table-responsive flex-grow-1">
+                <table className="table align-middle table-borderless m-0">
+                  <thead>
+                    <tr className="sa-table-header-row">
+                      <th className="rounded-start">Date</th>
+                      <th>Subject</th>
+                      <th>Class</th>
+                      <th className="text-end rounded-end">Countdown</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="sa-table-compact">
+                    {upcomingExaminations.length > 0 ? (
+                      upcomingExaminations.map((ex, i) => (
+                        <tr key={i} className="border-bottom border-light">
+                          <td className="fw-bold text-sa-charcoal">{ex.date}</td>
+                          <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
+                          <td className="text-sa-muted">{ex.class}</td>
+                          <td className="text-end">
+                            <span className="badge-countdown-pill">{ex.countdown}</span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="text-center text-muted py-4">
+                          No upcoming examinations scheduled.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -723,242 +726,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 4. BOTTOM SECTION (4 Columns: Exams, Results, Study Materials, Fees & Notices) */}
-      {/* ========================================================================= */}
-      <div className="row g-3">
-        {/* Card 1: Upcoming Examinations */}
-        <div className="col-12 col-md-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex flex-column">
-            <div className="sa-section-header mb-2">
-              <h6 className="sa-section-title">
-                <FileText size={17} className="text-sa-primary" />
-                <span>Upcoming Examinations</span>
-              </h6>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/exams')}
-              >
-                <span>View All</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-            <div className="table-responsive flex-grow-1">
-              <table className="table table-borderless m-0 align-middle">
-                <thead>
-                  <tr className="sa-table-header-row">
-                    <th className="rounded-start">Date</th>
-                    <th>Subject</th>
-                    <th>Class</th>
-                    <th className="text-end rounded-end">Countdown</th>
-                  </tr>
-                </thead>
-                <tbody className="sa-table-compact">
-                  {upcomingExaminations.map((ex, i) => (
-                    <tr key={i} className="border-bottom border-light">
-                      <td className="fw-bold text-sa-charcoal">{ex.date}</td>
-                      <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
-                      <td className="text-sa-muted">{ex.class}</td>
-                      <td className="text-end">
-                        <span className="badge-countdown-pill">{ex.countdown}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Recent Results */}
-        <div className="col-12 col-md-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex flex-column">
-            <div className="sa-section-header mb-2">
-              <h6 className="sa-section-title">
-                <BarChart3 size={17} className="text-sa-primary" />
-                <span>Recent Results</span>
-              </h6>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/results')}
-              >
-                <span>View All</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-            <div className="table-responsive flex-grow-1">
-              <table className="table table-borderless m-0 align-middle">
-                <thead>
-                  <tr className="sa-table-header-row">
-                    <th className="rounded-start">Subject</th>
-                    <th className="text-center">Marks</th>
-                    <th className="text-end rounded-end">Grade</th>
-                  </tr>
-                </thead>
-                <tbody className="sa-table-compact">
-                  {recentResultsList.map((res, i) => (
-                    <tr key={i} className="border-bottom border-light">
-                      <td className="fw-semibold text-sa-charcoal">{res.subject}</td>
-                      <td className="text-center fw-bold text-sa-charcoal">{res.marks}</td>
-                      <td className="text-end">
-                        <span className={res.grade.includes('A') ? 'badge-grade-a' : 'badge-grade-b'}>
-                          {res.grade}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Study Materials */}
-        <div className="col-12 col-md-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex flex-column">
-            <div className="sa-section-header mb-2">
-              <h6 className="sa-section-title">
-                <BookOpen size={17} className="text-sa-primary" />
-                <span>Study Materials</span>
-              </h6>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/study-materials')}
-              >
-                <span>View All</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-            <div className="table-responsive flex-grow-1">
-              <table className="table table-borderless m-0 align-middle">
-                <thead>
-                  <tr className="sa-table-header-row">
-                    <th className="rounded-start">Title</th>
-                    <th>Upload Date</th>
-                    <th className="text-end rounded-end">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="sa-table-compact">
-                  {studyMaterialsList.map((mat) => (
-                    <tr key={mat.id} className="border-bottom border-light">
-                      <td className="fw-semibold text-sa-charcoal" style={{ maxWidth: '130px' }}>
-                        <span className="text-truncate d-block" title={mat.title}>
-                          {mat.title}
-                        </span>
-                      </td>
-                      <td className="text-sa-muted">{mat.uploadDate}</td>
-                      <td className="text-end">
-                        <button
-                          type="button"
-                          className="btn-download-pink"
-                          onClick={() => handleDownloadMaterial(mat.id, mat.title)}
-                        >
-                          Download
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Fee Summary & Announcements */}
-        <div className="col-12 col-md-6 col-xl-3 d-flex flex-column gap-3">
-          {/* Sub-Card A: Fee Summary */}
-          <div className="sa-card p-3">
-            <div className="sa-section-header mb-2">
-              <h6 className="sa-section-title">
-                <CreditCard size={17} className="text-sa-primary" />
-                <span>Fee Summary</span>
-              </h6>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/fees')}
-              >
-                <span>View Details</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-            {/* Fee Stats 3-column block */}
-            <div className="d-flex justify-content-between text-center py-2 mb-2 border-top border-bottom border-light">
-              <div className="text-start">
-                <span className="text-sa-muted d-block" style={{ fontSize: '0.68rem' }}>Total Fee</span>
-                <strong className="text-sa-charcoal" style={{ fontSize: '0.86rem' }}>
-                  ₹{Number(totalFeeAmount).toLocaleString('en-IN')}
-                </strong>
-              </div>
-              <div>
-                <span className="text-sa-muted d-block" style={{ fontSize: '0.68rem' }}>Paid</span>
-                <strong className="text-success" style={{ fontSize: '0.86rem' }}>
-                  ₹{Number(paidFeeAmount).toLocaleString('en-IN')}
-                </strong>
-              </div>
-              <div className="text-end">
-                <span className="text-sa-muted d-block" style={{ fontSize: '0.68rem' }}>Pending</span>
-                <strong className="text-sa-primary" style={{ fontSize: '0.86rem' }}>
-                  ₹{Number(pendingFeeAmount).toLocaleString('en-IN')}
-                </strong>
-              </div>
-            </div>
-
-            {/* Pay Now Button */}
-            <button
-              type="button"
-              className="btn-pay-now"
-              onClick={handlePayNow}
-            >
-              Pay Now
-            </button>
-          </div>
-
-          {/* Sub-Card B: Announcements */}
-          <div className="sa-card p-3 flex-grow-1">
-            <div className="sa-section-header mb-2">
-              <h6 className="sa-section-title">
-                <Megaphone size={17} className="text-sa-primary" />
-                <span>Announcements</span>
-              </h6>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/announcements')}
-              >
-                <span>View All</span>
-                <ArrowRight size={12} />
-              </button>
-            </div>
-
-            <div className="d-flex flex-column gap-2" style={{ fontSize: '0.78rem' }}>
-              {announcementsList.map((ann, idx) => (
-                <div key={idx} className="d-flex align-items-center justify-content-between gap-2 py-0.5">
-                  <div className="d-flex align-items-center gap-2 overflow-hidden">
-                    <span
-                      className="rounded-circle flex-shrink-0"
-                      style={{ width: '6px', height: '6px', backgroundColor: 'var(--sa-mustard-yellow)' }}
-                    />
-                    <span className="text-sa-charcoal fw-semibold text-truncate" title={ann.title}>
-                      {ann.title}
-                    </span>
-                  </div>
-                  <span className="text-sa-muted flex-shrink-0" style={{ fontSize: '0.72rem' }}>
-                    {ann.date}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

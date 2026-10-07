@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../../hooks/useAuth';
+import { toast } from 'react-toastify';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -15,8 +16,40 @@ export default function DashboardLayout() {
   const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
   const isAdmin = !isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin'));
-  const isPearlGlass = isSuperAdmin || isAdmin;
-  const sidebarWidth = (isAdmin || isSuperAdmin) ? '265px' : isTeacher ? '245px' : isStudent ? '215px' : 'var(--sa-sidebar-width)';
+  const isPearlGlass = isSuperAdmin || isAdmin || isStudent;
+  const sidebarWidth = (isAdmin || isSuperAdmin || isStudent) ? '265px' : isTeacher ? '245px' : 'var(--sa-sidebar-width)';
+
+  // Corner popup alert if student profile is not 100% complete
+  useEffect(() => {
+    if (!isStudent) return;
+
+    try {
+      const saved = localStorage.getItem('student_profile_data');
+      const profile = saved ? JSON.parse(saved) : (user || {});
+      const requiredFields = [
+        profile?.name,
+        profile?.email,
+        profile?.phone,
+        profile?.avatar,
+        profile?.address,
+        profile?.parentName,
+        profile?.parentPhone
+      ];
+
+      const isComplete = requiredFields.every(
+        val => typeof val === 'string' && val.trim().length > 0
+      );
+
+      if (!isComplete) {
+        toast.error('Please complete your profile', {
+          toastId: 'incomplete-profile-corner-alert',
+          autoClose: 3500
+        });
+      }
+    } catch (err) {
+      console.warn('Profile check warning:', err);
+    }
+  }, [isStudent, location.pathname, user]);
 
   return (
     <div
@@ -48,7 +81,7 @@ export default function DashboardLayout() {
 
           <main
             className={`flex-grow-1 ${isStudent
-                ? 'p-3 p-md-3.5'
+                ? 'p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4'
                 : isTeacher
                   ? 'p-3 p-md-4'
                   : 'p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4'
@@ -59,7 +92,7 @@ export default function DashboardLayout() {
             </div>
           </main>
 
-          {!isTeacher && <Footer />}
+          {!isTeacher && <Footer isStudent={isStudent} />}
         </div>
       </div>
     </div>

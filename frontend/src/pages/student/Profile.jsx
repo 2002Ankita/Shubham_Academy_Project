@@ -8,6 +8,7 @@ import {
   GraduationCap,
   MapPin,
   CheckCircle2,
+  Check,
   Pencil,
   X,
   Save,
@@ -43,7 +44,7 @@ export default function StudentProfile() {
     feesStatus: 'Paid',
     parentName: user?.parentName || 'Sanjay Deshmukh',
     parentPhone: user?.parentPhone || '+91 98231 45671',
-    address: user?.address || 'Flat 402, Green Park, Kothrud, Pune - 411038',
+    address: user?.address || '',
     attendancePercent: 94.2,
     avatar: user?.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
     academicYear: '2025 - 2026'
@@ -249,25 +250,19 @@ export default function StudentProfile() {
       }
     }
 
-    if (!formData.parentName?.trim()) {
-      newErrors.parentName = 'Parent / Guardian name is required';
-    } else if (formData.parentName.trim().length < 2) {
+    if (formData.parentName?.trim() && formData.parentName.trim().length < 2) {
       newErrors.parentName = 'Parent name must be at least 2 characters';
     }
 
-    if (!formData.parentPhone?.trim()) {
-      newErrors.parentPhone = 'Parent alert phone is required';
-    } else {
+    if (formData.parentPhone?.trim()) {
       const cleanParentPhone = formData.parentPhone.replace(/\D/g, '');
       if (cleanParentPhone.length < 10) {
         newErrors.parentPhone = 'Please enter a valid 10-digit phone number';
       }
     }
 
-    if (!formData.address?.trim()) {
-      newErrors.address = 'Residential address is required';
-    } else if (formData.address.trim().length < 6) {
-      newErrors.address = 'Please provide complete street / city details';
+    if (formData.address?.trim() && formData.address.trim().length < 6) {
+      newErrors.address = 'Please provide complete street / city details (at least 6 characters)';
     }
 
     setErrors(newErrors);
@@ -287,9 +282,9 @@ export default function StudentProfile() {
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        parentName: formData.parentName.trim(),
-        parentPhone: formData.parentPhone.trim(),
-        address: formData.address.trim(),
+        parentName: (formData.parentName || '').trim(),
+        parentPhone: (formData.parentPhone || '').trim(),
+        address: (formData.address || '').trim(),
         avatar: formData.avatar
       };
 
@@ -364,38 +359,103 @@ export default function StudentProfile() {
               <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-4">
                 {/* Left: Avatar and Identity Information */}
                 <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3.5 gap-md-4 flex-grow-1 w-100">
-                  {/* Avatar with clean, professional framing and active indicator */}
-                  <div className="position-relative flex-shrink-0">
+                  {/* Avatar with Circular Profile Progress Completion Ring & Status */}
+                  <div
+                    className="position-relative flex-shrink-0 d-flex align-items-center justify-content-center"
+                    style={{ width: '116px', height: '116px' }}
+                  >
+                    {/* SVG Circular Progress Ring */}
+                    <svg
+                      className="position-absolute top-0 start-0"
+                      width="116"
+                      height="116"
+                      viewBox="0 0 116 116"
+                      style={{ transform: 'rotate(-90deg)', pointerEvents: 'none' }}
+                    >
+                      {/* Background Track */}
+                      <circle
+                        cx="58"
+                        cy="58"
+                        r="51"
+                        fill="none"
+                        stroke="#E2E8F0"
+                        strokeWidth="5"
+                      />
+                      {/* Active Progress Ring */}
+                      <circle
+                        cx="58"
+                        cy="58"
+                        r="51"
+                        fill="none"
+                        stroke={completionPercentage === 100 ? '#10B981' : '#A91D22'}
+                        strokeWidth="5"
+                        strokeDasharray={2 * Math.PI * 51}
+                        strokeDashoffset={(2 * Math.PI * 51) * (1 - completionPercentage / 100)}
+                        strokeLinecap="round"
+                        style={{
+                          transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease'
+                        }}
+                      />
+                    </svg>
+
+                    {/* Circular Avatar Image */}
                     <div
-                      className="rounded-circle p-1"
+                      className="rounded-circle overflow-hidden shadow-sm"
                       style={{
-                        background: 'linear-gradient(145deg, #F8FAFC 0%, #E2E8F0 100%)',
-                        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)'
+                        width: '92px',
+                        height: '92px',
+                        backgroundColor: '#FFFFFF',
+                        border: '2px solid #FFFFFF'
                       }}
                     >
                       <img
                         src={profile.avatar}
                         alt={profile.name}
-                        className="rounded-circle d-block"
+                        className="w-100 h-100 rounded-circle"
                         style={{
-                          width: '96px',
-                          height: '96px',
                           objectFit: 'cover',
-                          backgroundColor: '#FFFFFF'
+                          display: 'block'
                         }}
                       />
                     </div>
-                    {/* Active student online indicator */}
-                    <span
-                      className="position-absolute bg-success border border-2 border-white rounded-circle shadow-sm"
-                      title="Active Student Account"
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        bottom: '4px',
-                        right: '4px'
-                      }}
-                    />
+
+                    {/* Status Badge: 100% Completed Checkmark Badge matching reference image vs Incomplete Percentage */}
+                    {completionPercentage === 100 ? (
+                      <div
+                        className="position-absolute d-flex align-items-center justify-content-center rounded-circle shadow-sm"
+                        style={{
+                          width: '34px',
+                          height: '34px',
+                          backgroundColor: '#22C55E',
+                          border: '3.5px solid #FFFFFF',
+                          bottom: '1px',
+                          right: '1px',
+                          zIndex: 4,
+                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.16)'
+                        }}
+                        title="Profile 100% Complete & Verified"
+                      >
+                        <Check size={19} strokeWidth={3.8} className="text-white" />
+                      </div>
+                    ) : (
+                      <div
+                        className="position-absolute start-50 translate-middle-x px-2 py-0.5 rounded-pill shadow-sm fw-bold d-inline-flex align-items-center gap-1"
+                        style={{
+                          bottom: '-6px',
+                          backgroundColor: '#A91D22',
+                          color: '#FFFFFF',
+                          border: '2px solid #FFFFFF',
+                          fontSize: '0.70rem',
+                          lineHeight: 1.2,
+                          letterSpacing: '0.02em',
+                          whiteSpace: 'nowrap',
+                          zIndex: 3
+                        }}
+                        title={`Profile Completion: ${completionPercentage}%`}
+                      >
+                        <span>{completionPercentage}%</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Identity Details */}
@@ -558,131 +618,6 @@ export default function StudentProfile() {
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* Profile Completion Status Widget                                          */}
-          {/* ========================================================================= */}
-          <div className="sa-card p-3.5 p-sm-4">
-            <div className="d-flex flex-column">
-              {/* Top Row: Title & Subtitle on Left, Percentage on Right */}
-              <div className="d-flex flex-row align-items-start justify-content-between gap-3">
-                <div className="d-flex flex-column">
-                  <div className="d-flex align-items-center gap-2">
-                    <Award
-                      size={17}
-                      className={completionPercentage === 100 ? 'text-success' : 'text-sa-primary'}
-                    />
-                    <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.975rem', lineHeight: 1.25 }}>
-                      Profile Completion
-                    </span>
-                  </div>
-                  <span
-                    className="text-sa-muted"
-                    style={{ fontSize: '0.8rem', lineHeight: 1.3, marginTop: '4px' }}
-                  >
-                    {completedFieldsCount} of {totalApplicableFields} applicable fields completed
-                  </span>
-                </div>
-
-                <div className="d-flex align-items-baseline gap-2 flex-shrink-0 pt-0.5">
-                  <span
-                    className="brand-font fw-bold"
-                    style={{
-                      fontSize: '1.25rem',
-                      letterSpacing: '-0.02em',
-                      color: completionPercentage === 100 ? 'var(--sa-success-green, #168554)' : 'var(--sa-primary-red, #A91D22)',
-                      lineHeight: 1
-                    }}
-                  >
-                    {completionPercentage}%
-                  </span>
-                  <span
-                    className="fw-semibold text-sa-charcoal"
-                    style={{ fontSize: '0.825rem', lineHeight: 1 }}
-                  >
-                    Complete
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Bar with comfortable spacing */}
-              <div
-                className="w-100"
-                style={{
-                  height: '7px',
-                  backgroundColor: '#EEF2F6',
-                  borderRadius: '9999px',
-                  overflow: 'hidden',
-                  marginTop: '14px',
-                  marginBottom: '10px'
-                }}
-                role="progressbar"
-                aria-valuenow={completionPercentage}
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-label={`Profile completion: ${completionPercentage}% Complete`}
-              >
-                <div
-                  style={{
-                    width: `${completionPercentage}%`,
-                    height: '100%',
-                    borderRadius: '9999px',
-                    background: completionPercentage === 100
-                      ? 'linear-gradient(90deg, #10B981 0%, var(--sa-success-green, #168554) 100%)'
-                      : 'linear-gradient(90deg, #C4272D 0%, var(--sa-primary-red, #A91D22) 100%)',
-                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                />
-              </div>
-
-              {/* Completion Status Message */}
-              <div className="d-flex align-items-center gap-2">
-                {completionPercentage === 100 ? (
-                  <CheckCircle2 size={15} className="text-success flex-shrink-0" />
-                ) : (
-                  <AlertCircle size={15} className="text-sa-primary flex-shrink-0" />
-                )}
-                <span className="text-sa-charcoal fw-medium" style={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
-                  {getStatusMessage(completionPercentage)}
-                </span>
-              </div>
-
-              {/* Missing Information & Direct Edit Profile Action (Shown when incomplete) */}
-              {missingFields.length > 0 && (
-                <div className="pt-3 mt-2.5 border-top d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5">
-                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
-                    <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.78rem' }}>
-                      Missing:
-                    </span>
-                    {missingFields.map((field) => (
-                      <span
-                        key={field.key}
-                        className="badge rounded-pill fw-medium px-2 py-0.5"
-                        style={{
-                          backgroundColor: '#FFF1F2',
-                          color: '#BE123C',
-                          border: '1px solid #FECDD3',
-                          fontSize: '0.74rem'
-                        }}
-                      >
-                        • {field.label}
-                      </span>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-sa-primary d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-2 fw-semibold flex-shrink-0"
-                    style={{ fontSize: '0.78rem', height: '30px' }}
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <Pencil size={12} />
-                    <span>Edit Profile</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Detailed Info Cards Grid */}
           <div className="row g-3 g-md-4">
             {/* Card 1: Personal & Contact Information */}
@@ -724,7 +659,7 @@ export default function StudentProfile() {
                     <span className="text-sa-muted d-block mb-1">Residential Address</span>
                     <div className="d-flex align-items-start gap-2 text-sa-charcoal fw-medium">
                       <MapPin size={15} className="text-sa-primary flex-shrink-0 mt-0.5" />
-                      <span>{profile.address}</span>
+                      <span>{profile.address || <span className="text-muted fst-italic fw-normal">Not provided</span>}</span>
                     </div>
                   </div>
                 </div>
@@ -747,14 +682,16 @@ export default function StudentProfile() {
                 <div className="d-flex flex-column gap-3 small flex-grow-1">
                   <div>
                     <span className="text-sa-muted d-block mb-1">Parent / Guardian Full Name</span>
-                    <div className="fw-semibold text-sa-charcoal fs-6">{profile.parentName}</div>
+                    <div className="fw-semibold text-sa-charcoal fs-6">
+                      {profile.parentName || <span className="text-muted fst-italic fw-normal fs-6">Not provided</span>}
+                    </div>
                   </div>
 
                   <div>
                     <span className="text-sa-muted d-block mb-1">Emergency & RFID Alert Mobile Phone</span>
                     <div className="d-flex align-items-center gap-2 text-sa-charcoal fw-medium">
                       <Phone size={15} className="text-sa-primary flex-shrink-0" />
-                      <span>{profile.parentPhone}</span>
+                      <span>{profile.parentPhone || <span className="text-muted fst-italic fw-normal">Not provided</span>}</span>
                     </div>
                   </div>
 
@@ -886,22 +823,64 @@ export default function StudentProfile() {
               </h6>
 
               <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-4">
-                <div className="position-relative">
-                  <img
-                    src={formData.avatar}
-                    alt="Avatar preview"
-                    className="rounded-circle border border-2 shadow-sm"
+                <div
+                  className="position-relative flex-shrink-0 d-flex align-items-center justify-content-center"
+                  style={{ width: '106px', height: '106px' }}
+                >
+                  <svg
+                    className="position-absolute top-0 start-0"
+                    width="106"
+                    height="106"
+                    viewBox="0 0 106 106"
+                    style={{ transform: 'rotate(-90deg)', pointerEvents: 'none' }}
+                  >
+                    <circle
+                      cx="53"
+                      cy="53"
+                      r="47"
+                      fill="none"
+                      stroke="#E2E8F0"
+                      strokeWidth="4"
+                    />
+                    <circle
+                      cx="53"
+                      cy="53"
+                      r="47"
+                      fill="none"
+                      stroke={completionPercentage === 100 ? '#10B981' : '#A91D22'}
+                      strokeWidth="4"
+                      strokeDasharray={2 * Math.PI * 47}
+                      strokeDashoffset={(2 * Math.PI * 47) * (1 - completionPercentage / 100)}
+                      strokeLinecap="round"
+                      style={{
+                        transition: 'stroke-dashoffset 0.8s ease-in-out'
+                      }}
+                    />
+                  </svg>
+                  <div
+                    className="rounded-circle overflow-hidden shadow-sm"
                     style={{
                       width: '84px',
                       height: '84px',
-                      objectFit: 'cover',
-                      backgroundColor: '#FFFFFF'
+                      backgroundColor: '#FFFFFF',
+                      border: '2px solid #FFFFFF'
                     }}
-                  />
+                  >
+                    <img
+                      src={formData.avatar}
+                      alt="Avatar preview"
+                      className="w-100 h-100 rounded-circle"
+                      style={{
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="position-absolute bottom-0 end-0 btn btn-sm btn-sa-primary rounded-circle p-1.5 shadow-sm d-flex align-items-center justify-content-center"
+                    style={{ zIndex: 3 }}
                     title="Change Photo"
                   >
                     <Upload size={13} />
