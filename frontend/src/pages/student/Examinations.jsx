@@ -36,63 +36,79 @@ export default function StudentExaminations() {
   }, [enrolledBatch]);
 
   // Default examination schedules tailored strictly to student's enrolled batch
-  const defaultExamsForBatch = useMemo(() => [
-    {
-      id: 'EXAM-2026-01',
-      title: 'Mid-Term Examination 2026',
-      subject: 'Physics',
-      batch: displayEnrolledBatch,
-      date: '2026-03-15',
-      startTime: '10:00 AM',
-      duration: '3 Hours',
-      roomNo: 'Exam Hall 101',
-      totalMarks: 100
-    },
-    {
-      id: 'EXAM-2026-02',
-      title: 'Unit Test - 1',
-      subject: 'Chemistry',
-      batch: displayEnrolledBatch,
-      date: '2026-03-18',
-      startTime: '10:00 AM',
-      duration: '1.5 Hours',
-      roomNo: 'Exam Hall 102',
-      totalMarks: 50
-    },
-    {
-      id: 'EXAM-2026-03',
-      title: 'Semester Assessment - I',
-      subject: 'Mathematics - I',
-      batch: displayEnrolledBatch,
-      date: '2026-03-22',
-      startTime: '02:00 PM',
-      duration: '3 Hours',
-      roomNo: 'Exam Hall 104',
-      totalMarks: 100
-    },
-    {
-      id: 'EXAM-2026-04',
-      title: 'Semester Assessment - II',
-      subject: 'Mathematics - II',
-      batch: displayEnrolledBatch,
-      date: '2026-03-25',
-      startTime: '02:00 PM',
-      duration: '3 Hours',
-      roomNo: 'Exam Hall 104',
-      totalMarks: 100
-    },
-    {
-      id: 'EXAM-2026-05',
-      title: 'Preliminary Examination 2026',
-      subject: 'Biology',
-      batch: displayEnrolledBatch,
-      date: '2026-03-28',
-      startTime: '10:00 AM',
-      duration: '3 Hours',
-      roomNo: 'Auditorium Hall',
-      totalMarks: 100
-    }
-  ], [displayEnrolledBatch]);
+  const defaultExamsForBatch = useMemo(() => {
+    const sStream = (enrolledBatch || '').toLowerCase().split(' ')[1] || '';
+    
+    return [
+      {
+        id: 'EXAM-2026-01',
+        title: 'Mid-Term Examination 2026',
+        subject: 'Physics',
+        batch: displayEnrolledBatch,
+        date: '2026-03-15',
+        startTime: '10:00 AM',
+        duration: '3 Hours',
+        roomNo: 'Exam Hall 101',
+        totalMarks: 100
+      },
+      {
+        id: 'EXAM-2026-02',
+        title: 'Unit Test - 1',
+        subject: 'Chemistry',
+        batch: displayEnrolledBatch,
+        date: '2026-03-18',
+        startTime: '10:00 AM',
+        duration: '1.5 Hours',
+        roomNo: 'Exam Hall 102',
+        totalMarks: 50
+      },
+      {
+        id: 'EXAM-2026-03',
+        title: 'Semester Assessment - I',
+        subject: 'Mathematics - I',
+        batch: displayEnrolledBatch,
+        date: '2026-03-22',
+        startTime: '02:00 PM',
+        duration: '3 Hours',
+        roomNo: 'Exam Hall 104',
+        totalMarks: 100
+      },
+      {
+        id: 'EXAM-2026-04',
+        title: 'Semester Assessment - II',
+        subject: 'Mathematics - II',
+        batch: displayEnrolledBatch,
+        date: '2026-03-25',
+        startTime: '02:00 PM',
+        duration: '3 Hours',
+        roomNo: 'Exam Hall 104',
+        totalMarks: 100
+      },
+      {
+        id: 'EXAM-2026-05',
+        title: 'Preliminary Examination 2026',
+        subject: 'Biology',
+        batch: displayEnrolledBatch,
+        date: '2026-03-28',
+        startTime: '10:00 AM',
+        duration: '3 Hours',
+        roomNo: 'Auditorium Hall',
+        totalMarks: 100
+      }
+    ].filter(e => {
+      const subj = (e.subject || '').toLowerCase();
+      let hasSubjectCheck = false;
+      let subjectMatched = false;
+      
+      if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+      if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+      if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+      if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+      
+      if (hasSubjectCheck && sStream) return subjectMatched;
+      return true;
+    });
+  }, [displayEnrolledBatch, enrolledBatch]);
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -105,6 +121,20 @@ export default function StudentExaminations() {
           // Filter ONLY exams matching the student's enrolled batch
           const filtered = data.filter(e => {
             const examBatch = (e.batch || e.standard || '').toLowerCase();
+            const sStream = enrolledLower.split(' ')[1] || '';
+            
+            // Subject filtering based on stream
+            const subj = (e.subject || e.title || '').toLowerCase();
+            let hasSubjectCheck = false;
+            let subjectMatched = false;
+            
+            if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+            if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+            if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+            if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+            
+            if (hasSubjectCheck && sStream && !subjectMatched) return false;
+
             if (!examBatch || examBatch === 'all') return true;
             if (examBatch === enrolledLower) return true;
             if (enrolledLower.includes(examBatch) || examBatch.includes(enrolledLower)) return true;

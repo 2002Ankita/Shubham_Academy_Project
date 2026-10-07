@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Input({
   label,
@@ -16,7 +17,11 @@ export default function Input({
   register,
   ...props
 }) {
+  const [showPassword, setShowPassword] = useState(false);
   const inputProps = register ? register(name) : { name, value, onChange };
+  
+  const isPassword = type === 'password';
+  const currentType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
     <div className={`mb-3 ${className}`}>
@@ -38,13 +43,29 @@ export default function Input({
         )}
         <input
           id={name}
-          type={type}
+          type={currentType}
           placeholder={placeholder}
           disabled={disabled}
           className={`form-control ${Icon ? 'ps-5' : ''} ${error ? 'is-invalid' : ''}`}
+          style={isPassword ? { paddingRight: '2.5rem' } : undefined}
           {...inputProps}
           {...props}
         />
+        {isPassword && (
+          <button
+            type="button"
+            className="position-absolute top-50 end-0 translate-middle-y border-0 bg-transparent text-sa-muted px-3"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowPassword(prev => !prev);
+            }}
+            tabIndex={-1}
+            style={{ zIndex: 5, cursor: 'pointer', outline: 'none' }}
+            title={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
       </div>
       {error && <div className="invalid-feedback d-block text-xs mt-1">{error}</div>}
       {helperText && !error && <div className="form-text text-xs mt-1 text-sa-muted">{helperText}</div>}
