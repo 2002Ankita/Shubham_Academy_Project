@@ -2,13 +2,36 @@ import React, { useState, useEffect } from 'react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
 import { toast } from 'react-toastify';
-import { Save, Users, CheckCircle2, XCircle } from 'lucide-react';
+import { Save, Users, CheckCircle2, XCircle, Clock3 } from 'lucide-react';
+import { attendanceService } from '../../services/attendanceService';
+import useAuth from '../../hooks/useAuth';
+import Button from '../../components/common/Button';
 
 export default function TeacherAttendance() {
+  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState('');
+  const [teacherRecords, setTeacherRecords] = useState([]);
+  const [teacherRecordsLoading, setTeacherRecordsLoading] = useState(true);
+  const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+
+  const fetchTeacherRecords = async () => {
+    if (!user?.id) {
+      setTeacherRecordsLoading(false);
+      return;
+    }
+    try {
+      const data = await attendanceService.getWorkingTime(user.id);
+      setTeacherRecords(data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to load your attendance records');
+      setTeacherRecords([]);
+    } finally {
+      setTeacherRecordsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,6 +52,40 @@ export default function TeacherAttendance() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchTeacherRecords();
+  }, [user?.id]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayRecord = teacherRecords.find(record => record.date === today);
+  const hasCheckedIn = Boolean(todayRecord && todayRecord.checkIn !== '--');
+  const hasCheckedOut = Boolean(todayRecord && todayRecord.checkOut !== '--');
+  const recentTeacherRecords = [...teacherRecords]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7);
+
+  const handleTeacherAttendance = async (action) => {
+    if (!user?.id) {
+      toast.error('Unable to identify your teacher account');
+      return;
+    }
+    setAttendanceActionLoading(true);
+    try {
+      if (action === 'check-in') {
+        await attendanceService.checkIn(user.id);
+        toast.success('Successfully checked in!');
+      } else {
+        await attendanceService.checkOut(user.id);
+        toast.success('Successfully checked out!');
+      }
+      await fetchTeacherRecords();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || `Failed to ${action === 'check-in' ? 'check in' : 'check out'}`);
+    } finally {
+      setAttendanceActionLoading(false);
+    }
+  };
 
   const toggleStatus = (id) => {
     setAttendanceMap(prev => ({
@@ -116,6 +173,72 @@ export default function TeacherAttendance() {
           </button>
         </div>
       </div>
+
+      <section
+        className="sa-card bg-white border rounded-4 p-3 p-md-4"
+        aria-labelledby="teacher-attendance-heading"
+      >
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 id="teacher-attendance-heading" className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+              My Attendance
+            </h2>
+            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
+              Record and review your daily check-in and check-out
+            </p>
+          </div>
+          <div className="d-flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              icon={Clock3}
+              loading={attendanceActionLoading}
+              disabled={attendanceActionLoading || hasCheckedIn || !user?.id}
+              onClick={() => handleTeacherAttendance('check-in')}
+            >
+              {hasCheckedIn ? `Checked in ${todayRecord.checkIn}` : 'Check In'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              loading={attendanceActionLoading}
+              disabled={attendanceActionLoading || !hasCheckedIn || hasCheckedOut}
+              onClick={() => handleTeacherAttendance('check-out')}
+            >
+              {hasCheckedOut ? `Checked out ${todayRecord.checkOut}` : 'Check Out'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="table-responsive">
+          <table className="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Check In</th>
+                <th scope="col">Check Out</th>
+                <th scope="col">Hours</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teacherRecordsLoading ? (
+                <tr><td colSpan="5" className="text-center text-sa-muted py-4">Loading attendance records…</td></tr>
+              ) : recentTeacherRecords.length === 0 ? (
+                <tr><td colSpan="5" className="text-center text-sa-muted py-4">No attendance records yet.</td></tr>
+              ) : recentTeacherRecords.map(record => (
+                <tr key={record.id}>
+                  <td>{record.date}</td>
+                  <td>{record.checkIn}</td>
+                  <td>{record.checkOut}</td>
+                  <td>{record.totalHours}</td>
+                  <td><span className="badge bg-light text-sa-charcoal border">{record.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* 2. COMPACT ATTENDANCE SUMMARY PILLS */}
       <div className="d-flex align-items-center gap-3 flex-wrap">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MarksForm from '../../components/forms/MarksForm';
+import BulkMarksForm from '../../components/forms/BulkMarksForm';
 import Table from '../../components/common/Table';
 import marksService from '../../services/marksService';
 import studentService from '../../services/studentService';
@@ -38,6 +39,12 @@ export default function EnterMarks() {
     fetchData();
   };
 
+  const handleBulkMarksSubmit = async (examId, entries) => {
+    await marksService.submitBulkMarks(examId, entries);
+    toast.success(`Marks saved for ${entries.length} student${entries.length === 1 ? '' : 's'}.`);
+    await fetchData();
+  };
+
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
       {/* Header */}
@@ -54,6 +61,14 @@ export default function EnterMarks() {
         students={students}
         exams={exams}
         onSubmit={handleMarksSubmit}
+      />
+
+      <BulkMarksForm
+        students={students}
+        exams={exams}
+        existingMarks={marks}
+        onSubmit={handleBulkMarksSubmit}
+        loading={loading}
       />
 
       <div className="d-flex flex-column gap-2 mt-2">

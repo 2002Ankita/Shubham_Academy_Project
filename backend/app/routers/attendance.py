@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from app.schemas.attendance import AttendanceCreate, AttendanceResponse
 from app.services.attendance_service import mark_attendance, get_student_attendance
@@ -22,7 +22,12 @@ async def list_student_attendance(student_id: str, token: str = Depends(oauth2_s
 
 @router.get("/teacher/{teacher_id}", response_model=List[AttendanceResponse])
 async def list_teacher_attendance(teacher_id: str, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role == "TEACHER":
+        teacher_id = str(user.id)
+    elif role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to view teacher attendance")
     from app.services.attendance_service import get_teacher_attendance
     return await get_teacher_attendance(teacher_id)
 

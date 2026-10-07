@@ -1191,6 +1191,197 @@
   border-radius: 12px !important;
 }
 
+/* Teacher dashboard layout refinements within the shared pearl-glass theme */
+.teacher-welcome-quote::after {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 2px;
+  margin-top: 0.4rem;
+  border-radius: 2px;
+  background-color: var(--sa-mustard-yellow);
+}
+
+.teacher-dashboard-page {
+  gap: 1.25rem !important;
+}
+
+.teacher-dashboard-page > div:first-of-type h1 {
+  font-size: clamp(1.35rem, 2vw, 1.7rem) !important;
+}
+
+.teacher-dashboard-page .teacher-kpi-grid,
+.teacher-dashboard-page .teacher-main-grid,
+.teacher-dashboard-page .teacher-bottom-grid {
+  gap: 1rem !important;
+}
+
+.teacher-dashboard-page .teacher-kpi-grid .teacher-grid-card {
+  height: auto !important;
+  min-height: 116px;
+  padding: 1rem !important;
+}
+
+.teacher-dashboard-page .teacher-kpi-grid .teacher-grid-card > div:first-child {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.teacher-dashboard-page .teacher-kpi-grid .teacher-grid-card .brand-font {
+  font-size: 1.5rem !important;
+}
+
+.teacher-dashboard-page .teacher-kpi-grid .teacher-grid-card .text-sa-muted {
+  font-size: 0.78rem !important;
+}
+
+.teacher-dashboard-page .teacher-main-grid .teacher-grid-card {
+  height: auto !important;
+  min-height: 300px;
+  padding: 1.125rem !important;
+}
+
+.teacher-dashboard-page .teacher-bottom-grid .teacher-grid-card {
+  height: auto !important;
+  min-height: 190px;
+  padding: 1rem !important;
+}
+
+.teacher-dashboard-page .teacher-grid-card h3,
+.teacher-dashboard-page .teacher-grid-card h4 {
+  font-size: 0.95rem !important;
+}
+
+.teacher-dashboard-page .schedule-table-wrapper {
+  font-size: 0.8rem !important;
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .teacher-dashboard-page .teacher-main-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .teacher-dashboard-page .teacher-main-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .teacher-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand controls"
+      "search search";
+    gap: 0.75rem !important;
+    height: auto !important;
+    min-height: var(--sa-header-height);
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .teacher-header > div:first-child {
+    grid-area: brand;
+  }
+
+  .teacher-header > div:nth-child(2) {
+    grid-area: search;
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .teacher-header > div:last-child {
+    grid-area: controls;
+    gap: 0.5rem !important;
+    padding-right: 0 !important;
+  }
+
+  .teacher-header .teacher-date-picker > div {
+    width: 170px !important;
+    padding-right: 0.55rem !important;
+    padding-left: 0.55rem !important;
+  }
+
+  .teacher-header .teacher-date-picker span.d-none.d-sm-inline {
+    display: none !important;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .teacher-dashboard-page .teacher-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .teacher-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) 38px auto;
+    grid-template-areas:
+      "brand spacer notifications profile"
+      "date date date date";
+    gap: 0.5rem !important;
+    height: auto !important;
+    min-height: var(--sa-header-height);
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .teacher-header > div:first-child {
+    grid-area: brand;
+  }
+
+  .teacher-header > div:nth-child(2) {
+    display: none !important;
+  }
+
+  .teacher-header > div:last-child {
+    display: contents !important;
+  }
+
+  .teacher-header .teacher-date-picker {
+    grid-area: date;
+    width: 100%;
+  }
+
+  .teacher-header .teacher-date-picker > div {
+    width: 100% !important;
+  }
+
+  .teacher-header .teacher-header-notifications {
+    grid-area: notifications;
+  }
+
+  .teacher-header .teacher-header-profile {
+    grid-area: profile;
+    width: 72px !important;
+  }
+
+  .teacher-header .teacher-header-profile > div:first-child {
+    justify-content: center !important;
+    padding-right: 0.5rem !important;
+    padding-left: 0.5rem !important;
+  }
+
+  .teacher-dashboard-page {
+    gap: 1rem !important;
+  }
+
+  .teacher-dashboard-page .teacher-kpi-grid,
+  .teacher-dashboard-page .teacher-bottom-grid {
+    gap: 0.75rem !important;
+  }
+
+  .teacher-dashboard-page .teacher-main-grid .teacher-grid-card {
+    min-height: 260px;
+  }
+
+  .teacher-header .teacher-date-picker span {
+    font-size: 0.72rem !important;
+  }
+}
+
 /* Super Admin 5-column KPI Grid on Large Screens */
 @media (min-width: 1200px) {
   .superadmin-kpi-grid {

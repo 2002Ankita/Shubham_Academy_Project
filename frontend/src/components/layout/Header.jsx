@@ -146,9 +146,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   return (
     <header
-      className={`position-sticky top-0 bg-white border-bottom ${isTeacher ? 'px-3 px-md-3.5' : 'px-3 px-md-4'} d-flex align-items-center justify-content-between`}
+      className={`position-sticky top-0 bg-white border-bottom px-3 px-md-4 d-flex align-items-center justify-content-between ${isTeacher ? 'teacher-header' : ''}`}
       style={{
-        height: isStudent ? '58px' : isTeacher ? '56px' : 'var(--sa-header-height)',
+        height: isStudent ? '58px' : 'var(--sa-header-height)',
         zIndex: 1030,
         borderColor: 'var(--sa-border)'
       }}
@@ -171,13 +171,13 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           style={{ maxHeight: '30px', width: 'auto' }}
         />
 
-        <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: isTeacher ? '0.94rem' : '1.05rem' }}>
+        <h5 className="m-0 fw-bold text-sa-charcoal brand-font d-none d-sm-block" style={{ fontSize: '1.05rem' }}>
           {isTeacher ? 'Teacher Dashboard' : isStudent ? 'Student Dashboard' : isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
         </h5>
       </div>
 
       {/* Middle side: Search input matching reference image */}
-      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: isTeacher ? '340px' : '380px' }}>
+      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: '380px' }}>
         <form onSubmit={handleSearchSubmit}>
           <div className="position-relative">
             <Search
@@ -189,7 +189,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
               type="text"
               className="form-control form-control-sm rounded-pill"
               style={{
-                height: isTeacher ? '32px' : '36px',
+                height: '36px',
                 paddingLeft: '34px',
                 backgroundColor: '#f8fafc',
                 border: '1px solid #e2e8f0',
@@ -247,7 +247,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       <div className="d-flex align-items-center h-100" style={{ gap: '14px', paddingRight: '4px' }}>
         {/* Date Selector for Teacher Header */}
         {isTeacher && (
-          <div className="position-relative">
+          <div className="position-relative teacher-date-picker">
             <div
               onClick={() => setShowDatePicker(!showDatePicker)}
               onMouseEnter={() => setIsDateHovered(true)}
@@ -375,7 +375,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         )}
 
         {/* Notifications Icon with right margin to ensure 18px gap to profile */}
-        <div className="position-relative" ref={notificationsRef} style={{ marginRight: '4px' }}>
+        <div className="position-relative teacher-header-notifications" ref={notificationsRef} style={{ marginRight: '4px' }}>
           <button
             type="button"
             className="btn btn-light rounded-circle position-relative text-sa-charcoal border"
@@ -505,7 +505,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
         {/* User Profile avatar & info */}
         <div
-          className="position-relative h-100 d-flex align-items-center"
+          className={`position-relative h-100 d-flex align-items-center ${isTeacher ? 'teacher-header-profile' : ''}`}
           ref={userMenuRef}
           style={{ width: isTeacher ? '195px' : '205px' }}
         >

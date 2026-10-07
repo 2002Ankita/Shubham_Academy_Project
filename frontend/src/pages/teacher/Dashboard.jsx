@@ -122,7 +122,7 @@ export default function TeacherDashboard() {
   const upcomingExams = upcomingExamsList;
 
   return (
-    <div className="d-flex flex-column w-100" style={{ gap: '12px' }}>
+    <div className="teacher-dashboard-page d-flex flex-column w-100" style={{ gap: '12px' }}>
       <style>{`
         .teacher-kpi-grid {
           display: grid;
@@ -143,6 +143,14 @@ export default function TeacherDashboard() {
           min-width: 0;
           width: 100%;
           box-sizing: border-box;
+        }
+        .teacher-kpi-grid .teacher-grid-card > div:last-child {
+          min-width: 0;
+        }
+        .teacher-card-heading {
+          flex: 1 1 auto;
+          min-width: 0;
+          overflow-wrap: anywhere;
         }
         .schedule-table-wrapper {
           width: 100%;
@@ -168,6 +176,11 @@ export default function TeacherDashboard() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
+        @media (max-width: 1199px) {
+          .teacher-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
         @media (max-width: 991px) {
           .teacher-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -190,34 +203,48 @@ export default function TeacherDashboard() {
       `}</style>
 
       {/* 1. TOP GREETING & QUOTE SECTION */}
-      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between pt-0 pb-0">
-        {/* Left: Greeting & Subtitle */}
-        <div>
-          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '20px', lineHeight: 1.2 }}>
-            Good Morning, {user?.name || 'Teacher'}
-          </h1>
-          <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '12.5px' }}>
-            Ready to inspire young minds today?
-          </p>
-        </div>
-
-        {/* Right: Motivational Quote with Gold Underline */}
-        <div className="d-none d-sm-flex flex-column align-items-end text-end mt-1 mt-sm-0">
-          <div
-            className="text-sa-muted fst-italic"
-            style={{ fontSize: '11.5px', lineHeight: 1.3, letterSpacing: '0.01em', fontWeight: 500 }}
-          >
-            "Better Teachers<br />Brighter Futures"
+      <div
+        className="teacher-welcome-banner bg-white rounded-4 border overflow-hidden"
+        style={{
+          borderRadius: '18px',
+          boxShadow: '0 2px 14px rgba(0, 0, 0, 0.04)',
+          borderColor: 'rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        <div className="row g-0 align-items-center">
+          <div className="col-12 col-md-6 p-4 ps-md-4 ps-xl-5 py-md-4">
+            <h1
+              className="fw-bold brand-font text-sa-charcoal m-0"
+              style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
+            >
+              Good Morning, {user?.name || 'Teacher'}
+            </h1>
+            <p
+              className="text-sa-charcoal text-opacity-75 m-0 mt-2"
+              style={{ fontSize: '0.95rem', fontWeight: 400 }}
+            >
+              Ready to inspire young minds today?
+            </p>
+            <div
+              className="teacher-welcome-quote text-sa-muted fst-italic mt-3"
+              style={{ fontSize: '0.84rem', lineHeight: 1.4, fontWeight: 500 }}
+            >
+              "Better Teachers<br />Brighter Futures"
+            </div>
           </div>
-          <div
-            style={{
-              width: '28px',
-              height: '2px',
-              backgroundColor: 'var(--sa-mustard-yellow)',
-              borderRadius: '2px',
-              marginTop: '3px'
-            }}
-          />
+          <div className="col-12 col-md-6 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3 overflow-hidden">
+            <img
+              src="/assets/superadminhero.png"
+              alt="Shubham Academy Celebration"
+              className="img-fluid"
+              style={{
+                maxHeight: '160px',
+                width: 'auto',
+                objectFit: 'contain',
+                objectPosition: 'bottom right'
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -236,13 +263,13 @@ export default function TeacherDashboard() {
             <Tv size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
               Today's Classes
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
               0
             </div>
-            <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10px' }}>
+            <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
               0 completed, 0 remaining
             </span>
           </div>
@@ -261,13 +288,13 @@ export default function TeacherDashboard() {
             <Users size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
               Total Students
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
               {totalStudents}
             </div>
-            <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10px', color: '#168554' }}>
+            <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
               ↗ Total assigned
             </span>
           </div>
@@ -286,13 +313,13 @@ export default function TeacherDashboard() {
             <FileText size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
               Pending Marks
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
               0
             </div>
-            <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10px' }}>
+            <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
               Across 0 examinations
             </span>
           </div>
@@ -311,13 +338,13 @@ export default function TeacherDashboard() {
             <Clock size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
               Working Hours
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
               0 hrs
             </div>
-            <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10px', color: '#168554' }}>
+            <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
               ↗ 0% of 0 hrs this month
             </span>
           </div>
@@ -335,7 +362,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1.5 border-bottom flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <Calendar size={15} className="text-danger flex-shrink-0" />
-              <h3 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '13px' }}>
+              <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
                 Today's Class Schedule
               </h3>
             </div>
@@ -434,7 +461,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1 flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <BarChart2 size={15} className="text-danger flex-shrink-0" />
-              <h3 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '13px' }}>
+              <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
                 Class Attendance
               </h3>
             </div>
@@ -502,7 +529,7 @@ export default function TeacherDashboard() {
           {/* Header */}
           <div className="d-flex align-items-center gap-1.5 pb-1.5 border-bottom flex-shrink-0">
             <Zap size={15} className="text-danger flex-shrink-0" />
-            <h3 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '13px' }}>
+            <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
               Quick Actions
             </h3>
           </div>
@@ -585,7 +612,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <FileText size={13} className="text-danger flex-shrink-0" />
-              <h4 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '12px' }}>
+              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Upcoming Examinations
               </h4>
             </div>
@@ -606,8 +633,8 @@ export default function TeacherDashboard() {
             {upcomingExams.map((exam, idx) => (
               <div key={idx} className="d-flex justify-content-between align-items-center py-0.5">
                 <span className="fw-semibold text-danger text-truncate" style={{ fontSize: '10px', width: '32%' }}>{exam.date}</span>
-                <span className="fw-medium text-sa-charcoal text-truncate" style={{ fontSize: '10px', width: '36%' }}>{exam.subject}</span>
-                <span className="text-sa-muted text-truncate text-end" style={{ fontSize: '10px', width: '32%' }}>{exam.classBatch}</span>
+                <span className="fw-medium text-sa-charcoal" style={{ fontSize: '10px', width: '36%', overflowWrap: 'anywhere' }}>{exam.subject}</span>
+                <span className="text-sa-muted text-end" style={{ fontSize: '10px', width: '32%', overflowWrap: 'anywhere' }}>{exam.classBatch}</span>
               </div>
             ))}
           </div>
@@ -621,7 +648,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <CheckSquare size={13} className="text-danger flex-shrink-0" />
-              <h4 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '12px' }}>
+              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Pending Tasks
               </h4>
             </div>
@@ -682,7 +709,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <Megaphone size={13} className="text-danger flex-shrink-0" />
-              <h4 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '12px' }}>
+              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Recent Announcements
               </h4>
             </div>
@@ -696,10 +723,10 @@ export default function TeacherDashboard() {
           </div>
           <div className="d-flex flex-column justify-content-around flex-grow-1 pt-0.5" style={{ gap: '3px', minWidth: 0 }}>
             {recentAnnouncements.map((item) => (
-              <div key={item.id} className="d-flex align-items-center justify-content-between min-w-0" style={{ fontSize: '10px' }}>
-                <div className="d-flex align-items-center gap-1.5 min-w-0">
+              <div key={item.id} className="d-flex align-items-center justify-content-between" style={{ fontSize: '10px' }}>
+                <div className="d-flex align-items-center gap-1.5" style={{ minWidth: 0 }}>
                   <span className="rounded-circle flex-shrink-0" style={{ width: '5px', height: '5px', backgroundColor: item.dotColor }} />
-                  <span className="text-sa-charcoal text-truncate fw-medium">{item.title}</span>
+                  <span className="text-sa-charcoal fw-medium" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{item.title}</span>
                 </div>
                 <span className="text-muted flex-shrink-0 ps-1" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>{item.date}</span>
               </div>
@@ -715,7 +742,7 @@ export default function TeacherDashboard() {
           <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
             <div className="d-flex align-items-center gap-1.5 min-w-0">
               <Clock size={13} className="text-danger flex-shrink-0" />
-              <h4 className="brand-font fw-bold m-0 text-sa-charcoal text-truncate" style={{ fontSize: '12px' }}>
+              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 This Month's Hours
               </h4>
             </div>

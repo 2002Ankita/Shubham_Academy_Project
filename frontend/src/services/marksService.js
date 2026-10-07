@@ -96,6 +96,7 @@ export const marksService = {
         return res.data.map(mark => ({
           id: mark.id,
           studentId: mark.student_id,
+          examId: mark.exam_id,
           studentName: mark.student_name || 'Student ID: ' + (mark.student_id ? mark.student_id.substring(mark.student_id.length - 6) : ''),
           rollNumber: mark.roll_number || 'N/A',
           examName: mark.exam_name || `Exam ID: ${mark.exam_id}`,
@@ -123,6 +124,7 @@ export const marksService = {
         return res.data.map(mark => ({
           id: mark.id,
           studentId: mark.student_id,
+          examId: mark.exam_id,
           studentName: mark.student_name || 'Student',
           rollNumber: mark.roll_number || 'N/A',
           examName: mark.exam_name || `Exam ID: ${mark.exam_id}`,
@@ -152,6 +154,18 @@ export const marksService = {
     };
     const res = await api.post('/marks', payload);
     return { success: true, message: 'Marks submitted successfully', mark: res.data };
+  },
+
+  submitBulkMarks: async (examId, entries) => {
+    const res = await api.post('/marks/bulk', {
+      exam_id: examId,
+      entries: entries.map(entry => ({
+        student_id: entry.studentId,
+        marks_obtained: Number(entry.marksObtained),
+        remarks: entry.remarks || ''
+      }))
+    });
+    return res.data;
   }
 };
 
