@@ -69,7 +69,7 @@ export default function MarksForm({ students = [], exams = [], onSubmit, loading
             name="subject"
             value={formData.subject}
             onChange={handleChange}
-            options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English']}
+            options={['Physics', 'Chemistry', 'Mathematics - I', 'Mathematics - II', 'Biology', 'English']}
           />
         </div>
 

@@ -83,7 +83,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
             name="subject"
             value={formData.subject}
             onChange={handleChange}
-            options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics']}
+            options={['Physics', 'Chemistry', 'Mathematics - I', 'Mathematics - II', 'Biology', 'Accountancy', 'Economics']}
           />
         </div>
 

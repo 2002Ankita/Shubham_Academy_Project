@@ -66,6 +66,32 @@ async def _format_mark(mark: Mark) -> dict:
             if user_obj:
                 student_name = user_obj.full_name
 
+    exam_date_str = ""
+    teacher_name = ""
+    if exam_obj:
+        if getattr(exam_obj, 'exam_date', None):
+            try:
+                exam_date_str = exam_obj.exam_date.strftime("%Y-%m-%d")
+            except Exception:
+                exam_date_str = str(exam_obj.exam_date).split("T")[0]
+        if getattr(exam_obj, 'teacher', None):
+            try:
+                teacher_obj = None
+                if isinstance(exam_obj.teacher, Teacher):
+                    teacher_obj = exam_obj.teacher
+                elif getattr(exam_obj.teacher, 'ref', None):
+                    teacher_obj = await Teacher.get(exam_obj.teacher.ref.id)
+                elif getattr(exam_obj.teacher, 'id', None):
+                    teacher_obj = await Teacher.get(exam_obj.teacher.id)
+
+                if teacher_obj and getattr(teacher_obj, 'user', None):
+                    from app.models.user import User
+                    user_t = teacher_obj.user if isinstance(teacher_obj.user, User) else await User.get(teacher_obj.user.ref.id) if getattr(teacher_obj.user, 'ref', None) else None
+                    if user_t and user_t.full_name:
+                        teacher_name = user_t.full_name
+            except Exception:
+                pass
+
     return {
         "id": str(mark.id),
         "student_id": str(mark.student.id) if mark.student else "",
@@ -78,7 +104,9 @@ async def _format_mark(mark: Mark) -> dict:
         "marks_obtained": mark.marks_obtained,
         "remarks": mark.remarks,
         "grade": grade,
-        "pass_status": pass_status
+        "pass_status": pass_status,
+        "exam_date": exam_date_str,
+        "teacher": teacher_name or "Faculty"
     }
 
 async def create_exam(exam_in: ExamCreate) -> dict:

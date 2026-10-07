@@ -100,7 +100,8 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
             options={[
               'Physics',
               'Chemistry',
-              'Mathematics',
+              'Mathematics - I',
+              'Mathematics - II',
               'Biology',
               'Computer Science',
               'Accountancy',

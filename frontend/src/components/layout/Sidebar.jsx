@@ -207,7 +207,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
   const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
   const isAdmin = propIsAdmin ?? (!isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin')));
-  const sidebarWidth = (isAdmin || isSuperAdmin) ? '265px' : isTeacher ? '245px' : isStudent ? '250px' : (width || 'var(--sa-sidebar-width)');
+  const sidebarWidth = (isAdmin || isSuperAdmin || isStudent) ? '265px' : isTeacher ? '245px' : (width || 'var(--sa-sidebar-width)');
 
   const handleLogout = async () => {
     await logout();
@@ -273,15 +273,15 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
     // Links for Student (My Profile accessible via top-right profile avatar)
     return [
-      { label: 'Dashboard', path: '/student/dashboard', icon: Home },
-      { label: 'My Classes', path: '/student/classes', icon: Users },
-      { label: 'Attendance', path: '/student/attendance', icon: CalendarCheck },
-      { label: 'Fees & Receipts', path: '/student/fees', icon: CreditCard },
-      { label: 'Examinations', path: '/student/exams', icon: FileText },
-      { label: 'Results', path: '/student/results', icon: BarChart3 },
-      { label: 'Study Materials', path: '/student/study-materials', icon: BookOpen },
-      { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud },
-      { label: 'Announcements', path: '/student/announcements', icon: Megaphone },
+      { label: 'Dashboard', path: '/student/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/student/dashboard'] },
+      { label: 'My Classes', path: '/student/classes', icon: Users, matchPrefixes: ['/student/classes'] },
+      { label: 'Attendance', path: '/student/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/student/attendance'] },
+      { label: 'Fees & Receipts', path: '/student/fees', icon: FeeRupeeIcon, matchPrefixes: ['/student/fees'] },
+      { label: 'Examinations', path: '/student/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/student/exams'] },
+      { label: 'Results', path: '/student/results', icon: ReportsBarIcon, matchPrefixes: ['/student/results'] },
+      { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
+      { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud, matchPrefixes: ['/student/notes-delivery'] },
+      { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
     ];
   };
 
@@ -303,7 +303,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     }
     if (isStudent) {
       if (item.path === '/student/dashboard') {
-        return location.pathname === '/student/dashboard' || location.pathname === '/student';
+        return location.pathname === '/student/dashboard' || location.pathname === '/student' || location.pathname === '/student/';
       }
       return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
     }
@@ -329,20 +329,20 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           width: sidebarWidth,
           minWidth: sidebarWidth,
           height: '100vh',
-          background: (isSuperAdmin || isAdmin)
+          background: (isSuperAdmin || isAdmin || isStudent)
             ? 'linear-gradient(180deg, rgba(139, 18, 22, 0.76) 0%, rgba(98, 11, 14, 0.84) 40%, rgba(45, 6, 8, 0.92) 100%)'
-            : (isStudent || isTeacher)
+            : isTeacher
             ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
             : 'var(--sa-primary-red)',
-          backdropFilter: (isSuperAdmin || isAdmin) ? 'blur(24px) saturate(190%)' : 'none',
-          WebkitBackdropFilter: (isSuperAdmin || isAdmin) ? 'blur(24px) saturate(190%)' : 'none',
+          backdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(24px) saturate(190%)' : 'none',
+          WebkitBackdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(24px) saturate(190%)' : 'none',
           zIndex: 1045,
-          borderRight: (isSuperAdmin || isAdmin)
+          borderRight: (isSuperAdmin || isAdmin || isStudent)
             ? '1px solid rgba(255, 255, 255, 0.18)'
             : '1px solid rgba(255,255,255,0.08)',
-          boxShadow: (isSuperAdmin || isAdmin)
+          boxShadow: (isSuperAdmin || isAdmin || isStudent)
             ? '0 8px 32px 0 rgba(0, 0, 0, 0.38), inset 1px 0 1px 0 rgba(255, 255, 255, 0.16)'
-            : (isStudent || isTeacher) ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
+            : isTeacher ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
           flexShrink: 0
         }}
       >
@@ -350,7 +350,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         {(isAdmin || isSuperAdmin || isStudent || isTeacher) ? (
           <div
             className="d-flex flex-column align-items-center text-center px-3 pt-4 pb-3 flex-shrink-0"
-            style={(isSuperAdmin || isAdmin) ? {
+            style={(isSuperAdmin || isAdmin || isStudent) ? {
               background: 'radial-gradient(ellipse at 50% 15%, rgba(255, 255, 255, 0.14), transparent 70%)',
               borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
             } : {}}
@@ -360,9 +360,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               alt="Shubham Academy"
               style={{
                 width: '100%',
-                maxWidth: (isStudent || isTeacher) ? '160px' : '175px',
+                maxWidth: isTeacher ? '160px' : '175px',
                 height: 'auto',
-                maxHeight: (isAdmin || isSuperAdmin) ? '74px' : '76px',
+                maxHeight: (isAdmin || isSuperAdmin || isStudent) ? '74px' : '76px',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.30))'
               }}
@@ -410,6 +410,25 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 <span>ACADEMY ADMIN</span>
               </div>
             )}
+
+            {/* Role Badge for Student */}
+            {isStudent && (
+              <div
+                className="d-flex align-items-center justify-content-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-pill fw-bold text-uppercase w-100"
+                style={{
+                  fontSize: '0.74rem',
+                  letterSpacing: '0.08em',
+                  background: 'linear-gradient(135deg, rgba(217, 155, 38, 0.32) 0%, rgba(180, 83, 9, 0.40) 100%)',
+                  border: '1px solid rgba(245, 169, 0, 0.50)',
+                  color: '#FDE047',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+                  borderRadius: '9999px'
+                }}
+              >
+                <GraduationCap size={14} style={{ color: '#FDE047' }} />
+                <span>STUDENT PORTAL</span>
+              </div>
+            )}
           </div>
         ) : (
           <div
@@ -435,11 +454,11 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         )}
 
         {/* NAV LINKS */}
-        {(isAdmin || isSuperAdmin || isTeacher) ? (
-          /* Admin, Super Admin & Teacher Nav Links matching reference design */
+        {(isAdmin || isSuperAdmin || isStudent || isTeacher) ? (
+          /* Admin, Super Admin, Student & Teacher Nav Links matching reference design */
           <div
             className="flex-grow-1 overflow-y-auto no-scrollbar px-3 py-2 d-flex flex-column"
-            style={{ gap: (isAdmin || isSuperAdmin) ? '9px' : isTeacher ? '6px' : '8px' }}
+            style={{ gap: (isAdmin || isSuperAdmin || isStudent) ? '9px' : isTeacher ? '6px' : '8px' }}
           >
             {navLinks.map((item) => {
               const Icon = item.icon;
@@ -453,102 +472,49 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   className="d-flex align-items-center text-decoration-none transition-all"
                   style={{
                     backgroundColor: active
-                      ? ((isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.18)')
+                      ? ((isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.18)')
                       : 'transparent',
                     border: active
-                      ? ((isSuperAdmin || isAdmin) ? '1px solid rgba(255, 255, 255, 0.38)' : '1px solid rgba(255, 255, 255, 0.18)')
+                      ? ((isSuperAdmin || isAdmin || isStudent) ? '1px solid rgba(255, 255, 255, 0.38)' : '1px solid rgba(255, 255, 255, 0.18)')
                       : '1px solid transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
                     fontWeight: active ? 600 : 500,
-                    fontSize: (isAdmin || isSuperAdmin) ? '0.96rem' : isTeacher ? '0.92rem' : '0.95rem',
+                    fontSize: (isAdmin || isSuperAdmin || isStudent) ? '0.96rem' : isTeacher ? '0.92rem' : '0.95rem',
                     borderRadius: '12px',
                     boxShadow: active
-                      ? ((isSuperAdmin || isAdmin)
+                      ? ((isSuperAdmin || isAdmin || isStudent)
                           ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
                           : '0 4px 15px rgba(0, 0, 0, 0.18)')
                       : 'none',
-                    padding: (isAdmin || isSuperAdmin) ? '11px 16px' : isTeacher ? '8.5px 14px' : '10px 15px',
-                    gap: (isAdmin || isSuperAdmin) ? '16px' : isTeacher ? '14px' : '15px',
-                    backdropFilter: (isSuperAdmin || isAdmin) ? 'blur(14px)' : (active ? 'blur(8px)' : 'none')
+                    padding: (isAdmin || isSuperAdmin || isStudent) ? '11px 16px' : isTeacher ? '8.5px 14px' : '10px 15px',
+                    gap: (isAdmin || isSuperAdmin || isStudent) ? '16px' : isTeacher ? '14px' : '15px',
+                    backdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(14px)' : (active ? 'blur(8px)' : 'none')
                   }}
                   onMouseEnter={(e) => {
                     if (!active) {
-                      e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.09)';
-                      if (isSuperAdmin || isAdmin) e.currentTarget.style.border = '1px solid rgba(255, 255, 255, 0.22)';
+                      e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.09)';
+                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.border = '1px solid rgba(255, 255, 255, 0.22)';
                       e.currentTarget.style.color = '#FFFFFF';
-                      if (isSuperAdmin || isAdmin) e.currentTarget.style.transform = 'translateX(3px)';
+                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.transform = 'translateX(3px)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!active) {
                       e.currentTarget.style.backgroundColor = 'transparent';
-                      if (isSuperAdmin || isAdmin) e.currentTarget.style.border = '1px solid transparent';
+                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.border = '1px solid transparent';
                       e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
-                      if (isSuperAdmin || isAdmin) e.currentTarget.style.transform = 'translateX(0)';
+                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.transform = 'translateX(0)';
                     }
                   }}
                 >
-                  <Icon size={isTeacher ? 20 : (isAdmin || isSuperAdmin) ? 21 : 21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
-                  <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        ) : isStudent ? (
-          /* Student Nav Links inspired by reference design */
-          <div
-            className="flex-grow-1 overflow-y-auto no-scrollbar px-3 py-2 d-flex flex-column"
-            style={{ gap: '6px' }}
-          >
-            {navLinks.map((item) => {
-              const Icon = item.icon;
-              const active = isItemActive(item);
-
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/student/dashboard'}
-                  onClick={onClose}
-                  className="d-flex align-items-center text-decoration-none transition-all"
-                  style={{
-                    backgroundColor: active ? 'rgba(255, 255, 255, 0.17)' : 'transparent',
-                    color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
-                    fontWeight: active ? 600 : 500,
-                    fontSize: '0.93rem',
-                    borderRadius: '10px',
-                    boxShadow: active ? '0 4px 14px rgba(0, 0, 0, 0.12)' : 'none',
-                    padding: '9px 14px',
-                    gap: '14px',
-                    backdropFilter: active ? 'blur(8px)' : 'none',
-                    minHeight: '42px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#FFFFFF';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
-                    }
-                  }}
-                >
-                  <span
-                    className="d-flex align-items-center justify-content-center flex-shrink-0"
-                    style={{ width: '22px', height: '22px' }}
-                  >
-                    <Icon size={20} className={active ? 'text-white' : 'text-white text-opacity-90'} />
-                  </span>
+                  <Icon size={isTeacher ? 20 : (isAdmin || isSuperAdmin || isStudent) ? 21 : 21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
                   <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
                 </NavLink>
               );
             })}
           </div>
         ) : (
-          /* Original Nav Links for Admin, Teacher */
+          /* Original Nav Links for Fallback */
           <div className="flex-grow-1 overflow-y-auto no-scrollbar px-2 py-2.5 d-flex flex-column gap-1">
             {navLinks.map((item) => {
               const Icon = item.icon;
@@ -587,7 +553,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         )}
 
         {/* BOTTOM AREA */}
-        {(isAdmin || isSuperAdmin || isTeacher) ? (
+        {(isAdmin || isSuperAdmin || isStudent || isTeacher) ? (
           <div className="flex-shrink-0 mt-auto">
             {/* Logout Button placed above the divider */}
             <div className="px-3 pt-2 pb-2">
@@ -595,29 +561,29 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 onClick={handleLogout}
                 className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-sm"
                 style={{
-                  backgroundColor: (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)',
-                  border: (isSuperAdmin || isAdmin) ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.14)',
-                  fontSize: (isAdmin || isSuperAdmin) ? '0.92rem' : '0.90rem',
+                  backgroundColor: (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)',
+                  border: (isSuperAdmin || isAdmin || isStudent) ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.14)',
+                  fontSize: (isAdmin || isSuperAdmin || isStudent) ? '0.92rem' : '0.90rem',
                   fontWeight: 500,
-                  padding: (isAdmin || isSuperAdmin) ? '10px 16px' : '9px 14px',
+                  padding: (isAdmin || isSuperAdmin || isStudent) ? '10px 16px' : '9px 14px',
                   borderRadius: '12px',
                   backdropFilter: 'blur(12px)',
-                  boxShadow: (isSuperAdmin || isAdmin) ? '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)' : 'none',
+                  boxShadow: (isSuperAdmin || isAdmin || isStudent) ? '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)' : 'none',
                   cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.26)' : 'rgba(255, 255, 255, 0.22)';
-                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)';
+                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.26)' : 'rgba(255, 255, 255, 0.22)';
+                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)';
                   e.currentTarget.style.color = '#FFFFFF';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  if (isSuperAdmin || isAdmin) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35)';
+                  if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)';
-                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin) ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.14)';
+                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.14)';
                   e.currentTarget.style.color = '#FFFFFF';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  if (isSuperAdmin || isAdmin) e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)';
+                  if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)';
                 }}
               >
                 <LogOut size={17} />
@@ -626,49 +592,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
             </div>
 
             {/* Brand Motto */}
-            <div className="px-3 pt-2.5 pb-3 text-center border-top border-white border-opacity-10">
-              <div
-                className="fw-bold text-white text-opacity-90"
-                style={{ fontSize: '0.72rem', letterSpacing: '0.14em' }}
-              >
-                LEARN &nbsp;|&nbsp; GROW &nbsp;|&nbsp; SUCCEED
-              </div>
-            </div>
-          </div>
-        ) : isStudent ? (
-          /* Student Footer with exact existing text: Sign Out & LEARN | GROW | SUCCEED */
-          <div className="flex-shrink-0 mt-auto">
-            {/* Student Sign Out Button */}
-            <div className="px-3 pt-2 pb-2">
-              <button
-                onClick={handleLogout}
-                className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-sm"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                  fontSize: '0.90rem',
-                  fontWeight: 500,
-                  padding: '9px 14px',
-                  borderRadius: '10px',
-                  backdropFilter: 'blur(8px)',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.22)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <LogOut size={17} />
-                <span style={{ letterSpacing: '0.02em' }}>Sign Out</span>
-              </button>
-            </div>
-
-            {/* Student Brand Motto */}
             <div className="px-3 pt-2.5 pb-3 text-center border-top border-white border-opacity-10">
               <div
                 className="fw-bold text-white text-opacity-90"

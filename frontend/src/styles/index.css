@@ -73,6 +73,17 @@ a:hover {
   transition: var(--sa-transition);
 }
 
+.form-select {
+  padding-right: 2.5rem !important;
+}
+
+.form-select-sm {
+  padding-top: 0.42rem;
+  padding-bottom: 0.42rem;
+  padding-right: 2.25rem !important;
+  font-size: 0.875rem;
+}
+
 .form-control:focus, .form-select:focus {
   border-color: var(--sa-primary-red);
   box-shadow: 0 0 0 0.2rem rgba(169, 31, 31, 0.15);

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar } from 'lucide-react';
+import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar, ArrowRight, X, Clock, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
+import notificationService from '../../services/notificationService';
 
 export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDateFilter }) {
   const { user, logout } = useAuth();
@@ -13,8 +14,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
   const [isDateHovered, setIsDateHovered] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const userMenuRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   // Dynamic Date calculation
   const today = new Date();
@@ -47,14 +51,53 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setShowUserMenu(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
     }
-    if (showUserMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showUserMenu]);
+  }, []);
+
+  useEffect(() => {
+    const loadNotifications = () => {
+      const unreadNotifs = notificationService.getUnreadNotifications(isSuperAdmin);
+      setNotificationsList(unreadNotifs);
+      setUnreadCount(unreadNotifs.length);
+    };
+
+    loadNotifications();
+
+    const handleUpdate = () => {
+      loadNotifications();
+    };
+
+    window.addEventListener('sa_notifications_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sa_notifications_updated', handleUpdate);
+    };
+  }, [isSuperAdmin]);
+
+  const handleNotificationClick = (notif) => {
+    notificationService.markAsRead(notif.id);
+    notificationService.setSelectedNotice(notif);
+    setShowNotifications(false);
+
+    const targetRoute = isStudent
+      ? '/student/announcements'
+      : isTeacher
+      ? '/teacher/announcements'
+      : '/admin/notices';
+
+    navigate(targetRoute, { state: { selectedNotice: notif } });
+  };
+
+  const handleMarkAllRead = (e) => {
+    e.stopPropagation();
+    notificationService.markAllAsRead(isSuperAdmin);
+  };
 
   const studentSearchRoutes = [
     { title: 'My Classes & Timetable', path: '/student/classes', keywords: ['classes', 'timetable', 'schedule', 'lectures'] },
@@ -201,7 +244,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         </div>
 
       {/* Right side: Date Selector, Notifications, Profile */}
-      <div className="d-flex align-items-center" style={{ gap: '14px', paddingRight: '4px' }}>
+      <div className="d-flex align-items-center h-100" style={{ gap: '14px', paddingRight: '4px' }}>
         {/* Date Selector for Teacher Header */}
         {isTeacher && (
           <div className="position-relative">
@@ -332,7 +375,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         )}
 
         {/* Notifications Icon with right margin to ensure 18px gap to profile */}
-        <div className="position-relative" style={{ marginRight: '4px' }}>
+        <div className="position-relative" ref={notificationsRef} style={{ marginRight: '4px' }}>
           <button
             type="button"
             className="btn btn-light rounded-circle position-relative text-sa-charcoal border"
@@ -341,115 +384,227 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
             aria-label="Notifications"
           >
             <Bell size={17} />
-            <span
-              className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-              style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
-            >
-              {isSuperAdmin ? 5 : 4}
-            </span>
+            {unreadCount > 0 && (
+              <span
+                className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
+              >
+                {unreadCount}
+              </span>
+            )}
           </button>
 
           {showNotifications && (
             <div
               className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-3"
-              style={{ width: '310px', zIndex: 1050 }}
+              style={{ width: '330px', zIndex: 1050 }}
             >
               <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
-                <span className="fw-bold small text-sa-charcoal">Notifications</span>
-                <span className="badge bg-sa-primary small">{isSuperAdmin ? '5 New' : '4 New'}</span>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="fw-bold small text-sa-charcoal">Notifications</span>
+                  {unreadCount > 0 ? (
+                    <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.65rem' }}>
+                      {unreadCount} New
+                    </span>
+                  ) : (
+                    <span className="badge bg-light text-muted border rounded-pill" style={{ fontSize: '0.65rem' }}>
+                      All Clear
+                    </span>
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 text-decoration-none"
+                    style={{ fontSize: '0.72rem', color: '#881337', fontWeight: 600 }}
+                    onClick={handleMarkAllRead}
+                  >
+                    Clear all
+                  </button>
+                )}
               </div>
-              <div className="d-flex flex-column gap-2">
-                <div className="p-2 bg-sa-off-white rounded-2">
-                  <p className="small fw-semibold mb-0 text-sa-charcoal">RFID Attendance Logged</p>
-                  <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.75rem' }}>Gate 1 entry at 08:14 AM</p>
+
+              {notificationsList.length === 0 ? (
+                <div className="text-center py-4 px-3 text-sa-muted">
+                  <div
+                    className="d-inline-flex align-items-center justify-content-center rounded-circle mb-2"
+                    style={{ width: '40px', height: '40px', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
+                  >
+                    <CheckCircle size={20} className="text-success" />
+                  </div>
+                  <p className="small fw-bold text-sa-charcoal mb-0" style={{ fontSize: '0.82rem' }}>
+                    No new notifications
+                  </p>
+                  <p className="text-sa-muted mb-0 mt-1" style={{ fontSize: '0.74rem' }}>
+                    All notifications have been reviewed
+                  </p>
                 </div>
-                <div className="p-2 bg-sa-off-white rounded-2">
-                  <p className="small fw-semibold mb-0 text-sa-charcoal">Fee Receipt Generated</p>
-                  <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.75rem' }}>Receipt #REC-99120 verified</p>
+              ) : (
+                <div className="d-flex flex-column gap-1.5" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  {notificationsList.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-2 border d-flex align-items-center justify-content-between gap-2 cursor-pointer transition-all"
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor: '#FFFFFF',
+                        borderColor: '#F1F5F9',
+                        transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFF1F2';
+                        e.currentTarget.style.borderColor = '#FDA4AF';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(136, 19, 55, 0.08)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                        e.currentTarget.style.borderColor = '#F1F5F9';
+                        e.currentTarget.style.transform = 'translateX(0px)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      onClick={() => handleNotificationClick(item)}
+                    >
+                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                        <span
+                          className="rounded-circle bg-danger flex-shrink-0"
+                          style={{ width: '6.5px', height: '6.5px' }}
+                        />
+                        <span
+                          className="fw-bold text-sa-charcoal text-truncate"
+                          style={{ fontSize: '0.81rem' }}
+                          title={item.title}
+                        >
+                          {item.title}
+                        </span>
+                      </div>
+
+                      <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                        <span
+                          className="badge rounded-pill fw-semibold"
+                          style={{
+                            backgroundColor: '#F8FAFC',
+                            color: '#64748B',
+                            border: '1px solid #E2E8F0',
+                            fontSize: '0.70rem',
+                            padding: '0.25em 0.55em'
+                          }}
+                        >
+                          <Clock size={11} className="me-1 align-text-top" />
+                          {item.time}
+                        </span>
+                        <ChevronRight size={13} className="text-sa-muted" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-2 bg-sa-off-white rounded-2">
-                  <p className="small fw-semibold mb-0 text-sa-charcoal">Exam Timetable Published</p>
-                  <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.75rem' }}>Mid-Term 2026 schedule live</p>
-                </div>
-                <div className="p-2 bg-sa-off-white rounded-2">
-                  <p className="small fw-semibold mb-0 text-sa-charcoal">Notes Delivery Dispatched</p>
-                  <p className="text-xs text-sa-muted mb-0" style={{ fontSize: '0.75rem' }}>Order #ND-8891 in transit</p>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
 
         {/* User Profile avatar & info */}
-        <div className="position-relative" ref={userMenuRef}>
+        <div
+          className="position-relative h-100 d-flex align-items-center"
+          ref={userMenuRef}
+          style={{ width: isTeacher ? '195px' : '205px' }}
+        >
           <div
-            className="d-flex align-items-center gap-2 ps-2 border-start cursor-pointer"
+            className="d-flex align-items-center justify-content-between px-3 h-100 cursor-pointer w-100"
             onClick={() => setShowUserMenu(!showUserMenu)}
-            style={{ cursor: 'pointer' }}
+            style={{
+              cursor: 'pointer',
+              borderLeft: '1px solid rgba(220, 38, 38, 0.14)',
+              borderRight: showUserMenu ? '1px solid rgba(220, 38, 38, 0.14)' : '1px solid transparent',
+              borderTop: showUserMenu ? '1px solid rgba(220, 38, 38, 0.14)' : '1px solid transparent',
+              borderBottom: 'none',
+              background: showUserMenu ? 'rgba(255, 255, 255, 0.92)' : 'transparent',
+              backdropFilter: showUserMenu ? 'blur(20px) saturate(190%)' : 'none',
+              WebkitBackdropFilter: showUserMenu ? 'blur(20px) saturate(190%)' : 'none',
+              borderTopLeftRadius: showUserMenu ? '14px' : '0',
+              borderTopRightRadius: showUserMenu ? '14px' : '0',
+              zIndex: 1061,
+              transition: 'all 0.15s ease'
+            }}
           >
-            {isSuperAdmin ? (
-              <div
-                className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
-                style={{ width: '34px', height: '34px', backgroundColor: '#3B0709', fontSize: '0.90rem' }}
-              >
-                S
+            <div className="d-flex align-items-center gap-2 overflow-hidden">
+              {isSuperAdmin ? (
+                <div
+                  className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-xs flex-shrink-0"
+                  style={{ width: '34px', height: '34px', backgroundColor: '#3B0709', fontSize: '0.90rem' }}
+                >
+                  S
+                </div>
+              ) : (
+                <img
+                  src={
+                    user?.avatar ||
+                    (isStudent
+                      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+                      : isAdmin
+                      ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+                      : isTeacher
+                      ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+                      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
+                  }
+                  alt="Avatar"
+                  className="rounded-circle object-fit-cover border flex-shrink-0"
+                  style={{ width: isTeacher ? '28px' : '34px', height: isTeacher ? '28px' : '34px' }}
+                />
+              )}
+              <div className="d-none d-sm-flex flex-column text-start text-truncate" style={{ lineHeight: 1.15 }}>
+                <span className="fw-bold text-sa-charcoal text-truncate" style={{ fontSize: isTeacher ? '0.80rem' : '0.85rem' }}>
+                  {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
+                </span>
+                <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
+                  {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : isStudent ? 'Student' : 'Administrator'}
+                </span>
               </div>
-            ) : (
-              <img
-                src={
-                  user?.avatar ||
-                  (isAdmin
-                    ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-                    : isTeacher
-                    ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
-                    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
-                }
-                alt="Avatar"
-                className="rounded-circle object-fit-cover border"
-                style={{ width: isTeacher ? '28px' : '34px', height: isTeacher ? '28px' : '34px' }}
-              />
-            )}
-            <div className="d-none d-sm-flex flex-column text-start" style={{ lineHeight: 1.15 }}>
-              <span className="fw-bold text-sa-charcoal" style={{ fontSize: isTeacher ? '0.80rem' : '0.85rem' }}>
-                {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
-              </span>
-              <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
-                {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : 'Administrator'}
-              </span>
             </div>
-            <ChevronDown size={13} className="text-sa-muted ms-1" />
+            <ChevronDown
+              size={13}
+              className="text-sa-muted ms-1 flex-shrink-0"
+              style={{
+                transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }}
+            />
           </div>
 
           {showUserMenu && (
             <div
-              className="position-absolute end-0 mt-2 bg-white border shadow-lg p-2.5"
+              className="position-absolute shadow-lg"
               style={{
-                width: '240px',
-                zIndex: 1050,
-                borderRadius: '14px',
-                border: '1px solid #edf2f7',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
+                top: 'calc(100% - 2px)',
+                left: 0,
+                width: '100%',
+                zIndex: 1060,
+                background: 'rgba(255, 255, 255, 0.92)',
+                backdropFilter: 'blur(20px) saturate(190%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(190%)',
+                borderLeft: '1px solid rgba(220, 38, 38, 0.14)',
+                borderRight: '1px solid rgba(220, 38, 38, 0.14)',
+                borderBottom: '1px solid rgba(220, 38, 38, 0.14)',
+                borderTop: 'none',
+                borderBottomLeftRadius: '14px',
+                borderBottomRightRadius: '14px',
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                boxShadow: '0 14px 28px rgba(185, 28, 28, 0.08), 0 6px 14px rgba(0, 0, 0, 0.04)',
+                padding: '6px'
               }}
             >
-              <div
-                className="px-3 py-2.5 mb-2 rounded-3"
-                style={{ backgroundColor: '#F8FAFC' }}
-              >
-                <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.94rem', lineHeight: 1.25 }}>
-                  {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
-                </div>
-                <div className="fw-medium mt-1" style={{ fontSize: '0.82rem', color: '#c53030' }}>
-                  {isAdmin ? 'admin' : isSuperAdmin ? 'super-admin' : (user?.role || 'admin')}
-                </div>
-                <div className="text-muted text-truncate mt-0.5" style={{ fontSize: '0.78rem' }}>
-                  {user?.email || (isAdmin ? 'admin@shubham.edu' : 'superadmin@shubham.edu')}
-                </div>
-              </div>
-
+              {/* View Profile Item */}
               <button
                 type="button"
-                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2.5 w-100 text-sa-charcoal"
-                style={{ cursor: 'pointer' }}
+                className="dropdown-item btn btn-sm text-start py-2.5 px-3 rounded-3 d-flex align-items-center gap-3 w-100"
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(254, 242, 242, 0.85)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 onClick={() => {
                   setShowUserMenu(false);
                   if (isAdmin || user?.role === 'admin') navigate('/admin/profile');
@@ -458,18 +613,55 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   else navigate('/student/profile');
                 }}
               >
-                <UserCircle size={18} style={{ color: '#c53030', flexShrink: 0 }} />
-                <span className="fw-semibold" style={{ color: '#1e293b', fontSize: '0.88rem' }}>View Profile</span>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+                    border: '1px solid rgba(220, 38, 38, 0.20)',
+                    color: 'var(--sa-primary-red, #A91D22)'
+                  }}
+                >
+                  <UserCircle size={17} />
+                </div>
+                <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.86rem' }}>
+                  View Profile
+                </span>
               </button>
 
+              {/* Subtle Divider */}
+              <div style={{ height: '1px', backgroundColor: 'rgba(220, 38, 38, 0.10)', margin: '4px 6px' }} />
+
+              {/* Logout Item */}
               <button
                 type="button"
-                className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2.5 w-100 mt-1"
-                style={{ color: '#ef4444', cursor: 'pointer' }}
+                className="dropdown-item btn btn-sm text-start py-2.5 px-3 rounded-3 d-flex align-items-center gap-3 w-100"
+                style={{
+                  cursor: 'pointer',
+                  color: '#DC2626',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(254, 226, 226, 0.85)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 onClick={handleLogout}
               >
-                <LogOut size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
-                <span className="fw-semibold" style={{ color: '#ef4444', fontSize: '0.88rem' }}>Logout</span>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    backgroundColor: 'rgba(254, 226, 226, 0.95)',
+                    border: '1px solid rgba(220, 38, 38, 0.24)',
+                    color: '#DC2626'
+                  }}
+                >
+                  <LogOut size={16} />
+                </div>
+                <span className="fw-semibold" style={{ color: '#DC2626', fontSize: '0.86rem' }}>
+                  Logout
+                </span>
               </button>
             </div>
           )}
