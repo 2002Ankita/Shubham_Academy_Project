@@ -1,6 +1,7 @@
 from pydantic import BaseModel
+from pydantic import Field
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 class ExamCreate(BaseModel):
     exam_name: str
@@ -24,6 +25,15 @@ class MarkCreate(BaseModel):
     exam_id: str
     marks_obtained: float
     remarks: Optional[str] = ""
+
+class BulkMarkEntry(BaseModel):
+    student_id: str
+    marks_obtained: float = Field(ge=0, allow_inf_nan=False)
+    remarks: str = ""
+
+class BulkMarkCreate(BaseModel):
+    exam_id: str
+    entries: List[BulkMarkEntry] = Field(min_length=1)
 
 class MarkResponse(MarkCreate):
     id: str

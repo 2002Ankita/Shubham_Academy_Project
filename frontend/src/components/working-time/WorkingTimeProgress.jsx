@@ -33,7 +33,7 @@ export default function WorkingTimeProgress({ summary }) {
           className="badge bg-light text-sa-charcoal border px-2.5 py-1.5 fw-medium"
           style={{ fontSize: '12px', borderColor: '#E1E6ED' }}
         >
-          September 2026
+          {summary.monthLabel}
         </span>
       </div>
 

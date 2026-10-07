@@ -7,6 +7,7 @@ export const examService = {
       id: exam.id,
       title: exam.exam_name,
       standard: exam.standard + (exam.batch ? ` - ${exam.batch}` : '') + (exam.branch ? ` - ${exam.branch}` : ''),
+      examStandard: exam.standard,
       batch: exam.batch || '12th Science - Alpha',
       subject: exam.subject,
       date: exam.exam_date?.split('T')[0] || 'N/A',

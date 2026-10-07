@@ -207,7 +207,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
   const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
   const isAdmin = propIsAdmin ?? (!isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin')));
-  const sidebarWidth = (isAdmin || isSuperAdmin || isStudent) ? '265px' : isTeacher ? '245px' : (width || 'var(--sa-sidebar-width)');
+  const usesPearlNavigation = isAdmin || isSuperAdmin || isStudent || isTeacher;
+  const sidebarWidth = usesPearlNavigation ? '265px' : (width || 'var(--sa-sidebar-width)');
 
   const handleLogout = async () => {
     await logout();
@@ -329,20 +330,18 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           width: sidebarWidth,
           minWidth: sidebarWidth,
           height: '100vh',
-          background: (isSuperAdmin || isAdmin || isStudent)
+          background: usesPearlNavigation
             ? 'linear-gradient(180deg, rgba(139, 18, 22, 0.76) 0%, rgba(98, 11, 14, 0.84) 40%, rgba(45, 6, 8, 0.92) 100%)'
-            : isTeacher
-            ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
             : 'var(--sa-primary-red)',
-          backdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(24px) saturate(190%)' : 'none',
-          WebkitBackdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(24px) saturate(190%)' : 'none',
+          backdropFilter: usesPearlNavigation ? 'blur(24px) saturate(190%)' : 'none',
+          WebkitBackdropFilter: usesPearlNavigation ? 'blur(24px) saturate(190%)' : 'none',
           zIndex: 1045,
-          borderRight: (isSuperAdmin || isAdmin || isStudent)
+          borderRight: usesPearlNavigation
             ? '1px solid rgba(255, 255, 255, 0.18)'
             : '1px solid rgba(255,255,255,0.08)',
-          boxShadow: (isSuperAdmin || isAdmin || isStudent)
+          boxShadow: usesPearlNavigation
             ? '0 8px 32px 0 rgba(0, 0, 0, 0.38), inset 1px 0 1px 0 rgba(255, 255, 255, 0.16)'
-            : isTeacher ? '4px 0 20px rgba(0,0,0,0.18)' : '4px 0 20px rgba(0,0,0,0.15)',
+            : '4px 0 20px rgba(0,0,0,0.15)',
           flexShrink: 0
         }}
       >
@@ -350,7 +349,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         {(isAdmin || isSuperAdmin || isStudent || isTeacher) ? (
           <div
             className="d-flex flex-column align-items-center text-center px-3 pt-4 pb-3 flex-shrink-0"
-            style={(isSuperAdmin || isAdmin || isStudent) ? {
+            style={usesPearlNavigation ? {
               background: 'radial-gradient(ellipse at 50% 15%, rgba(255, 255, 255, 0.14), transparent 70%)',
               borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
             } : {}}
@@ -360,9 +359,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               alt="Shubham Academy"
               style={{
                 width: '100%',
-                maxWidth: isTeacher ? '160px' : '175px',
+                maxWidth: usesPearlNavigation ? '175px' : '160px',
                 height: 'auto',
-                maxHeight: (isAdmin || isSuperAdmin || isStudent) ? '74px' : '76px',
+                maxHeight: usesPearlNavigation ? '74px' : '76px',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.30))'
               }}
@@ -458,7 +457,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           /* Admin, Super Admin, Student & Teacher Nav Links matching reference design */
           <div
             className="flex-grow-1 overflow-y-auto no-scrollbar px-3 py-2 d-flex flex-column"
-            style={{ gap: (isAdmin || isSuperAdmin || isStudent) ? '9px' : isTeacher ? '6px' : '8px' }}
+            style={{ gap: usesPearlNavigation ? '9px' : '8px' }}
           >
             {navLinks.map((item) => {
               const Icon = item.icon;
@@ -472,42 +471,42 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   className="d-flex align-items-center text-decoration-none transition-all"
                   style={{
                     backgroundColor: active
-                      ? ((isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.18)')
+                      ? (usesPearlNavigation ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.18)')
                       : 'transparent',
                     border: active
-                      ? ((isSuperAdmin || isAdmin || isStudent) ? '1px solid rgba(255, 255, 255, 0.38)' : '1px solid rgba(255, 255, 255, 0.18)')
+                      ? (usesPearlNavigation ? '1px solid rgba(255, 255, 255, 0.38)' : '1px solid rgba(255, 255, 255, 0.18)')
                       : '1px solid transparent',
                     color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
                     fontWeight: active ? 600 : 500,
-                    fontSize: (isAdmin || isSuperAdmin || isStudent) ? '0.96rem' : isTeacher ? '0.92rem' : '0.95rem',
+                    fontSize: usesPearlNavigation ? '0.96rem' : '0.95rem',
                     borderRadius: '12px',
                     boxShadow: active
-                      ? ((isSuperAdmin || isAdmin || isStudent)
+                      ? (usesPearlNavigation
                           ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
                           : '0 4px 15px rgba(0, 0, 0, 0.18)')
                       : 'none',
-                    padding: (isAdmin || isSuperAdmin || isStudent) ? '11px 16px' : isTeacher ? '8.5px 14px' : '10px 15px',
-                    gap: (isAdmin || isSuperAdmin || isStudent) ? '16px' : isTeacher ? '14px' : '15px',
-                    backdropFilter: (isSuperAdmin || isAdmin || isStudent) ? 'blur(14px)' : (active ? 'blur(8px)' : 'none')
+                    padding: usesPearlNavigation ? '11px 16px' : '10px 15px',
+                    gap: usesPearlNavigation ? '16px' : '15px',
+                    backdropFilter: usesPearlNavigation ? 'blur(14px)' : (active ? 'blur(8px)' : 'none')
                   }}
                   onMouseEnter={(e) => {
                     if (!active) {
-                      e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.09)';
-                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.border = '1px solid rgba(255, 255, 255, 0.22)';
+                      e.currentTarget.style.backgroundColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.09)';
+                      if (usesPearlNavigation) e.currentTarget.style.border = '1px solid rgba(255, 255, 255, 0.22)';
                       e.currentTarget.style.color = '#FFFFFF';
-                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.transform = 'translateX(3px)';
+                      if (usesPearlNavigation) e.currentTarget.style.transform = 'translateX(3px)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!active) {
                       e.currentTarget.style.backgroundColor = 'transparent';
-                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.border = '1px solid transparent';
+                      if (usesPearlNavigation) e.currentTarget.style.border = '1px solid transparent';
                       e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
-                      if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.transform = 'translateX(0)';
+                      if (usesPearlNavigation) e.currentTarget.style.transform = 'translateX(0)';
                     }
                   }}
                 >
-                  <Icon size={isTeacher ? 20 : (isAdmin || isSuperAdmin || isStudent) ? 21 : 21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                  <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
                   <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
                 </NavLink>
               );
@@ -561,29 +560,29 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 onClick={handleLogout}
                 className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white border-0 transition-all shadow-sm"
                 style={{
-                  backgroundColor: (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)',
-                  border: (isSuperAdmin || isAdmin || isStudent) ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.14)',
-                  fontSize: (isAdmin || isSuperAdmin || isStudent) ? '0.92rem' : '0.90rem',
+                  backgroundColor: usesPearlNavigation ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)',
+                  border: usesPearlNavigation ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.14)',
+                  fontSize: usesPearlNavigation ? '0.92rem' : '0.90rem',
                   fontWeight: 500,
-                  padding: (isAdmin || isSuperAdmin || isStudent) ? '10px 16px' : '9px 14px',
+                  padding: usesPearlNavigation ? '10px 16px' : '9px 14px',
                   borderRadius: '12px',
                   backdropFilter: 'blur(12px)',
-                  boxShadow: (isSuperAdmin || isAdmin || isStudent) ? '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)' : 'none',
+                  boxShadow: usesPearlNavigation ? '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)' : 'none',
                   cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.26)' : 'rgba(255, 255, 255, 0.22)';
-                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)';
+                  e.currentTarget.style.backgroundColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.26)' : 'rgba(255, 255, 255, 0.22)';
+                  e.currentTarget.style.borderColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)';
                   e.currentTarget.style.color = '#FFFFFF';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35)';
+                  if (usesPearlNavigation) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)';
-                  e.currentTarget.style.borderColor = (isSuperAdmin || isAdmin || isStudent) ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.14)';
+                  e.currentTarget.style.backgroundColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.borderColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.14)';
                   e.currentTarget.style.color = '#FFFFFF';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  if (isSuperAdmin || isAdmin || isStudent) e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)';
+                  if (usesPearlNavigation) e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.25)';
                 }}
               >
                 <LogOut size={17} />

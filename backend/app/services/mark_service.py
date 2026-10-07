@@ -1,7 +1,7 @@
 from app.models.marks import Exam, Mark
 from app.models.student import Student
 from app.models.teacher import Teacher
-from app.schemas.marks import ExamCreate, MarkCreate
+from app.schemas.marks import BulkMarkCreate, ExamCreate, MarkCreate
 from fastapi import HTTPException
 from bson import ObjectId
 
@@ -158,6 +158,53 @@ async def enter_marks(mark_in: MarkCreate) -> dict:
     )
     await mark.insert()
     return await _format_mark(mark)
+
+async def enter_bulk_marks(marks_in: BulkMarkCreate) -> list[dict]:
+    from app.services.student_service import resolve_student
+
+    student_ids = [entry.student_id for entry in marks_in.entries]
+    if len(student_ids) != len(set(student_ids)):
+        raise HTTPException(status_code=400, detail="A student can only be included once per exam")
+
+    try:
+        exam = await Exam.get(ObjectId(marks_in.exam_id))
+    except Exception:
+        exam = None
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    students_and_entries = []
+    resolved_student_ids = set()
+    for entry in marks_in.entries:
+        student = await resolve_student(entry.student_id)
+        if not student:
+            raise HTTPException(status_code=404, detail=f"Student not found: {entry.student_id}")
+        if student.id in resolved_student_ids:
+            raise HTTPException(status_code=400, detail="A student can only be included once per exam")
+        resolved_student_ids.add(student.id)
+        if entry.marks_obtained > exam.max_marks:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Marks for student {entry.student_id} cannot exceed {exam.max_marks}",
+            )
+        students_and_entries.append((student, entry))
+
+    saved_marks = []
+    for student, entry in students_and_entries:
+        existing_marks = await Mark.find(
+            Mark.student.id == student.id,
+            Mark.exam.id == exam.id,
+        ).to_list()
+        mark = existing_marks[0] if existing_marks else Mark(student=student, exam=exam)
+        mark.marks_obtained = entry.marks_obtained
+        mark.remarks = entry.remarks
+        if existing_marks:
+            await mark.save()
+        else:
+            await mark.insert()
+        saved_marks.append(await _format_mark(mark))
+
+    return saved_marks
 
 async def get_student_results(student_id: str) -> list[dict]:
     from app.services.student_service import resolve_student

@@ -16,8 +16,8 @@ export default function DashboardLayout() {
   const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
   const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
   const isAdmin = !isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin'));
-  const isPearlGlass = isSuperAdmin || isAdmin || isStudent;
-  const sidebarWidth = (isAdmin || isSuperAdmin || isStudent) ? '265px' : isTeacher ? '245px' : 'var(--sa-sidebar-width)';
+  const isPearlGlass = isSuperAdmin || isAdmin || isStudent || isTeacher;
+  const sidebarWidth = (isAdmin || isSuperAdmin || isStudent || isTeacher) ? '265px' : 'var(--sa-sidebar-width)';
 
   // Corner popup alert if student profile is not 100% complete
   useEffect(() => {
@@ -80,19 +80,14 @@ export default function DashboardLayout() {
           />
 
           <main
-            className={`flex-grow-1 ${isStudent
-                ? 'p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4'
-                : isTeacher
-                  ? 'p-3 p-md-4'
-                  : 'p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4'
-              }`}
+            className="flex-grow-1 p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4"
           >
             <div className="w-100" style={{ maxWidth: '1440px', margin: '0 auto' }}>
               <Outlet context={{ globalDateFilter, setGlobalDateFilter }} />
             </div>
           </main>
 
-          {!isTeacher && <Footer isStudent={isStudent} />}
+          <Footer isStudent={isStudent || isTeacher} />
         </div>
       </div>
     </div>
