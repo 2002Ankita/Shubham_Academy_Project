@@ -37,10 +37,24 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   const selectedOption = dateOptions.find(o => o.value === globalDateFilter) || dateOptions[0];
 
-  const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
-  const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
-  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
-  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin') || (!isStudent && !isTeacher && !isSuperAdmin);
+  const userRole = (user?.role || '').toLowerCase();
+  const isSuperAdmin = userRole === 'super-admin' || userRole === 'superadmin' || (!userRole && location.pathname.startsWith('/super-admin'));
+  const isTeacher = userRole === 'teacher' || (!userRole && location.pathname.startsWith('/teacher'));
+  const isStudent = userRole === 'student' || (!userRole && location.pathname.startsWith('/student'));
+  const isAdmin = userRole === 'admin' || (!userRole && !isSuperAdmin && !isTeacher && !isStudent);
+
+  const handleViewProfile = () => {
+    setShowUserMenu(false);
+    if (isSuperAdmin) {
+      navigate('/super-admin/profile');
+    } else if (isTeacher) {
+      navigate('/teacher/profile');
+    } else if (isStudent) {
+      navigate('/student/profile');
+    } else {
+      navigate('/admin/profile');
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -287,17 +301,27 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           </div>
         )}
 
-        {/* Role Badge - for Academy Admin matching Image 2 */}
+        {/* Role Badge - for Academy Admin */}
         {isAdmin && !isSuperAdmin && (
           <div
-            className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-white border shadow-xs"
-            style={{ border: '1px solid #e2e8f0', borderRadius: '9999px' }}
+            className="d-none d-sm-inline-flex align-items-center bg-white shadow-xs"
+            style={{
+              padding: '6px 14px',
+              gap: '8px',
+              border: '1px solid #E2E8F0',
+              borderRadius: '9999px',
+              whiteSpace: 'nowrap',
+              lineHeight: 1
+            }}
           >
             <span
-              className="rounded-circle"
-              style={{ width: '8px', height: '8px', backgroundColor: '#10b981', display: 'inline-block' }}
+              className="rounded-circle flex-shrink-0"
+              style={{ width: '8px', height: '8px', backgroundColor: '#10B981', display: 'inline-block' }}
             />
-            <span className="fw-semibold" style={{ fontSize: '0.80rem', color: '#c53030' }}>
+            <span
+              className="fw-semibold"
+              style={{ fontSize: '0.8125rem', color: '#C53030', lineHeight: 1, letterSpacing: '0.01em' }}
+            >
               Admin
             </span>
           </div>
@@ -306,26 +330,47 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         {/* Role Badge for Super Admin */}
         {isSuperAdmin && (
           <>
-            <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
+            <div
+              className="d-none d-sm-inline-flex align-items-center bg-white shadow-xs"
+              style={{
+                padding: '6px 14px',
+                gap: '8px',
+                border: '1px solid #E2E8F0',
+                borderRadius: '9999px',
+                whiteSpace: 'nowrap',
+                lineHeight: 1
+              }}
+            >
               <span
-                className="rounded-circle"
-                style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
+                className="rounded-circle flex-shrink-0"
+                style={{ width: '8px', height: '8px', backgroundColor: '#10B981', display: 'inline-block' }}
               />
-              <span className="fw-semibold text-sa-primary text-capitalize" style={{ fontSize: '0.75rem' }}>
+              <span
+                className="fw-semibold text-sa-primary text-capitalize"
+                style={{ fontSize: '0.8125rem', lineHeight: 1, letterSpacing: '0.01em' }}
+              >
                 Super Admin
               </span>
             </div>
             <div
-              className="d-none d-lg-flex align-items-center gap-1.5 px-3 py-1 rounded-pill"
+              className="d-none d-lg-inline-flex align-items-center"
               style={{
+                padding: '6px 14px',
+                gap: '8px',
                 backgroundColor: '#F0FDF4',
                 border: '1px solid #BBF7D0',
-                fontSize: '0.78rem',
+                borderRadius: '9999px',
+                fontSize: '0.80rem',
                 color: '#15803d',
-                fontWeight: 600
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                lineHeight: 1
               }}
             >
-              <span className="rounded-circle bg-success" style={{ width: '7px', height: '7px', display: 'inline-block' }} />
+              <span
+                className="rounded-circle bg-success flex-shrink-0"
+                style={{ width: '7px', height: '7px', display: 'inline-block' }}
+              />
               <span>System Online</span>
             </div>
           </>
@@ -436,13 +481,13 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 style={{ backgroundColor: '#F8FAFC' }}
               >
                 <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.94rem', lineHeight: 1.25 }}>
-                  {user?.name || (isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
+                  {user?.name || (isSuperAdmin ? 'Shubham Sharma' : isTeacher ? 'Dr. Priya Kulkarni' : 'Rajesh Patil')}
                 </div>
                 <div className="fw-medium mt-1" style={{ fontSize: '0.82rem', color: '#c53030' }}>
-                  {isAdmin ? 'admin' : isSuperAdmin ? 'super-admin' : (user?.role || 'admin')}
+                  {user?.role || (isSuperAdmin ? 'super-admin' : isTeacher ? 'teacher' : 'admin')}
                 </div>
                 <div className="text-muted text-truncate mt-0.5" style={{ fontSize: '0.78rem' }}>
-                  {user?.email || (isAdmin ? 'admin@shubham.edu' : 'superadmin@shubham.edu')}
+                  {user?.email || (isSuperAdmin ? 'superadmin@shubham.edu' : isTeacher ? 'faculty@shubham.edu' : 'admin@shubham.edu')}
                 </div>
               </div>
 
@@ -450,13 +495,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 type="button"
                 className="dropdown-item btn btn-sm text-start py-2 px-3 rounded-2 d-flex align-items-center gap-2.5 w-100 text-sa-charcoal"
                 style={{ cursor: 'pointer' }}
-                onClick={() => {
-                  setShowUserMenu(false);
-                  if (isAdmin || user?.role === 'admin') navigate('/admin/profile');
-                  else if (isSuperAdmin || user?.role === 'super-admin') navigate('/super-admin/settings');
-                  else if (isTeacher || user?.role === 'teacher') navigate('/teacher/profile');
-                  else navigate('/student/profile');
-                }}
+                onClick={handleViewProfile}
               >
                 <UserCircle size={18} style={{ color: '#c53030', flexShrink: 0 }} />
                 <span className="fw-semibold" style={{ color: '#1e293b', fontSize: '0.88rem' }}>View Profile</span>

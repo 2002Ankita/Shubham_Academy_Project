@@ -292,6 +292,10 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     if (item.path === '/admin/students') {
       return location.pathname.startsWith('/admin/students') && !location.pathname.startsWith('/admin/students/register');
     }
+    // If on leave approvals, activate Leave Approvals, not Teachers
+    if (item.path === '/admin/teachers') {
+      return location.pathname.startsWith('/admin/teachers') && !location.pathname.startsWith('/admin/teachers/leave-approvals');
+    }
     if (item.matchPrefixes) {
       return item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix));
     }
