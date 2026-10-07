@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import { toast } from 'react-toastify';
 import {
   User,
@@ -22,7 +23,8 @@ import {
   Bell,
   Eye,
   EyeOff,
-  Check
+  Check,
+  SlidersHorizontal
 } from 'lucide-react';
 
 export default function SuperAdminProfile() {
@@ -163,6 +165,7 @@ export default function SuperAdminProfile() {
       {/* Page Title & Subtitle */}
       <div className="d-flex flex-column flex-sm-row sm:align-items-center justify-content-between gap-2">
         <div>
+          <BackButton to={user?.role === 'super-admin' ? '/super-admin/dashboard' : '/admin/dashboard'} label="Back to Dashboard" />
           <div className="d-flex align-items-center gap-2">
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
               {user?.role === 'super-admin' ? 'Super Admin Profile' : 'Admin Profile'}
@@ -279,7 +282,7 @@ export default function SuperAdminProfile() {
             }`}
             onClick={() => setActiveTab('system')}
           >
-            <Sliders size={16} />
+            <SlidersHorizontal size={16} />
             System & API Settings
           </button>
         )}
@@ -548,6 +551,67 @@ export default function SuperAdminProfile() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB 3: System & API Settings */}
+      {activeTab === 'system' && (
+        <form onSubmit={handleSaveSystem} className="sa-card p-4 rounded-3 border bg-white d-flex flex-column gap-4">
+          <div>
+            <h6 className="fw-bold text-sa-charcoal mb-1 d-flex align-items-center gap-2">
+              <Server size={18} className="text-sa-primary" />
+              System & API Configuration
+            </h6>
+            <p className="text-sa-muted small m-0">Global backend endpoints, security tokens, and hardware gateway settings</p>
+          </div>
+
+          <div className="row g-3">
+            <div className="col-12 col-md-6">
+              <Input
+                label="FastAPI Backend Endpoint"
+                name="fastApiUrl"
+                value={systemSettings.fastApiUrl}
+                onChange={(e) => setSystemSettings({ ...systemSettings, fastApiUrl: e.target.value })}
+                icon={Server}
+                required
+              />
+            </div>
+            <div className="col-12 col-md-6">
+              <Input
+                label="JWT Token Expiry (Minutes)"
+                name="jwtExpiryMinutes"
+                type="number"
+                value={systemSettings.jwtExpiryMinutes}
+                onChange={(e) => setSystemSettings({ ...systemSettings, jwtExpiryMinutes: e.target.value })}
+                icon={Clock}
+                required
+              />
+            </div>
+            <div className="col-12 col-md-6">
+              <Input
+                label="SMS Gateway API Key"
+                name="smsGatewayKey"
+                value={systemSettings.smsGatewayKey}
+                onChange={(e) => setSystemSettings({ ...systemSettings, smsGatewayKey: e.target.value })}
+                icon={Key}
+              />
+            </div>
+            <div className="col-12 col-md-6">
+              <Input
+                label="RFID Attendance Gateway IP"
+                name="rfidGatewayIp"
+                value={systemSettings.rfidGatewayIp}
+                onChange={(e) => setSystemSettings({ ...systemSettings, rfidGatewayIp: e.target.value })}
+                icon={Shield}
+              />
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end pt-3 border-top">
+            <Button type="submit" variant="primary" icon={Save}>
+              Save System Configuration
+            </Button>
+          </div>
+        </form>
       )}
     </div>
   );

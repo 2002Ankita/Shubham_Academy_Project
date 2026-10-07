@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import { BookOpen, Users, Calendar, MapPin, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import batchService from '../../services/batchService';
@@ -79,6 +80,7 @@ export default function MyClasses() {
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
+      <BackButton to="/teacher/dashboard" label="Back to Dashboard" />
       <style>{`
         .teacher-class-card {
           background-color: #FFFFFF;

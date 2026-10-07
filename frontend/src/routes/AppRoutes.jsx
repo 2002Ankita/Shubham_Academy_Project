@@ -120,6 +120,7 @@ export default function AppRoutes() {
         <Route path="/super-admin/reports" element={<SuperAdminReports />} />
         <Route path="/super-admin/audit-logs" element={<AuditLogs />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+        <Route path="/super-admin/profile" element={<SuperAdminSettings />} />
         <Route path="/super-admin/contact" element={<SuperAdminContact />} />
       </Route>
 

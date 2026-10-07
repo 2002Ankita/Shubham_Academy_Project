@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FeeForm from '../../components/forms/FeeForm';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import feeService from '../../services/feeService';
 import studentService from '../../services/studentService';
 import { CreditCard, Printer, Eye, AlertCircle } from 'lucide-react';
@@ -43,6 +44,7 @@ export default function FeeCollection() {
     <div className="d-flex flex-column gap-4">
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div>
+          <BackButton to="/admin/dashboard" label="Back to Dashboard" />
           <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
             Fee Collection Counter
           </h3>
