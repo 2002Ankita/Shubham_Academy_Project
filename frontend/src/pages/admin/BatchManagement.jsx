@@ -6,19 +6,25 @@ import Input from '../../components/common/Input';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import batchService from '../../services/batchService';
+import teacherService from '../../services/teacherService';
 
 export default function BatchManagement() {
   const [batches, setBatches] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
-  const [formData, setFormData] = useState({ name: '', standard: '', subject: '', room: '', time: '', student_count: 0, teacher_name: '' });
+  const [formData, setFormData] = useState({ name: '', standard: '', subject: '', room: '', time: '', date: '', student_count: 0, teacher_name: '' });
 
   const fetchBatches = async () => {
     try {
       setLoading(true);
-      const data = await batchService.getBatches();
-      setBatches(data);
+      const [batchData, teacherData] = await Promise.all([
+        batchService.getBatches(),
+        teacherService.getAll()
+      ]);
+      setBatches(batchData);
+      setTeachers(teacherData);
     } catch (err) {
       toast.error('Failed to load batches');
     } finally {
@@ -59,6 +65,7 @@ export default function BatchManagement() {
       subject: batch.subject || '',
       room: batch.room || '',
       time: batch.time || '',
+      date: batch.date || '',
       student_count: batch.student_count || 0,
       teacher_name: batch.teacher_name || ''
     });
@@ -101,7 +108,16 @@ export default function BatchManagement() {
             { key: 'standard', title: 'Standard' },
             { key: 'subject', title: 'Subject' },
             { key: 'room', title: 'Lecture Hall' },
-            { key: 'time', title: 'Schedule / Time' },
+            { 
+              key: 'time', 
+              title: 'Schedule / Time',
+              render: (val, row) => (
+                <div>
+                  <div style={{ color: '#0F172A', fontWeight: 500 }}>{row.time || 'N/A'}</div>
+                  <div className="text-muted" style={{ fontSize: '11.5px' }}>{row.date || 'Regular'}</div>
+                </div>
+              )
+            },
             { key: 'student_count', title: 'Students' },
             { key: 'teacher_name', title: 'Teacher' },
             {
@@ -127,7 +143,28 @@ export default function BatchManagement() {
 
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingBatch(null); }} title={editingBatch ? "Edit Batch" : "Create New Batch"}>
         <form onSubmit={handleSubmit}>
-          <Input label="Batch Name" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. 11th pcm tarabai park" />
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-sa-charcoal mb-1">Batch Name *</label>
+            <select
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="form-select"
+              required
+            >
+              <option value="">Select Batch Name / Branch</option>
+              <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+              <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+              <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+              <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+              <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+              <option value="11th pcb mangalvar peth">11th pcb mangalvar peth</option>
+              <option value="11th pcm mangalvar peth">11th pcm mangalvar peth</option>
+              <option value="12th pcb mangalvar peth">12th pcb mangalvar peth</option>
+              <option value="12th pcm mangalvar peth">12th pcm mangalvar peth</option>
+              <option value="12th pcmb mangalvar peth">12th pcmb mangalvar peth</option>
+            </select>
+          </div>
           <div className="row g-2">
             <div className="col-6">
               <Input label="Standard" name="standard" value={formData.standard} onChange={handleChange} required placeholder="e.g. 11th Science" />
@@ -137,18 +174,34 @@ export default function BatchManagement() {
             </div>
           </div>
           <div className="row g-2">
-            <div className="col-4">
+            <div className="col-6">
               <Input label="Lecture Hall" name="room" value={formData.room} onChange={handleChange} required placeholder="e.g. Hall A" />
             </div>
-            <div className="col-4">
-              <Input label="Time Schedule" name="time" value={formData.time} onChange={handleChange} required placeholder="e.g. Mon-Sat (08:00 AM)" />
+            <div className="col-6">
+              <Input label="Date (Optional)" name="date" type="date" value={formData.date || ''} onChange={handleChange} />
             </div>
-            <div className="col-4">
+          </div>
+          <div className="row g-2">
+            <div className="col-6">
+              <Input label="Time Schedule" name="time" value={formData.time || ''} onChange={handleChange} required placeholder="e.g. 08:00 AM" />
+            </div>
+            <div className="col-6">
               <Input label="Student Count" name="student_count" type="number" value={formData.student_count} onChange={handleChange} required />
             </div>
           </div>
           <div className="mt-2">
-            <Input label="Teacher Name" name="teacher_name" value={formData.teacher_name || ''} onChange={handleChange} placeholder="e.g. Mr. Sharma" />
+            <label className="form-label small fw-semibold text-sa-charcoal mb-1">Teacher Name</label>
+            <select
+              name="teacher_name"
+              value={formData.teacher_name || ''}
+              onChange={handleChange}
+              className="form-select"
+            >
+              <option value="">Select Teacher</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.full_name || t.name}>{t.full_name || t.name}</option>
+              ))}
+            </select>
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" onClick={() => { setModalOpen(false); setEditingBatch(null); }}>Cancel</Button>

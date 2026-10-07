@@ -35,14 +35,14 @@ export default function Salary() {
   const summary = currentSalary ? {
     currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
     payPeriod: currentSalary.month || 'N/A',
-    workingHours: '160 hrs', // Default assumption
-    workingHoursSubtext: 'Standard monthly quota',
-    hourlyRate: '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
-    hourlyRateSubtext: 'Standard slab rate',
+    amountPaid: `₹${safeNum(currentSalary.amountPaid).toLocaleString()}`,
+    amountPaidSubtext: 'Total received this month',
+    amountPending: `₹${safeNum(currentSalary.amountPending).toLocaleString()}`,
+    amountPendingSubtext: 'Remaining balance',
     paymentStatus: currentSalary.status || 'N/A',
-    paymentStatusSubtext: currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Disbursement by 5th',
+    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : 'Pending',
   } : {
-    currentMonthSalary: '₹0', payPeriod: 'N/A', workingHours: '0 hrs', workingHoursSubtext: '-', hourlyRate: '₹0', hourlyRateSubtext: '-', paymentStatus: 'N/A', paymentStatusSubtext: '-'
+    currentMonthSalary: '₹0', payPeriod: 'N/A', amountPaid: '₹0', amountPaidSubtext: '-', amountPending: '₹0', amountPendingSubtext: '-', paymentStatus: 'N/A', paymentStatusSubtext: '-'
   };
 
   const deductions = safeNum(currentSalary?.deductions);
@@ -57,18 +57,20 @@ export default function Salary() {
     pt: pt,
     otherDeductions: deductions - pt,
     netSalary: safeNum(currentSalary.netPayable),
-    workingHours: 160,
+    workingHours: Math.round(safeNum(currentSalary.workingHours || 160)),
     payPeriod: currentSalary.month || 'N/A'
   } : { basicSalary: 0, workingHoursPay: 0, overtime: 0, allowances: 0, deductions: 0, pt: 0, otherDeductions: 0, netSalary: 0, workingHours: 0, payPeriod: 'N/A' };
 
   const history = salaries.map(s => ({
     month: s.month || 'N/A',
-    workingHours: '160 hrs',
+    workingHours: `${Math.round(safeNum(s.workingHours || 160))} hrs`,
     grossSalary: `₹${(safeNum(s.baseSalary) + safeNum(s.allowances)).toLocaleString()}`,
     deductions: safeNum(s.deductions).toLocaleString(),
-    netSalary: `₹${safeNum(s.netPayable).toLocaleString()}`,
+    netSalary: safeNum(s.netPayable),
+    amountPending: safeNum(s.amountPending),
     paymentDate: s.disbursedDate && s.disbursedDate !== '--' ? s.disbursedDate : 'Pending',
     status: s.status || 'Processing',
+    installments: s.installments || []
   })).reverse();
 
   return (

@@ -63,7 +63,7 @@ export default function SalarySummary({ summary }) {
           </div>
         </div>
 
-        {/* 2. Working Hours */}
+        {/* 2. Amount Paid */}
         <div className="sa-card salary-summary-card">
           <div
             className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
@@ -73,34 +73,34 @@ export default function SalarySummary({ summary }) {
           </div>
           <div className="flex-grow-1 min-w-0" style={{ overflow: 'hidden' }}>
             <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
-              Working Hours
+              {summary.box2Title || 'Amount Paid'}
             </span>
             <div className="fw-bold text-sa-charcoal brand-font text-truncate" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              {summary.workingHours}
+              {summary.amountPaid}
             </div>
             <span className="fw-semibold d-block text-truncate" style={{ fontSize: '10.5px', color: '#168554' }}>
-              {summary.workingHoursSubtext}
+              {summary.amountPaidSubtext}
             </span>
           </div>
         </div>
 
-        {/* 3. Hourly Rate */}
+        {/* 3. Pending Balance */}
         <div className="sa-card salary-summary-card">
           <div
             className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '40px', height: '40px', backgroundColor: '#F0F9FF', color: '#0284C7' }}
+            style={{ width: '40px', height: '40px', backgroundColor: '#FDF0F0', color: '#D92D20' }}
           >
             <TrendingUp size={20} />
           </div>
           <div className="flex-grow-1 min-w-0" style={{ overflow: 'hidden' }}>
             <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '11.5px' }}>
-              Hourly Rate
+              {summary.box3Title || 'Pending Balance'}
             </span>
             <div className="fw-bold text-sa-charcoal brand-font text-truncate" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              {summary.hourlyRate}
+              {summary.amountPending}
             </div>
             <span className="text-sa-muted d-block text-truncate" style={{ fontSize: '10.5px' }}>
-              {summary.hourlyRateSubtext}
+              {summary.amountPendingSubtext}
             </span>
           </div>
         </div>

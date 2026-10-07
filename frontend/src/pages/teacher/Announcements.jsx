@@ -5,11 +5,13 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import noticeService from '../../services/noticeService';
+import batchService from '../../services/batchService';
 import { Bell, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function TeacherAnnouncements() {
   const [notices, setNotices] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [newNotice, setNewNotice] = useState({
     title: '',
@@ -20,8 +22,16 @@ export default function TeacherAnnouncements() {
   });
 
   const fetchNotices = async () => {
-    const data = await noticeService.getAll();
-    setNotices(data);
+    try {
+      const [nData, bData] = await Promise.all([
+        noticeService.getAll(),
+        batchService.getBatches()
+      ]);
+      setNotices(nData);
+      setBatches(bData);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -105,7 +115,7 @@ export default function TeacherAnnouncements() {
             name="targetAudience"
             value={newNotice.targetAudience}
             onChange={(e) => setNewNotice({ ...newNotice, targetAudience: e.target.value })}
-            options={['12th Science - Alpha', '11th Science - Beta', 'NEET Intensive', 'All Students & Teachers']}
+            options={['All Students & Teachers', ...batches.map(b => b.name)]}
           />
           <div className="mb-3">
             <label className="form-label">Message Details</label>

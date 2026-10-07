@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from typing import List
-from app.schemas.salary import SalaryPaymentResponse, SalaryUpdateRequest
+from app.schemas.salary import SalaryPaymentResponse, SalaryUpdateRequest, SalaryDisburseRequest
 from app.services.salary_service import get_all_salaries, update_salary, disburse_salary, generate_monthly_salaries, get_my_salaries
 from app.services.auth_service import get_current_user
 from app.routers.auth import oauth2_scheme
@@ -23,9 +23,10 @@ async def update_salary_endpoint(id: str, req: SalaryUpdateRequest, token: str =
     return await update_salary(id, req.baseSalary, req.allowances, req.deductions, req.netPayable)
 
 @router.post("/disburse/{id}", response_model=SalaryPaymentResponse)
-async def disburse_salary_endpoint(id: str, token: str = Depends(oauth2_scheme)):
+async def disburse_salary_endpoint(id: str, req: SalaryDisburseRequest = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    return await disburse_salary(id)
+    amount = req.amount if req else None
+    return await disburse_salary(id, amount)
 
 @router.post("/generate/{month}")
 async def generate_salaries_endpoint(month: str, token: str = Depends(oauth2_scheme)):

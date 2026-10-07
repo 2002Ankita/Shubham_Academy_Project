@@ -25,8 +25,8 @@ export default function AddTeacher() {
       
       toast.success(`Faculty ${created.name} onboarded successfully!`);
       navigate('/admin/teachers');
-    } catch {
-      toast.error('Failed to onboard faculty member');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to onboard faculty member');
     } finally {
       setLoading(false);
     }

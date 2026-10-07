@@ -132,6 +132,7 @@ export default function AppRoutes() {
         }
       >
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />
@@ -139,7 +140,6 @@ export default function AppRoutes() {
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
-        <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<RFIDAttendance />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
@@ -193,7 +193,6 @@ export default function AppRoutes() {
         <Route path="/student/classes" element={<StudentMyClasses />} />
         <Route path="/student/attendance" element={<StudentAttendance />} />
         <Route path="/student/fees" element={<StudentFees />} />
-        <Route path="/student/fees/receipt" element={<FeeReceipt />} />
         <Route path="/student/exams" element={<StudentExaminations />} />
         <Route path="/student/results" element={<StudentResults />} />
         <Route path="/student/study-materials" element={<StudentStudyMaterials />} />

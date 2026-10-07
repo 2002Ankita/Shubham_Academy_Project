@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -23,12 +23,18 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import studentService from '../../services/studentService';
+import batchService from '../../services/batchService';
 
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [batches, setBatches] = useState([]);
+
+  useEffect(() => {
+    batchService.getBatches().then(setBatches).catch(console.error);
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -102,6 +108,9 @@ export default function StudentRegistration() {
     if (!formData.fullName.trim()) errs.fullName = 'Full Name is required';
     if (!formData.dob) errs.dob = 'Date of birth is required';
     if (!formData.gender) errs.gender = 'Gender is required';
+    if (!formData.email || !/^\S+@\S+\.\S+$/.test(formData.email)) {
+      errs.email = 'Valid email is required';
+    }
     if (!formData.mobileNumber.trim()) {
       errs.mobileNumber = 'Mobile number is required';
     } else if (formData.mobileNumber.trim().length < 10) {
@@ -185,7 +194,7 @@ export default function StudentRegistration() {
       const payload = {
         name: formData.fullName,
         full_name: formData.fullName,
-        email: formData.email || `${formData.fullName.toLowerCase().replace(/\s+/g, '')}@shubham.edu`,
+        email: formData.email,
         phone: formData.mobileNumber,
         mobile_number: formData.mobileNumber,
         date_of_birth: formData.dob || new Date().toISOString(),
@@ -590,15 +599,15 @@ export default function StudentRegistration() {
                       {/* Email Address */}
                       <div className="col-12">
                         <label className="form-label small fw-semibold text-sa-charcoal mb-1">
-                          Email Address
+                          Email Address <span className="text-danger">*</span>
                         </label>
                         <input
                           type="email"
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          placeholder="Enter email address (optional)"
-                          className="form-control"
+                          placeholder="Enter valid email address"
+                          className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                           style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
                         />
                       </div>
@@ -769,9 +778,9 @@ export default function StudentRegistration() {
                   style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
                 >
                   <option value="">Select batch</option>
-                  <option value="Batch Alpha (Morning 07:30 AM - 12:30 PM)">Batch Alpha (Morning 07:30 AM - 12:30 PM)</option>
-                  <option value="Batch Beta (Afternoon 01:30 PM - 06:30 PM)">Batch Beta (Afternoon 01:30 PM - 06:30 PM)</option>
-                  <option value="Weekend Integrated (Sat-Sun Full Day)">Weekend Integrated (Sat-Sun Full Day)</option>
+                  {batches.map((b) => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

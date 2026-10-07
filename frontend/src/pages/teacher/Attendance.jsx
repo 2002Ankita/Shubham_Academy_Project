@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import studentService from '../../services/studentService';
+import batchService from '../../services/batchService';
 import { toast } from 'react-toastify';
 import { Save, Users, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function TeacherAttendance() {
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
-  const [selectedBatch, setSelectedBatch] = useState('12th Science - Alpha');
+  const [batches, setBatches] = useState([]);
+  const [selectedBatch, setSelectedBatch] = useState('');
 
   useEffect(() => {
-    const fetchStudents = async () => {
-      const data = await studentService.getAll();
-      setStudents(data);
-      const initialMap = {};
-      data.forEach(s => { initialMap[s.id] = 'Present'; });
-      setAttendanceMap(initialMap);
+    const fetchData = async () => {
+      try {
+        const [studs, bList] = await Promise.all([
+          studentService.getAll(),
+          batchService.getBatches()
+        ]);
+        setStudents(studs);
+        const initialMap = {};
+        studs.forEach(s => { initialMap[s.id] = 'Present'; });
+        setAttendanceMap(initialMap);
+        setBatches(bList);
+        if (bList.length > 0) setSelectedBatch(bList[0].name);
+      } catch (err) {
+        console.error(err);
+      }
     };
-    fetchStudents();
+    fetchData();
   }, []);
 
   const toggleStatus = (id) => {
@@ -71,11 +82,9 @@ export default function TeacherAttendance() {
                 paddingRight: '32px'
               }}
             >
-              <option value="12th Science - Alpha">12th Science - Alpha</option>
-              <option value="11th Science - Beta">11th Science - Beta</option>
-              <option value="12th Commerce - Gamma">12th Commerce - Gamma</option>
-              <option value="10th Foundation">10th Foundation</option>
-              <option value="NEET Intensive">NEET Intensive</option>
+              {batches.map(b => (
+                <option key={b.id} value={b.name}>{b.name}</option>
+              ))}
             </select>
           </div>
 

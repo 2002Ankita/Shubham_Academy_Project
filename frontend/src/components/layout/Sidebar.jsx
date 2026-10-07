@@ -26,7 +26,6 @@ import {
   Home,
   FileText,
   BarChart3,
-  BarChart2,
   Cloud,
   Megaphone,
   User,
@@ -156,7 +155,7 @@ const TeachersWritingIcon = ({ size = 21, className = '' }) => (
     className={className}
     style={{ minWidth: size, minHeight: size }}
   >
-    <path d="M10 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM3 19a7 7 0 0 1 11.2-5.6l-1.4 1.4A5.5 5.5 0 0 0 5 19H3zm15.1-4.8l2.1-2.1c.4-.4 1-.4 1.4 0l1.4 1.4c.4.4.4 1 0 1.4l-2.1 2.1-2.8-2.8zm-1.4 1.4l2.8 2.8-5.7 5.7H11v-2.8l5.7-5.7z"/>
+    <path d="M10 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM3 19a7 7 0 0 1 11.2-5.6l-1.4 1.4A5.5 5.5 0 0 0 5 19H3zm15.1-4.8l2.1-2.1c.4-.4 1-.4 1.4 0l1.4 1.4c.4.4.4 1 0 1.4l-2.1 2.1-2.8-2.8zm-1.4 1.4l2.8 2.8-5.7 5.7H11v-2.8l5.7-5.7z" />
   </svg>
 );
 
@@ -169,7 +168,7 @@ const NotificationsBellIcon = ({ size = 21, className = '' }) => (
     className={className}
     style={{ minWidth: size, minHeight: size }}
   >
-    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
   </svg>
 );
 
@@ -218,30 +217,19 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const getNavLinks = () => {
     const role = user?.role || 'admin';
 
-    // Super Admin gets platform management + academy management
+    // ONLY Super Admin gets the 10 items matching reference design
     if (isSuperAdmin || role === 'super-admin') {
       return [
-        { label: 'Platform Overview', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
-        { label: 'Academies', path: '/super-admin/academies', icon: Building2, matchPrefixes: ['/super-admin/academies'] },
-        { label: 'Platform Users', path: '/super-admin/users', icon: Users, matchPrefixes: ['/super-admin/users'] },
-        { label: 'Audit Logs', path: '/super-admin/audit-logs', icon: FileText, matchPrefixes: ['/super-admin/audit-logs'] },
-        { label: 'Settings', path: '/super-admin/settings', icon: FileText, matchPrefixes: ['/super-admin/settings'] },
-        // Below are Academy-specific links (for the default academy they are managing)
+        { label: 'Dashboard', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
-        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
-        { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Attendance Reports', path: '/admin/attendance/report', icon: FileText, matchPrefixes: ['/admin/attendance/report'] },
-        { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
-        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
-        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams'] },
-        { label: 'Marks Entry', path: '/admin/marks/entry', icon: ClipboardList, matchPrefixes: ['/admin/marks/entry'] },
-        { label: 'Results & Rankings', path: '/admin/results', icon: BarChart2, matchPrefixes: ['/admin/results'] },
+        { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
+        { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
+        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
-        { label: 'Teacher Salary', path: '/admin/teachers/salary', icon: CreditCard, matchPrefixes: ['/admin/teachers/salary'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications'] },
-        { label: 'Notices Board', path: '/admin/notices', icon: Bell, matchPrefixes: ['/admin/notices'] },
+        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
+        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
         { label: 'Contact', path: '/super-admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
       ];
@@ -270,20 +258,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Overview', path: '/admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/admin/dashboard'] },
         { label: 'Admissions', path: '/admin/students/register', icon: AdmissionsIcon, matchPrefixes: ['/admin/students/register'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
-        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Attendance Reports', path: '/admin/attendance/report', icon: FileText, matchPrefixes: ['/admin/attendance/report'] },
         { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
-        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
-        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams'] },
-        { label: 'Marks Entry', path: '/admin/marks/entry', icon: ClipboardList, matchPrefixes: ['/admin/marks/entry'] },
-        { label: 'Results & Rankings', path: '/admin/results', icon: BarChart2, matchPrefixes: ['/admin/results'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
+        { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
-        { label: 'Teacher Salary', path: '/admin/teachers/salary', icon: CreditCard, matchPrefixes: ['/admin/teachers/salary'] },
+        { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications'] },
-        { label: 'Notices Board', path: '/admin/notices', icon: Bell, matchPrefixes: ['/admin/notices'] },
+        { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },
         { label: 'Contact', path: '/admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/admin/contact'] },
       ];
@@ -340,9 +322,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       )}
 
       <aside
-        className={`d-flex flex-column text-white transition-all ${
-          isOpen ? 'position-fixed top-0 start-0 h-100 shadow-lg' : 'd-none d-md-flex position-sticky top-0'
-        }`}
+        className={`d-flex flex-column text-white transition-all ${isOpen ? 'position-fixed top-0 start-0 h-100 shadow-lg' : 'd-none d-md-flex position-sticky top-0'
+          }`}
         style={{
           width: sidebarWidth,
           minWidth: sidebarWidth,
@@ -350,8 +331,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           background: (isSuperAdmin || isAdmin)
             ? 'linear-gradient(180deg, rgba(139, 18, 22, 0.76) 0%, rgba(98, 11, 14, 0.84) 40%, rgba(45, 6, 8, 0.92) 100%)'
             : (isStudent || isTeacher)
-            ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
-            : 'var(--sa-primary-red)',
+              ? 'linear-gradient(180deg, #8B1216 0%, #6E0B0F 100%)'
+              : 'var(--sa-primary-red)',
           backdropFilter: (isSuperAdmin || isAdmin) ? 'blur(24px) saturate(190%)' : 'none',
           WebkitBackdropFilter: (isSuperAdmin || isAdmin) ? 'blur(24px) saturate(190%)' : 'none',
           zIndex: 1045,
@@ -482,8 +463,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     borderRadius: '12px',
                     boxShadow: active
                       ? ((isSuperAdmin || isAdmin)
-                          ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
-                          : '0 4px 15px rgba(0, 0, 0, 0.18)')
+                        ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
+                        : '0 4px 15px rgba(0, 0, 0, 0.18)')
                       : 'none',
                     padding: (isAdmin || isSuperAdmin) ? '11px 16px' : isTeacher ? '8.5px 14px' : '10px 15px',
                     gap: (isAdmin || isSuperAdmin) ? '16px' : isTeacher ? '14px' : '15px',
@@ -576,10 +557,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${
-                      isActive
-                        ? 'bg-white text-sa-primary fw-bold shadow-sm'
-                        : 'hover-sidebar-item text-opacity-90'
+                    `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${isActive
+                      ? 'bg-white text-sa-primary fw-bold shadow-sm'
+                      : 'hover-sidebar-item text-opacity-90'
                     }`
                   }
                   style={({ isActive }) => ({

@@ -135,9 +135,10 @@ export default function StudentDashboard() {
                  return false;
               };
               const matchedBatches = batchesDataRes.value.filter(b => isMatch(b, stu));
-              setTodaysClasses(matchedBatches.map(b => ({
+               setTodaysClasses(matchedBatches.map(b => ({
                  id: b.id || Math.random().toString(),
                  time: b.time || '10:00 AM',
+                 date: b.date || '',
                  subject: b.subject,
                  teacher: b.teacher_name,
                  room: b.room || 'N/A',
@@ -464,7 +465,10 @@ export default function StudentDashboard() {
                 <tbody className="sa-table-compact">
                   {todaysClasses.map((cls, idx) => (
                     <tr key={idx} className="border-bottom border-light">
-                      <td className="fw-bold text-sa-charcoal">{cls.time}</td>
+                      <td className="text-sa-charcoal">
+                        <div className="fw-bold">{cls.time}</div>
+                        {cls.date && <div className="text-sa-muted" style={{ fontSize: '0.75rem' }}>{cls.date}</div>}
+                      </td>
                       <td className="fw-semibold text-sa-charcoal">{cls.subject}</td>
                       <td className="text-sa-muted">{cls.teacher}</td>
                       <td className="text-sa-muted">{cls.room}</td>

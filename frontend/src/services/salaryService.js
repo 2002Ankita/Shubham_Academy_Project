@@ -24,8 +24,8 @@ export const salaryService = {
     return res.data;
   },
 
-  disburseSalary: async (salaryId) => {
-    const res = await api.post(`/salary/disburse/${salaryId}`);
+  disburseSalary: async (salaryId, amount = null) => {
+    const res = await api.post(`/salary/disburse/${salaryId}`, { amount });
     return res.data;
   },
 

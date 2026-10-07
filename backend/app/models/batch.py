@@ -7,6 +7,7 @@ class Batch(Document):
     subject: str
     room: Optional[str] = None
     time: Optional[str] = None
+    date: Optional[str] = None
     student_count: int = 0
     teacher_name: Optional[str] = None
 
