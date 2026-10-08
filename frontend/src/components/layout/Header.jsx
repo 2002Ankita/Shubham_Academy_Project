@@ -41,10 +41,24 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   const selectedOption = dateOptions.find(o => o.value === globalDateFilter) || dateOptions[0];
 
-  const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
-  const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
-  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
-  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin') || (!isStudent && !isTeacher && !isSuperAdmin);
+  const userRole = (user?.role || '').toLowerCase();
+  const isSuperAdmin = userRole === 'super-admin' || userRole === 'superadmin' || (!userRole && location.pathname.startsWith('/super-admin'));
+  const isTeacher = userRole === 'teacher' || (!userRole && location.pathname.startsWith('/teacher'));
+  const isStudent = userRole === 'student' || (!userRole && location.pathname.startsWith('/student'));
+  const isAdmin = userRole === 'admin' || (!userRole && !isSuperAdmin && !isTeacher && !isStudent);
+
+  const handleViewProfile = () => {
+    setShowUserMenu(false);
+    if (isSuperAdmin) {
+      navigate('/super-admin/profile');
+    } else if (isTeacher) {
+      navigate('/teacher/profile');
+    } else if (isStudent) {
+      navigate('/student/profile');
+    } else {
+      navigate('/admin/profile');
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -330,17 +344,27 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           </div>
         )}
 
-        {/* Role Badge - for Academy Admin matching Image 2 */}
+        {/* Role Badge - for Academy Admin */}
         {isAdmin && !isSuperAdmin && (
           <div
-            className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-white border shadow-xs"
-            style={{ border: '1px solid #e2e8f0', borderRadius: '9999px' }}
+            className="d-none d-sm-inline-flex align-items-center bg-white shadow-xs"
+            style={{
+              padding: '6px 14px',
+              gap: '8px',
+              border: '1px solid #E2E8F0',
+              borderRadius: '9999px',
+              whiteSpace: 'nowrap',
+              lineHeight: 1
+            }}
           >
             <span
-              className="rounded-circle"
-              style={{ width: '8px', height: '8px', backgroundColor: '#10b981', display: 'inline-block' }}
+              className="rounded-circle flex-shrink-0"
+              style={{ width: '8px', height: '8px', backgroundColor: '#10B981', display: 'inline-block' }}
             />
-            <span className="fw-semibold" style={{ fontSize: '0.80rem', color: '#c53030' }}>
+            <span
+              className="fw-semibold"
+              style={{ fontSize: '0.8125rem', color: '#C53030', lineHeight: 1, letterSpacing: '0.01em' }}
+            >
               Admin
             </span>
           </div>
@@ -349,26 +373,47 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         {/* Role Badge for Super Admin */}
         {isSuperAdmin && (
           <>
-            <div className="d-none d-sm-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-light border">
+            <div
+              className="d-none d-sm-inline-flex align-items-center bg-white shadow-xs"
+              style={{
+                padding: '6px 14px',
+                gap: '8px',
+                border: '1px solid #E2E8F0',
+                borderRadius: '9999px',
+                whiteSpace: 'nowrap',
+                lineHeight: 1
+              }}
+            >
               <span
-                className="rounded-circle"
-                style={{ width: '7px', height: '7px', backgroundColor: 'var(--sa-success-green)' }}
+                className="rounded-circle flex-shrink-0"
+                style={{ width: '8px', height: '8px', backgroundColor: '#10B981', display: 'inline-block' }}
               />
-              <span className="fw-semibold text-sa-primary text-capitalize" style={{ fontSize: '0.75rem' }}>
+              <span
+                className="fw-semibold text-sa-primary text-capitalize"
+                style={{ fontSize: '0.8125rem', lineHeight: 1, letterSpacing: '0.01em' }}
+              >
                 Super Admin
               </span>
             </div>
             <div
-              className="d-none d-lg-flex align-items-center gap-1.5 px-3 py-1 rounded-pill"
+              className="d-none d-lg-inline-flex align-items-center"
               style={{
+                padding: '6px 14px',
+                gap: '8px',
                 backgroundColor: '#F0FDF4',
                 border: '1px solid #BBF7D0',
-                fontSize: '0.78rem',
+                borderRadius: '9999px',
+                fontSize: '0.80rem',
                 color: '#15803d',
-                fontWeight: 600
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                lineHeight: 1
               }}
             >
-              <span className="rounded-circle bg-success" style={{ width: '7px', height: '7px', display: 'inline-block' }} />
+              <span
+                className="rounded-circle bg-success flex-shrink-0"
+                style={{ width: '7px', height: '7px', display: 'inline-block' }}
+              />
               <span>System Online</span>
             </div>
           </>
@@ -397,17 +442,17 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           {showNotifications && (
             <div
               className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-3"
-              style={{ width: '330px', zIndex: 1050 }}
+              style={{ width: 'min(385px, calc(100vw - 20px))', zIndex: 1050 }}
             >
               <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
                 <div className="d-flex align-items-center gap-2">
-                  <span className="fw-bold small text-sa-charcoal">Notifications</span>
+                  <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>Notifications</span>
                   {unreadCount > 0 ? (
-                    <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.65rem' }}>
+                    <span className="badge bg-danger rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
                       {unreadCount} New
                     </span>
                   ) : (
-                    <span className="badge bg-light text-muted border rounded-pill" style={{ fontSize: '0.65rem' }}>
+                    <span className="badge bg-light text-muted border rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
                       All Clear
                     </span>
                   )}
@@ -416,7 +461,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   <button
                     type="button"
                     className="btn btn-link p-0 text-decoration-none"
-                    style={{ fontSize: '0.72rem', color: '#881337', fontWeight: 600 }}
+                    style={{ fontSize: '0.75rem', color: '#881337', fontWeight: 600 }}
                     onClick={handleMarkAllRead}
                   >
                     Clear all
@@ -440,7 +485,15 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   </p>
                 </div>
               ) : (
-                <div className="d-flex flex-column gap-1.5" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                <div
+                  className="d-flex flex-column gap-1.5"
+                  style={{
+                    maxHeight: '370px',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    paddingRight: '3px'
+                  }}
+                >
                   {notificationsList.map((item) => (
                     <div
                       key={item.id}
@@ -454,7 +507,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = '#FFF1F2';
                         e.currentTarget.style.borderColor = '#FDA4AF';
-                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.transform = 'translateX(3px)';
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(136, 19, 55, 0.08)';
                       }}
                       onMouseLeave={(e) => {
@@ -465,13 +518,13 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                       }}
                       onClick={() => handleNotificationClick(item)}
                     >
-                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-1">
                         <span
                           className="rounded-circle bg-danger flex-shrink-0"
                           style={{ width: '6.5px', height: '6.5px' }}
                         />
                         <span
-                          className="fw-bold text-sa-charcoal text-truncate"
+                          className="fw-bold text-sa-charcoal text-truncate d-block"
                           style={{ fontSize: '0.81rem' }}
                           title={item.title}
                         >
@@ -481,19 +534,20 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
                       <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
                         <span
-                          className="badge rounded-pill fw-semibold"
+                          className="badge rounded-pill fw-semibold d-inline-flex align-items-center"
                           style={{
                             backgroundColor: '#F8FAFC',
                             color: '#64748B',
                             border: '1px solid #E2E8F0',
                             fontSize: '0.70rem',
-                            padding: '0.25em 0.55em'
+                            padding: '0.3em 0.6em',
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          <Clock size={11} className="me-1 align-text-top" />
-                          {item.time}
+                          <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
+                          <span>{item.time}</span>
                         </span>
-                        <ChevronRight size={13} className="text-sa-muted" />
+                        <ChevronRight size={13} className="text-sa-muted flex-shrink-0" />
                       </div>
                     </div>
                   ))}
@@ -507,10 +561,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         <div
           className="position-relative h-100 d-flex align-items-center"
           ref={userMenuRef}
-          style={{ width: isTeacher ? '195px' : '205px' }}
+          style={{ width: 'auto', maxWidth: isTeacher ? '195px' : '205px' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between px-3 h-100 cursor-pointer w-100"
+            className="d-flex align-items-center justify-content-between px-2 px-sm-3 h-100 cursor-pointer w-100"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
               cursor: 'pointer',
@@ -576,8 +630,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
               className="position-absolute shadow-lg"
               style={{
                 top: 'calc(100% - 2px)',
-                left: 0,
-                width: '100%',
+                right: 0,
+                minWidth: '205px',
+                width: 'max(100%, 205px)',
                 zIndex: 1060,
                 background: 'rgba(255, 255, 255, 0.92)',
                 backdropFilter: 'blur(20px) saturate(190%)',

@@ -26,7 +26,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="sa-card p-4 p-sm-5 border-0 shadow-lg">
+    <div className="w-100 py-2">
       <Link to="/login" className="d-inline-flex align-items-center gap-1 small text-sa-muted mb-3 fw-medium">
         <ArrowLeft size={16} /> Back to Sign In
       </Link>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import {
   Phone,
   Mail,
@@ -77,6 +78,7 @@ export default function Contact() {
     <div className="d-flex flex-column gap-4" style={{ maxWidth: '1120px' }}>
       {/* Page Title */}
       <div>
+        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
         <div className="d-flex align-items-center gap-2">
           <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Contact & Campus Directory</h3>
           <span

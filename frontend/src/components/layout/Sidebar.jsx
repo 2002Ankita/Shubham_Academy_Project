@@ -282,6 +282,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud, matchPrefixes: ['/student/notes-delivery'] },
       { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
+      { label: 'Contact', path: '/student/contact', icon: ContactPhoneIcon, matchPrefixes: ['/student/contact'] },
     ];
   };
 
@@ -291,6 +292,10 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     // If on registration/admission, activate Admissions, not Students
     if (item.path === '/admin/students') {
       return location.pathname.startsWith('/admin/students') && !location.pathname.startsWith('/admin/students/register');
+    }
+    // If on leave approvals, activate Leave Approvals, not Teachers
+    if (item.path === '/admin/teachers') {
+      return location.pathname.startsWith('/admin/teachers') && !location.pathname.startsWith('/admin/teachers/leave-approvals');
     }
     if (item.matchPrefixes) {
       return item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix));
