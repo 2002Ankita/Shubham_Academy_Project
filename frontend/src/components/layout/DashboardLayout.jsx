@@ -73,21 +73,21 @@ export default function DashboardLayout() {
           id="main-content-wrapper"
           style={{ minWidth: 0, overflowX: 'hidden' }}
         >
-          <Header 
-            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
-            globalDateFilter={globalDateFilter} 
-            setGlobalDateFilter={setGlobalDateFilter} 
+          <Header
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            globalDateFilter={globalDateFilter}
+            setGlobalDateFilter={setGlobalDateFilter}
           />
 
           <main
-            className="flex-grow-1 p-3 p-sm-4 p-md-4 px-xl-5 py-xl-4"
+            className="flex-grow-1 p-2.5 p-sm-3 p-md-4 px-xl-5 py-xl-4"
           >
             <div className="w-100" style={{ maxWidth: '1440px', margin: '0 auto' }}>
               <Outlet context={{ globalDateFilter, setGlobalDateFilter }} />
             </div>
           </main>
 
-          <Footer isStudent={isStudent || isTeacher} />
+          <Footer />
         </div>
       </div>
     </div>

@@ -244,7 +244,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         </div>
 
       {/* Right side: Date Selector, Notifications, Profile */}
-      <div className="d-flex align-items-center h-100" style={{ gap: '14px', paddingRight: '4px' }}>
+      <div className="d-flex align-items-center h-100 gap-2 gap-sm-3" style={{ paddingRight: '2px' }}>
         {/* Date Selector for Teacher Header */}
         {isTeacher && (
           <div className="position-relative teacher-date-picker">
@@ -374,8 +374,8 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           </>
         )}
 
-        {/* Notifications Icon with right margin to ensure 18px gap to profile */}
-        <div className="position-relative teacher-header-notifications" ref={notificationsRef} style={{ marginRight: '4px' }}>
+        {/* Notifications Icon */}
+        <div className="position-relative teacher-header-notifications" ref={notificationsRef}>
           <button
             type="button"
             className="btn btn-light rounded-circle position-relative text-sa-charcoal border"
@@ -397,7 +397,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           {showNotifications && (
             <div
               className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-3"
-              style={{ width: '330px', zIndex: 1050 }}
+              style={{ width: 'min(330px, calc(100vw - 20px))', zIndex: 1050 }}
             >
               <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
                 <div className="d-flex align-items-center gap-2">
@@ -505,12 +505,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
         {/* User Profile avatar & info */}
         <div
-          className={`position-relative h-100 d-flex align-items-center ${isTeacher ? 'teacher-header-profile' : ''}`}
+          className={`position-relative h-100 d-flex align-items-center sa-header-profile-wrapper ${isTeacher ? 'teacher-header-profile' : ''}`}
           ref={userMenuRef}
-          style={{ width: isTeacher ? '195px' : '205px' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between px-3 h-100 cursor-pointer w-100"
+            className="d-flex align-items-center justify-content-between px-2 px-sm-3 h-100 cursor-pointer w-100 gap-1.5"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
               cursor: 'pointer',

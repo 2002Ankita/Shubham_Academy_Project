@@ -232,7 +232,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
-        { label: 'Contact', path: '/super-admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
       ];
     }
 

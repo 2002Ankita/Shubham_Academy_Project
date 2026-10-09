@@ -1387,4 +1387,44 @@
   .superadmin-kpi-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   }
-}
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE REFINEMENTS (HEADER, PROFILE, TOUCH TARGETS)
+   ========================================================================== */
+.sa-header-profile-wrapper {
+  width: auto;
+}
+
+@media (min-width: 576px) {
+  .sa-header-profile-wrapper {
+    width: 205px;
+  }
+  .sa-header-profile-wrapper.teacher-header-profile {
+    width: 195px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .sa-header-profile-wrapper {
+    width: auto !important;
+  }
+  .sa-header-profile-wrapper > div {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    gap: 0.35rem !important;
+  }
+  .sa-header-profile-wrapper .position-absolute.shadow-lg {
+    left: auto !important;
+    right: 0 !important;
+    min-width: 215px !important;
+    max-width: calc(100vw - 20px) !important;
+    border-top-left-radius: 14px !important;
+  }
+
+  /* Mobile touch target and wrapping for buttons */
+  .btn {
+    min-height: 36px;
+  }
+}
+
