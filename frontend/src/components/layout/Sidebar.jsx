@@ -285,6 +285,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud, matchPrefixes: ['/student/notes-delivery'] },
       { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
+      { label: 'Contact', path: '/student/contact', icon: ContactPhoneIcon, matchPrefixes: ['/student/contact'] },
     ];
   };
 

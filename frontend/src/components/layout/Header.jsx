@@ -397,17 +397,17 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           {showNotifications && (
             <div
               className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-3"
-              style={{ width: '330px', zIndex: 1050 }}
+              style={{ width: 'min(385px, calc(100vw - 20px))', zIndex: 1050 }}
             >
               <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
                 <div className="d-flex align-items-center gap-2">
-                  <span className="fw-bold small text-sa-charcoal">Notifications</span>
+                  <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>Notifications</span>
                   {unreadCount > 0 ? (
-                    <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.65rem' }}>
+                    <span className="badge bg-danger rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
                       {unreadCount} New
                     </span>
                   ) : (
-                    <span className="badge bg-light text-muted border rounded-pill" style={{ fontSize: '0.65rem' }}>
+                    <span className="badge bg-light text-muted border rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
                       All Clear
                     </span>
                   )}
@@ -416,7 +416,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   <button
                     type="button"
                     className="btn btn-link p-0 text-decoration-none"
-                    style={{ fontSize: '0.72rem', color: '#881337', fontWeight: 600 }}
+                    style={{ fontSize: '0.75rem', color: '#881337', fontWeight: 600 }}
                     onClick={handleMarkAllRead}
                   >
                     Clear all
@@ -440,7 +440,15 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   </p>
                 </div>
               ) : (
-                <div className="d-flex flex-column gap-1.5" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                <div
+                  className="d-flex flex-column gap-1.5"
+                  style={{
+                    maxHeight: '370px',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    paddingRight: '3px'
+                  }}
+                >
                   {notificationsList.map((item) => (
                     <div
                       key={item.id}
@@ -454,7 +462,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = '#FFF1F2';
                         e.currentTarget.style.borderColor = '#FDA4AF';
-                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.transform = 'translateX(3px)';
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(136, 19, 55, 0.08)';
                       }}
                       onMouseLeave={(e) => {
@@ -465,13 +473,13 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                       }}
                       onClick={() => handleNotificationClick(item)}
                     >
-                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-1">
                         <span
                           className="rounded-circle bg-danger flex-shrink-0"
                           style={{ width: '6.5px', height: '6.5px' }}
                         />
                         <span
-                          className="fw-bold text-sa-charcoal text-truncate"
+                          className="fw-bold text-sa-charcoal text-truncate d-block"
                           style={{ fontSize: '0.81rem' }}
                           title={item.title}
                         >
@@ -481,19 +489,20 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
                       <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
                         <span
-                          className="badge rounded-pill fw-semibold"
+                          className="badge rounded-pill fw-semibold d-inline-flex align-items-center"
                           style={{
                             backgroundColor: '#F8FAFC',
                             color: '#64748B',
                             border: '1px solid #E2E8F0',
                             fontSize: '0.70rem',
-                            padding: '0.25em 0.55em'
+                            padding: '0.3em 0.6em',
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          <Clock size={11} className="me-1 align-text-top" />
-                          {item.time}
+                          <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
+                          <span>{item.time}</span>
                         </span>
-                        <ChevronRight size={13} className="text-sa-muted" />
+                        <ChevronRight size={13} className="text-sa-muted flex-shrink-0" />
                       </div>
                     </div>
                   ))}
@@ -507,10 +516,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
         <div
           className={`position-relative h-100 d-flex align-items-center ${isTeacher ? 'teacher-header-profile' : ''}`}
           ref={userMenuRef}
-          style={{ width: isTeacher ? '195px' : '205px' }}
+          style={{ width: 'auto', maxWidth: isTeacher ? '195px' : '205px' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between px-3 h-100 cursor-pointer w-100"
+            className="d-flex align-items-center justify-content-between px-2 px-sm-3 h-100 cursor-pointer w-100"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
               cursor: 'pointer',
@@ -576,8 +585,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
               className="position-absolute shadow-lg"
               style={{
                 top: 'calc(100% - 2px)',
-                left: 0,
-                width: '100%',
+                right: 0,
+                minWidth: '205px',
+                width: 'max(100%, 205px)',
                 zIndex: 1060,
                 background: 'rgba(255, 255, 255, 0.92)',
                 backdropFilter: 'blur(20px) saturate(190%)',

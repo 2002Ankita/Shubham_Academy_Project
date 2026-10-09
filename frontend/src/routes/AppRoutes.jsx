@@ -12,6 +12,7 @@ import RoleBasedRoute from './RoleBasedRoute';
 
 // Auth Pages
 import SignIn from '../pages/auth/SignIn';
+import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 import ResetPassword from '../pages/auth/ResetPassword';
 import Unauthorized from '../pages/auth/Unauthorized';
@@ -77,6 +78,7 @@ import StudentNotes from '../pages/student/Notes';
 import StudentNotesDelivery from '../pages/student/NotesDelivery';
 import StudentAnnouncements from '../pages/student/Announcements';
 import StudentProfile from '../pages/student/Profile';
+import StudentContact from '../pages/student/Contact';
 
 export default function AppRoutes() {
   const { user } = useAuth();
@@ -97,6 +99,8 @@ export default function AppRoutes() {
       {/* Public Auth Routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<SignIn />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/signup" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
@@ -201,6 +205,7 @@ export default function AppRoutes() {
         <Route path="/student/notes-delivery" element={<StudentNotesDelivery />} />
         <Route path="/student/announcements" element={<StudentAnnouncements />} />
         <Route path="/student/profile" element={<StudentProfile />} />
+        <Route path="/student/contact" element={<StudentContact />} />
       </Route>
 
       {/* Fallback */}

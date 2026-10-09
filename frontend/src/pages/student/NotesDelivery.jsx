@@ -225,10 +225,9 @@ export default function StudentNotesDelivery() {
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-md-end align-items-center gap-2">
             <select
-              className="form-select form-select-sm shadow-xs"
+              className="form-select form-select-sm shadow-xs w-100 w-md-auto"
               style={{
-                minWidth: '200px',
-                width: 'auto',
+                minWidth: '180px',
                 paddingRight: '2.5rem',
                 cursor: 'pointer',
                 fontWeight: 500
