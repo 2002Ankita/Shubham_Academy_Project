@@ -4,6 +4,8 @@ import studentService from '../../services/studentService';
 import examService from '../../services/examService';
 import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
+import { attendanceService } from '../../services/attendanceService';
+import salaryService from '../../services/salaryService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -38,6 +40,8 @@ export default function TeacherDashboard() {
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [totalExams, setTotalExams] = useState(0);
   const [scheduleRows, setScheduleRows] = useState([]);
+  const [totalWorkingHours, setTotalWorkingHours] = useState(0);
+  const [salaryDetails, setSalaryDetails] = useState({ pending: 0, status: 'N/A' });
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -48,6 +52,39 @@ export default function TeacherDashboard() {
           noticeService.getAll(),
           batchService.getBatches()
         ]);
+
+        if (user && user.id) {
+          try {
+            const records = await attendanceService.getWorkingTime(user.id);
+            let totalHours = 0;
+            records.forEach(r => {
+              if (r.totalHours && r.totalHours !== '--') {
+                const match = r.totalHours.match(/(\d+)\s*h\s*(\d+)\s*m/i);
+                if (match) {
+                  totalHours += parseInt(match[1], 10) + parseInt(match[2], 10) / 60;
+                }
+              }
+            });
+            setTotalWorkingHours(totalHours.toFixed(1));
+          } catch (e) {
+            console.error('Failed to fetch working time', e);
+          }
+          
+          try {
+            const salaries = await salaryService.getMySalaries();
+            if (salaries && salaries.length > 0) {
+              const currentSalary = salaries[salaries.length - 1]; // Assume latest is current
+              const statusText = currentSalary?.status === 'Disbursed' ? 'Fully paid' : 
+                                 currentSalary?.status === 'Partially Paid' ? 'Installment paid' : 'Pending';
+              setSalaryDetails({
+                pending: Number(currentSalary.amountPending) || 0,
+                status: statusText
+              });
+            }
+          } catch (e) {
+            console.error('Failed to fetch salary details', e);
+          }
+        }
 
         if (studentsRes.status === 'fulfilled') {
           const students = studentsRes.value || [];
@@ -300,27 +337,27 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Card 3: Pending Marks */}
+        {/* Card 3: Pending Salary */}
         <div
           className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
-          onClick={() => navigate('/teacher/marks')}
+          onClick={() => navigate('/teacher/salary')}
           style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
         >
           <div
             className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
             style={{ width: '38px', height: '38px', backgroundColor: '#FEF8EB', color: '#D97718' }}
           >
-            <FileText size={19} />
+            <Coins size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
             <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
-              Pending Marks
+              Pending Salary
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              0
+              ₹{salaryDetails.pending.toLocaleString()}
             </div>
             <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
-              Across 0 examinations
+              Status: {salaryDetails.status}
             </span>
           </div>
         </div>
@@ -342,10 +379,10 @@ export default function TeacherDashboard() {
               Working Hours
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              0 hrs
+              {totalWorkingHours} hrs
             </div>
             <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
-              ↗ 0% of 0 hrs this month
+              ↗ {Math.round((parseFloat(totalWorkingHours) / 160) * 100)}% of 160 hrs this month
             </span>
           </div>
         </div>

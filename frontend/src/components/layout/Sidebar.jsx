@@ -226,7 +226,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
+        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Truck, matchPrefixes: ['/admin/notes/delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
@@ -261,7 +262,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes'] },
+        { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
+        { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
@@ -282,6 +284,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
       { label: 'Notes Delivery', path: '/student/notes-delivery', icon: Cloud, matchPrefixes: ['/student/notes-delivery'] },
       { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
+      { label: 'Contact', path: '/student/contact', icon: ContactPhoneIcon, matchPrefixes: ['/student/contact'] },
     ];
   };
 

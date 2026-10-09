@@ -118,31 +118,61 @@ export const marksService = {
   },
 
   getStudentResults: async (studentId) => {
+    let studentBatch = '';
+    try {
+      // Avoid circular dependency by lazy importing studentService if needed
+      // but in this case, authService might have the rollNumber or we can use local storage.
+      // Easiest is to import studentService dynamically
+      const { studentService } = await import('./studentService');
+      const student = await studentService.getById(studentId);
+      studentBatch = (student?.batch || '').toLowerCase();
+    } catch (e) {
+      console.warn('Could not fetch student profile for batch filtering');
+    }
+
+    const sStream = studentBatch.split(' ')[1] || '';
+
+    const processMarks = (marksArray) => {
+      return marksArray.map(mark => ({
+          id: mark.id,
+          studentId: mark.student_id || mark.studentId,
+          examId: mark.exam_id || mark.examId,
+          studentName: mark.student_name || mark.studentName || 'Student',
+          rollNumber: mark.roll_number || mark.rollNumber || 'N/A',
+          examName: mark.exam_name || mark.examName || `Exam ID: ${mark.exam_id}`,
+          examTitle: mark.exam_name || mark.examTitle || `Exam ID: ${mark.exam_id}`,
+          date: mark.exam_date || mark.date || '2026-03-15',
+          subject: mark.subject || 'N/A',
+          teacher: mark.teacher || 'Prof. Faculty',
+          maxMarks: mark.max_marks || mark.maxMarks || 100,
+          obtainedMarks: mark.marks_obtained || mark.obtainedMarks,
+          percentage: mark.percentage || (mark.marks_obtained ? ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1) : 0),
+          grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+          remarks: mark.remarks || ''
+        })).filter(m => {
+          const subj = (m.subject || m.examName || '').toLowerCase();
+          let hasSubjectCheck = false;
+          let subjectMatched = false;
+          
+          if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+          if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+          if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+          if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+          
+          if (hasSubjectCheck && sStream) return subjectMatched;
+          return true;
+        });
+    };
+
     try {
       const res = await api.get(`/marks/${studentId}`);
       if (Array.isArray(res.data) && res.data.length > 0) {
-        return res.data.map(mark => ({
-          id: mark.id,
-          studentId: mark.student_id,
-          examId: mark.exam_id,
-          studentName: mark.student_name || 'Student',
-          rollNumber: mark.roll_number || 'N/A',
-          examName: mark.exam_name || `Exam ID: ${mark.exam_id}`,
-          examTitle: mark.exam_name || `Exam ID: ${mark.exam_id}`,
-          date: mark.exam_date || mark.date || '2026-03-15',
-          subject: mark.subject || 'N/A',
-          teacher: mark.teacher || 'Prof. Shubham Shinde',
-          maxMarks: mark.max_marks || 100,
-          obtainedMarks: mark.marks_obtained,
-          percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
-          grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
-          remarks: mark.remarks || ''
-        }));
+        return processMarks(res.data);
       }
     } catch (err) {
       console.warn('API marks load note:', err?.message);
     }
-    return DEFAULT_STUDENT_RESULTS;
+    return processMarks(DEFAULT_STUDENT_RESULTS);
   },
 
   submitMarks: async (data) => {

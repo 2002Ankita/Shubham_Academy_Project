@@ -82,7 +82,24 @@ export default function StudentDashboard() {
           setNotices(noticesData.value);
         }
         if (examsData.status === 'fulfilled' && Array.isArray(examsData.value)) {
-          setExams(examsData.value);
+          const stu = studentData.status === 'fulfilled' ? studentData.value : null;
+          const sBatch = (stu?.batch || '').toLowerCase();
+          const sStream = sBatch.split(' ')[1] || '';
+          
+          const filteredExams = examsData.value.filter(e => {
+            const subj = (e.subject || e.title || '').toLowerCase();
+            let hasSubjectCheck = false;
+            let subjectMatched = false;
+            
+            if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+            if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+            if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+            if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+            
+            if (hasSubjectCheck && sStream) return subjectMatched;
+            return true;
+          });
+          setExams(filteredExams);
         }
         if (marksData.status === 'fulfilled' && Array.isArray(marksData.value)) {
           setResults(marksData.value);

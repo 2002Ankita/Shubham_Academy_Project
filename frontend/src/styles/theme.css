@@ -1388,7 +1388,7 @@
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   }
 }
-
+ 
 /* ==========================================================================
    MOBILE RESPONSIVE REFINEMENTS (HEADER, PROFILE, TOUCH TARGETS)
    ========================================================================== */
@@ -1425,6 +1425,27 @@
   /* Mobile touch target and wrapping for buttons */
   .btn {
     min-height: 36px;
+  }
+}
+
+/* Mobile Responsive Enhancements for Student Portal & Layout */
+@media (max-width: 767.98px) {
+  .sa-card {
+    padding: 1rem !important;
+  }
+
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto !important;
+  }
+
+  /* Compact typography on small mobile screens */
+  .brand-font.fs-4 {
+    font-size: 1.35rem !important;
+  }
+
+  .brand-font.fs-3 {
+    font-size: 1.55rem !important;
   }
 }
 

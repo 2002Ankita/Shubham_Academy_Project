@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Phone } from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
@@ -67,15 +68,23 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
         </div>
 
         <div className="col-12 col-md-6">
-          <Input
-            label="Phone Number"
-            name="phone"
-            placeholder="+91 98220 XXXXX"
-            value={formData.phone}
-            onChange={handleChange}
-            error={errors.phone}
-            required
-          />
+          <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+            Phone Number <span className="text-danger">*</span>
+          </label>
+          <div className="sa-custom-input-group">
+            <div className="sa-input-icon">
+              <Phone size={16} />
+            </div>
+            <input
+              type="tel"
+              name="phone"
+              placeholder="+91 98220 XXXXX"
+              value={formData.phone}
+              onChange={handleChange}
+              className={`sa-custom-input ${errors.phone ? 'border-danger' : ''}`}
+            />
+          </div>
+          {errors.phone && <div className="text-danger small mt-1">{errors.phone}</div>}
         </div>
 
         <div className="col-12 col-md-6">

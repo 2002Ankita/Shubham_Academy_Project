@@ -50,8 +50,8 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Right: Architectural Campus Artwork Extended to Left (Tablets & Desktop only) */}
-        <div className="d-none d-md-flex align-items-center flex-shrink-0">
+        {/* Right: Architectural Campus Artwork Extended to Left */}
+        <div className="d-none d-sm-flex align-items-center flex-shrink-0">
           <img
             src="/assets/footer-campus-art-wings.png"
             alt="Shubham Academy Campus Illustration"
