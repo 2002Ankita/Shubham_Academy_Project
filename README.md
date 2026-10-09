@@ -13,10 +13,23 @@ Shubham_Academy/
 │   └── vite.config.js    # Vite configuration
 ```
 
-## Getting Started with Frontend
+## Getting Started on Windows
 
-```bash
+The frontend and backend are separate applications. Start each in its own PowerShell terminal.
+
+### Frontend
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
+
+### Backend
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe app.py
+```
+
+Do not run `npm run dev` from `backend`; it is a Python application and does not have an npm `package.json`.

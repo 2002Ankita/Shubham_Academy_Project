@@ -53,7 +53,7 @@ import BatchManagement from '../pages/admin/BatchManagement';
 // Teacher Pages
 import TeacherDashboard from '../pages/teacher/Dashboard';
 import TeacherMyClasses from '../pages/teacher/MyClasses';
-import TeacherStudents from '../pages/teacher/Students';
+import TeacherDirectory from '../pages/teacher/Teachers';
 import TeacherAttendance from '../pages/teacher/Attendance';
 import TeacherExaminations from '../pages/teacher/Examinations';
 import TeacherEnterMarks from '../pages/teacher/EnterMarks';
@@ -168,7 +168,7 @@ export default function AppRoutes() {
       >
         <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
         <Route path="/teacher/classes" element={<TeacherMyClasses />} />
-        <Route path="/teacher/students" element={<TeacherStudents />} />
+        <Route path="/teacher/teachers" element={<TeacherDirectory />} />
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />
         <Route path="/teacher/leave-request" element={<LeaveRequest />} />
         <Route path="/teacher/working-time" element={<WorkingTime />} />

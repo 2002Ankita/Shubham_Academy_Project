@@ -1,5 +1,3 @@
-import api from './api';
-
 const STORAGE_KEY = 'shubham_academy_teacher_notes';
 
 const INITIAL_NOTES = [
@@ -112,15 +110,6 @@ export const notesService = {
    * Get all notes with optional filtering
    */
   getAll: async (params = {}) => {
-    try {
-      const res = await api.get('/notes', { params });
-      if (res.data && Array.isArray(res.data)) {
-        return res.data;
-      }
-    } catch {
-      // Backend not running, use persistent local storage
-    }
-
     let notes = getStoredNotes();
 
     // Filter by teacherId (authorization check)
@@ -156,12 +145,6 @@ export const notesService = {
    * Get single note by id
    */
   getById: async (id) => {
-    try {
-      const res = await api.get(`/notes/${id}`);
-      if (res.data) return res.data;
-    } catch {
-      // Local fallback
-    }
     const notes = getStoredNotes();
     return notes.find(n => n.id === id) || null;
   },
@@ -170,13 +153,6 @@ export const notesService = {
    * Get notes intended for a student
    */
   getForStudent: async (student) => {
-    try {
-      const res = await api.get('/student/notes');
-      if (res.data && Array.isArray(res.data)) return res.data;
-    } catch {
-      // Local fallback
-    }
-
     const notes = getStoredNotes();
     const studentStandard = student?.standard || (student?.title && student.title.includes('12th') ? '12th Science' : '12th Science');
     const studentId = student?.id || 'STU-001';
@@ -203,13 +179,6 @@ export const notesService = {
    * Create a new note
    */
   create: async (data) => {
-    try {
-      const res = await api.post('/notes', data);
-      if (res.data?.id) return res.data;
-    } catch {
-      // Local fallback
-    }
-
     const notes = getStoredNotes();
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-GB', {
@@ -247,13 +216,6 @@ export const notesService = {
    * Update an existing note
    */
   update: async (id, data) => {
-    try {
-      const res = await api.put(`/notes/${id}`, data);
-      if (res.data) return res.data;
-    } catch {
-      // Local fallback
-    }
-
     const notes = getStoredNotes();
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-GB', {
@@ -285,12 +247,6 @@ export const notesService = {
    * Delete a note
    */
   delete: async (id) => {
-    try {
-      await api.delete(`/notes/${id}`);
-    } catch {
-      // Local fallback
-    }
-
     const notes = getStoredNotes();
     const updated = notes.filter(n => n.id !== id);
     saveStoredNotes(updated);

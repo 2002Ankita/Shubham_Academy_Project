@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SalarySummary from '../components/salary/SalarySummary';
 import SalaryBreakdown from '../components/salary/SalaryBreakdown';
 import SalaryHistory from '../components/salary/SalaryHistory';
 import salaryService from '../services/salaryService';
+import useAuth from '../hooks/useAuth';
+import { downloadSalaryReceipt } from '../utils/salaryReceipt';
 
 export default function Salary() {
+  const { user } = useAuth();
   const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState('October 2026');
 
   useEffect(() => {
     const fetchMySalaries = async () => {
       try {
-        // Assume getMySalaries exists in salaryService
         const data = await salaryService.getMySalaries();
-        setSalaries(data);
+        setSalaries(data || []);
       } catch (err) {
         console.error('Failed to fetch salaries:', err);
       } finally {
@@ -23,26 +26,59 @@ export default function Salary() {
     fetchMySalaries();
   }, []);
 
+  const monthOptions = useMemo(() => {
+    const defaultMonths = [
+      'October 2026',
+      'September 2026',
+      'August 2026',
+      'July 2026',
+      'June 2026',
+      'May 2026',
+      'April 2026',
+      'March 2026',
+      'February 2026',
+      'January 2026'
+    ];
+    const list = new Set(defaultMonths);
+    (salaries || []).forEach((s) => {
+      if (s.month) list.add(s.month);
+    });
+    return Array.from(list);
+  }, [salaries]);
+
+  // Find salary matching selected month or fallback
+  const currentSalary = useMemo(() => {
+    if (!salaries || salaries.length === 0) return null;
+    const match = salaries.find(
+      (s) => (s.month || '').toLowerCase() === selectedMonth.toLowerCase()
+    );
+    return match || null;
+  }, [salaries, selectedMonth]);
+
   if (loading) {
     return <div>Loading salary data...</div>;
   }
-
-  // Get current month's salary (assuming first one or latest one is current)
-  const currentSalary = salaries.length > 0 ? salaries[salaries.length - 1] : null;
 
   const safeNum = (val) => Number(val) || 0;
 
   const summary = currentSalary ? {
     currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
-    payPeriod: currentSalary.month || 'N/A',
-    workingHours: '160 hrs', // Default assumption
-    workingHoursSubtext: 'Standard monthly quota',
-    hourlyRate: '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
-    hourlyRateSubtext: 'Standard slab rate',
+    payPeriod: currentSalary.month || selectedMonth || 'N/A',
+    workingHours: currentSalary.workingHours ? `${currentSalary.workingHours} hrs` : '160 hrs',
+    workingHoursSubtext: currentSalary.workingHoursSubtext || 'Standard monthly quota',
+    hourlyRate: currentSalary.hourlyRate ? `₹${currentSalary.hourlyRate}` : '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
+    hourlyRateSubtext: currentSalary.hourlyRateSubtext || 'Standard slab rate',
     paymentStatus: currentSalary.status || 'N/A',
     paymentStatusSubtext: currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Disbursement by 5th',
   } : {
-    currentMonthSalary: '₹0', payPeriod: 'N/A', workingHours: '0 hrs', workingHoursSubtext: '-', hourlyRate: '₹0', hourlyRateSubtext: '-', paymentStatus: 'N/A', paymentStatusSubtext: '-'
+    currentMonthSalary: '₹0',
+    payPeriod: selectedMonth || 'N/A',
+    workingHours: '0 hrs',
+    workingHoursSubtext: '-',
+    hourlyRate: '₹0',
+    hourlyRateSubtext: '-',
+    paymentStatus: 'N/A',
+    paymentStatusSubtext: '-'
   };
 
   const deductions = safeNum(currentSalary?.deductions);
@@ -58,8 +94,19 @@ export default function Salary() {
     otherDeductions: deductions - pt,
     netSalary: safeNum(currentSalary.netPayable),
     workingHours: 160,
-    payPeriod: currentSalary.month || 'N/A'
-  } : { basicSalary: 0, workingHoursPay: 0, overtime: 0, allowances: 0, deductions: 0, pt: 0, otherDeductions: 0, netSalary: 0, workingHours: 0, payPeriod: 'N/A' };
+    payPeriod: currentSalary.month || selectedMonth
+  } : {
+    basicSalary: 0,
+    workingHoursPay: 0,
+    overtime: 0,
+    allowances: 0,
+    deductions: 0,
+    pt: 0,
+    otherDeductions: 0,
+    netSalary: 0,
+    workingHours: 0,
+    payPeriod: selectedMonth
+  };
 
   const history = salaries.map(s => ({
     month: s.month || 'N/A',
@@ -70,6 +117,20 @@ export default function Salary() {
     paymentDate: s.disbursedDate && s.disbursedDate !== '--' ? s.disbursedDate : 'Pending',
     status: s.status || 'Processing',
   })).reverse();
+
+  const handleDownloadReceipt = (monthName) => {
+    const target = monthName || selectedMonth;
+    const record = salaries.find(
+      (s) => (s.month || '').toLowerCase() === (target || '').toLowerCase()
+    );
+    downloadSalaryReceipt({
+      month: target,
+      record: record,
+      user: user,
+      breakdown: breakdown,
+      summary: summary
+    });
+  };
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '20px', minWidth: 0, boxSizing: 'border-box' }}>
@@ -86,12 +147,21 @@ export default function Salary() {
       {/* 2. Top Summary Cards */}
       <SalarySummary summary={summary} />
 
-      {/* 3. Salary Breakdown Card */}
-      <SalaryBreakdown breakdown={breakdown} />
+      {/* 3. Salary Breakdown Card with Month Selector & Download Monthly Receipt */}
+      <SalaryBreakdown
+        breakdown={breakdown}
+        selectedMonth={selectedMonth}
+        onMonthChange={(newMonth) => setSelectedMonth(newMonth)}
+        monthOptions={monthOptions}
+        onDownloadReceipt={() => handleDownloadReceipt(selectedMonth)}
+      />
 
       {/* 4. Salary History Table */}
       <div className="w-100" style={{ marginTop: '8px' }}>
-        <SalaryHistory history={history} />
+        <SalaryHistory
+          history={history}
+          onDownload={(m) => handleDownloadReceipt(m)}
+        />
       </div>
     </div>
   );

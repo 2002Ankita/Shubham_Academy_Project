@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { Plus, Download, FileText } from 'lucide-react';
+import { Plus, Download, FileText, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import materialService from '../../services/materialService';
 
 export default function TeacherStudyMaterials() {
+  const navigate = useNavigate();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,13 +66,35 @@ export default function TeacherStudyMaterials() {
   return (
     <div className="d-flex flex-column gap-4">
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-            Study Materials & Lecture Notes
-          </h3>
-          <span className="small text-sa-muted">
-            Share chapter summaries, practice problems, and laboratory guides
-          </span>
+        <div className="d-flex align-items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/dashboard')}
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              borderColor: '#E2E8F0',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              padding: 0,
+              cursor: 'pointer'
+            }}
+            aria-label="Back to dashboard"
+            title="Back to dashboard"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+              Study Materials & Lecture Notes
+            </h3>
+            <span className="small text-sa-muted">
+              Share chapter summaries, practice problems, and laboratory guides
+            </span>
+          </div>
         </div>
 
         <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
@@ -98,7 +122,7 @@ export default function TeacherStudyMaterials() {
             { key: 'size', title: 'Size' },
             { key: 'uploadDate', title: 'Uploaded On' },
             {
-              key: 'id',
+              key: 'downloadAction',
               title: 'Action',
               align: 'end',
               render: (val, item) => (
