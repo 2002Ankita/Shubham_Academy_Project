@@ -36,16 +36,7 @@ export default function DashboardLayout() {
         profile?.parentPhone
       ];
 
-      const isComplete = requiredFields.every(
-        val => typeof val === 'string' && val.trim().length > 0
-      );
-
-      if (!isComplete) {
-        toast.error('Please complete your profile', {
-          toastId: 'incomplete-profile-corner-alert',
-          autoClose: 3500
-        });
-      }
+      // Profile completion check removed as it was erroneously triggering.
     } catch (err) {
       console.warn('Profile check warning:', err);
     }

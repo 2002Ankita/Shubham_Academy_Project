@@ -155,11 +155,13 @@ export default function BatchManagement() {
               <option value="">Select Batch Name / Branch</option>
               <option value="11th pcb tarabai park">11th pcb tarabai park</option>
               <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+              <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
               <option value="12th pcb tarabai park">12th pcb tarabai park</option>
               <option value="12th pcm tarabai park">12th pcm tarabai park</option>
               <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
               <option value="11th pcb mangalvar peth">11th pcb mangalvar peth</option>
               <option value="11th pcm mangalvar peth">11th pcm mangalvar peth</option>
+              <option value="11th pcmb mangalvar peth">11th pcmb mangalvar peth</option>
               <option value="12th pcb mangalvar peth">12th pcb mangalvar peth</option>
               <option value="12th pcm mangalvar peth">12th pcm mangalvar peth</option>
               <option value="12th pcmb mangalvar peth">12th pcmb mangalvar peth</option>
