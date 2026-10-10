@@ -24,6 +24,7 @@ import {
   Zap,
   BookOpen,
   ChevronDown,
+  ChevronRight,
   Coins,
   BarChart2,
   Tv
@@ -344,6 +345,9 @@ export default function TeacherDashboard() {
               {scheduleRows.filter(r => r.status === 'Completed').length} completed, {scheduleRows.filter(r => r.status !== 'Completed').length} remaining
             </span>
           </div>
+          <div className="sa-card-chevron-btn ms-auto">
+            <ChevronRight size={15} />
+          </div>
         </div>
 
         {/* Card 2: Total Students */}
@@ -368,6 +372,9 @@ export default function TeacherDashboard() {
             <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
               ↗ Total assigned
             </span>
+          </div>
+          <div className="sa-card-chevron-btn ms-auto">
+            <ChevronRight size={15} />
           </div>
         </div>
 
@@ -394,6 +401,9 @@ export default function TeacherDashboard() {
               Status: {salaryDetails.status}
             </span>
           </div>
+          <div className="sa-card-chevron-btn ms-auto">
+            <ChevronRight size={15} />
+          </div>
         </div>
 
         {/* Card 4: Working Hours */}
@@ -418,6 +428,9 @@ export default function TeacherDashboard() {
             <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
               ↗ {Math.round((parseFloat(totalWorkingHours) / 160) * 100)}% of 160 hrs this month
             </span>
+          </div>
+          <div className="sa-card-chevron-btn ms-auto">
+            <ChevronRight size={15} />
           </div>
         </div>
       </div>
