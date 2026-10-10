@@ -35,7 +35,7 @@ async def _format_student(student: Student) -> dict:
 
 async def create_student(student_in: StudentCreate) -> dict:
     # 1. Create User account for student
-    student_id = f"STU-{uuid.uuid4().hex[:6].upper()}"
+    student_id = student_in.student_id if student_in.student_id else f"STU-{uuid.uuid4().hex[:6].upper()}"
     from fastapi import HTTPException
     from pymongo.errors import DuplicateKeyError
     import re
@@ -45,9 +45,7 @@ async def create_student(student_in: StudentCreate) -> dict:
         raise HTTPException(status_code=400, detail="Email is required")
         
     existing_user = await User.find_one(User.email == student_in.email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-        
+    
     if student_in.mobile_number == student_in.parent_mobile:
         raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
         
@@ -56,8 +54,58 @@ async def create_student(student_in: StudentCreate) -> dict:
         raise HTTPException(status_code=400, detail="Invalid mobile number format")
         
     existing_mobile = await Student.find_one(Student.mobile_number == student_in.mobile_number)
-    if existing_mobile:
-        raise HTTPException(status_code=400, detail="Mobile number already registered")
+    
+    # UPSERT LOGIC
+    # If the student exists by email or mobile, we update them instead of rejecting
+    existing_student = None
+    if existing_user:
+        existing_student = await Student.find_one(Student.user.id == existing_user.id)
+    elif existing_mobile:
+        existing_student = existing_mobile
+
+    if existing_student:
+        # Update user fields
+        if existing_user:
+            existing_user.full_name = student_in.full_name
+            await existing_user.save()
+            
+        # Update student fields
+        existing_student.mobile_number = student_in.mobile_number
+        existing_student.date_of_birth = student_in.date_of_birth
+        existing_student.gender = student_in.gender
+        existing_student.address = student_in.address
+        existing_student.parent_name = student_in.parent_name
+        existing_student.parent_mobile = student_in.parent_mobile
+        existing_student.standard = student_in.standard
+        existing_student.batch = student_in.batch
+        existing_student.branch = student_in.branch
+        existing_student.academic_year = student_in.academic_year
+        if hasattr(student_in, 'rfid_tag'):
+            existing_student.rfid_tag = student_in.rfid_tag
+        if getattr(student_in, "admission_date", None):
+            existing_student.admission_date = student_in.admission_date
+        existing_student.total_fees = student_in.total_fees
+        await existing_student.save()
+        
+        return {
+            "id": str(existing_student.id),
+            "student_id": existing_student.student_id,
+            "full_name": student_in.full_name,
+            "email": student_in.email,
+            "mobile_number": existing_student.mobile_number,
+            "date_of_birth": existing_student.date_of_birth,
+            "gender": existing_student.gender,
+            "address": existing_student.address,
+            "parent_name": existing_student.parent_name,
+            "parent_mobile": existing_student.parent_mobile,
+            "standard": existing_student.standard,
+            "batch": existing_student.batch,
+            "branch": existing_student.branch,
+            "academic_year": existing_student.academic_year,
+            "rfid_tag": existing_student.rfid_tag,
+            "total_fees": existing_student.total_fees,
+            "admission_date": existing_student.admission_date,
+        }
 
     user = User(
         email=student_in.email,
@@ -84,8 +132,11 @@ async def create_student(student_in: StudentCreate) -> dict:
         batch=student_in.batch,
         branch=student_in.branch,
         academic_year=student_in.academic_year,
+        rfid_tag=student_in.rfid_tag,
         total_fees=student_in.total_fees
     )
+    if getattr(student_in, "admission_date", None):
+        student.admission_date = student_in.admission_date
     await student.insert()
     return await _format_student(student)
 
@@ -120,7 +171,8 @@ async def get_student_by_id(id: str) -> dict:
 async def update_student(id: str, student_in: dict) -> dict:
     student = await resolve_student(id)
     if not student:
-        raise Exception("Student not found")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Student not found")
         
     # We might need to update user profile as well if full_name or email is passed
     if "full_name" in student_in or "email" in student_in:
@@ -155,12 +207,17 @@ async def update_student(id: str, student_in: dict) -> dict:
     return await _format_student(student)
 
 async def delete_student(id: str):
+    from fastapi import HTTPException
     student = await resolve_student(id)
-    if student:
-        if not isinstance(student.user, User):
-            user_obj = await User.get(student.user.ref.id)
-            student.user = user_obj
-        if student.user:
-            await student.user.delete()
-        await student.delete()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    if not isinstance(student.user, User):
+        user_obj = await User.get(student.user.ref.id)
+        if user_obj:
+            await user_obj.delete()
+    elif student.user:
+        await student.user.delete()
+        
+    await student.delete()
 

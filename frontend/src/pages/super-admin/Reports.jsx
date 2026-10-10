@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import { FileText, Download, Filter } from 'lucide-react';
 import reportService from '../../services/reportService';
 
@@ -18,10 +19,13 @@ export default function SuperAdminReports() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Consolidated System Reports</h3>
-          <span className="small text-sa-muted">Organization-level intelligence, financials, and performance archives</span>
+      <div>
+        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Consolidated System Reports</h3>
+            <span className="small text-sa-muted">Organization-level intelligence, financials, and performance archives</span>
+          </div>
         </div>
       </div>
 

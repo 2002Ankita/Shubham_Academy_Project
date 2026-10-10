@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
+import BackButton from '../../components/common/BackButton';
 import studentService from '../../services/studentService';
 
 export default function TeacherStudents() {
@@ -32,6 +33,7 @@ export default function TeacherStudents() {
       {/* Header */}
       <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
         <div>
+          <BackButton to="/teacher/dashboard" label="Back to Dashboard" />
           <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
             Class Student Directory
           </h1>

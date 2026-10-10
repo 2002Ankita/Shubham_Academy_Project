@@ -14,6 +14,8 @@ export default function TeacherSalary() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [editForm, setEditForm] = useState({ baseSalary: 0, allowances: 0, deductions: 0, netPayable: 0 });
   const [generating, setGenerating] = useState(false);
+  const [disburseModalOpen, setDisburseModalOpen] = useState(false);
+  const [disburseForm, setDisburseForm] = useState({ id: null, name: '', amount: 0, maxAmount: 0 });
 
   const fetchSalaries = async () => {
     setLoading(true);
@@ -29,10 +31,22 @@ export default function TeacherSalary() {
     fetchSalaries();
   }, []);
 
-  const handleDisburse = async (id, name) => {
+  const handleDisburseClick = (row) => {
+    setDisburseForm({
+      id: row.id,
+      name: row.teacherName,
+      amount: '',
+      maxAmount: row.amountPending || row.netPayable
+    });
+    setDisburseModalOpen(true);
+  };
+
+  const submitDisburse = async (e) => {
+    e.preventDefault();
     try {
-      await salaryService.disburseSalary(id);
-      toast.success(`Salary disbursed to ${name} via NEFT!`);
+      await salaryService.disburseSalary(disburseForm.id, Number(disburseForm.amount));
+      toast.success(`Payment of ₹${disburseForm.amount} disbursed to ${disburseForm.name}!`);
+      setDisburseModalOpen(false);
       fetchSalaries();
     } catch (err) {
       toast.error('Failed to disburse salary.');
@@ -122,21 +136,32 @@ export default function TeacherSalary() {
             { key: 'deductions', title: 'Deductions', render: (val) => `-₹ ${val?.toLocaleString()}` },
             {
               key: 'netPayable',
-              title: 'Net Payable',
-              render: (val) => <span className="fw-bold text-sa-primary">₹ {val?.toLocaleString()}</span>
+              title: 'Net / Pending',
+              render: (val, row) => (
+                <div>
+                  <span className="fw-bold text-sa-primary d-block">₹ {val?.toLocaleString()}</span>
+                  <span className="text-muted" style={{ fontSize: '11px' }}>Pending: ₹ {row.amountPending?.toLocaleString() || 0}</span>
+                </div>
+              )
             },
             {
               key: 'status',
               title: 'Payment Status',
               render: (val, row) => (
                 <div>
-                  <span className={val === 'Disbursed' ? 'badge-paid' : 'badge-pending'}>
-                    {val}
+                  <span className={val === 'Disbursed' ? 'badge-paid' : val === 'Partially Paid' ? 'badge text-bg-warning text-dark' : 'badge-pending'}>
+                    {val === 'Disbursed' ? 'Fully Paid' : val}
                   </span>
-                  {row.transactionRef !== '--' && (
-                    <span className="text-xs text-sa-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                      {row.transactionRef}
-                    </span>
+                  {row.installments && row.installments.length > 0 && (
+                    <div className="mt-2" style={{ fontSize: '0.72rem', minWidth: '120px' }}>
+                      <div className="text-muted mb-1 text-uppercase fw-semibold" style={{ fontSize: '0.65rem' }}>History:</div>
+                      {row.installments.map((inst, i) => (
+                        <div key={i} className="d-flex justify-content-between border-bottom pb-1 mb-1">
+                          <span className="text-muted">Inst {i + 1}:</span>
+                          <span className="text-success fw-bold">+₹{inst.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )
@@ -146,7 +171,7 @@ export default function TeacherSalary() {
               title: 'Action',
               align: 'end',
               render: (val, row) => (
-                row.status === 'Processing' ? (
+                ['Processing', 'Partially Paid'].includes(row.status) ? (
                   <div className="d-flex gap-2 justify-content-end">
                     <Button
                       size="sm"
@@ -159,14 +184,14 @@ export default function TeacherSalary() {
                     <Button
                       size="sm"
                       variant="primary"
-                      onClick={() => handleDisburse(val, row.teacherName)}
+                      onClick={() => handleDisburseClick(row)}
                     >
-                      Disburse
+                      Pay Installment
                     </Button>
                   </div>
                 ) : (
                   <span className="small text-success fw-bold d-flex align-items-center justify-content-end gap-1">
-                    <CheckCircle size={14} /> Paid
+                    <CheckCircle size={14} /> Fully Paid
                   </span>
                 )
               )
@@ -232,6 +257,27 @@ export default function TeacherSalary() {
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" type="button" onClick={() => setEditModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="primary">Save Changes</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={disburseModalOpen} onClose={() => setDisburseModalOpen(false)} title={`Disburse Payment: ${disburseForm.name}`}>
+        <form onSubmit={submitDisburse}>
+          <div className="mb-3">
+            <Input
+              label={`Installment Amount (Max: ₹${disburseForm.maxAmount}) *`}
+              type="number"
+              placeholder="Enter amount to pay..."
+              value={disburseForm.amount}
+              onChange={(e) => setDisburseForm(prev => ({ ...prev, amount: e.target.value }))}
+              max={disburseForm.maxAmount}
+              min={1}
+              required
+            />
+          </div>
+          <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <Button variant="light" type="button" onClick={() => setDisburseModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary">Confirm Payment</Button>
           </div>
         </form>
       </Modal>

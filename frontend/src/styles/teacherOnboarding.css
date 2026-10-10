@@ -1,0 +1,266 @@
+/* Teacher Onboarding Form Styles - Shubham Academy */
+.teacher-onboarding-container {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.sa-stepper-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.sa-stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 95px;
+}
+
+.sa-stepper-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.sa-stepper-circle.active {
+  background-color: var(--sa-primary-red, #8B1216);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(139, 18, 22, 0.25);
+}
+
+.sa-stepper-circle.inactive {
+  background-color: #ffffff;
+  border: 1px solid #CBD5E1;
+  color: #64748B;
+}
+
+.sa-stepper-label {
+  font-size: 12px;
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sa-stepper-label.active {
+  color: var(--sa-primary-red, #8B1216);
+  font-weight: 700;
+}
+
+.sa-stepper-label.inactive {
+  color: #64748B;
+  font-weight: 500;
+}
+
+.sa-stepper-line {
+  height: 2px;
+  background-color: #E2E8F0;
+  width: 60px;
+  margin-top: 13px;
+  margin-left: -15px;
+  margin-right: -15px;
+  z-index: 1;
+}
+
+/* Left Sidebar Card Box */
+.faculty-photo-sidebar {
+  background-color: #FAFAF8;
+  border: 1px solid #F1EFEA;
+  border-radius: 14px;
+  padding: 1.5rem 1rem;
+}
+
+/* Avatar Photo Upload */
+.avatar-upload-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 2px dashed #CBD5E1;
+  background-color: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.avatar-upload-wrapper:hover {
+  border-color: var(--sa-primary-red, #8B1216);
+  background-color: #F1F5F9;
+}
+
+.avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-camera-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--sa-primary-red, #8B1216);
+  color: #ffffff;
+  border: 2.5px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.avatar-camera-btn:hover {
+  transform: scale(1.08);
+}
+
+/* Section Header Badge */
+.section-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--sa-primary-red, #8B1216);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Custom Input Field with Icon */
+.sa-custom-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sa-input-icon {
+  position: absolute;
+  left: 14px;
+  color: #94A3B8;
+  pointer-events: none;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sa-custom-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem 0.65rem 2.6rem;
+  font-size: 0.875rem;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1E293B;
+  transition: all 0.2s ease;
+}
+
+.sa-custom-input:focus {
+  outline: none;
+  border-color: var(--sa-primary-red, #8B1216);
+  box-shadow: 0 0 0 3px rgba(139, 18, 22, 0.08);
+}
+
+.sa-custom-input::placeholder {
+  color: #94A3B8;
+}
+
+.sa-custom-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748B' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 14px 10px;
+  padding-right: 2.25rem !important;
+}
+
+/* Password eye button */
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+
+.password-toggle-btn:hover {
+  color: #475569;
+}
+
+/* Strength Meter */
+.strength-meter-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background-color: #E2E8F0;
+  transition: background-color 0.2s ease;
+}
+
+/* Buttons */
+.btn-onboard-primary {
+  background-color: var(--sa-primary-red, #8B1216) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--sa-primary-red, #8B1216) !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: 0.55rem 1.4rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-onboard-primary:hover {
+  background-color: #720E12 !important;
+  border-color: #720E12 !important;
+  box-shadow: 0 4px 12px rgba(139, 18, 22, 0.25) !important;
+}
+
+.btn-save-draft {
+  background-color: #ffffff !important;
+  color: var(--sa-primary-red, #8B1216) !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  padding: 0.55rem 1.25rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-save-draft:hover {
+  border-color: var(--sa-primary-red, #8B1216) !important;
+  background-color: #FFF5F5 !important;
+}
+
+.btn-onboard-cancel {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  padding: 0.55rem 1.25rem !important;
+}
+
+.btn-onboard-cancel:hover {
+  background-color: #F8FAFC !important;
+  border-color: #94A3B8 !important;
+}

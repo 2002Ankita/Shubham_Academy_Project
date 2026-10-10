@@ -1,7 +1,8 @@
 import React from 'react';
 import Table from '../../components/common/Table';
-import { ShieldCheck, Download } from 'lucide-react';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
+import { ShieldCheck, Download } from 'lucide-react';
 
 export default function AuditLogs() {
   const logs = [
@@ -15,14 +16,17 @@ export default function AuditLogs() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Security & Audit Logs</h3>
-          <span className="small text-sa-muted">Immutable system audit trail, API events, and device communications</span>
+      <div>
+        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Security & Audit Logs</h3>
+            <span className="small text-sa-muted">Immutable system audit trail, API events, and device communications</span>
+          </div>
+          <Button variant="outline" icon={Download} onClick={() => alert('Exporting encrypted audit trail...')}>
+            Export Audit Trail (.CSV)
+          </Button>
         </div>
-        <Button variant="outline" icon={Download} onClick={() => alert('Exporting encrypted audit trail...')}>
-          Export Audit Trail (.CSV)
-        </Button>
       </div>
 
       <div className="sa-card p-4">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AttendanceChart from '../../components/dashboard/AttendanceChart';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import { Download, Calendar, Filter } from 'lucide-react';
 import attendanceService from '../../services/attendanceService';
 import reportService from '../../services/reportService';
@@ -36,6 +37,7 @@ export default function AttendanceReport() {
     <div className="d-flex flex-column gap-4">
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div>
+          <BackButton to="/admin/dashboard" label="Back to Dashboard" />
           <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
             Attendance Analytics & Reports
           </h3>

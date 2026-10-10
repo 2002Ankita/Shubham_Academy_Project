@@ -12,6 +12,7 @@ import RoleBasedRoute from './RoleBasedRoute';
 
 // Auth Pages
 import SignIn from '../pages/auth/SignIn';
+import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 import ResetPassword from '../pages/auth/ResetPassword';
 import Unauthorized from '../pages/auth/Unauthorized';
@@ -77,6 +78,7 @@ import StudentNotes from '../pages/student/Notes';
 import StudentNotesDelivery from '../pages/student/NotesDelivery';
 import StudentAnnouncements from '../pages/student/Announcements';
 import StudentProfile from '../pages/student/Profile';
+import StudentContact from '../pages/student/Contact';
 
 export default function AppRoutes() {
   const { user } = useAuth();
@@ -97,6 +99,8 @@ export default function AppRoutes() {
       {/* Public Auth Routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<SignIn />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/signup" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
@@ -120,6 +124,7 @@ export default function AppRoutes() {
         <Route path="/super-admin/reports" element={<SuperAdminReports />} />
         <Route path="/super-admin/audit-logs" element={<AuditLogs />} />
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+        <Route path="/super-admin/profile" element={<SuperAdminSettings />} />
         <Route path="/super-admin/contact" element={<SuperAdminContact />} />
       </Route>
 
@@ -132,6 +137,7 @@ export default function AppRoutes() {
         }
       >
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />
@@ -139,7 +145,6 @@ export default function AppRoutes() {
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
-        <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<RFIDAttendance />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
@@ -193,7 +198,6 @@ export default function AppRoutes() {
         <Route path="/student/classes" element={<StudentMyClasses />} />
         <Route path="/student/attendance" element={<StudentAttendance />} />
         <Route path="/student/fees" element={<StudentFees />} />
-        <Route path="/student/fees/receipt" element={<FeeReceipt />} />
         <Route path="/student/exams" element={<StudentExaminations />} />
         <Route path="/student/results" element={<StudentResults />} />
         <Route path="/student/study-materials" element={<StudentStudyMaterials />} />
@@ -201,6 +205,7 @@ export default function AppRoutes() {
         <Route path="/student/notes-delivery" element={<StudentNotesDelivery />} />
         <Route path="/student/announcements" element={<StudentAnnouncements />} />
         <Route path="/student/profile" element={<StudentProfile />} />
+        <Route path="/student/contact" element={<StudentContact />} />
       </Route>
 
       {/* Fallback */}

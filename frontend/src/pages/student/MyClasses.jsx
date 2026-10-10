@@ -40,7 +40,7 @@ export default function StudentClasses() {
             }
 
             return {
-              day: day,
+              day: b.date ? `${day} (${b.date})` : day,
               time: time,
               subject: b.subject,
               teacher: b.teacher_name || 'TBD',

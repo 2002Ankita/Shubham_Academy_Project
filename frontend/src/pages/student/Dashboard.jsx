@@ -82,7 +82,24 @@ export default function StudentDashboard() {
           setNotices(noticesData.value);
         }
         if (examsData.status === 'fulfilled' && Array.isArray(examsData.value)) {
-          setExams(examsData.value);
+          const stu = studentData.status === 'fulfilled' ? studentData.value : null;
+          const sBatch = (stu?.batch || '').toLowerCase();
+          const sStream = sBatch.split(' ')[1] || '';
+          
+          const filteredExams = examsData.value.filter(e => {
+            const subj = (e.subject || e.title || '').toLowerCase();
+            let hasSubjectCheck = false;
+            let subjectMatched = false;
+            
+            if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+            if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+            if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+            if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+            
+            if (hasSubjectCheck && sStream) return subjectMatched;
+            return true;
+          });
+          setExams(filteredExams);
         }
         if (marksData.status === 'fulfilled' && Array.isArray(marksData.value)) {
           setResults(marksData.value);
@@ -135,9 +152,10 @@ export default function StudentDashboard() {
                  return false;
               };
               const matchedBatches = batchesDataRes.value.filter(b => isMatch(b, stu));
-              setTodaysClasses(matchedBatches.map(b => ({
+               setTodaysClasses(matchedBatches.map(b => ({
                  id: b.id || Math.random().toString(),
                  time: b.time || '10:00 AM',
+                 date: b.date || '',
                  subject: b.subject,
                  teacher: b.teacher_name,
                  room: b.room || 'N/A',
@@ -160,8 +178,8 @@ export default function StudentDashboard() {
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12 ? 'Good Morning' : currentHour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const studentFullName = user?.full_name || user?.name || student?.name || 'Aarav';
-  const studentFirstName = studentFullName.split(' ')[0] || 'Aarav';
+  const studentFullName = user?.full_name || user?.name || student?.name || 'Student';
+  const studentFirstName = studentFullName.split(' ')[0] || 'Student';
 
   // Dynamic Date string matching reference format
   const formattedDate = new Date().toLocaleDateString('en-GB', {
@@ -384,53 +402,125 @@ export default function StudentDashboard() {
       <div className="row g-3">
         {/* Panel 1: Upcoming Examinations (~50% width) */}
         <div className="col-12 col-xl-6">
-          <div className="sa-card p-3 h-100 d-flex flex-column">
-            <div className="sa-section-header mb-2">
-              <h5 className="sa-section-title">
-                <FileText size={18} className="text-sa-primary" />
-                <span>Upcoming Examinations</span>
-              </h5>
-              <button
-                type="button"
-                className="btn btn-link p-0 sa-link-more"
-                onClick={() => navigate('/student/exams')}
-              >
-                <span>View Full Schedule</span>
-                <ArrowRight size={13} />
-              </button>
-            </div>
+          <div className="d-flex flex-column gap-3 h-100">
+            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
+              <div className="sa-section-header mb-2">
+                <h5 className="sa-section-title">
+                  <BookOpen size={18} className="text-sa-primary" />
+                  <span>Today's Classes</span>
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 sa-link-more"
+                  onClick={() => navigate('/student/classes')}
+                >
+                  <span>View Full Timetable</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
 
-            <div className="table-responsive flex-grow-1">
-              <table className="table align-middle table-borderless m-0">
-                <thead>
-                  <tr className="sa-table-header-row">
-                    <th className="rounded-start">Date</th>
-                    <th>Subject</th>
-                    <th>Class</th>
-                    <th className="text-end rounded-end">Countdown</th>
-                  </tr>
-                </thead>
-                <tbody className="sa-table-compact">
-                  {upcomingExaminations.length > 0 ? (
-                    upcomingExaminations.map((ex, i) => (
-                      <tr key={i} className="border-bottom border-light">
-                        <td className="fw-bold text-sa-charcoal">{ex.date}</td>
-                        <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
-                        <td className="text-sa-muted">{ex.class}</td>
+              <div className="table-responsive flex-grow-1">
+                <table className="table align-middle table-borderless m-0">
+                  <thead>
+                    <tr className="sa-table-header-row">
+                      <th className="rounded-start">Time / Date</th>
+                      <th>Subject</th>
+                      <th>Teacher</th>
+                      <th>Room</th>
+                      <th>Status</th>
+                      <th className="text-end rounded-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="sa-table-compact">
+                    {todaysClasses.map((cls, idx) => (
+                      <tr key={idx} className="border-bottom border-light">
+                        <td className="text-sa-charcoal">
+                          <div className="fw-bold">{cls.time}</div>
+                          {cls.date && <div className="text-sa-muted" style={{ fontSize: '0.75rem' }}>{cls.date}</div>}
+                        </td>
+                        <td className="fw-semibold text-sa-charcoal">{cls.subject}</td>
+                        <td className="text-sa-muted">{cls.teacher}</td>
+                        <td className="text-sa-muted">{cls.room}</td>
+                        <td>
+                          <span className={cls.isOngoing ? 'badge-status-ongoing' : 'badge-status-upcoming'}>
+                            {cls.status}
+                          </span>
+                        </td>
                         <td className="text-end">
-                          <span className="badge-countdown-pill">{ex.countdown}</span>
+                          {cls.isOngoing ? (
+                            <button
+                              type="button"
+                              className="btn-view-class-ongoing"
+                              onClick={() => navigate('/student/classes')}
+                            >
+                              <Play size={9} fill="currentColor" />
+                              <span>View Class</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-action-view-soft"
+                              onClick={() => navigate('/student/classes')}
+                            >
+                              View
+                            </button>
+                          )}
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="text-center text-muted py-4">
-                        No upcoming examinations scheduled.
-                      </td>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
+              <div className="sa-section-header mb-2">
+                <h5 className="sa-section-title">
+                  <FileText size={18} className="text-sa-primary" />
+                  <span>Upcoming Examinations</span>
+                </h5>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 sa-link-more"
+                  onClick={() => navigate('/student/exams')}
+                >
+                  <span>View Full Schedule</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+
+              <div className="table-responsive flex-grow-1">
+                <table className="table align-middle table-borderless m-0">
+                  <thead>
+                    <tr className="sa-table-header-row">
+                      <th className="rounded-start">Date</th>
+                      <th>Subject</th>
+                      <th>Class</th>
+                      <th className="text-end rounded-end">Countdown</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="sa-table-compact">
+                    {upcomingExaminations.length > 0 ? (
+                      upcomingExaminations.map((ex, i) => (
+                        <tr key={i} className="border-bottom border-light">
+                          <td className="fw-bold text-sa-charcoal">{ex.date}</td>
+                          <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
+                          <td className="text-sa-muted">{ex.class}</td>
+                          <td className="text-end">
+                            <span className="badge-countdown-pill">{ex.countdown}</span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="text-center text-muted py-4">
+                          No upcoming examinations scheduled.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

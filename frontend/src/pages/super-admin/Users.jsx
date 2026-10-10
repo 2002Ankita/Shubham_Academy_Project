@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import { UserPlus, Shield, UserCheck, GraduationCap } from 'lucide-react';
 
 export default function Users() {
@@ -24,13 +25,16 @@ export default function Users() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Global Users & Access Roles</h3>
-          <span className="small text-sa-muted">Platform identity accounts, RBAC permissions, and campus associations</span>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          <SearchBar value={search} onChange={setSearch} placeholder="Filter users..." />
+      <div>
+        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Global Users & Access Roles</h3>
+            <span className="small text-sa-muted">Platform identity accounts, RBAC permissions, and campus associations</span>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <SearchBar value={search} onChange={setSearch} placeholder="Filter users..." />
+          </div>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
+import BackButton from '../../components/common/BackButton';
 import { Building2, Plus, MapPin, Phone, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -32,14 +33,17 @@ export default function Academies() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Academy Branches</h3>
-          <span className="small text-sa-muted">Manage affiliated institutions, branches, and centers</span>
+      <div>
+        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Academy Branches</h3>
+            <span className="small text-sa-muted">Manage affiliated institutions, branches, and centers</span>
+          </div>
+          <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
+            Add New Academy Branch
+          </Button>
         </div>
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
-          Add New Academy Branch
-        </Button>
       </div>
 
       <div className="sa-card p-4">

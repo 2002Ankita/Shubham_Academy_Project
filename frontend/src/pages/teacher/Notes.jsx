@@ -8,6 +8,7 @@ import Select from '../../components/common/Select';
 import { useAuth } from '../../hooks/useAuth';
 import notesService from '../../services/notesService';
 import studentService from '../../services/studentService';
+import batchService from '../../services/batchService';
 import {
   StickyNote,
   Plus,
@@ -51,6 +52,7 @@ export default function TeacherNotes() {
   const [isEditing, setIsEditing] = useState(false);
   const [viewingNote, setViewingNote] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [batches, setBatches] = useState([]);
 
   // Form State
   const initialFormState = {
@@ -67,16 +69,15 @@ export default function TeacherNotes() {
   const [formState, setFormState] = useState(initialFormState);
   const [formErrors, setFormErrors] = useState({});
 
-  // Class options matching Shubham Academy batches
-  const CLASS_OPTIONS = [
-    '12th Science - Alpha',
-    '11th Science - Beta',
-    '12th NEET Special',
-    '11th NEET',
-    '12th Commerce',
-    '11th Commerce',
-    'All Classes'
-  ];
+  // Load batches dynamically
+  const loadBatches = async () => {
+    try {
+      const data = await batchService.getBatches();
+      setBatches(data);
+    } catch (err) {
+      console.warn('Could not load batches:', err);
+    }
+  };
 
   // Load Notes & Students from real backend/data service
   const loadNotes = async () => {
@@ -105,6 +106,7 @@ export default function TeacherNotes() {
   useEffect(() => {
     loadNotes();
     loadStudents();
+    loadBatches();
   }, []);
 
   // Allowed file extensions & size limit (15MB)
@@ -644,8 +646,8 @@ export default function TeacherNotes() {
                   aria-label="Filter by batch"
                 >
                   <option value="All">All Batches</option>
-                  {CLASS_OPTIONS.map((c, i) => (
-                    <option key={i} value={c}>{c}</option>
+                  {batches.map((c, i) => (
+                    <option key={i} value={c.name}>{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -960,7 +962,7 @@ export default function TeacherNotes() {
                 name="targetClass"
                 value={formState.targetClass}
                 onChange={(e) => setFormState({ ...formState, targetClass: e.target.value })}
-                options={CLASS_OPTIONS}
+                options={batches.map(b => b.name)}
                 required
               />
             </div>

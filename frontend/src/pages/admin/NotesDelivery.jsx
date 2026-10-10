@@ -7,10 +7,12 @@ import Select from '../../components/common/Select';
 import { Truck, CheckCircle2, Clock, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
+import studentService from '../../services/studentService';
 
 export default function NotesDelivery() {
   const [deliveries, setDeliveries] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [newDelivery, setNewDelivery] = useState({ studentId: '', inventoryItemId: '' });
@@ -33,9 +35,17 @@ export default function NotesDelivery() {
     } catch (err) {}
   };
 
+  const fetchStudents = async () => {
+    try {
+      const data = await studentService.getAll();
+      setStudents(data);
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchDeliveries();
     fetchItems();
+    fetchStudents();
   }, []);
 
   const [editingDelivery, setEditingDelivery] = useState(null);
@@ -178,14 +188,22 @@ export default function NotesDelivery() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Log New Delivery">
         <form onSubmit={handleCreateDelivery}>
-          <Input
-            label="Student Roll No / ID"
-            name="studentId"
-            value={newDelivery.studentId}
-            onChange={(e) => setNewDelivery({ ...newDelivery, studentId: e.target.value })}
-            placeholder="e.g. STU-001"
-            required
-          />
+          <div className="mb-3">
+            <label className="form-label small fw-bold">Select Student</label>
+            <select
+              className="form-select"
+              value={newDelivery.studentId}
+              onChange={(e) => setNewDelivery({ ...newDelivery, studentId: e.target.value })}
+              required
+            >
+              <option value="">-- Select Student --</option>
+              {students.map(s => (
+                <option key={s.id || s._id} value={s.id || s._id || s.rollNumber || s.student_id}>
+                  {s.name} ({s.rollNumber || s.student_id || 'N/A'})
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="mb-3">
             <label className="form-label small fw-bold">Select Material Package</label>
             <select

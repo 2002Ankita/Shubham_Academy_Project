@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
 import Button from '../../components/common/Button';
+import BackButton from '../../components/common/BackButton';
 import teacherService from '../../services/teacherService';
 import { UserPlus, Mail, Phone, Trash2, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -45,6 +46,7 @@ export default function TeacherList() {
     <div className="d-flex flex-column gap-4">
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div>
+          <BackButton to="/admin/dashboard" label="Back to Dashboard" />
           <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
             Faculty & Teaching Staff
           </h3>
