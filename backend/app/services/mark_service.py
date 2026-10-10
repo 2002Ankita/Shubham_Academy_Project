@@ -245,3 +245,152 @@ async def update_exam(id: str, exam_in: dict) -> dict:
     except InvalidId:
         pass
     raise Exception("Exam not found")
+
+async def send_marks_notifications(user, req) -> dict:
+    from app.services.notification_service import notification_service
+    from app.models.audit_log import NotificationAuditLog
+    from app.models.user import User
+    from app.models.student import Student
+    from bson import ObjectId
+
+    try:
+        exam = await Exam.get(ObjectId(req.exam_id))
+    except Exception:
+        exam = None
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    all_marks = await Mark.find_all().to_list()
+    exam_marks = [
+        m for m in all_marks
+        if (
+            (getattr(m.exam, "id", None) == exam.id) or
+            (getattr(getattr(m.exam, "ref", None), "id", None) == exam.id)
+        )
+    ]
+
+    if not exam_marks:
+        raise HTTPException(status_code=400, detail="No marks recorded for this examination yet")
+
+    results = []
+    summary = {
+        "total": 0,
+        "sent": 0,
+        "failed": 0,
+        "unconfigured": 0,
+        "missing_phone": 0
+    }
+
+    selected_student_ids = set(req.student_ids) if req.student_ids else None
+
+    for mark in exam_marks:
+        student_obj = None
+        if isinstance(mark.student, Student):
+            student_obj = mark.student
+        elif getattr(mark, 'student', None) and getattr(mark.student, 'ref', None):
+            student_obj = await Student.get(mark.student.ref.id)
+        elif getattr(mark, 'student', None) and getattr(mark.student, 'id', None):
+            student_obj = await Student.get(mark.student.id)
+
+        if not student_obj:
+            continue
+
+        stu_id_str = str(student_obj.id)
+        if selected_student_ids and (stu_id_str not in selected_student_ids and getattr(student_obj, "student_id", "") not in selected_student_ids):
+            continue
+
+        summary["total"] += 1
+
+        student_name = ""
+        if getattr(student_obj, "user", None):
+            user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
+            if user_obj:
+                student_name = user_obj.full_name
+        if not student_name:
+            student_name = getattr(student_obj, "student_id", "Student")
+
+        parent_name = getattr(student_obj, "parent_name", "") or "Parent"
+        parent_mobile = getattr(student_obj, "parent_mobile", "") or ""
+        masked_mobile = notification_service.mask_phone(parent_mobile)
+
+        max_marks = exam.max_marks if exam.max_marks > 0 else 100
+        percentage = (mark.marks_obtained / max_marks) * 100
+
+        msg = notification_service.build_marks_message(
+            student_name=student_name,
+            marks_obtained=mark.marks_obtained,
+            max_marks=max_marks,
+            subject=req.subject or exam.subject,
+            exam_name=exam.exam_name,
+            percentage=percentage
+        )
+
+        if req.channel == "whatsapp":
+            dispatch_result = await notification_service.send_whatsapp(parent_mobile, msg)
+        else:
+            dispatch_result = await notification_service.send_sms(parent_mobile, msg)
+
+        status_key = dispatch_result.get("status", "failed")
+        if status_key in summary:
+            summary[status_key] += 1
+        else:
+            summary["failed"] += 1
+
+        audit_entry = NotificationAuditLog(
+            teacher_id=str(user.id),
+            teacher_name=getattr(user, "full_name", "") or getattr(user, "name", "Faculty"),
+            student_id=stu_id_str,
+            student_name=student_name,
+            parent_name=parent_name,
+            parent_mobile=parent_mobile,
+            masked_mobile=masked_mobile,
+            batch_name=req.batch or exam.batch,
+            subject_name=req.subject or exam.subject,
+            exam_id=str(exam.id),
+            exam_name=exam.exam_name,
+            marks_obtained=mark.marks_obtained,
+            max_marks=max_marks,
+            percentage=percentage,
+            channel=req.channel,
+            status=status_key,
+            details=dispatch_result.get("message", "")
+        )
+        await audit_entry.insert()
+
+        results.append({
+            "student_id": stu_id_str,
+            "student_name": student_name,
+            "parent_name": parent_name,
+            "parent_mobile": parent_mobile,
+            "masked_mobile": masked_mobile,
+            "marks_obtained": mark.marks_obtained,
+            "max_marks": max_marks,
+            "percentage": percentage,
+            "status": status_key,
+            "message": dispatch_result.get("message", "")
+        })
+
+    return {
+        "summary": summary,
+        "channel": req.channel,
+        "results": results
+    }
+
+async def get_notification_logs(limit: int = 50) -> list[dict]:
+    from app.models.audit_log import NotificationAuditLog
+    logs = await NotificationAuditLog.find_all().sort("-created_at").limit(limit).to_list()
+    return [
+        {
+            "id": str(log.id),
+            "teacher_name": log.teacher_name,
+            "student_name": log.student_name,
+            "masked_mobile": log.masked_mobile,
+            "exam_name": log.exam_name,
+            "channel": log.channel,
+            "status": log.status,
+            "details": log.details,
+            "created_at": log.created_at.strftime("%Y-%m-%d %H:%M") if log.created_at else ""
+        }
+        for log in logs
+    ]
+
