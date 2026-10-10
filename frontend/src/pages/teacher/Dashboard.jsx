@@ -166,6 +166,10 @@ export default function TeacherDashboard() {
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 12px;
         }
+        .teacher-kpi-grid .sa-kpi-glass-card {
+          min-height: unset !important;
+          height: 78px;
+        }
         .teacher-main-grid {
           display: grid;
           grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
@@ -180,6 +184,34 @@ export default function TeacherDashboard() {
           min-width: 0;
           width: 100%;
           box-sizing: border-box;
+          border-radius: 18px !important;
+          border: 1px solid rgba(255, 255, 255, 0.85) !important;
+          border-top: 1.5px solid rgba(255, 255, 255, 0.98) !important;
+          border-left: 1.5px solid rgba(255, 255, 255, 0.92) !important;
+          border-bottom: 1px solid rgba(220, 38, 38, 0.12) !important;
+          border-right: 1px solid rgba(220, 38, 38, 0.08) !important;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.68) 100%) !important;
+          backdrop-filter: blur(20px) saturate(190%) !important;
+          -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+          box-shadow:
+            0 12px 28px -4px rgba(139, 18, 22, 0.08),
+            0 8px 16px -4px rgba(0, 0, 0, 0.05),
+            0 2px 4px 0 rgba(0, 0, 0, 0.02),
+            inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+            inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+          transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+        .teacher-main-grid .teacher-grid-card:hover,
+        .teacher-bottom-grid .teacher-grid-card:hover {
+          border-color: rgba(220, 38, 38, 0.28) !important;
+          border-top-color: rgba(255, 255, 255, 1) !important;
+          box-shadow:
+            0 20px 36px -6px rgba(139, 18, 22, 0.14),
+            0 10px 18px -4px rgba(0, 0, 0, 0.06),
+            0 4px 8px 0 rgba(0, 0, 0, 0.03),
+            inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
+            inset 0 -1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+          transform: translateY(-3px) !important;
         }
         .teacher-kpi-grid .teacher-grid-card > div:last-child {
           min-width: 0;
@@ -241,11 +273,13 @@ export default function TeacherDashboard() {
 
       {/* 1. TOP GREETING & QUOTE SECTION */}
       <div
-        className="teacher-welcome-banner bg-white rounded-4 border overflow-hidden"
+        className="teacher-welcome-banner rounded-4 border overflow-hidden position-relative superadmin-hero-banner"
         style={{
-          borderRadius: '18px',
-          boxShadow: '0 2px 14px rgba(0, 0, 0, 0.04)',
-          borderColor: 'rgba(0, 0, 0, 0.08)'
+          borderRadius: '20px',
+          background: 'linear-gradient(135deg, rgba(255, 248, 238, 0.95) 0%, rgba(255, 243, 235, 0.90) 50%, rgba(254, 244, 234, 0.85) 100%)',
+          border: '1px solid rgba(220, 38, 38, 0.14)',
+          boxShadow: '0 8px 30px rgba(185, 28, 28, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)'
         }}
       >
         <div className="row g-0 align-items-center">
@@ -289,18 +323,18 @@ export default function TeacherDashboard() {
       <div className="teacher-kpi-grid">
         {/* Card 1: Today's Classes */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
+          className="sa-kpi-glass-card theme-red teacher-grid-card d-flex align-items-center gap-2.5 transition-all cursor-pointer"
           onClick={() => navigate('/teacher/classes')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          style={{ height: '78px', padding: '10px 14px', minHeight: 'unset' }}
         >
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#A91D22' }}
+            className="sa-stat-icon-wrapper sa-stat-icon-red rounded-3"
+            style={{ width: '38px', height: '38px' }}
           >
             <Tv size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '11.5px' }}>
               Today's Classes
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
@@ -314,18 +348,18 @@ export default function TeacherDashboard() {
 
         {/* Card 2: Total Students */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
+          className="sa-kpi-glass-card theme-green teacher-grid-card d-flex align-items-center gap-2.5 transition-all cursor-pointer"
           onClick={() => navigate('/teacher/students')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          style={{ height: '78px', padding: '10px 14px', minHeight: 'unset' }}
         >
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#EAF6EF', color: '#168554' }}
+            className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle"
+            style={{ width: '38px', height: '38px' }}
           >
             <Users size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '11.5px' }}>
               Total Students
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
@@ -339,18 +373,18 @@ export default function TeacherDashboard() {
 
         {/* Card 3: Pending Salary */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
+          className="sa-kpi-glass-card theme-amber teacher-grid-card d-flex align-items-center gap-2.5 transition-all cursor-pointer"
           onClick={() => navigate('/teacher/salary')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          style={{ height: '78px', padding: '10px 14px', minHeight: 'unset' }}
         >
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FEF8EB', color: '#D97718' }}
+            className="sa-stat-icon-wrapper sa-stat-icon-amber rounded-3"
+            style={{ width: '38px', height: '38px' }}
           >
             <Coins size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '11.5px' }}>
               Pending Salary
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
@@ -364,18 +398,18 @@ export default function TeacherDashboard() {
 
         {/* Card 4: Working Hours */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
+          className="sa-kpi-glass-card theme-red teacher-grid-card d-flex align-items-center gap-2.5 transition-all cursor-pointer"
           onClick={() => navigate('/teacher/working-time')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          style={{ height: '78px', padding: '10px 14px', minHeight: 'unset' }}
         >
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#A91D22' }}
+            className="sa-stat-icon-wrapper sa-stat-icon-red rounded-3"
+            style={{ width: '38px', height: '38px' }}
           >
             <Clock size={19} />
           </div>
           <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
+            <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '11.5px' }}>
               Working Hours
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
@@ -392,21 +426,21 @@ export default function TeacherDashboard() {
       <div className="teacher-main-grid">
         {/* Column 1: Today's Class Schedule */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '238px', padding: '12px 14px' }}
         >
           {/* Header */}
-          <div className="d-flex align-items-center justify-content-between pb-1.5 border-bottom flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Calendar size={15} className="text-danger flex-shrink-0" />
+              <Calendar size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
                 Today's Class Schedule
               </h3>
             </div>
             <button
               onClick={() => navigate('/teacher/classes')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold d-flex align-items-center gap-0.5 flex-shrink-0 ms-2"
-              style={{ fontSize: '11px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold d-flex align-items-center gap-0.5 flex-shrink-0 ms-2"
+              style={{ fontSize: '11px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View Full Schedule &rarr;
             </button>
@@ -463,7 +497,7 @@ export default function TeacherDashboard() {
                           onClick={() => navigate(row.path)}
                           className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-1 text-white border-0 fw-semibold"
                           style={{
-                            backgroundColor: '#A91D22',
+                            backgroundColor: '#8B1216',
                             fontSize: '9.5px',
                             padding: '2.5px 7px',
                             borderRadius: '4px',
@@ -491,13 +525,13 @@ export default function TeacherDashboard() {
 
         {/* Column 2: Class Attendance */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '238px', padding: '12px 14px' }}
         >
           {/* Header */}
-          <div className="d-flex align-items-center justify-content-between pb-1 flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1 flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <BarChart2 size={15} className="text-danger flex-shrink-0" />
+              <BarChart2 size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
                 Class Attendance
               </h3>
@@ -560,12 +594,12 @@ export default function TeacherDashboard() {
 
         {/* Column 3: Quick Actions */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '238px', padding: '12px 14px' }}
         >
           {/* Header */}
-          <div className="d-flex align-items-center gap-1.5 pb-1.5 border-bottom flex-shrink-0">
-            <Zap size={15} className="text-danger flex-shrink-0" />
+          <div className="d-flex align-items-center gap-1.5 pb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <Zap size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
             <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
               Quick Actions
             </h3>
@@ -576,31 +610,33 @@ export default function TeacherDashboard() {
             {/* Action 1: Take Attendance */}
             <button
               onClick={() => navigate('/teacher/attendance')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn w-100 text-start d-flex align-items-center justify-content-between border transition-all shadow-xs"
               style={{
                 backgroundColor: '#FDF0F0',
-                borderRadius: '7px',
+                borderColor: 'rgba(220, 38, 38, 0.15)',
+                borderRadius: '8px',
                 padding: '7px 11px',
                 height: '40px',
                 minWidth: 0
               }}
             >
               <div className="d-flex align-items-center gap-2 min-w-0">
-                <Users size={15} style={{ color: '#A91D22' }} className="flex-shrink-0" />
-                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#A91D22' }}>
+                <Users size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#8B1216' }}>
                   Take Attendance
                 </span>
               </div>
-              <span className="flex-shrink-0 ms-1" style={{ color: '#A91D22', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
+              <span className="flex-shrink-0 ms-1" style={{ color: '#8B1216', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
             </button>
 
             {/* Action 2: Enter Marks */}
             <button
               onClick={() => navigate('/teacher/marks')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn w-100 text-start d-flex align-items-center justify-content-between border transition-all shadow-xs"
               style={{
                 backgroundColor: '#FEF8EB',
-                borderRadius: '7px',
+                borderColor: 'rgba(245, 158, 11, 0.20)',
+                borderRadius: '8px',
                 padding: '7px 11px',
                 height: '40px',
                 minWidth: 0
@@ -618,22 +654,23 @@ export default function TeacherDashboard() {
             {/* Action 3: Upload Material */}
             <button
               onClick={() => navigate('/teacher/study-materials')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn w-100 text-start d-flex align-items-center justify-content-between border transition-all shadow-xs"
               style={{
                 backgroundColor: '#FDF0F0',
-                borderRadius: '7px',
+                borderColor: 'rgba(220, 38, 38, 0.15)',
+                borderRadius: '8px',
                 padding: '7px 11px',
                 height: '40px',
                 minWidth: 0
               }}
             >
               <div className="d-flex align-items-center gap-2 min-w-0">
-                <BookOpen size={15} style={{ color: '#A91D22' }} className="flex-shrink-0" />
-                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#A91D22' }}>
+                <BookOpen size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#8B1216' }}>
                   Upload Material
                 </span>
               </div>
-              <span className="flex-shrink-0 ms-1" style={{ color: '#A91D22', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
+              <span className="flex-shrink-0 ms-1" style={{ color: '#8B1216', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
             </button>
           </div>
         </div>
@@ -643,20 +680,20 @@ export default function TeacherDashboard() {
       <div className="teacher-bottom-grid">
         {/* Card 1: Upcoming Examinations */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '168px', padding: '10px 12px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <FileText size={13} className="text-danger flex-shrink-0" />
+              <FileText size={13} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Upcoming Examinations
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/exams')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-1"
+              style={{ fontSize: '10.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
@@ -669,7 +706,7 @@ export default function TeacherDashboard() {
             </div>
             {upcomingExams.map((exam, idx) => (
               <div key={idx} className="d-flex justify-content-between align-items-center py-0.5">
-                <span className="fw-semibold text-danger text-truncate" style={{ fontSize: '10px', width: '32%' }}>{exam.date}</span>
+                <span className="fw-semibold text-truncate" style={{ fontSize: '10px', width: '32%', color: '#8B1216' }}>{exam.date}</span>
                 <span className="fw-medium text-sa-charcoal" style={{ fontSize: '10px', width: '36%', overflowWrap: 'anywhere' }}>{exam.subject}</span>
                 <span className="text-sa-muted text-end" style={{ fontSize: '10px', width: '32%', overflowWrap: 'anywhere' }}>{exam.classBatch}</span>
               </div>
@@ -679,20 +716,20 @@ export default function TeacherDashboard() {
 
         {/* Card 2: Pending Tasks */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '168px', padding: '10px 12px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <CheckSquare size={13} className="text-danger flex-shrink-0" />
+              <CheckSquare size={13} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Pending Tasks
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/marks')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-1"
+              style={{ fontSize: '10.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
@@ -728,7 +765,7 @@ export default function TeacherDashboard() {
                     fontSize: '8px',
                     padding: '1.5px 4.5px',
                     backgroundColor: task.priority === 'High' ? '#FDF0F0' : '#FEF8EB',
-                    color: task.priority === 'High' ? '#A91D22' : '#D97718'
+                    color: task.priority === 'High' ? '#8B1216' : '#D97718'
                   }}
                 >
                   {task.priority}
@@ -740,20 +777,20 @@ export default function TeacherDashboard() {
 
         {/* Card 3: Recent Announcements */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '168px', padding: '10px 12px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Megaphone size={13} className="text-danger flex-shrink-0" />
+              <Megaphone size={13} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 Recent Announcements
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/announcements')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-1"
+              style={{ fontSize: '10.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
@@ -773,20 +810,20 @@ export default function TeacherDashboard() {
 
         {/* Card 4: This Month's Hours */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="sa-card teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ height: '168px', padding: '10px 12px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
+          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Clock size={13} className="text-danger flex-shrink-0" />
+              <Clock size={13} style={{ color: '#8B1216' }} className="flex-shrink-0" />
               <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
                 This Month's Hours
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/working-time')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-1"
+              style={{ fontSize: '10.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View Details &rarr;
             </button>
@@ -804,7 +841,7 @@ export default function TeacherDashboard() {
                 <div
                   className="progress-bar"
                   role="progressbar"
-                  style={{ width: '0%', backgroundColor: '#A91D22', borderRadius: '3px' }}
+                  style={{ width: '0%', backgroundColor: '#8B1216', borderRadius: '3px' }}
                   aria-valuenow="0"
                   aria-valuemin="0"
                   aria-valuemax="100"
@@ -814,11 +851,11 @@ export default function TeacherDashboard() {
 
             <div
               className="rounded-2 d-flex align-items-center gap-1.5 mt-1"
-              style={{ backgroundColor: '#FAF8F5', border: '1px solid #F1ECE4', padding: '4px 7px' }}
+              style={{ backgroundColor: 'rgba(255, 255, 255, 0.7)', border: '1px solid rgba(220, 38, 38, 0.12)', padding: '4px 7px' }}
             >
               <div
-                className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '24px', height: '24px', backgroundColor: '#FEF8EB', color: '#D97718' }}
+                className="sa-stat-icon-wrapper sa-stat-icon-amber rounded-circle flex-shrink-0"
+                style={{ width: '24px', height: '24px' }}
               >
                 <Coins size={12} />
               </div>
@@ -832,8 +869,8 @@ export default function TeacherDashboard() {
                       e.stopPropagation();
                       navigate('/teacher/salary');
                     }}
-                    className="btn btn-link p-0 text-decoration-none text-danger fw-semibold"
-                    style={{ fontSize: '9px', lineHeight: 1 }}
+                    className="btn btn-link p-0 text-decoration-none fw-semibold"
+                    style={{ fontSize: '9px', lineHeight: 1, color: '#8B1216' }}
                   >
                     View Salary &rarr;
                   </button>
