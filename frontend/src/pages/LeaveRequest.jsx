@@ -25,16 +25,16 @@ export default function LeaveRequest() {
       if (!user) return;
       const data = await leaveService.getTeacherLeaveRequests(user.id);
       // Map data to frontend format
-      const formatted = data.map(r => ({
+      const formatted = (data || []).map(r => ({
         id: r.id,
         leaveType: r.leave_type,
-        fromDate: r.from_date.split('T')[0],
-        toDate: r.to_date.split('T')[0],
-        days: r.number_of_days,
-        reason: r.reason,
-        appliedDate: new Date(r.created_at).toLocaleDateString(),
-        status: r.status,
-        adminComment: r.admin_comment
+        fromDate: r.from_date ? String(r.from_date).split('T')[0] : '',
+        toDate: r.to_date ? String(r.to_date).split('T')[0] : '',
+        days: r.number_of_days || 0,
+        reason: r.reason || '',
+        appliedDate: r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
+        status: r.status || 'Pending',
+        adminComment: r.admin_comment || ''
       }));
       setRequests(formatted);
       

@@ -6,6 +6,7 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import batchService from '../../services/batchService';
+import noticeService from '../../services/noticeService';
 import { Bell, Plus, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 

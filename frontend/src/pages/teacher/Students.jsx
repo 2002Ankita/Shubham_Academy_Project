@@ -14,7 +14,10 @@ export default function TeacherStudents() {
       setLoading(true);
       try {
         const data = await studentService.getAll();
-        setStudents(data);
+        setStudents(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to load students:', err);
+        setStudents([]);
       } finally {
         setLoading(false);
       }
@@ -22,10 +25,11 @@ export default function TeacherStudents() {
     fetchStudents();
   }, []);
 
-  const filtered = students.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.rollNumber.toLowerCase().includes(search.toLowerCase()) ||
-    s.standard.toLowerCase().includes(search.toLowerCase())
+  const searchLower = (search || '').trim().toLowerCase();
+  const filtered = (students || []).filter(s =>
+    (s.name || '').toLowerCase().includes(searchLower) ||
+    (s.rollNumber || '').toLowerCase().includes(searchLower) ||
+    (s.standard || '').toLowerCase().includes(searchLower)
   );
 
   return (
