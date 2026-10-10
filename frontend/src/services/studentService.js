@@ -39,6 +39,7 @@ export const studentService = {
   create: async (data) => {
     // Map frontend data to backend payload
     const payload = {
+      student_id: data.rollNumber || data.student_id,
       full_name: data.name || data.full_name,
       email: data.email,
       password: data.password,
@@ -52,7 +53,9 @@ export const studentService = {
       batch: data.batch,
       branch: data.branch || 'Tarabai Park',
       academic_year: data.academic_year || '2023-2024',
-      total_fees: Number(data.totalFees) || 0
+      rfid_tag: data.rfidCard || data.rfid_tag,
+      total_fees: Number(data.totalFees) || 0,
+      admission_date: data.admission_date
     };
     const res = await api.post('/students', payload);
     return res.data;

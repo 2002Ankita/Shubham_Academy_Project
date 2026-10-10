@@ -35,7 +35,14 @@ export default function AddTeacher() {
       toast.success(`Faculty ${created.full_name || created.name || formData.name} onboarded successfully!`);
       navigate('/admin/teachers');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to onboard faculty member');
+      const detail = error.response?.data?.detail;
+      let errMsg = 'Failed to onboard faculty member';
+      if (typeof detail === 'string') {
+        errMsg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
+        errMsg = detail[0].msg;
+      }
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }

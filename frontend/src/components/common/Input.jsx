@@ -46,6 +46,7 @@ export default function Input({
           type={currentType}
           placeholder={placeholder}
           disabled={disabled}
+          required={required}
           className={`form-control ${Icon ? 'ps-5' : ''} ${error ? 'is-invalid' : ''}`}
           style={isPassword ? { paddingRight: '2.5rem' } : undefined}
           {...inputProps}

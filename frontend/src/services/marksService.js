@@ -172,7 +172,7 @@ export const marksService = {
     } catch (err) {
       console.warn('API marks load note:', err?.message);
     }
-    return processMarks(DEFAULT_STUDENT_RESULTS);
+    return [];
   },
 
   submitMarks: async (data) => {
