@@ -177,7 +177,8 @@ export default function SendMarksModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Send Marks to Parents"
-      size="xl"
+      size="lg"
+      maxWidth="800px"
     >
       <div className="d-flex flex-column gap-3">
         {/* Context metadata banner */}
