@@ -296,12 +296,7 @@ export default function EnterMarks() {
         ))}
       </div>
 
-      <div className="sa-card p-4" style={{ borderRadius: '18px', boxShadow: '0 3px 10px rgba(15, 23, 42, 0.04)' }}>
-        <h2 className="brand-font fw-bold m-0" style={{ fontSize: '22px', color: '#0F172A' }}>Select Examination</h2>
-        <div className="mt-3">
-          <MarksForm students={students} exams={exams} onSubmit={handleMarksSubmit} />
-        </div>
-      </div>
+      <MarksForm students={students} exams={exams} onSubmit={handleMarksSubmit} />
 
       {postSaveNotice && (
         <div
@@ -383,13 +378,6 @@ export default function EnterMarks() {
               {examOptions.map(e => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
-        </div>
-      </div>
-
-      <div className="sa-card p-4" style={{ borderRadius: '18px', boxShadow: '0 3px 10px rgba(15, 23, 42, 0.04)' }}>
-        <h2 className="brand-font fw-bold m-0" style={{ fontSize: '22px', color: '#0F172A' }}>Select Examination</h2>
-        <div className="mt-3">
-          <MarksForm students={students} exams={exams} onSubmit={handleMarksSubmit} />
         </div>
       </div>
 
