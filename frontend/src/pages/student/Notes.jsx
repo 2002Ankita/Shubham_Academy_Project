@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import BackButton from '../../components/common/BackButton';
 import { useAuth } from '../../hooks/useAuth';
 import notesService from '../../services/notesService';
 import {
@@ -74,6 +75,11 @@ export default function StudentNotes() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {/* Back button */}
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* 1. Header */}
       <div>
         <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">

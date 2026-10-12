@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import noticeService from '../../services/noticeService';
 import notificationService from '../../services/notificationService';
 import { Bell, Calendar, Clock, Building2, Megaphone, X, Eye, FileText, Trash2, RotateCcw } from 'lucide-react';
@@ -246,6 +247,11 @@ export default function StudentAnnouncements() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {/* Back button */}
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* Page Header */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
