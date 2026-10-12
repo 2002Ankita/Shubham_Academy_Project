@@ -6,6 +6,8 @@ import {
   Clock,
   TrendingUp,
   Users,
+  UserCheck,
+  ReceiptIndianRupee,
   FileText,
   Coins,
   BarChart3,
@@ -15,7 +17,6 @@ import {
   ChevronRight,
   ChevronDown,
   Download,
-  Play,
   CreditCard,
   Bell,
   ArrowRight,
@@ -230,10 +231,7 @@ export default function StudentDashboard() {
     { name: 'Late', value: lateDays, color: '#FCA5A5' }
   ];
 
-  // 3. Today's Classes List
-  // dynamically populated via setTodaysClasses
-
-  // 4. Upcoming Examinations List
+  // 3. Upcoming Examinations List
   const upcomingExaminations = scheduledExams.slice(0, 5).map(e => {
     const examDate = new Date(e.exam_date || e.date);
     const diffDays = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
@@ -294,233 +292,173 @@ export default function StudentDashboard() {
       {/* ========================================================================= */}
       {/* 2. TOP 4 KPI CARDS (Attendance, Upcoming Exams, Pending Fees, Overall Score) */}
       {/* ========================================================================= */}
-      <div className="row g-3">
+      <div className="row g-3 g-xl-4">
         {/* KPI 1: Attendance */}
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex align-items-center">
-            <div className="d-flex align-items-center gap-3 w-100">
-              <div
-                className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '48px', height: '48px', backgroundColor: '#EAF7EE', color: '#10B981' }}
-              >
-                <Users size={24} />
+          <div
+            className="sa-kpi-glass-card theme-green p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/student/attendance')}
+          >
+            <div className="d-flex align-items-start justify-content-between">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
+                <UserCheck size={22} />
               </div>
-              <div className="d-flex flex-column min-w-0">
-                <span className="text-sa-muted small fw-semibold lh-1 mb-1" style={{ fontSize: '0.8rem' }}>
-                  Attendance
-                </span>
-                <div className="kpi-number text-kpi-green">
-                  {attendanceRate}%
-                </div>
-                <span className="kpi-subtitle text-success">
-                  <TrendingUp size={12} /> +5.2% from last month
-                </span>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
               </div>
+            </div>
+            <div className="mt-2.5">
+              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                Attendance
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                {attendanceRate}%
+              </div>
+              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
+                ▲ +5.2% from last month
+              </span>
             </div>
           </div>
         </div>
 
         {/* KPI 2: Upcoming Exams */}
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex align-items-center">
-            <div className="d-flex align-items-center gap-3 w-100">
-              <div
-                className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '48px', height: '48px', backgroundColor: '#FDF1F1', color: '#A91D22' }}
-              >
-                <FileText size={24} />
+          <div
+            className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/student/exams')}
+          >
+            <div className="d-flex align-items-start justify-content-between">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-red">
+                <FileText size={22} />
               </div>
-              <div className="d-flex flex-column min-w-0">
-                <span className="text-sa-muted small fw-semibold lh-1 mb-1" style={{ fontSize: '0.8rem' }}>
-                  Upcoming Exams
-                </span>
-                <div className="kpi-number text-kpi-red">
-                  {upcomingExamsCount}
-                </div>
-                <span className="kpi-subtitle text-sa-primary">
-                  <Calendar size={12} /> Next in {nextExamDaysRemaining} days
-                </span>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
               </div>
+            </div>
+            <div className="mt-2.5">
+              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                Upcoming Exams
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                {upcomingExamsCount}
+              </div>
+              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#8B1216' }}>
+                🗓 Next in {nextExamDaysRemaining} days
+              </span>
             </div>
           </div>
         </div>
 
         {/* KPI 3: Pending Fees */}
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex align-items-center">
-            <div className="d-flex align-items-center gap-3 w-100">
-              <div
-                className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '48px', height: '48px', backgroundColor: '#FEF8EC', color: '#D97706' }}
-              >
-                <Coins size={24} />
+          <div
+            className="sa-kpi-glass-card theme-amber p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/student/fees')}
+          >
+            <div className="d-flex align-items-start justify-content-between">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
+                <ReceiptIndianRupee size={22} />
               </div>
-              <div className="d-flex flex-column min-w-0">
-                <span className="text-sa-muted small fw-semibold lh-1 mb-1" style={{ fontSize: '0.8rem' }}>
-                  Pending Fees
-                </span>
-                <div className="kpi-number text-kpi-orange">
-                  ₹{Number(pendingFeeAmount).toLocaleString('en-IN')}
-                </div>
-                <span className="kpi-subtitle text-kpi-orange">
-                  <Clock size={12} /> Due by 10 Jun 2025
-                </span>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
               </div>
+            </div>
+            <div className="mt-2.5">
+              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                Pending Fees
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                ₹{Number(pendingFeeAmount).toLocaleString('en-IN')}
+              </div>
+              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: Number(pendingFeeAmount) > 0 ? '#DC2626' : '#168554' }}>
+                {Number(pendingFeeAmount) > 0 ? '▲ Due by 10 Jun 2025' : '✓ No pending fees'}
+              </span>
             </div>
           </div>
         </div>
 
         {/* KPI 4: Overall Score */}
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 d-flex align-items-center">
-            <div className="d-flex align-items-center gap-3 w-100">
-              <div
-                className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '48px', height: '48px', backgroundColor: '#FDF1F1', color: '#A91D22' }}
-              >
-                <BarChart3 size={24} />
+          <div
+            className="sa-kpi-glass-card theme-blue p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/student/results')}
+          >
+            <div className="d-flex align-items-start justify-content-between">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-blue">
+                <Award size={22} />
               </div>
-              <div className="d-flex flex-column min-w-0">
-                <span className="text-sa-muted small fw-semibold lh-1 mb-1" style={{ fontSize: '0.8rem' }}>
-                  Overall Score
-                </span>
-                <div className="kpi-number text-kpi-red">
-                  {overallScore}%
-                </div>
-                <span className="kpi-subtitle text-success">
-                  <TrendingUp size={12} /> +6.8% from last term
-                </span>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
               </div>
+            </div>
+            <div className="mt-2.5">
+              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                Overall Score
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                {overallScore}%
+              </div>
+              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
+                ▲ +6.8% from last term
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. MIDDLE SECTION (Today's Classes, Attendance Overview, Quick Actions)     */}
+      {/* 3. MIDDLE SECTION (Upcoming Examinations, Attendance Overview, Quick Actions) */}
       {/* ========================================================================= */}
       <div className="row g-3">
         {/* Panel 1: Upcoming Examinations (~50% width) */}
         <div className="col-12 col-xl-6">
-          <div className="d-flex flex-column gap-3 h-100">
-            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
-              <div className="sa-section-header mb-2">
-                <h5 className="sa-section-title">
-                  <BookOpen size={18} className="text-sa-primary" />
-                  <span>Today's Classes</span>
-                </h5>
-                <button
-                  type="button"
-                  className="btn btn-link p-0 sa-link-more"
-                  onClick={() => navigate('/student/classes')}
-                >
-                  <span>View Full Timetable</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-
-              <div className="table-responsive flex-grow-1">
-                <table className="table align-middle table-borderless m-0">
-                  <thead>
-                    <tr className="sa-table-header-row">
-                      <th className="rounded-start">Time / Date</th>
-                      <th>Subject</th>
-                      <th>Teacher</th>
-                      <th>Room</th>
-                      <th>Status</th>
-                      <th className="text-end rounded-end">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="sa-table-compact">
-                    {todaysClasses.map((cls, idx) => (
-                      <tr key={idx} className="border-bottom border-light">
-                        <td className="text-sa-charcoal">
-                          <div className="fw-bold">{cls.time}</div>
-                          {cls.date && <div className="text-sa-muted" style={{ fontSize: '0.75rem' }}>{cls.date}</div>}
-                        </td>
-                        <td className="fw-semibold text-sa-charcoal">{cls.subject}</td>
-                        <td className="text-sa-muted">{cls.teacher}</td>
-                        <td className="text-sa-muted">{cls.room}</td>
-                        <td>
-                          <span className={cls.isOngoing ? 'badge-status-ongoing' : 'badge-status-upcoming'}>
-                            {cls.status}
-                          </span>
-                        </td>
-                        <td className="text-end">
-                          {cls.isOngoing ? (
-                            <button
-                              type="button"
-                              className="btn-view-class-ongoing"
-                              onClick={() => navigate('/student/classes')}
-                            >
-                              <Play size={9} fill="currentColor" />
-                              <span>View Class</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="btn-action-view-soft"
-                              onClick={() => navigate('/student/classes')}
-                            >
-                              View
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <div className="sa-card p-3 h-100 d-flex flex-column">
+            <div className="sa-section-header mb-2">
+              <h5 className="sa-section-title">
+                <FileText size={18} className="text-sa-primary" />
+                <span>Upcoming Examinations</span>
+              </h5>
+              <button
+                type="button"
+                className="btn btn-link p-0 sa-link-more"
+                onClick={() => navigate('/student/exams')}
+              >
+                <span>View Full Schedule</span>
+                <ArrowRight size={13} />
+              </button>
             </div>
 
-            <div className="sa-card p-3 d-flex flex-column flex-grow-1">
-              <div className="sa-section-header mb-2">
-                <h5 className="sa-section-title">
-                  <FileText size={18} className="text-sa-primary" />
-                  <span>Upcoming Examinations</span>
-                </h5>
-                <button
-                  type="button"
-                  className="btn btn-link p-0 sa-link-more"
-                  onClick={() => navigate('/student/exams')}
-                >
-                  <span>View Full Schedule</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-
-              <div className="table-responsive flex-grow-1">
-                <table className="table align-middle table-borderless m-0">
-                  <thead>
-                    <tr className="sa-table-header-row">
-                      <th className="rounded-start">Date</th>
-                      <th>Subject</th>
-                      <th>Class</th>
-                      <th className="text-end rounded-end">Countdown</th>
-                    </tr>
-                  </thead>
-                  <tbody className="sa-table-compact">
-                    {upcomingExaminations.length > 0 ? (
-                      upcomingExaminations.map((ex, i) => (
-                        <tr key={i} className="border-bottom border-light">
-                          <td className="fw-bold text-sa-charcoal">{ex.date}</td>
-                          <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
-                          <td className="text-sa-muted">{ex.class}</td>
-                          <td className="text-end">
-                            <span className="badge-countdown-pill">{ex.countdown}</span>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="4" className="text-center text-muted py-4">
-                          No upcoming examinations scheduled.
+            <div className="table-responsive flex-grow-1">
+              <table className="table align-middle table-borderless m-0">
+                <thead>
+                  <tr className="sa-table-header-row">
+                    <th className="rounded-start">Date</th>
+                    <th>Subject</th>
+                    <th>Class</th>
+                    <th className="text-end rounded-end">Countdown</th>
+                  </tr>
+                </thead>
+                <tbody className="sa-table-compact">
+                  {upcomingExaminations.length > 0 ? (
+                    upcomingExaminations.map((ex, i) => (
+                      <tr key={i} className="border-bottom border-light">
+                        <td className="fw-bold text-sa-charcoal">{ex.date}</td>
+                        <td className="text-sa-charcoal fw-semibold">{ex.subject}</td>
+                        <td className="text-sa-muted">{ex.class}</td>
+                        <td className="text-end">
+                          <span className="badge-countdown-pill">{ex.countdown}</span>
                         </td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="text-center text-muted py-4">
+                        No upcoming examinations scheduled.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

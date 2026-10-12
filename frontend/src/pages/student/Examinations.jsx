@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import examService from '../../services/examService';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -173,6 +174,10 @@ export default function StudentExaminations() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* 1. Header with Enrolled Batch indicator */}
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
         <div>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
-import BackButton from '../../components/common/BackButton';
-import { BookOpen, Users, Calendar, MapPin, Edit2 } from 'lucide-react';
+import { BookOpen, Users, Calendar, MapPin, Edit2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import batchService from '../../services/batchService';
 import Modal from '../../components/common/Modal';
@@ -22,8 +21,12 @@ export default function MyClasses() {
   const fetchBatches = async () => {
     try {
       const data = await batchService.getBatches();
-      const myBatches = data.filter(b => !b.teacher_name || b.teacher_name === user?.name);
-      
+      const myBatches = data.filter(b => {
+        if (!user || !user.name || !b.teacher_name) return false;
+        const firstName = user.name.split(' ')[0].toLowerCase();
+        return b.teacher_name.toLowerCase().includes(firstName) || 
+               user.name.toLowerCase().includes(b.teacher_name.toLowerCase());
+      });
       const mappedClasses = myBatches.map(b => ({
         originalId: b.id, // keep original ID for updating
         id: b.id ? `CLS-${b.id.substring(b.id.length - 4).toUpperCase()}` : 'N/A',
@@ -80,7 +83,6 @@ export default function MyClasses() {
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
-      <BackButton to="/teacher/dashboard" label="Back to Dashboard" />
       <style>{`
         .teacher-class-card {
           background-color: #FFFFFF;
@@ -97,13 +99,35 @@ export default function MyClasses() {
       `}</style>
 
       {/* Header */}
-      <div className="d-flex flex-column pt-0 pb-0.5">
-        <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
-          My Classes & Timetable
-        </h1>
-        <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
-          Active teaching batches, course syllabus pacing, and classroom schedules
-        </p>
+      <div className="d-flex align-items-center gap-3 pt-0 pb-0.5">
+        <button
+          type="button"
+          onClick={() => navigate('/teacher/dashboard')}
+          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            borderColor: '#E2E8F0',
+            backgroundColor: '#FFFFFF',
+            color: '#0F172A',
+            padding: 0,
+            cursor: 'pointer'
+          }}
+          aria-label="Back to dashboard"
+          title="Back to dashboard"
+        >
+          <ArrowLeft size={18} />
+        </button>
+
+        <div>
+          <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
+            My Classes & Timetable
+          </h1>
+          <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
+            Active teaching batches, course syllabus pacing, and classroom schedules
+          </p>
+        </div>
       </div>
 
       <div className="row g-3">

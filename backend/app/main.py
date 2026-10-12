@@ -6,8 +6,10 @@ from app.core.database import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    from app.core.scheduler import start_scheduler, shutdown_scheduler
+    start_scheduler()
     yield
-    # Cleanup code here if needed
+    shutdown_scheduler()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,7 +27,7 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-from app.routers import auth, students, teachers, attendance, marks, exams, fees, salary, notices, reports, materials, leave_requests, inventory, batches
+from app.routers import auth, students, teachers, attendance, marks, exams, fees, salary, notices, reports, materials, leave_requests, inventory, batches, reminders
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(students.router, prefix=settings.API_V1_STR)
 app.include_router(teachers.router, prefix=settings.API_V1_STR)
@@ -40,6 +42,7 @@ app.include_router(materials.router, prefix=settings.API_V1_STR)
 app.include_router(leave_requests.router, prefix=settings.API_V1_STR)
 app.include_router(inventory.router, prefix=settings.API_V1_STR)
 app.include_router(batches.router, prefix=settings.API_V1_STR)
+app.include_router(reminders.router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": "Welcome to Shubham Academy Management System API"}

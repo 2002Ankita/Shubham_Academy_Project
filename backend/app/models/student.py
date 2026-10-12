@@ -19,6 +19,7 @@ class Student(Document):
     academic_year: str
     rfid_tag: Optional[str] = None
     total_fees: float = 0.0
+    fee_due_date: Optional[datetime] = None
     admission_date: datetime = datetime.utcnow()
 
     class Settings:

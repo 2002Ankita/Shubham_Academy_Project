@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LeaveSummary from '../components/leave/LeaveSummary';
 import LeaveForm from '../components/leave/LeaveForm';
 import LeaveHistory from '../components/leave/LeaveHistory';
 import LeaveDetailsModal from '../components/leave/LeaveDetailsModal';
 import leaveService from '../services/leaveService';
 import useAuth from '../hooks/useAuth';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function LeaveRequest() {
+  const navigate = useNavigate();
   const [balance, setBalance] = useState({ total: 24, taken: 0, pending: 0, available: 24 });
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);

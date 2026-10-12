@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import attendanceService from '../../services/attendanceService';
 import { CalendarCheck, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export default function StudentAttendance() {
   return (
     <div className="d-flex flex-column gap-4">
       <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
         <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
           My RFID Attendance Records
         </h3>

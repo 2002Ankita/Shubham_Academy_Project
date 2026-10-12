@@ -77,8 +77,7 @@ export default function DashboardLayout() {
               <Outlet context={{ globalDateFilter, setGlobalDateFilter }} />
             </div>
           </main>
-
-          <Footer />
+          {!isTeacher && <Footer isStudent={isStudent} />}
         </div>
       </div>
     </div>

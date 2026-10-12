@@ -243,11 +243,11 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
         { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck },
         { label: 'Leave Request', path: '/teacher/leave-request', icon: Calendar },
-        { label: 'Students', path: '/teacher/students', icon: GraduationCap },
+        { label: 'Teachers', path: '/teacher/teachers', icon: TeachersWritingIcon },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
-        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Notes', path: '/teacher/study-materials', icon: BookMarked },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
       ];
