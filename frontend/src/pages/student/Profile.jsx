@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
+import BackButton from '../../components/common/BackButton';
 import {
   User,
   Mail,
@@ -330,6 +331,11 @@ export default function StudentProfile() {
 
   return (
     <div className="d-flex flex-column gap-4" style={{ maxWidth: '1040px', margin: '0 auto' }}>
+      {/* Back button */}
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. VIEW MODE                                                             */}
       {/* ========================================================================= */}
