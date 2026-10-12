@@ -22,8 +22,12 @@ export default function MyClasses() {
   const fetchBatches = async () => {
     try {
       const data = await batchService.getBatches();
-      const myBatches = data.filter(b => !b.teacher_name || b.teacher_name === user?.name);
-      
+      const myBatches = data.filter(b => {
+        if (!user || !user.name || !b.teacher_name) return false;
+        const firstName = user.name.split(' ')[0].toLowerCase();
+        return b.teacher_name.toLowerCase().includes(firstName) || 
+               user.name.toLowerCase().includes(b.teacher_name.toLowerCase());
+      });
       const mappedClasses = myBatches.map(b => ({
         originalId: b.id, // keep original ID for updating
         id: b.id ? `CLS-${b.id.substring(b.id.length - 4).toUpperCase()}` : 'N/A',
