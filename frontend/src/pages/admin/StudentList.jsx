@@ -8,6 +8,8 @@ import BackButton from '../../components/common/BackButton';
 import studentService from '../../services/studentService';
 import { UserPlus, Eye, Edit, Trash2, Upload, Download, FileSpreadsheet, X } from 'lucide-react';
 import { toast } from 'react-toastify';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 export default function StudentList() {
   const navigate = useNavigate();
@@ -88,14 +90,139 @@ export default function StudentList() {
     toast.info('Sample template downloaded!');
   };
 
-  const handleSimulateImport = () => {
+  const handleImport = async () => {
     if (!importedFile) {
       toast.warning('Please choose a CSV or Excel file to import.');
       return;
     }
-    toast.success(`Imported ${importedFile.name} successfully! (Preview Mode)`);
-    setShowImportModal(false);
-    setImportedFile(null);
+
+    try {
+      setLoading(true);
+      let dataToImport = [];
+
+      const readAsBinaryString = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsBinaryString(file);
+      });
+
+      const readAsText = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+      });
+
+      const ext = importedFile.name.split('.').pop().toLowerCase();
+      
+      if (ext === 'csv') {
+        const csvContent = await readAsText(importedFile);
+        const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
+        dataToImport = parsed.data;
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const binaryString = await readAsBinaryString(importedFile);
+        const workbook = XLSX.read(binaryString, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        dataToImport = XLSX.utils.sheet_to_json(sheet);
+      } else {
+        toast.error('Unsupported file format. Please upload CSV or Excel.');
+        setLoading(false);
+        return;
+      }
+
+      if (dataToImport.length === 0) {
+        toast.warning('The file is empty.');
+        setLoading(false);
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+      const errorMessages = new Set();
+
+      for (const row of dataToImport) {
+        const normalizedRow = {};
+        for (const key in row) {
+          const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+          normalizedRow[cleanKey] = row[key];
+        }
+
+        const rawPhone = String(normalizedRow['studentmobile'] || normalizedRow['phone'] || normalizedRow['contact'] || normalizedRow['mobileno'] || '').replace(/\D/g, '');
+        let rawParent = String(normalizedRow['parentmobile'] || normalizedRow['parentphone'] || '').replace(/\D/g, '');
+
+        let parsedPhone = rawPhone.slice(-10);
+        let parsedParent = rawParent.slice(-10) || '0000000000';
+        
+        // Backend strictly rejects if student phone == parent phone
+        if (parsedPhone === parsedParent) {
+          parsedParent = '0000000000';
+        }
+
+        const payload = {
+          rollNumber: normalizedRow['rollnumber'] || normalizedRow['studentid'] || '',
+          name: normalizedRow['fullname'] || normalizedRow['studentname'] || normalizedRow['name'] || normalizedRow['firstname'] || Object.values(normalizedRow)[1] || '',
+          email: normalizedRow['email'] || normalizedRow['emailid'] || '',
+          password: 'password123',
+          phone: parsedPhone,
+          parentPhone: parsedParent,
+          standard: normalizedRow['classstandard'] || normalizedRow['class'] || normalizedRow['standard'] || 'General',
+          rfidCard: normalizedRow['rfiduid'] || normalizedRow['rfid'] || normalizedRow['rfidbadge'] || '',
+          batch: 'General',
+          branch: 'Tarabai Park',
+          totalFees: 0,
+          admission_date: normalizedRow['admissiondate'] || normalizedRow['dateofadmission'] || normalizedRow['joiningdate'] ? new Date(normalizedRow['admissiondate'] || normalizedRow['dateofadmission'] || normalizedRow['joiningdate']).toISOString() : undefined
+        };
+
+        if (!payload.name) {
+          const availableCols = Object.keys(normalizedRow).join(', ');
+          errorMessages.add(`Missing student name (Found columns: ${availableCols})`);
+          failCount++;
+          continue;
+        }
+        if (!payload.email) {
+          errorMessages.add('Missing email address');
+          failCount++;
+          continue;
+        }
+        if (payload.phone.length !== 10) {
+          errorMessages.add(`Invalid phone number format (must be 10 digits, got ${payload.phone.length})`);
+          failCount++;
+          continue;
+        }
+
+        try {
+          await studentService.create(payload);
+          successCount++;
+        } catch (error) {
+          failCount++;
+          const errDetail = error.response?.data?.detail;
+          if (errDetail) {
+            errorMessages.add(Array.isArray(errDetail) ? errDetail[0].msg : errDetail);
+          } else {
+            errorMessages.add('Unknown error');
+          }
+          console.error('Failed to import student:', error);
+        }
+      }
+
+      if (failCount > 0) {
+        const reasons = Array.from(errorMessages).join(', ');
+        toast.warning(`Import completed: ${successCount} added, ${failCount} failed. Reasons: ${reasons || 'Missing required info in CSV'}`);
+      } else {
+        toast.success(`Import completed: ${successCount} successfully onboarded!`);
+      }
+      
+      setShowImportModal(false);
+      setImportedFile(null);
+      fetchStudents();
+    } catch (error) {
+      toast.error('An error occurred during import.');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filtered = students.filter(s =>
@@ -290,6 +417,28 @@ export default function StudentList() {
                     backgroundColor: importedFile ? '#FFF8F8' : '#F8FAFC',
                     cursor: 'pointer'
                   }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                      const file = files[0];
+                      const ext = file.name.split('.').pop().toLowerCase();
+                      if (['csv', 'xlsx', 'xls'].includes(ext)) {
+                        setImportedFile(file);
+                      } else {
+                        toast.error('Only CSV or Excel files are allowed.');
+                      }
+                    }
+                  }}
                 >
                   <FileSpreadsheet
                     size={42}
@@ -314,7 +463,10 @@ export default function StudentList() {
                     type="file"
                     accept=".csv, .xlsx, .xls"
                     className="d-none"
-                    onChange={(e) => setImportedFile(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      setImportedFile(e.target.files?.[0] || null);
+                      e.target.value = null; // reset so the same file can be selected again if needed
+                    }}
                   />
                 </label>
 
@@ -353,10 +505,10 @@ export default function StudentList() {
                 <Button
                   variant="primary"
                   icon={Upload}
-                  onClick={handleSimulateImport}
-                  disabled={!importedFile}
+                  onClick={handleImport}
+                  disabled={!importedFile || loading}
                 >
-                  Upload & Import
+                  {loading ? 'Uploading...' : 'Upload & Import'}
                 </Button>
               </div>
             </div>

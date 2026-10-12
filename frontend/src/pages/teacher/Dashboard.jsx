@@ -304,10 +304,10 @@ export default function TeacherDashboard() {
               Today's Classes
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              0
+              {scheduleRows.length}
             </div>
             <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
-              0 completed, 0 remaining
+              {scheduleRows.filter(r => r.status === 'Completed').length} completed, {scheduleRows.filter(r => r.status !== 'Completed').length} remaining
             </span>
           </div>
         </div>

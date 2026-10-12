@@ -48,13 +48,18 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
     if existing_mobile:
         raise HTTPException(status_code=400, detail="Mobile number already registered")
 
+    from pymongo.errors import DuplicateKeyError
+
     user = User(
         email=teacher_in.email,
         hashed_password=get_password_hash(teacher_in.password),
         full_name=teacher_in.full_name,
         role="TEACHER"
     )
-    await user.insert()
+    try:
+        await user.insert()
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     teacher = Teacher(
         user=user,
@@ -64,7 +69,12 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
         assigned_batches=teacher_in.assigned_batches,
         hourly_rate=teacher_in.hourly_rate
     )
-    await teacher.insert()
+    try:
+        await teacher.insert()
+    except DuplicateKeyError:
+        # Rollback user creation
+        await user.delete()
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
     
     # Auto-add to payroll for current month
     from datetime import datetime

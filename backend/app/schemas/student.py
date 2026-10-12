@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 
 class StudentBase(BaseModel):
+    student_id: Optional[str] = None
     full_name: str
     email: Optional[EmailStr] = None
     mobile_number: str = Field(..., pattern=r"^\d{10}$", json_schema_extra={"description": "10 digit mobile number"})
@@ -15,7 +16,9 @@ class StudentBase(BaseModel):
     batch: str
     branch: str
     academic_year: str
+    rfid_tag: Optional[str] = None
     total_fees: float = 0.0
+    admission_date: Optional[datetime] = None
 
 class StudentCreate(StudentBase):
     password: str

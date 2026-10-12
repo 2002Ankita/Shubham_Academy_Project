@@ -36,6 +36,7 @@ export default function StudentRegistration() {
     batchService.getBatches().then(setBatches).catch(console.error);
   }, []);
 
+
   // Form State
   const [formData, setFormData] = useState({
     // Step 1: Personal Details
@@ -44,6 +45,7 @@ export default function StudentRegistration() {
     gender: '',
     mobileNumber: '',
     email: '',
+    password: 'password123',
     address: '',
     city: '',
     state: '',
@@ -64,6 +66,9 @@ export default function StudentRegistration() {
     emergencyContact: '',
 
     // Step 3: Course & Fees
+    tuitionFee: 35000,
+    moduleFee: 6000,
+    rfidFee: 4000,
     totalFees: 45000,
     discountAmount: 0,
     paymentMode: 'Installments',
@@ -71,11 +76,18 @@ export default function StudentRegistration() {
     scholarshipCode: '',
 
     // Meta
-    admissionDate: '26 May 2025',
+    admissionDate: new Date().toISOString().split('T')[0],
     branch: 'Kolhapur Main Branch',
     studentId: 'Auto-generated',
     rfidCard: 'RFID-' + Math.floor(100000 + Math.random() * 900000)
   });
+
+  useEffect(() => {
+    const total = (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0);
+    if (total !== formData.totalFees) {
+      setFormData(prev => ({ ...prev, totalFees: total }));
+    }
+  }, [formData.tuitionFee, formData.moduleFee, formData.rfidFee]);
 
   const [errors, setErrors] = useState({});
 
@@ -207,7 +219,9 @@ export default function StudentRegistration() {
         batch: formData.batch,
         totalFees: formData.totalFees,
         rfidCard: formData.rfidCard,
-        status: 'Active'
+        status: 'Active',
+        password: formData.password || 'password123',
+        admission_date: new Date(formData.admissionDate).toISOString()
       };
 
       await studentService.create(payload);
@@ -554,8 +568,22 @@ export default function StudentRegistration() {
                           name="dob"
                           value={formData.dob}
                           onChange={handleInputChange}
-                          placeholder="dd/mm/yyyy"
                           className={`form-control ${errors.dob ? 'is-invalid' : ''}`}
+                          style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
+                        />
+                      </div>
+
+                      {/* Admission Date */}
+                      <div className="col-12 col-md-6">
+                        <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                          Admission Date <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          name="admissionDate"
+                          value={formData.admissionDate}
+                          onChange={handleInputChange}
+                          className={`form-control ${errors.admissionDate ? 'is-invalid' : ''}`}
                           style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
                         />
                       </div>
@@ -597,7 +625,7 @@ export default function StudentRegistration() {
                       </div>
 
                       {/* Email Address */}
-                      <div className="col-12">
+                      <div className="col-12 col-md-6">
                         <label className="form-label small fw-semibold text-sa-charcoal mb-1">
                           Email Address <span className="text-danger">*</span>
                         </label>
@@ -608,6 +636,22 @@ export default function StudentRegistration() {
                           onChange={handleInputChange}
                           placeholder="Enter valid email address"
                           className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                          style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
+                        />
+                      </div>
+
+                      {/* Password */}
+                      <div className="col-12 col-md-6">
+                        <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                          Dashboard Password <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          placeholder="e.g. password123"
+                          className={`form-control ${errors.password ? 'is-invalid' : ''}`}
                           style={{ fontSize: '0.90rem', padding: '0.65rem 0.90rem' }}
                         />
                       </div>
@@ -958,21 +1002,55 @@ export default function StudentRegistration() {
                   <div className="col-12 col-md-6">
                     <div className="p-3.5 rounded-3 border bg-light">
                       <h6 className="fw-bold text-sa-charcoal mb-3" style={{ fontSize: '0.94rem' }}>Academic Year Fee Breakdown</h6>
-                      <div className="d-flex justify-content-between py-2 border-bottom text-sa-charcoal small">
+                      
+                      <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>Tuition & Laboratory Fee</span>
-                        <span className="fw-semibold">₹35,000</span>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                          <span className="text-muted small me-1">₹</span>
+                          <input 
+                            type="number" 
+                            name="tuitionFee"
+                            value={formData.tuitionFee}
+                            onChange={handleInputChange}
+                            className="form-control form-control-sm border-0 p-0 text-end fw-semibold"
+                            style={{ boxShadow: 'none' }}
+                          />
+                        </div>
                       </div>
-                      <div className="d-flex justify-content-between py-2 border-bottom text-sa-charcoal small">
-                        <span>Comprehensive Study Modules & Books</span>
-                        <span className="fw-semibold">₹6,000</span>
+                      
+                      <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
+                        <span>Study Modules & Books</span>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                          <span className="text-muted small me-1">₹</span>
+                          <input 
+                            type="number" 
+                            name="moduleFee"
+                            value={formData.moduleFee}
+                            onChange={handleInputChange}
+                            className="form-control form-control-sm border-0 p-0 text-end fw-semibold"
+                            style={{ boxShadow: 'none' }}
+                          />
+                        </div>
                       </div>
-                      <div className="d-flex justify-content-between py-2 border-bottom text-sa-charcoal small">
-                        <span>RFID Smart Card & Test Series Portal</span>
-                        <span className="fw-semibold">₹4,000</span>
+                      
+                      <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
+                        <span>RFID & Test Series</span>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                          <span className="text-muted small me-1">₹</span>
+                          <input 
+                            type="number" 
+                            name="rfidFee"
+                            value={formData.rfidFee}
+                            onChange={handleInputChange}
+                            className="form-control form-control-sm border-0 p-0 text-end fw-semibold"
+                            style={{ boxShadow: 'none' }}
+                          />
+                        </div>
                       </div>
-                      <div className="d-flex justify-content-between pt-2.5 fw-bold text-sa-charcoal">
+                      
+                      <div className="d-flex justify-content-between pt-3 fw-bold text-sa-charcoal align-items-center">
                         <span>Total Course Fee</span>
-                        <span style={{ color: '#8B1216', fontSize: '1.10rem' }}>₹45,000</span>
+                        <span style={{ color: '#8B1216', fontSize: '1.15rem' }}>₹{(Number(formData.totalFees) || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

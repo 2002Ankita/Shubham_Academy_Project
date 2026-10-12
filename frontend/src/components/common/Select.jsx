@@ -26,6 +26,7 @@ export default function Select({
       <select
         id={name}
         disabled={disabled}
+        required={required}
         className={`form-select ${error ? 'is-invalid' : ''}`}
         {...selectProps}
         {...props}

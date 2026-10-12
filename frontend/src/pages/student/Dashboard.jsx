@@ -178,8 +178,8 @@ export default function StudentDashboard() {
   const currentHour = new Date().getHours();
   const greeting =
     currentHour < 12 ? 'Good Morning' : currentHour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const studentFullName = user?.full_name || user?.name || student?.name || 'Aarav';
-  const studentFirstName = studentFullName.split(' ')[0] || 'Aarav';
+  const studentFullName = user?.full_name || user?.name || student?.name || 'Student';
+  const studentFirstName = studentFullName.split(' ')[0] || 'Student';
 
   // Dynamic Date string matching reference format
   const formattedDate = new Date().toLocaleDateString('en-GB', {

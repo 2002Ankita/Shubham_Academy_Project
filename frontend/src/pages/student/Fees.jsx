@@ -4,6 +4,9 @@ import feeService from '../../services/feeService';
 import { CreditCard, Download, CheckCircle2, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
+import Button from '../../components/common/Button';
+import Modal from '../../components/common/Modal';
+import Input from '../../components/common/Input';
 
 const DEFAULT_FEE_STRUCTURES = [
   {
@@ -62,9 +65,16 @@ const DEFAULT_FEE_STRUCTURES = [
 
 export default function StudentFees() {
   const { user } = useAuth();
-  const [feeStructures, setFeeStructures] = useState(DEFAULT_FEE_STRUCTURES);
+  const [feeStructures, setFeeStructures] = useState([]);
   const [details, setDetails] = useState({ total_fees: 0, amount_paid: 0, pending_fees: 0 });
   const [loading, setLoading] = useState(true);
+  
+  // Payment Modal States
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMode, setPaymentMode] = useState('Online');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchFees = async () => {
@@ -87,29 +97,40 @@ export default function StudentFees() {
               receiptNo: p.receiptNo || `REC-${Math.floor(100000 + Math.random() * 900000)}`,
               feeStructureName: p.feeHead || 'Standard Tuition Fee Structure',
               feeStructureYear: '2025 - 2026',
-              totalFees: p.totalFees || 65000,
+              totalFees: p.totalFees || 0,
               paidFees: p.amountPaid || 0,
               pendingAmount: p.pendingAmount || 0,
-              paymentDate: p.paymentDate || '2026-03-15',
+              paymentDate: p.paymentDate || 'N/A',
               paymentMode: p.paymentMode || 'Online Bank Transfer',
               transactionId: p.transactionId || `TXN-SA-${idx + 100}`
             }));
-            setFeeStructures([...mapped, ...DEFAULT_FEE_STRUCTURES]);
+            setFeeStructures(mapped);
           } else {
-            setFeeStructures(DEFAULT_FEE_STRUCTURES);
+            // Show one row reflecting their total fees if no payments exist yet
+            setFeeStructures([{
+              id: 'FS-DEFAULT',
+              receiptNo: 'N/A',
+              feeStructureName: user?.course || 'Current Course Fees',
+              feeStructureYear: '2025 - 2026',
+              totalFees: detailData?.total_fees || 0,
+              paidFees: detailData?.amount_paid || 0,
+              pendingAmount: detailData?.pending_fees || detailData?.total_fees || 0,
+              paymentDate: 'N/A',
+              paymentMode: 'N/A',
+              transactionId: 'N/A',
+              status: 'Pending'
+            }]);
           }
-        } else {
-          setFeeStructures(DEFAULT_FEE_STRUCTURES);
         }
       } catch (err) {
         console.error('Error fetching student fees:', err);
-        setFeeStructures(DEFAULT_FEE_STRUCTURES);
+        setFeeStructures([]);
       } finally {
         setLoading(false);
       }
     };
     fetchFees();
-  }, [user]);
+  }, [user, refreshTrigger]);
 
   // Dynamic KPI totals
   const totalFeesCalculated = details.total_fees > 0
@@ -126,8 +147,8 @@ export default function StudentFees() {
 
   const handleDownloadReceipt = (fee) => {
     try {
-      const studentName = user?.full_name || user?.name || 'Aarav Deshmukh';
-      const rollNumber = user?.roll_number || user?.rollNo || 'SA-2026-0042';
+      const studentName = user?.full_name || user?.name || 'Student';
+      const rollNumber = user?.roll_number || user?.rollNo || 'N/A';
       const receiptNo = fee.receiptNo || `REC-${Math.floor(100000 + Math.random() * 900000)}`;
       const cleanName = (fee.feeStructureName || 'Fee_Receipt').replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `Fee_Receipt_${receiptNo}_${cleanName}.doc`;
@@ -255,16 +276,61 @@ export default function StudentFees() {
     }
   };
 
+  const handlePayInstallment = async () => {
+    if (!paymentAmount || isNaN(paymentAmount) || Number(paymentAmount) <= 0) {
+      toast.error('Please enter a valid amount.');
+      return;
+    }
+    
+    if (Number(paymentAmount) > pendingFeesCalculated) {
+      toast.error('Payment amount cannot exceed the pending balance.');
+      return;
+    }
+
+    try {
+      setIsSubmittingPayment(true);
+      const res = await feeService.collectFee({
+        studentId: user?.id,
+        amountPaid: Number(paymentAmount),
+        paymentMode: paymentMode,
+        feeHead: 'Tuition Fee Installment'
+      });
+
+      if (res.success) {
+        toast.success(`Payment of ₹${paymentAmount} successful!`);
+        setIsPaymentModalOpen(false);
+        setPaymentAmount('');
+        setRefreshTrigger(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error('Payment error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to process payment. Please try again.');
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
+
   return (
     <div className="d-flex flex-column gap-4">
       {/* 1. Header */}
-      <div>
-        <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-          My Academic Fees & Receipts
-        </h3>
-        <span className="small text-sa-muted">
-          Tuition installments, fee structure details, and official fee receipt downloads
-        </span>
+      <div className="d-flex justify-content-between align-items-end">
+        <div>
+          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+            My Academic Fees & Receipts
+          </h3>
+          <span className="small text-sa-muted">
+            Tuition installments, fee structure details, and official fee receipt downloads
+          </span>
+        </div>
+        {pendingFeesCalculated > 0 && (
+          <Button 
+            variant="primary" 
+            icon={CreditCard} 
+            onClick={() => setIsPaymentModalOpen(true)}
+          >
+            Pay Installment
+          </Button>
+        )}
       </div>
 
       {/* 2. Top Summary KPI Cards */}
@@ -400,6 +466,64 @@ export default function StudentFees() {
           emptyMessage="No fee structures or receipts found."
         />
       </div>
+
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title="Pay Fee Installment"
+        size="md"
+      >
+        <div className="d-flex flex-column gap-3">
+          <div className="p-3 bg-sa-off-white rounded border">
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-sa-muted">Total Pending Balance:</span>
+              <span className="fw-bold text-danger">₹ {pendingFeesCalculated.toLocaleString()}</span>
+            </div>
+            <div className="d-flex justify-content-between">
+              <span className="text-sa-muted">Student Name:</span>
+              <span className="fw-bold">{user?.full_name || user?.name || 'Student'}</span>
+            </div>
+          </div>
+          
+          <Input
+            label="Installment Amount (₹)"
+            type="number"
+            min="1"
+            max={pendingFeesCalculated}
+            placeholder="Enter amount to pay"
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+          />
+
+          <div className="d-flex flex-column gap-2 mt-2">
+            <label className="form-label text-sa-charcoal fw-semibold mb-0" style={{ fontSize: '0.85rem' }}>
+              Payment Mode
+            </label>
+            <select 
+              className="form-select border-sa-ash shadow-none" 
+              value={paymentMode}
+              onChange={(e) => setPaymentMode(e.target.value)}
+            >
+              <option value="Online">Online / UPI / NetBanking</option>
+              <option value="Cash">Cash (Physical Deposit)</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
+            <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handlePayInstallment}
+              loading={isSubmittingPayment}
+            >
+              Pay Securely
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
