@@ -78,7 +78,7 @@ export default function DashboardLayout() {
             </div>
           </main>
 
-          <Footer isStudent={isStudent || isTeacher} />
+          {!isTeacher && <Footer isStudent={isStudent} />}
         </div>
       </div>
     </div>
