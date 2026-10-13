@@ -19,6 +19,7 @@ class ExamCreate(BaseModel):
 class ExamResponse(ExamCreate):
     id: str
     status: str = "Scheduled"
+    teacher_name: Optional[str] = ""
 
 class MarkCreate(BaseModel):
     student_id: str
@@ -70,4 +71,5 @@ class SendMarksNotificationResponse(BaseModel):
     summary: dict
     channel: str
     results: List[StudentNotificationResult]
+    teacher_notification: Optional[dict] = None
 

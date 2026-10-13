@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SalarySummary from '../components/salary/SalarySummary';
 import SalaryBreakdown from '../components/salary/SalaryBreakdown';
 import SalaryHistory from '../components/salary/SalaryHistory';
 import salaryService from '../services/salaryService';
 import useAuth from '../hooks/useAuth';
 import { downloadSalaryReceipt } from '../utils/salaryReceipt';
+import { ArrowLeft } from 'lucide-react';
 
 export default function Salary() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState('October 2026');
 
   useEffect(() => {
     const fetchMySalaries = async () => {
@@ -26,59 +28,41 @@ export default function Salary() {
     fetchMySalaries();
   }, []);
 
-  const monthOptions = useMemo(() => {
-    const defaultMonths = [
-      'October 2026',
-      'September 2026',
-      'August 2026',
-      'July 2026',
-      'June 2026',
-      'May 2026',
-      'April 2026',
-      'March 2026',
-      'February 2026',
-      'January 2026'
-    ];
-    const list = new Set(defaultMonths);
-    (salaries || []).forEach((s) => {
-      if (s.month) list.add(s.month);
-    });
-    return Array.from(list);
-  }, [salaries]);
-
-  // Find salary matching selected month or fallback
-  const currentSalary = useMemo(() => {
-    if (!salaries || salaries.length === 0) return null;
-    const match = salaries.find(
-      (s) => (s.month || '').toLowerCase() === selectedMonth.toLowerCase()
-    );
-    return match || null;
-  }, [salaries, selectedMonth]);
-
   if (loading) {
     return <div>Loading salary data...</div>;
   }
+
+  // Get current month's salary (assuming latest one is current)
+  const currentSalary = salaries.length > 0 ? salaries[salaries.length - 1] : null;
 
   const safeNum = (val) => Number(val) || 0;
 
   const summary = currentSalary ? {
     currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
-    payPeriod: currentSalary.month || selectedMonth || 'N/A',
+    payPeriod: currentSalary.month || 'N/A',
+    workingHours: '160 hrs',
+    workingHoursSubtext: 'Standard monthly quota',
+    hourlyRate: '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
+    hourlyRateSubtext: 'Standard slab rate',
+    paymentStatus: currentSalary.status || 'N/A',
+    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : 'Pending',
     amountPaid: `₹${safeNum(currentSalary.amountPaid).toLocaleString()}`,
     amountPaidSubtext: 'Total received this month',
     amountPending: `₹${safeNum(currentSalary.amountPending).toLocaleString()}`,
     amountPendingSubtext: 'Remaining balance',
-    paymentStatus: currentSalary.status || 'N/A',
-    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : 'Pending',
   } : {
     currentMonthSalary: '₹0',
-    payPeriod: selectedMonth || 'N/A',
+    payPeriod: 'N/A',
+    workingHours: '0 hrs',
+    workingHoursSubtext: '-',
+    hourlyRate: '₹0',
+    hourlyRateSubtext: '-',
+    paymentStatus: 'N/A',
+    paymentStatusSubtext: '-',
     amountPaid: '₹0',
     amountPaidSubtext: '-',
     amountPending: '₹0',
-    amountPendingSubtext: '-',
-    paymentStatus: 'N/A',
-    paymentStatusSubtext: '-'
+    amountPendingSubtext: '-'
   };
 
   const deductions = safeNum(currentSalary?.deductions);
@@ -94,7 +78,7 @@ export default function Salary() {
     otherDeductions: deductions - pt,
     netSalary: safeNum(currentSalary.netPayable),
     workingHours: Math.round(safeNum(currentSalary.workingHours || 160)),
-    payPeriod: currentSalary.month || selectedMonth || 'N/A'
+    payPeriod: currentSalary.month || 'N/A'
   } : {
     basicSalary: 0,
     workingHoursPay: 0,
@@ -105,7 +89,7 @@ export default function Salary() {
     otherDeductions: 0,
     netSalary: 0,
     workingHours: 0,
-    payPeriod: selectedMonth || 'N/A'
+    payPeriod: 'N/A'
   };
 
   const history = salaries.map(s => ({
@@ -120,14 +104,10 @@ export default function Salary() {
     installments: s.installments || []
   })).reverse();
 
-  const handleDownloadReceipt = (monthName) => {
-    const target = monthName || selectedMonth;
-    const record = salaries.find(
-      (s) => (s.month || '').toLowerCase() === (target || '').toLowerCase()
-    );
+  const handleDownloadReceipt = () => {
     downloadSalaryReceipt({
-      month: target,
-      record: record,
+      month: currentSalary?.month || breakdown?.payPeriod,
+      record: currentSalary,
       user: user,
       breakdown: breakdown,
       summary: summary
@@ -137,33 +117,49 @@ export default function Salary() {
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '20px', minWidth: 0, boxSizing: 'border-box' }}>
       {/* 1. Page Header */}
-      <div>
-        <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-          My Salary
-        </h1>
-        <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
-          View your salary and payment details.
-        </p>
+      <div className="d-flex align-items-center gap-3 pt-0 pb-0.5">
+        <button
+          type="button"
+          onClick={() => navigate('/teacher/dashboard')}
+          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            borderColor: '#E2E8F0',
+            backgroundColor: '#FFFFFF',
+            color: '#0F172A',
+            padding: 0,
+            cursor: 'pointer'
+          }}
+          aria-label="Back to dashboard"
+          title="Back to dashboard"
+        >
+          <ArrowLeft size={18} />
+        </button>
+
+        <div>
+          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+            My Salary
+          </h1>
+          <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
+            View your salary and payment details
+          </p>
+        </div>
       </div>
 
       {/* 2. Top Summary Cards */}
       <SalarySummary summary={summary} />
 
-      {/* 3. Salary Breakdown Card with Month Selector & Download Monthly Receipt */}
+      {/* 3. Salary Breakdown Card */}
       <SalaryBreakdown
         breakdown={breakdown}
-        selectedMonth={selectedMonth}
-        onMonthChange={(newMonth) => setSelectedMonth(newMonth)}
-        monthOptions={monthOptions}
-        onDownloadReceipt={() => handleDownloadReceipt(selectedMonth)}
+        onDownloadReceipt={handleDownloadReceipt}
       />
 
       {/* 4. Salary History Table */}
       <div className="w-100" style={{ marginTop: '8px' }}>
-        <SalaryHistory
-          history={history}
-          onDownload={(m) => handleDownloadReceipt(m)}
-        />
+        <SalaryHistory history={history} />
       </div>
     </div>
   );

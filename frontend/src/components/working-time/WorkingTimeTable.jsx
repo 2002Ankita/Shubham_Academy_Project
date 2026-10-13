@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Filter, CheckCircle2, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { Filter, CheckCircle2, Clock, XCircle, AlertCircle, Eye, ArrowLeft } from 'lucide-react';
 
 export default function WorkingTimeTable({ records }) {
   const [filterStatus, setFilterStatus] = useState('All');
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
   const filteredRecords = filterStatus === 'All'
     ? records
@@ -100,47 +101,103 @@ export default function WorkingTimeTable({ records }) {
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
       }}
     >
-      {/* Card Header & Filter Section */}
-      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between pb-3 mb-2 border-bottom gap-2.5">
-        <div>
-          <h2 className="brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '17px', lineHeight: 1.25 }}>
-            Daily Working Time Log
-          </h2>
-          <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-            Detailed biometric & RFID punch record ({filteredRecords.length} days)
-          </p>
-        </div>
+      {selectedRecord ? (
+        <div className="d-flex flex-column gap-3">
+          {/* Back to Timings Button & Status Header */}
+          <div className="d-flex align-items-center justify-content-between pb-3 border-bottom flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedRecord(null)}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-2 fw-medium shadow-xs"
+              style={{ fontSize: '12.5px', height: '36px', borderColor: '#CBD5E1', color: '#1E293B' }}
+              title="Back to Timings Log"
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Timings</span>
+            </button>
 
-        {/* Filter Dropdown */}
-        <div className="d-flex align-items-center gap-2">
-          <Filter size={15} style={{ color: '#64748B' }} />
-          <select
-            className="form-select"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              height: '40px',
-              width: '155px',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #E1E6ED',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#1E293B',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
-              cursor: 'pointer',
-              paddingLeft: '12px',
-              paddingRight: '30px'
-            }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Present">Present</option>
-            <option value="Late">Late</option>
-            <option value="Half Day">Half Day</option>
-            <option value="Absent">Absent</option>
-          </select>
+            <div className="d-flex align-items-center gap-2">
+              <span className="text-sa-muted small">Status:</span>
+              {getStatusBadge(selectedRecord.status)}
+            </div>
+          </div>
+
+          {/* Details Breakdown Card */}
+          <div className="p-4 rounded-3 border bg-light" style={{ borderColor: '#E2E8F0' }}>
+            <h3 className="brand-font fw-bold m-0 text-sa-charcoal mb-3" style={{ fontSize: '16px' }}>
+              Day Timings & Biometric Punch Details
+            </h3>
+            <div className="row g-3">
+              <div className="col-12 col-md-4">
+                <span className="text-muted d-block small">Date & Day</span>
+                <span className="fw-bold text-sa-charcoal fs-6">{selectedRecord.date} ({selectedRecord.day})</span>
+              </div>
+              <div className="col-6 col-md-4">
+                <span className="text-muted d-block small">Check In (Biometric / RFID)</span>
+                <span className="fw-bold text-success fs-6">{selectedRecord.checkIn}</span>
+              </div>
+              <div className="col-6 col-md-4">
+                <span className="text-muted d-block small">Check Out (Biometric / RFID)</span>
+                <span className="fw-bold text-primary fs-6">{selectedRecord.checkOut}</span>
+              </div>
+              <div className="col-6 col-md-4">
+                <span className="text-muted d-block small">Break Time Recorded</span>
+                <span className="fw-semibold text-sa-charcoal">{selectedRecord.breakTime || '1h 00m'}</span>
+              </div>
+              <div className="col-6 col-md-4">
+                <span className="text-muted d-block small">Effective Total Hours</span>
+                <span className="fw-bold text-sa-charcoal fs-6">{selectedRecord.totalHours}</span>
+              </div>
+              <div className="col-12 col-md-4">
+                <span className="text-muted d-block small">Biometric Device Terminal</span>
+                <span className="fw-medium text-sa-charcoal">Main Campus RFID Gate 1 & Bio-Device</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Card Header & Filter Section */}
+          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between pb-3 mb-2 border-bottom gap-2.5">
+            <div>
+              <h2 className="brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '17px', lineHeight: 1.25 }}>
+                Daily Working Time Log
+              </h2>
+              <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
+                Detailed biometric & RFID punch record ({filteredRecords.length} days)
+              </p>
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="d-flex align-items-center gap-2">
+              <Filter size={15} style={{ color: '#64748B' }} />
+              <select
+                className="form-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  height: '40px',
+                  width: '155px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E1E6ED',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#1E293B',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
+                  cursor: 'pointer',
+                  paddingLeft: '12px',
+                  paddingRight: '30px'
+                }}
+              >
+                <option value="All">All Statuses</option>
+                <option value="Present">Present</option>
+                <option value="Late">Late</option>
+                <option value="Half Day">Half Day</option>
+                <option value="Absent">Absent</option>
+              </select>
+            </div>
+          </div>
 
       {/* Table Section */}
       <div className="table-responsive">
@@ -210,7 +267,7 @@ export default function WorkingTimeTable({ records }) {
               </th>
               <th
                 style={{
-                  width: '14%',
+                  width: '13%',
                   fontSize: '13.5px',
                   fontWeight: 600,
                   color: '#1E293B',
@@ -222,7 +279,19 @@ export default function WorkingTimeTable({ records }) {
               </th>
               <th
                 style={{
-                  width: '16%',
+                  width: '13%',
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  color: '#1E293B',
+                  borderTop: 'none',
+                  verticalAlign: 'middle'
+                }}
+              >
+                Status
+              </th>
+              <th
+                style={{
+                  width: '13%',
                   fontSize: '13.5px',
                   fontWeight: 600,
                   color: '#1E293B',
@@ -232,14 +301,14 @@ export default function WorkingTimeTable({ records }) {
                   verticalAlign: 'middle'
                 }}
               >
-                Status
+                Action
               </th>
             </tr>
           </thead>
           <tbody>
             {filteredRecords.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-4 text-sa-muted" style={{ fontSize: '13px' }}>
+                <td colSpan={8} className="text-center py-4 text-sa-muted" style={{ fontSize: '13px' }}>
                   No working time records found matching the filter.
                 </td>
               </tr>
@@ -299,8 +368,30 @@ export default function WorkingTimeTable({ records }) {
                   </td>
 
                   {/* Status Badge */}
-                  <td style={{ textAlign: 'right', paddingRight: '16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                  <td style={{ verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     {getStatusBadge(row.status)}
+                  </td>
+
+                  {/* Action / View Details */}
+                  <td style={{ textAlign: 'right', paddingRight: '16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecord(row)}
+                      className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 text-sa-charcoal"
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        borderColor: '#E2E8F0',
+                        backgroundColor: '#F8FAFC',
+                        cursor: 'pointer'
+                      }}
+                      title="View Punch Details"
+                    >
+                      <Eye size={13} style={{ color: '#8B1216' }} />
+                      <span>Details</span>
+                    </button>
                   </td>
                 </tr>
               ))
@@ -308,6 +399,8 @@ export default function WorkingTimeTable({ records }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </>
+  )}
+</div>
   );
 }

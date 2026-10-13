@@ -40,6 +40,24 @@ class NotificationProviderService:
             f"Shubham Academy"
         )
 
+    @staticmethod
+    def build_teacher_marks_alert(teacher_name: str, exam_name: str, subject: str, total_students: int, channel: str) -> str:
+        return (
+            f"Dear {teacher_name},\n\n"
+            f"Marks notifications for examination '{exam_name}' ({subject}) have been dispatched via {channel.upper()} to parents of {total_students} students.\n\n"
+            f"Regards,\n"
+            f"Shubham Academy"
+        )
+
+    @staticmethod
+    def build_teacher_exam_schedule_alert(teacher_name: str, exam_name: str, subject: str, standard: str, date_str: str) -> str:
+        return (
+            f"Dear {teacher_name},\n\n"
+            f"A new examination '{exam_name}' for {subject} ({standard}) has been scheduled on {date_str}. Review timetable and student roster in Teacher Portal.\n\n"
+            f"Regards,\n"
+            f"Shubham Academy"
+        )
+
     def _sync_http_post(self, url: str, data: dict, headers: dict) -> Dict[str, Any]:
         try:
             req = urllib.request.Request(

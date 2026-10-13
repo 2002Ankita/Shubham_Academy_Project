@@ -4,6 +4,7 @@ import Button from '../common/Button';
 import { Send, CheckCircle2, AlertCircle, XCircle, PhoneOff, MessageSquare, PhoneCall, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'react-toastify';
 import marksService from '../../services/marksService';
+import notificationService from '../../services/notificationService';
 
 export default function SendMarksModal({
   isOpen,
@@ -11,22 +12,55 @@ export default function SendMarksModal({
   exam,
   batch = '',
   subject = '',
+  batchOptions = [],
+  subjectOptions = [],
   students = [],
   marks = []
 }) {
   const [channel, setChannel] = useState('whatsapp'); // 'whatsapp' | 'sms'
+  const [selectedBatch, setSelectedBatch] = useState(batch || 'All Batches');
+  const [selectedSubject, setSelectedSubject] = useState(subject || 'All Subjects');
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedBatch(batch || 'All Batches');
+      setSelectedSubject(subject || 'All Subjects');
+      setSendResult(null);
+    }
+  }, [isOpen, batch, subject]);
+
+  const computedBatchOptions = useMemo(() => {
+    if (batchOptions && batchOptions.length > 0) return batchOptions;
+    const list = new Set();
+    if (exam?.batch) list.add(exam.batch);
+    if (exam?.standard) list.add(exam.standard);
+    students.forEach(s => s.batch && list.add(s.batch));
+    return ['All Batches', ...Array.from(list)];
+  }, [batchOptions, exam, students]);
+
+  const computedSubjectOptions = useMemo(() => {
+    if (subjectOptions && subjectOptions.length > 0) return subjectOptions;
+    const list = new Set();
+    if (exam?.subject) list.add(exam.subject);
+    marks.forEach(m => m.subject && list.add(m.subject));
+    return ['All Subjects', ...Array.from(list)];
+  }, [subjectOptions, exam, marks]);
 
   // Compute roster of students for this exam with their marks & parent details
   const roster = useMemo(() => {
     if (!exam) return [];
     
     // Find all marks for this exam
-    const examMarks = marks.filter(m => m.examId === exam.id || m.exam_id === exam.id);
+    let examMarks = marks.filter(m => m.examId === exam.id || m.exam_id === exam.id);
+
+    if (selectedSubject && selectedSubject !== 'All Subjects') {
+      examMarks = examMarks.filter(m => (m.subject || exam.subject || '').toLowerCase() === selectedSubject.toLowerCase());
+    }
     
-    return examMarks.map(m => {
+    const list = examMarks.map(m => {
       const student = students.find(s => s.id === m.studentId || s.student_id === m.studentId || s.id === m.student_id) || {};
       const parentMobile = student.parentPhone || student.parent_mobile || '';
       const maskedMobile = parentMobile.length >= 4 
@@ -54,7 +88,16 @@ export default function SendMarksModal({
         hasPhone: Boolean(parentMobile && parentMobile.replace(/\D/g, '').length >= 10)
       };
     });
-  }, [exam, marks, students]);
+
+    if (selectedBatch && selectedBatch !== 'All Batches') {
+      return list.filter(r =>
+        (r.batch || '').toLowerCase().includes(selectedBatch.toLowerCase()) ||
+        (r.standard || '').toLowerCase().includes(selectedBatch.toLowerCase())
+      );
+    }
+
+    return list;
+  }, [exam, marks, students, selectedBatch, selectedSubject]);
 
   // Initial selection: select all students who have a valid phone number
   React.useEffect(() => {
@@ -93,8 +136,8 @@ export default function SendMarksModal({
     try {
       const payload = {
         exam_id: exam.id,
-        batch: batch || exam.batch || '',
-        subject: subject || exam.subject || '',
+        batch: selectedBatch !== 'All Batches' ? selectedBatch : (batch || exam.batch || ''),
+        subject: selectedSubject !== 'All Subjects' ? selectedSubject : (subject || exam.subject || ''),
         channel: channel,
         student_ids: selectedIds
       };
@@ -103,11 +146,27 @@ export default function SendMarksModal({
       setSendResult(res);
 
       const summary = res.summary || {};
+      const teacherInfo = res.teacher_notification || {};
+
+      // Register dynamic notification so the teacher's alert bell immediately updates
+      try {
+        notificationService.addNotification({
+          title: `SMS Alert: Marks Dispatched for ${exam?.title || exam?.exam_name || exam?.subject || 'Exam'}`,
+          type: 'exam',
+          category: 'Examinations & SMS Alerts',
+          priority: 'High',
+          author: 'Automated SMS Gateway',
+          details: `Marks notifications for ${exam?.title || exam?.exam_name || exam?.subject} were dispatched to parents of ${summary.total || selectedIds.length} students. Confirmation SMS alert delivered to registered teacher mobile (${teacherInfo.masked_mobile || 'on file'}).`
+        });
+      } catch (err) {
+        console.error('Failed to log teacher notification:', err);
+      }
+
       if (summary.sent > 0) {
-        toast.success(`Successfully dispatched ${summary.sent} marks notifications!`);
+        toast.success(`Successfully dispatched ${summary.sent} marks notifications and sent teacher SMS alert!`);
       } else if (summary.unconfigured > 0) {
         toast.info(
-          `Notification request processed for ${summary.unconfigured} student(s). Note: Backend ${channel.toUpperCase()} provider requires API key configuration.`,
+          `Notification request processed for ${summary.unconfigured} student(s) and teacher copy queued. Note: Backend ${channel.toUpperCase()} provider requires API key configuration.`,
           { autoClose: 6000 }
         );
       } else if (summary.missing_phone > 0 && summary.total === summary.missing_phone) {
@@ -181,25 +240,53 @@ export default function SendMarksModal({
       maxWidth="800px"
     >
       <div className="d-flex flex-column gap-3">
-        {/* Context metadata banner */}
+        {/* Context metadata & Selection Controls */}
         <div
           className="p-3 rounded-3 border"
           style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }}
         >
-          <div className="row g-2 text-secondary" style={{ fontSize: '13px' }}>
+          <div className="row g-2.5 align-items-center" style={{ fontSize: '13px' }}>
             <div className="col-12 col-sm-4">
-              <strong className="text-dark d-block">Batch / Class:</strong>
-              <span>{batch || exam?.batch || exam?.standard || 'All Enrolled Batches'}</span>
+              <label className="form-label fw-bold text-dark mb-1 small d-block">
+                Batch / Class:
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                style={{ height: '36px', borderRadius: '8px', borderColor: '#CBD5E1', fontSize: '12.5px' }}
+              >
+                {computedBatchOptions.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
             </div>
             <div className="col-12 col-sm-4">
-              <strong className="text-dark d-block">Subject:</strong>
-              <span className="badge" style={{ backgroundColor: '#FDF0F0', color: '#8B1216', border: '1px solid #FECACA' }}>
-                {subject || exam?.subject || 'All Subjects'}
-              </span>
+              <label className="form-label fw-bold text-dark mb-1 small d-block">
+                Subject:
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                style={{ height: '36px', borderRadius: '8px', borderColor: '#CBD5E1', fontSize: '12.5px' }}
+              >
+                {computedSubjectOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
             <div className="col-12 col-sm-4">
-              <strong className="text-dark d-block">Examination:</strong>
-              <span className="fw-semibold text-dark">{exam?.title || exam?.exam_name || 'Current Exam'}</span>
+              <label className="form-label fw-bold text-dark mb-1 small d-block">
+                Examination:
+              </label>
+              <div
+                className="form-control form-control-sm bg-white d-flex align-items-center text-truncate fw-semibold text-sa-charcoal"
+                style={{ height: '36px', borderRadius: '8px', borderColor: '#CBD5E1', fontSize: '12.5px' }}
+                title={exam?.title || exam?.exam_name || 'Current Exam'}
+              >
+                {exam?.title || exam?.exam_name || 'Current Exam'}
+              </div>
             </div>
           </div>
         </div>
@@ -245,27 +332,48 @@ export default function SendMarksModal({
 
         {/* Results summary bar if dispatched */}
         {sendResult && (
-          <div
-            className="p-2.5 px-3 rounded-2 border d-flex flex-wrap align-items-center justify-content-between gap-2"
-            style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', fontSize: '12.5px' }}
-          >
-            <div className="d-flex align-items-center gap-3">
-              <span className="fw-bold text-success">
-                <CheckCircle2 size={16} className="me-1 inline" /> Summary:
-              </span>
-              <span>Total: <strong>{sendResult.summary?.total || 0}</strong></span>
-              <span className="text-success">Sent: <strong>{sendResult.summary?.sent || 0}</strong></span>
-              <span className="text-primary">Provider Setup Required: <strong>{sendResult.summary?.unconfigured || 0}</strong></span>
-              <span className="text-danger">Failed: <strong>{sendResult.summary?.failed || 0}</strong></span>
-              <span className="text-warning">No Mobile: <strong>{sendResult.summary?.missing_phone || 0}</strong></span>
+          <div className="d-flex flex-column gap-2">
+            <div
+              className="p-2.5 px-3 rounded-2 border d-flex flex-wrap align-items-center justify-content-between gap-2"
+              style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', fontSize: '12.5px' }}
+            >
+              <div className="d-flex align-items-center gap-3">
+                <span className="fw-bold text-success">
+                  <CheckCircle2 size={16} className="me-1 inline" /> Summary:
+                </span>
+                <span>Total: <strong>{sendResult.summary?.total || 0}</strong></span>
+                <span className="text-success">Sent: <strong>{sendResult.summary?.sent || 0}</strong></span>
+                <span className="text-primary">Provider Setup Required: <strong>{sendResult.summary?.unconfigured || 0}</strong></span>
+                <span className="text-danger">Failed: <strong>{sendResult.summary?.failed || 0}</strong></span>
+                <span className="text-warning">No Mobile: <strong>{sendResult.summary?.missing_phone || 0}</strong></span>
+              </div>
             </div>
+
+            {sendResult.teacher_notification && (
+              <div
+                className="p-2.5 px-3 rounded-2 border d-flex align-items-center justify-content-between flex-wrap gap-2"
+                style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', fontSize: '12px' }}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <span className="badge rounded-pill" style={{ backgroundColor: '#8B1216', color: '#FFFFFF', fontSize: '10.5px' }}>
+                    Teacher SMS Alert
+                  </span>
+                  <span className="text-sa-charcoal">
+                    Notification alert copy routed to teacher mobile: <strong>{sendResult.teacher_notification.masked_mobile || 'Registered Mobile'}</strong>
+                  </span>
+                </div>
+                <span className="badge bg-white text-secondary border px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
+                  {sendResult.teacher_notification.status === 'sent' ? 'Delivered' : 'Alert Triggered'}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         {/* Students Roster Table */}
-        <div className="table-responsive border rounded-3 overflow-hidden" style={{ maxHeight: '340px' }}>
-          <table className="table table-hover align-middle m-0" style={{ fontSize: '13px' }}>
-            <thead style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="table-responsive border rounded-3" style={{ maxHeight: '280px', overflowY: 'auto', overflowX: 'auto' }}>
+          <table className="table table-hover align-middle m-0" style={{ minWidth: '650px', fontSize: '13px' }}>
+            <thead className="position-sticky top-0" style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', zIndex: 2 }}>
               <tr>
                 <th style={{ width: '40px', padding: '10px 12px' }}>
                   <input

@@ -485,6 +485,8 @@ export default function EnterMarks() {
         exam={currentActiveExam}
         batch={batchFilter !== 'All Batches' ? batchFilter : ''}
         subject={subjectFilter !== 'All Subjects' ? subjectFilter : ''}
+        batchOptions={batchOptions}
+        subjectOptions={subjectOptions}
         students={students}
         marks={marks}
       />

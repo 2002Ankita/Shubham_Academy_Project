@@ -1,10 +1,11 @@
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 
 /**
  * Downloads and prints the official salary receipt for a given month.
  * Implements:
- * 1. Professional printable PDF view (via window.print() formatted document)
- * 2. Formatted receipt file download (.txt)
+ * 1. Professional spreadsheet (.xlsx) receipt download
+ * 2. Professional printable PDF view (via window.print() formatted document)
  */
 export const downloadSalaryReceipt = ({
   month,
@@ -72,63 +73,68 @@ export const downloadSalaryReceipt = ({
     year: 'numeric'
   });
 
-  // 1. Plain Text Format for Direct File Download
-  const textContent = `
+  const sanitizedMonth = targetMonth.replace(/\s+/g, '_');
+
+  // 1. Generate Excel (.xlsx) file download
+  try {
+    const sheetData = [
+      ['SHUBHAM ACADEMY'],
+      ['MONTHLY SALARY RECEIPT / PAYSLIP'],
+      ['Billing Month:', targetMonth, 'Receipt Date:', currentDate],
+      [],
+      ['1. GENERAL & EMPLOYEE DETAILS', ''],
+      ['Teacher Name:', teacherName, 'Teacher ID:', teacherId],
+      ['Department / Subject:', subject, 'Designation:', designation],
+      ['Working Hours:', workingHours, 'Hourly Rate:', hourlyRate],
+      ['Payment Status:', paymentStatus, 'Disbursement Date:', paymentDate],
+      ['Transaction Ref:', transactionRef],
+      [],
+      ['2. EARNINGS & ADDITIONS', 'AMOUNT (₹)'],
+      ['Basic Salary', basicSalary],
+      ['Working Hours Pay', workingHoursPay],
+      ['Overtime / Doubt Sessions', overtime],
+      ['Other Allowances', allowances],
+      ['TOTAL EARNINGS', totalEarnings],
+      [],
+      ['3. DEDUCTIONS & TAXES', 'AMOUNT (₹)'],
+      ['Professional Tax (PT)', -pt],
+      ['Leave Without Pay / Deductions', -leaveDeductions],
+      ['TOTAL DEDUCTIONS', -totalDeductions],
+      [],
+      ['TOTAL NET SALARY PAYABLE', netSalary],
+      [],
+      ['Note: Official system-generated monthly salary receipt from Shubham Academy.']
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = [{ wch: 36 }, { wch: 26 }, { wch: 18 }, { wch: 22 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Salary Receipt');
+    XLSX.writeFile(wb, `Salary_Receipt_${sanitizedMonth}.xlsx`);
+  } catch (err) {
+    console.error('Error creating Excel salary receipt:', err);
+    // Fallback to text file if XLSX fails
+    const textContent = `
 ================================================================================
                                SHUBHAM ACADEMY
                     MONTHLY SALARY RECEIPT / PAYSLIP
 ================================================================================
-
-1. GENERAL DETAILS:
---------------------------------------------------------------------------------
-   Teacher Name         : ${teacherName}
-   Teacher ID           : ${teacherId}
-   Department / Subject : ${subject}
-   Designation          : ${designation}
-   Billing Month        : ${targetMonth}
-   Receipt Date         : ${currentDate}
-   Working Hours        : ${workingHours}
-   Hourly Rate          : ${hourlyRate}
-   Payment Status       : ${paymentStatus}
-   Disbursement Date    : ${paymentDate}
-   Transaction Ref      : ${transactionRef}
-
-2. EARNINGS & ADDITIONS:
---------------------------------------------------------------------------------
-   Basic Salary                     : ₹${basicSalary.toLocaleString('en-IN')}
-   Working Hours Pay                : ₹${workingHoursPay.toLocaleString('en-IN')}
-   Overtime / Doubt Sessions        : ₹${overtime.toLocaleString('en-IN')}
-   Other Allowances                 : ₹${allowances.toLocaleString('en-IN')}
-   -----------------------------------------------------------------------------
-   TOTAL EARNINGS                   : ₹${totalEarnings.toLocaleString('en-IN')}
-
-3. DEDUCTIONS & TAXES:
---------------------------------------------------------------------------------
-   Professional Tax (PT)            : -₹${pt.toLocaleString('en-IN')}
-   Leave Without Pay / Deductions   : -₹${leaveDeductions.toLocaleString('en-IN')}
-   -----------------------------------------------------------------------------
-   TOTAL DEDUCTIONS                 : -₹${totalDeductions.toLocaleString('en-IN')}
-
-================================================================================
-TOTAL NET SALARY PAYABLE            : ₹${netSalary.toLocaleString('en-IN')}
-================================================================================
-
-Note: Official system-generated monthly salary receipt from Shubham Academy.
-For any queries, please contact the administration office.
+Teacher Name         : ${teacherName}
+Teacher ID           : ${teacherId}
+Billing Month        : ${targetMonth}
+Total Net Salary     : ₹${netSalary.toLocaleString('en-IN')}
 ================================================================================
 `.trim();
-
-  // Trigger text file download
-  const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  const sanitizedMonth = targetMonth.replace(/\s+/g, '_');
-  link.download = `Salary_Receipt_${sanitizedMonth}.txt`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Salary_Receipt_${sanitizedMonth}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
   // 2. Open Printable Receipt for Save as PDF
   try {

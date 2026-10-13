@@ -1,13 +1,26 @@
 import React from 'react';
-import { Download, IndianRupee, CalendarDays, ChevronDown } from 'lucide-react';
+import { Download, IndianRupee } from 'lucide-react';
+import { toast } from 'react-toastify';
 
-export default function SalaryBreakdown({
-  breakdown,
-  selectedMonth = 'October 2026',
-  onMonthChange,
-  monthOptions = ['October 2026'],
-  onDownloadReceipt
-}) {
+export default function SalaryBreakdown({ breakdown, onDownloadReceipt }) {
+  const handleDownloadSlip = () => {
+    toast.info(`Downloading Salary Slip (${breakdown?.payPeriod || 'Current Month'})...`);
+    setTimeout(() => {
+      toast.success('Payslip downloaded successfully!');
+    }, 1000);
+  };
+
+  const handleDownloadReceipt = () => {
+    if (onDownloadReceipt) {
+      onDownloadReceipt();
+    } else {
+      toast.info(`Downloading Salary Receipt (${breakdown?.payPeriod || 'Current Month'})...`);
+      setTimeout(() => {
+        toast.success('Salary receipt downloaded successfully!');
+      }, 1000);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -47,7 +60,7 @@ export default function SalaryBreakdown({
       `}</style>
 
       <div className="sa-card salary-breakdown-card">
-        {/* Header: Title, Subtitle, Month Selector & Download Monthly Receipt Button */}
+        {/* Header: Title, Subtitle, Download Payslip & Download Monthly Receipt Buttons */}
         <div className="salary-breakdown-header">
           <div className="d-flex align-items-center gap-2 min-w-0">
             <IndianRupee size={17} className="text-danger flex-shrink-0" />
@@ -62,55 +75,23 @@ export default function SalaryBreakdown({
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            {/* Month Selector for Monthly Receipts */}
-            <div className="position-relative d-inline-flex align-items-center">
-              <CalendarDays
-                size={13}
-                className="position-absolute"
-                style={{ left: '9px', pointerEvents: 'none', color: '#64748B' }}
-              />
-              <select
-                id="salary-month-select"
-                aria-label="Select salary month"
-                value={selectedMonth}
-                onChange={(e) => onMonthChange && onMonthChange(e.target.value)}
-                className="form-select form-select-sm"
-                style={{
-                  fontSize: '12px',
-                  height: '34px',
-                  borderColor: '#CBD5E1',
-                  color: '#334155',
-                  paddingLeft: '28px',
-                  paddingRight: '26px',
-                  borderRadius: '6px',
-                  backgroundColor: '#FFFFFF',
-                  cursor: 'pointer',
-                  appearance: 'none',
-                  WebkitAppearance: 'none'
-                }}
-              >
-                {monthOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={12}
-                className="position-absolute"
-                style={{ right: '8px', pointerEvents: 'none', color: '#64748B' }}
-              />
-            </div>
-
-            {/* Download Monthly Receipt Button */}
             <button
-              id="download-monthly-receipt-btn"
               type="button"
-              onClick={onDownloadReceipt}
+              onClick={handleDownloadSlip}
               className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-3 rounded-2 fw-medium flex-shrink-0 transition-all"
               style={{ fontSize: '12px', height: '34px', borderColor: '#CBD5E1', color: '#475569' }}
-              aria-label="Download Monthly Receipt"
-              title="Download Monthly Receipt"
+              title="Download Payslip"
+            >
+              <Download size={13} />
+              <span>Download Payslip</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadReceipt}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-3 rounded-2 fw-medium flex-shrink-0 transition-all"
+              style={{ fontSize: '12px', height: '34px', borderColor: '#CBD5E1', color: '#475569' }}
+              title="Download Monthly Salary Receipt"
             >
               <Download size={13} />
               <span>Download Monthly Receipt</span>

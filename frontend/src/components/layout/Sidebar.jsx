@@ -243,8 +243,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       return [
         { label: 'Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
-        { label: 'Students', path: '/teacher/students', icon: Users },
         { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck },
+        { label: 'Daily Activity', path: '/teacher/daily-activity', icon: FileText },
         { label: 'Leave Request', path: '/teacher/leave-request', icon: Calendar },
         { label: 'Teachers', path: '/teacher/teachers', icon: TeachersWritingIcon },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
