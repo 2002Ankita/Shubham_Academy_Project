@@ -24,6 +24,7 @@ import {
   Zap,
   BookOpen,
   ChevronDown,
+  ChevronRight,
   Coins,
   BarChart2,
   Tv
@@ -36,6 +37,16 @@ export default function TeacherDashboard() {
   const [attendancePeriod, setAttendancePeriod] = useState('This Month');
 
   const [totalStudents, setTotalStudents] = useState(0);
+  const [dailyActivitiesCount, setDailyActivitiesCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sa_teacher_daily_activities');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.length;
+      }
+    } catch (_) { }
+    return 3;
+  });
   const [upcomingExamsList, setUpcomingExamsList] = useState([]);
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [totalExams, setTotalExams] = useState(0);
@@ -69,13 +80,13 @@ export default function TeacherDashboard() {
           } catch (e) {
             console.error('Failed to fetch working time', e);
           }
-          
+
           try {
             const salaries = await salaryService.getMySalaries();
             if (salaries && salaries.length > 0) {
               const currentSalary = salaries[salaries.length - 1]; // Assume latest is current
-              const statusText = currentSalary?.status === 'Disbursed' ? 'Fully paid' : 
-                                 currentSalary?.status === 'Partially Paid' ? 'Installment paid' : 'Pending';
+              const statusText = currentSalary?.status === 'Disbursed' ? 'Fully paid' :
+                currentSalary?.status === 'Partially Paid' ? 'Installment paid' : 'Pending';
               setSalaryDetails({
                 pending: Number(currentSalary.amountPending) || 0,
                 status: statusText
@@ -91,14 +102,40 @@ export default function TeacherDashboard() {
           setTotalStudents(students.length);
         }
 
+        let examsList = [];
         if (examsRes.status === 'fulfilled') {
-          const exams = examsRes.value || [];
-          setTotalExams(exams.length);
-          const upcoming = exams.slice(0, 3).map(e => ({
-            date: new Date(e.date || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            subject: e.title,
-            classBatch: e.classBatch || 'All Classes'
-          }));
+          examsList = examsRes.value || [];
+          setTotalExams(examsList.length);
+
+          // Filter for scheduled / upcoming exams
+          const scheduled = examsList.filter(e => {
+            const st = String(e.status || '').toLowerCase();
+            return !['completed', 'finished', 'done', 'cancelled', 'canceled'].includes(st);
+          }).sort((a, b) => {
+            const dateA = a.date && a.date !== 'N/A' ? new Date(a.date).getTime() : Infinity;
+            const dateB = b.date && b.date !== 'N/A' ? new Date(b.date).getTime() : Infinity;
+            return dateA - dateB;
+          });
+
+          const upcoming = (scheduled.length > 0 ? scheduled : examsList).slice(0, 3).map(e => {
+            let formattedDate = e.date || 'TBD';
+            if (e.date && e.date !== 'N/A') {
+              try {
+                const parsed = new Date(e.date);
+                if (!isNaN(parsed.getTime())) {
+                  formattedDate = parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                }
+              } catch (_) { }
+            }
+            return {
+              id: e.id,
+              date: formattedDate,
+              subject: e.subject || e.title,
+              title: e.title,
+              classBatch: e.classBatch || e.batch || e.examStandard || e.standard || 'All Classes',
+              status: e.status || 'Scheduled'
+            };
+          });
           setUpcomingExamsList(upcoming);
         }
 
@@ -118,10 +155,10 @@ export default function TeacherDashboard() {
           let filteredBatches = batches;
           if (user && user.role === 'teacher' && user.name) {
             const firstName = user.name.split(' ')[0].toLowerCase();
-            filteredBatches = batches.filter(b => 
-              b.teacher_name && 
-              (b.teacher_name.toLowerCase().includes(firstName) || 
-               user.name.toLowerCase().includes(b.teacher_name.toLowerCase()))
+            filteredBatches = batches.filter(b =>
+              b.teacher_name &&
+              (b.teacher_name.toLowerCase().includes(firstName) ||
+                user.name.toLowerCase().includes(b.teacher_name.toLowerCase()))
             );
           }
           const formattedRows = filteredBatches.map(b => ({
@@ -134,7 +171,23 @@ export default function TeacherDashboard() {
             actionText: 'Start Class',
             path: '/teacher/attendance'
           }));
-          setScheduleRows(formattedRows);
+
+          // Also include scheduled exams in teacher's schedule view
+          const scheduledExams = examsList.filter(e => {
+            const st = String(e.status || '').toLowerCase();
+            return ['scheduled', 'upcoming'].includes(st);
+          }).slice(0, 2).map(e => ({
+            time: e.startTime ? `${e.startTime}` : '10:00 AM',
+            subject: `${e.subject} [Exam: ${e.title}]`,
+            classBatch: e.batch || e.examStandard || e.standard || 'Scheduled Exam',
+            room: e.roomNo || 'Exam Hall',
+            status: 'Scheduled',
+            actionType: 'exam',
+            actionText: 'View Exam',
+            path: '/teacher/exams'
+          }));
+
+          setScheduleRows([...formattedRows, ...scheduledExams]);
         }
       } catch (err) {
         console.error('Error fetching teacher dashboard data:', err);
@@ -144,7 +197,11 @@ export default function TeacherDashboard() {
   }, []);
 
   // Interactive pending tasks state
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState([
+    { id: 1, title: 'Upload Wave Optics formulas & worksheet', subtext: 'Class 12th Science • Physics', priority: 'High', completed: false },
+    { id: 2, title: 'Enter Weekly Test #3 Marks', subtext: 'Batch Tarabai Park • 24 Students', priority: 'High', completed: false },
+    { id: 3, title: 'Verify Lab attendance journal logs', subtext: 'Class 11th Practical Lab', priority: 'Normal', completed: true },
+  ]);
 
   const toggleTask = (id) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
@@ -158,98 +215,98 @@ export default function TeacherDashboard() {
 
   const upcomingExams = upcomingExamsList;
 
+  const totalAttendanceStudents = attendanceDonutData.reduce((acc, d) => acc + d.value, 0);
+  const attendanceChartData = totalAttendanceStudents > 0
+    ? attendanceDonutData
+    : [{ name: 'No Data', value: 1, color: '#E2E8F0' }];
+
   return (
-    <div className="teacher-dashboard-page d-flex flex-column w-100" style={{ gap: '12px' }}>
+    <div className="teacher-dashboard-page d-flex flex-column w-100" style={{ gap: '18px' }}>
       <style>{`
         .teacher-kpi-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
+          gap: 16px;
         }
-        .teacher-main-grid {
+        .teacher-two-col-grid {
           display: grid;
-          grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
-          gap: 12px;
-        }
-        .teacher-bottom-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
         }
         .teacher-grid-card {
           min-width: 0;
           width: 100%;
           box-sizing: border-box;
+          border-radius: 16px !important;
+          border: 1px solid rgba(255, 255, 255, 0.9) !important;
+          border-top: 1.5px solid rgba(255, 255, 255, 0.98) !important;
+          border-bottom: 1px solid rgba(220, 38, 38, 0.1) !important;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.75) 100%) !important;
+          backdrop-filter: blur(20px) saturate(180%) !important;
+          -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+          box-shadow:
+            0 8px 24px -4px rgba(139, 18, 22, 0.06),
+            0 4px 12px -2px rgba(0, 0, 0, 0.04),
+            inset 0 1px 2px 0 rgba(255, 255, 255, 0.95) !important;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
-        .teacher-kpi-grid .teacher-grid-card > div:last-child {
-          min-width: 0;
+        .teacher-grid-card:hover {
+          border-color: rgba(220, 38, 38, 0.22) !important;
+          box-shadow:
+            0 16px 32px -6px rgba(139, 18, 22, 0.10),
+            0 6px 16px -2px rgba(0, 0, 0, 0.05),
+            inset 0 1px 2px 0 rgba(255, 255, 255, 1) !important;
+          transform: translateY(-2px) !important;
         }
         .teacher-card-heading {
-          flex: 1 1 auto;
-          min-width: 0;
-          overflow-wrap: anywhere;
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #1E293B;
+          margin: 0;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
         }
-        .schedule-table-wrapper {
-          width: 100%;
-          max-width: 100%;
-          min-width: 0;
-          overflow-x: auto;
-          overflow-y: auto;
-          box-sizing: border-box;
+        .teacher-kpi-card {
+          min-height: 88px;
+          padding: 12px 14px;
         }
-        .schedule-table-wrapper::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
+        .teacher-action-card-btn {
+          transition: all 0.2s ease;
+          border-radius: 12px;
+          padding: 8px 12px;
         }
-        .schedule-table-wrapper::-webkit-scrollbar-thumb {
-          background-color: #cbd5e1;
-          border-radius: 4px;
-        }
-        .schedule-table-wrapper::-webkit-scrollbar-track {
-          background-color: transparent;
-        }
-        @media (max-width: 1199px) {
-          .teacher-bottom-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+        .teacher-action-card-btn:hover {
+          transform: translateX(3px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
         }
         @media (max-width: 1199px) {
           .teacher-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
-        @media (max-width: 991px) {
-          .teacher-kpi-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .teacher-main-grid {
-            grid-template-columns: minmax(0, 1fr);
-          }
-          .teacher-bottom-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-        @media (max-width: 575px) {
+        @media (max-width: 767px) {
           .teacher-kpi-grid {
             grid-template-columns: minmax(0, 1fr);
           }
-          .teacher-bottom-grid {
+          .teacher-two-col-grid {
             grid-template-columns: minmax(0, 1fr);
           }
         }
       `}</style>
 
-      {/* 1. TOP GREETING & QUOTE SECTION */}
+      {/* 1. TOP GREETING & HERO BANNER */}
       <div
-        className="teacher-welcome-banner bg-white rounded-4 border overflow-hidden"
+        className="teacher-welcome-banner rounded-4 border overflow-hidden position-relative"
         style={{
-          borderRadius: '18px',
-          boxShadow: '0 2px 14px rgba(0, 0, 0, 0.04)',
-          borderColor: 'rgba(0, 0, 0, 0.08)'
+          borderRadius: '20px',
+          background: 'linear-gradient(135deg, rgba(255, 248, 238, 0.95) 0%, rgba(255, 243, 235, 0.90) 50%, rgba(254, 244, 234, 0.85) 100%)',
+          border: '1px solid rgba(220, 38, 38, 0.14)',
+          boxShadow: '0 8px 30px rgba(185, 28, 28, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)'
         }}
       >
         <div className="row g-0 align-items-center">
-          <div className="col-12 col-md-6 p-4 ps-md-4 ps-xl-5 py-md-4">
+          <div className="col-12 col-md-7 p-4 ps-md-4 ps-xl-5 py-md-4">
             <h1
               className="fw-bold brand-font text-sa-charcoal m-0"
               style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
@@ -263,19 +320,26 @@ export default function TeacherDashboard() {
               Ready to inspire young minds today?
             </p>
             <div
-              className="teacher-welcome-quote text-sa-muted fst-italic mt-3"
-              style={{ fontSize: '0.84rem', lineHeight: 1.4, fontWeight: 500 }}
+              className="d-inline-flex align-items-center gap-2 mt-3 px-3 py-1.5 rounded-pill"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                border: '1px solid rgba(220, 38, 38, 0.12)',
+                fontSize: '0.85rem',
+                color: '#8B1216',
+                fontWeight: 600
+              }}
             >
-              "Better Teachers<br />Brighter Futures"
+              <span>✨</span>
+              <span>"Better Teachers • Brighter Futures"</span>
             </div>
           </div>
-          <div className="col-12 col-md-6 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3 overflow-hidden">
+          <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">
             <img
               src="/assets/superadminhero.png"
               alt="Shubham Academy Celebration"
               className="img-fluid"
               style={{
-                maxHeight: '160px',
+                maxHeight: '150px',
                 width: 'auto',
                 objectFit: 'contain',
                 objectPosition: 'bottom right'
@@ -285,198 +349,246 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* 2. FOUR KPI STAT CARDS */}
-      <div className="teacher-kpi-grid">
+      {/* 2. FOUR KPI STAT CARDS (NORMAL COMFORTABLE SPACING & MATCHING ADMIN PANEL) */}
+      <div className="row g-3 g-xl-4">
         {/* Card 1: Today's Classes */}
-        <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
-          onClick={() => navigate('/teacher/classes')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-        >
+        <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#A91D22' }}
+            className="sa-kpi-glass-card theme-red p-3.5 p-xl-4 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/teacher/classes')}
+            style={{ cursor: 'pointer', minHeight: '150px' }}
           >
-            <Tv size={19} />
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
-              Today's Classes
-            </span>
-            <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              {scheduleRows.length}
+            <div className="d-flex align-items-start justify-content-between mb-3">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-red">
+                <Tv size={22} />
+              </div>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
+              </div>
             </div>
-            <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
-              {scheduleRows.filter(r => r.status === 'Completed').length} completed, {scheduleRows.filter(r => r.status !== 'Completed').length} remaining
-            </span>
+            <div>
+              <span className="text-sa-muted fw-semibold d-block mb-1.5" style={{ fontSize: '0.82rem', letterSpacing: '0.01em' }}>
+                Today's Classes
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font mb-1.5" style={{ fontSize: '1.85rem', lineHeight: 1.2 }}>
+                {scheduleRows.length}
+              </div>
+              <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '0.78rem', letterSpacing: '0.01em' }}>
+                {scheduleRows.filter(r => r.status === 'Completed').length} completed, {scheduleRows.filter(r => r.status !== 'Completed').length} remaining
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Card 2: Total Students */}
-        <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
-          onClick={() => navigate('/teacher/students')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-        >
+        {/* Card 2: Daily Activity */}
+        <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#EAF6EF', color: '#168554' }}
+            className="sa-kpi-glass-card theme-green p-3.5 p-xl-4 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/teacher/daily-activity')}
+            style={{ cursor: 'pointer', minHeight: '150px' }}
           >
-            <Users size={19} />
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
-              Total Students
-            </span>
-            <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              {totalStudents}
+            <div className="d-flex align-items-start justify-content-between mb-3">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
+                <BookOpen size={22} />
+              </div>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
+              </div>
             </div>
-            <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
-              ↗ Total assigned
-            </span>
+            <div>
+              <span className="text-sa-muted fw-semibold d-block mb-1.5" style={{ fontSize: '0.82rem', letterSpacing: '0.01em' }}>
+                Daily Activity
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font mb-1.5" style={{ fontSize: '1.85rem', lineHeight: 1.2 }}>
+                {dailyActivitiesCount} <span style={{ fontSize: '0.92rem', fontWeight: 500, color: '#64748B' }}>topics</span>
+              </div>
+              <span className="fw-semibold d-block text-truncate" style={{ fontSize: '0.78rem', color: '#168554', letterSpacing: '0.01em' }}>
+                ↗ Logged today
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Card 3: Pending Salary */}
-        <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
-          onClick={() => navigate('/teacher/salary')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-        >
+        <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FEF8EB', color: '#D97718' }}
+            className="sa-kpi-glass-card theme-amber p-3.5 p-xl-4 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/teacher/salary')}
+            style={{ cursor: 'pointer', minHeight: '150px' }}
           >
-            <Coins size={19} />
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
-              Pending Salary
-            </span>
-            <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              ₹{salaryDetails.pending.toLocaleString()}
+            <div className="d-flex align-items-start justify-content-between mb-3">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
+                <Coins size={22} />
+              </div>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
+              </div>
             </div>
-            <span className="text-sa-muted d-block" style={{ fontSize: '10px' }}>
-              Status: {salaryDetails.status}
-            </span>
+            <div>
+              <span className="text-sa-muted fw-semibold d-block mb-1.5" style={{ fontSize: '0.82rem', letterSpacing: '0.01em' }}>
+                Pending Salary
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font mb-1.5" style={{ fontSize: '1.85rem', lineHeight: 1.2 }}>
+                ₹{salaryDetails.pending.toLocaleString()}
+              </div>
+              <span className="text-sa-muted fw-medium d-block text-truncate" style={{ fontSize: '0.78rem', letterSpacing: '0.01em' }}>
+                Status: {salaryDetails.status}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Card 4: Working Hours */}
-        <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex align-items-center gap-2.5 transition-all cursor-pointer"
-          onClick={() => navigate('/teacher/working-time')}
-          style={{ height: '78px', padding: '10px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-        >
+        <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#A91D22' }}
+            className="sa-kpi-glass-card theme-red p-3.5 p-xl-4 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/teacher/working-time')}
+            style={{ cursor: 'pointer', minHeight: '150px' }}
           >
-            <Clock size={19} />
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <span className="text-sa-muted fw-medium d-block" style={{ fontSize: '11.5px' }}>
-              Working Hours
-            </span>
-            <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '22px', lineHeight: 1.15 }}>
-              {totalWorkingHours} hrs
+            <div className="d-flex align-items-start justify-content-between mb-3">
+              <div className="sa-stat-icon-wrapper sa-stat-icon-red">
+                <Clock size={22} />
+              </div>
+              <div className="sa-card-chevron-btn">
+                <ChevronRight size={15} />
+              </div>
             </div>
-            <span className="fw-semibold d-block" style={{ fontSize: '10px', color: '#168554' }}>
-              ↗ {Math.round((parseFloat(totalWorkingHours) / 160) * 100)}% of 160 hrs this month
-            </span>
+            <div>
+              <span className="text-sa-muted fw-semibold d-block mb-1.5" style={{ fontSize: '0.82rem', letterSpacing: '0.01em' }}>
+                Working Hours
+              </span>
+              <div className="fw-bold text-sa-charcoal brand-font mb-1.5" style={{ fontSize: '1.85rem', lineHeight: 1.2 }}>
+                {totalWorkingHours} hrs
+              </div>
+              <span className="fw-semibold d-block text-truncate" style={{ fontSize: '0.78rem', color: '#168554', letterSpacing: '0.01em' }}>
+                ↗ {Math.round((parseFloat(totalWorkingHours) / 160) * 100)}% of 160 hrs
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 3. MAIN SECTION: Schedule (50%) | Class Attendance (25%) | Quick Actions (25%) */}
-      <div className="teacher-main-grid">
-        {/* Column 1: Today's Class Schedule */}
-        <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-        >
-          {/* Header */}
-          <div className="d-flex align-items-center justify-content-between pb-1.5 border-bottom flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Calendar size={15} className="text-danger flex-shrink-0" />
-              <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
-                Today's Class Schedule
-              </h3>
-            </div>
-            <button
-              onClick={() => navigate('/teacher/classes')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold d-flex align-items-center gap-0.5 flex-shrink-0 ms-2"
-              style={{ fontSize: '11px', whiteSpace: 'nowrap' }}
-            >
-              View Full Schedule &rarr;
-            </button>
+      {/* 3. TODAY'S CLASS SCHEDULE (FULL WIDTH CARD - NO OVERLAP) */}
+      <div
+        className="teacher-grid-card d-flex flex-column"
+        style={{ minHeight: '190px', padding: '16px 20px' }}
+      >
+        {/* Header */}
+        <div className="d-flex align-items-center justify-content-between pb-2.5 mb-2 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+          <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+            <Calendar size={17} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+            <h3 className="teacher-card-heading">
+              Today's Class Schedule
+            </h3>
           </div>
+          <button
+            onClick={() => navigate('/teacher/classes')}
+            className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-2"
+            style={{ fontSize: '12px', whiteSpace: 'nowrap', color: '#8B1216' }}
+          >
+            View Full Schedule &rarr;
+          </button>
+        </div>
 
-          {/* Compact Schedule Table with Internal Scroll */}
-          <div className="schedule-table-wrapper flex-grow-1 mt-0.5" style={{ fontSize: '10.5px' }}>
-            <table className="table table-borderless table-sm m-0 align-middle" style={{ minWidth: '490px', width: '100%' }}>
+        {/* Schedule Content */}
+        {scheduleRows.length === 0 ? (
+          <div className="d-flex flex-column align-items-center justify-content-center text-center py-4 flex-grow-1">
+            <div
+              className="rounded-circle d-flex align-items-center justify-content-center mb-2"
+              style={{ width: '42px', height: '42px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+            >
+              <Calendar size={20} />
+            </div>
+            <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '13px' }}>
+              No classes scheduled for today
+            </div>
+            <div className="text-sa-muted mt-0.5" style={{ fontSize: '11.5px' }}>
+              Your timetable for today is clear. Relax or prepare upcoming lecture materials!
+            </div>
+          </div>
+        ) : (
+          <div className="table-responsive flex-grow-1">
+            <table className="table table-borderless table-sm m-0 align-middle w-100" style={{ tableLayout: 'fixed' }}>
               <thead>
-                <tr className="text-muted border-bottom" style={{ fontSize: '10px', height: '24px' }}>
-                  <th className="fw-semibold ps-1 py-0.5" style={{ width: '13%', whiteSpace: 'nowrap' }}>Time</th>
-                  <th className="fw-semibold py-0.5" style={{ width: '23%', whiteSpace: 'nowrap' }}>Subject</th>
-                  <th className="fw-semibold py-0.5" style={{ width: '20%', whiteSpace: 'nowrap' }}>Class / Batch</th>
-                  <th className="fw-semibold py-0.5" style={{ width: '13%', whiteSpace: 'nowrap' }}>Room</th>
-                  <th className="fw-semibold py-0.5" style={{ width: '14%', whiteSpace: 'nowrap' }}>Status</th>
-                  <th className="fw-semibold pe-1 py-0.5 text-end" style={{ width: '17%', whiteSpace: 'nowrap' }}>Action</th>
+                <tr className="text-muted border-bottom" style={{ fontSize: '11px', height: '28px' }}>
+                  <th className="fw-semibold ps-2 py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Time</th>
+                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '32%', letterSpacing: '0.02em' }}>Subject</th>
+                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '20%', letterSpacing: '0.02em' }}>Batch</th>
+                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Room</th>
+                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Status</th>
+                  <th className="fw-semibold pe-2 py-1 text-end text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {scheduleRows.map((row, idx) => (
-                  <tr key={idx} className="border-bottom border-light" style={{ height: '29px' }}>
-                    <td className="fw-medium text-sa-charcoal ps-1 py-0.5" style={{ whiteSpace: 'nowrap' }}>
+                  <tr key={idx} className="border-bottom border-light" style={{ height: '38px' }}>
+                    <td className="fw-semibold text-sa-charcoal ps-2 py-1.5" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                       {row.time}
                     </td>
-                    <td className="fw-semibold text-sa-charcoal py-0.5" style={{ whiteSpace: 'nowrap' }}>
-                      {row.subject}
+                    <td className="py-1.5" style={{ overflow: 'hidden' }}>
+                      <div className="fw-semibold text-sa-charcoal text-truncate" title={row.subject} style={{ fontSize: '12.5px' }}>
+                        {row.subject}
+                      </div>
                     </td>
-                    <td className="text-sa-muted py-0.5" style={{ whiteSpace: 'nowrap' }}>
-                      {row.classBatch}
+                    <td className="py-1.5" style={{ overflow: 'hidden' }}>
+                      <div className="text-sa-muted text-truncate" title={row.classBatch} style={{ fontSize: '12px' }}>
+                        {row.classBatch}
+                      </div>
                     </td>
-                    <td className="py-0.5" style={{ whiteSpace: 'nowrap' }}>
-                      <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '9.5px', padding: '2px 5px' }}>
+                    <td className="py-1.5">
+                      <span className="badge bg-light text-muted border fw-normal text-truncate d-inline-block" style={{ fontSize: '10.5px', padding: '3px 8px', maxWidth: '100%' }}>
                         {row.room}
                       </span>
                     </td>
-                    <td className="py-0.5" style={{ whiteSpace: 'nowrap' }}>
+                    <td className="py-1.5">
                       {row.status === 'Completed' ? (
-                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#EAF6EF', color: '#168554', fontSize: '9px', padding: '2px 7px' }}>
+                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#EAF6EF', color: '#168554', fontSize: '10.5px', padding: '3px 8px' }}>
                           Completed
                         </span>
                       ) : row.status === 'Next Class' ? (
-                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#FEF8EB', color: '#D97718', fontSize: '9px', padding: '2px 7px' }}>
+                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#FEF8EB', color: '#D97718', fontSize: '10.5px', padding: '3px 8px' }}>
                           Next Class
                         </span>
                       ) : (
-                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#F1F5F9', color: '#475569', fontSize: '9px', padding: '2px 7px' }}>
+                        <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#F1F5F9', color: '#475569', fontSize: '10.5px', padding: '3px 8px' }}>
                           Scheduled
                         </span>
                       )}
                     </td>
-                    <td className="pe-1 py-0.5 text-end" style={{ whiteSpace: 'nowrap' }}>
+                    <td className="pe-2 py-1.5 text-end">
                       {row.actionType === 'start' ? (
                         <button
                           onClick={() => navigate(row.path)}
-                          className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-1 text-white border-0 fw-semibold"
+                          className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 text-white border-0 fw-semibold"
                           style={{
-                            backgroundColor: '#A91D22',
-                            fontSize: '9.5px',
-                            padding: '2.5px 7px',
-                            borderRadius: '4px',
+                            backgroundColor: '#8B1216',
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          <span style={{ fontSize: '7.5px' }}>▶</span> Start Class
+                          <span>▶</span> Start Class
+                        </button>
+                      ) : row.actionType === 'exam' ? (
+                        <button
+                          onClick={() => navigate(row.path)}
+                          className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 text-white border-0 fw-semibold"
+                          style={{
+                            backgroundColor: '#0284C7',
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <FileText size={11} /> View Exam
                         </button>
                       ) : (
                         <button
                           onClick={() => navigate(row.path)}
                           className="btn btn-sm btn-outline-secondary text-decoration-none fw-medium"
-                          style={{ fontSize: '9.5px', padding: '1.5px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}
+                          style={{ fontSize: '11px', padding: '3px 9px', borderRadius: '6px', whiteSpace: 'nowrap' }}
                         >
                           {row.actionText}
                         </button>
@@ -487,248 +599,292 @@ export default function TeacherDashboard() {
               </tbody>
             </table>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Column 2: Class Attendance */}
+      {/* 4. CLASS ATTENDANCE & QUICK ACTIONS (2 EQUAL COLUMNS - ZERO OVERLAP) */}
+      <div className="teacher-two-col-grid">
+        {/* Card 1: Class Attendance */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '235px', padding: '16px 18px' }}
         >
           {/* Header */}
-          <div className="d-flex align-items-center justify-content-between pb-1 flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <BarChart2 size={15} className="text-danger flex-shrink-0" />
-              <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
+          <div className="d-flex align-items-center justify-content-between pb-2 mb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+              <BarChart2 size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <h3 className="teacher-card-heading">
                 Class Attendance
               </h3>
             </div>
             <div
-              className="d-inline-flex align-items-center gap-1 px-1.5 py-0.5 rounded border bg-light text-muted flex-shrink-0"
-              style={{ fontSize: '10px' }}
+              className="d-inline-flex align-items-center gap-1.5 px-2 py-0.5 rounded border bg-light text-muted flex-shrink-0 ms-auto"
+              style={{ fontSize: '11px', whiteSpace: 'nowrap' }}
             >
               <span>{attendancePeriod}</span>
-              <ChevronDown size={10} />
+              <ChevronDown size={11} />
             </div>
           </div>
 
           {/* Donut Chart with Center Text */}
-          <div className="position-relative d-flex align-items-center justify-content-center flex-grow-1" style={{ minHeight: '105px', maxHeight: '112px', overflow: 'hidden' }}>
-            <ResponsiveContainer width="100%" height={108}>
+          <div className="position-relative d-flex align-items-center justify-content-center flex-grow-1" style={{ minHeight: '115px', overflow: 'hidden' }}>
+            <ResponsiveContainer width="100%" height={115}>
               <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                 <Pie
-                  data={attendanceDonutData}
+                  data={attendanceChartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={32}
-                  outerRadius={46}
-                  paddingAngle={2}
+                  innerRadius={36}
+                  outerRadius={50}
+                  paddingAngle={totalAttendanceStudents > 0 ? 2 : 0}
                   dataKey="value"
                   strokeWidth={0}
                 >
-                  {attendanceDonutData.map((entry, index) => (
+                  {attendanceChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
             <div className="position-absolute text-center" style={{ pointerEvents: 'none', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '15px', lineHeight: 1 }}>
-                0
+              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '18px', lineHeight: 1 }}>
+                {totalAttendanceStudents}
               </div>
-              <div className="text-sa-muted" style={{ fontSize: '9px', lineHeight: 1, marginTop: '1.5px' }}>
+              <div className="text-sa-muted" style={{ fontSize: '10px', lineHeight: 1, marginTop: '2px' }}>
                 Students
               </div>
             </div>
           </div>
 
-          {/* Compact Legend Table below Chart */}
-          <div className="d-flex flex-column gap-0.5 pt-1 border-top flex-shrink-0" style={{ fontSize: '10.5px' }}>
+          {/* Legend Table below Chart */}
+          <div className="d-flex align-items-center justify-content-around pt-2 border-top flex-shrink-0" style={{ fontSize: '11.5px', borderColor: 'rgba(220, 38, 38, 0.08)' }}>
             {attendanceDonutData.map((item, idx) => (
-              <div key={idx} className="d-flex align-items-center justify-content-between py-0.5">
-                <div className="d-flex align-items-center gap-1.5 min-w-0">
-                  <span className="rounded-circle d-inline-block flex-shrink-0" style={{ width: '6px', height: '6px', backgroundColor: item.color }} />
-                  <span className="text-sa-charcoal fw-medium text-truncate">{item.name}</span>
-                </div>
-                <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
-                  <span className="fw-bold text-sa-charcoal">{item.value}</span>
-                  <span className="text-muted text-end" style={{ width: '34px' }}>{item.percentage}</span>
-                </div>
+              <div key={idx} className="d-flex align-items-center gap-1.5">
+                <span className="rounded-circle d-inline-block flex-shrink-0" style={{ width: '8px', height: '8px', backgroundColor: item.color }} />
+                <span className="text-sa-charcoal fw-medium">{item.name}:</span>
+                <span className="fw-bold text-sa-charcoal">{item.value}</span>
+                <span className="text-muted">({item.percentage})</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Column 3: Quick Actions */}
+        {/* Card 2: Quick Actions */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '238px', padding: '12px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '235px', padding: '16px 18px' }}
         >
           {/* Header */}
-          <div className="d-flex align-items-center gap-1.5 pb-1.5 border-bottom flex-shrink-0">
-            <Zap size={15} className="text-danger flex-shrink-0" />
-            <h3 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13px' }}>
+          <div className="d-flex align-items-center gap-2 pb-2 mb-2 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <Zap size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+            <h3 className="teacher-card-heading">
               Quick Actions
             </h3>
           </div>
 
-          {/* Action Buttons with Balanced Normal Spacing */}
-          <div className="d-flex flex-column justify-content-around flex-grow-1 pt-1.5 pb-0.5" style={{ minWidth: 0, gap: '6px' }}>
+          {/* Action Buttons */}
+          <div className="d-flex flex-column justify-content-between flex-grow-1" style={{ gap: '8px' }}>
             {/* Action 1: Take Attendance */}
             <button
               onClick={() => navigate('/teacher/attendance')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
               style={{
                 backgroundColor: '#FDF0F0',
-                borderRadius: '7px',
-                padding: '7px 11px',
-                height: '40px',
-                minWidth: 0
+                borderColor: 'rgba(220, 38, 38, 0.16)',
+                height: '46px'
               }}
             >
-              <div className="d-flex align-items-center gap-2 min-w-0">
-                <Users size={15} style={{ color: '#A91D22' }} className="flex-shrink-0" />
-                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#A91D22' }}>
-                  Take Attendance
-                </span>
+              <div className="d-flex align-items-center gap-2.5 min-w-0">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '32px', height: '32px', backgroundColor: 'rgba(139, 18, 22, 0.1)', color: '#8B1216' }}
+                >
+                  <Users size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#8B1216', lineHeight: 1.2 }}>
+                    Take Attendance
+                  </span>
+                  <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
+                    Mark student presence
+                  </span>
+                </div>
               </div>
-              <span className="flex-shrink-0 ms-1" style={{ color: '#A91D22', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
+              <ChevronRight size={15} style={{ color: '#8B1216' }} className="flex-shrink-0 ms-1" />
             </button>
 
             {/* Action 2: Enter Marks */}
             <button
               onClick={() => navigate('/teacher/marks')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
               style={{
                 backgroundColor: '#FEF8EB',
-                borderRadius: '7px',
-                padding: '7px 11px',
-                height: '40px',
-                minWidth: 0
+                borderColor: 'rgba(245, 158, 11, 0.22)',
+                height: '46px'
               }}
             >
-              <div className="d-flex align-items-center gap-2 min-w-0">
-                <BarChart2 size={15} style={{ color: '#D97718' }} className="flex-shrink-0" />
-                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#D97718' }}>
-                  Enter Marks
-                </span>
+              <div className="d-flex align-items-center gap-2.5 min-w-0">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '32px', height: '32px', backgroundColor: 'rgba(217, 119, 24, 0.12)', color: '#D97718' }}
+                >
+                  <BarChart2 size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#D97718', lineHeight: 1.2 }}>
+                    Enter Marks
+                  </span>
+                  <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
+                    Exam & test grading
+                  </span>
+                </div>
               </div>
-              <span className="flex-shrink-0 ms-1" style={{ color: '#D97718', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
+              <ChevronRight size={15} style={{ color: '#D97718' }} className="flex-shrink-0 ms-1" />
             </button>
 
             {/* Action 3: Upload Material */}
             <button
               onClick={() => navigate('/teacher/study-materials')}
-              className="btn w-100 text-start d-flex align-items-center justify-content-between border-0 transition-all shadow-xs"
+              className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
               style={{
                 backgroundColor: '#FDF0F0',
-                borderRadius: '7px',
-                padding: '7px 11px',
-                height: '40px',
-                minWidth: 0
+                borderColor: 'rgba(220, 38, 38, 0.16)',
+                height: '46px'
               }}
             >
-              <div className="d-flex align-items-center gap-2 min-w-0">
-                <BookOpen size={15} style={{ color: '#A91D22' }} className="flex-shrink-0" />
-                <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', color: '#A91D22' }}>
-                  Upload Material
-                </span>
+              <div className="d-flex align-items-center gap-2.5 min-w-0">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '32px', height: '32px', backgroundColor: 'rgba(139, 18, 22, 0.1)', color: '#8B1216' }}
+                >
+                  <BookOpen size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#8B1216', lineHeight: 1.2 }}>
+                    Upload Material
+                  </span>
+                  <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
+                    Share notes & worksheets
+                  </span>
+                </div>
               </div>
-              <span className="flex-shrink-0 ms-1" style={{ color: '#A91D22', fontSize: '15px', fontWeight: 600 }}>&rsaquo;</span>
+              <ChevronRight size={15} style={{ color: '#8B1216' }} className="flex-shrink-0 ms-1" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* 4. BOTTOM ROW: Upcoming Examinations | Pending Tasks | Recent Announcements | This Month's Hours */}
-      <div className="teacher-bottom-grid">
+      {/* 5. UPCOMING EXAMINATIONS & PENDING TASKS (2 EQUAL COLUMNS - ZERO OVERLAP) */}
+      <div className="teacher-two-col-grid">
         {/* Card 1: Upcoming Examinations */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '210px', padding: '14px 18px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <FileText size={13} className="text-danger flex-shrink-0" />
-              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
+          <div className="d-flex align-items-center justify-content-between pb-2 mb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+              <FileText size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <h4 className="teacher-card-heading">
                 Upcoming Examinations
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/exams')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-2"
+              style={{ fontSize: '11.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
           </div>
-          <div className="d-flex flex-column justify-content-around flex-grow-1 pt-0.5" style={{ fontSize: '10.5px', minWidth: 0 }}>
-            <div className="d-flex justify-content-between text-muted border-bottom pb-0.5" style={{ fontSize: '9.5px' }}>
-              <span style={{ width: '32%' }}>Date</span>
-              <span style={{ width: '36%' }}>Subject</span>
-              <span className="text-end" style={{ width: '32%' }}>Class / Batch</span>
+
+          <div className="d-flex flex-column justify-content-between flex-grow-1" style={{ fontSize: '11.5px' }}>
+            <div className="d-flex justify-content-between text-muted border-bottom pb-1" style={{ fontSize: '10.5px' }}>
+              <span style={{ width: '22%' }}>Date</span>
+              <span style={{ width: '48%' }}>Subject / Exam</span>
+              <span className="text-end" style={{ width: '30%' }}>Batch</span>
             </div>
-            {upcomingExams.map((exam, idx) => (
-              <div key={idx} className="d-flex justify-content-between align-items-center py-0.5">
-                <span className="fw-semibold text-danger text-truncate" style={{ fontSize: '10px', width: '32%' }}>{exam.date}</span>
-                <span className="fw-medium text-sa-charcoal" style={{ fontSize: '10px', width: '36%', overflowWrap: 'anywhere' }}>{exam.subject}</span>
-                <span className="text-sa-muted text-end" style={{ fontSize: '10px', width: '32%', overflowWrap: 'anywhere' }}>{exam.classBatch}</span>
+            {upcomingExams.length === 0 ? (
+              <div className="d-flex flex-column align-items-center justify-content-center text-center py-4 flex-grow-1 text-sa-muted" style={{ fontSize: '11.5px' }}>
+                <span>No scheduled examinations</span>
               </div>
-            ))}
+            ) : (
+              <div className="d-flex flex-column justify-content-around flex-grow-1 py-1" style={{ gap: '6px' }}>
+                {upcomingExams.map((exam, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => navigate('/teacher/exams')}
+                    className="d-flex justify-content-between align-items-center py-1 cursor-pointer rounded px-1"
+                    style={{ transition: 'background-color 0.15s ease' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.04)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    title={`${exam.title || exam.subject} - Click to view in Examinations`}
+                  >
+                    <span className="fw-bold text-truncate" style={{ fontSize: '11.5px', width: '22%', color: '#8B1216' }}>{exam.date}</span>
+                    <span className="fw-semibold text-sa-charcoal text-truncate pe-2" style={{ fontSize: '12px', width: '48%' }}>{exam.subject}</span>
+                    <span className="text-sa-muted text-end text-truncate" style={{ fontSize: '11.5px', width: '30%' }}>{exam.classBatch}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Card 2: Pending Tasks */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '210px', padding: '14px 18px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <CheckSquare size={13} className="text-danger flex-shrink-0" />
-              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
+          <div className="d-flex align-items-center justify-content-between pb-2 mb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+              <CheckSquare size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <h4 className="teacher-card-heading">
                 Pending Tasks
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/marks')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-2"
+              style={{ fontSize: '11.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
           </div>
-          <div className="d-flex flex-column justify-content-around flex-grow-1 pt-0.5" style={{ gap: '4px', minWidth: 0 }}>
+
+          <div className="d-flex flex-column justify-content-around flex-grow-1" style={{ gap: '8px' }}>
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="d-flex align-items-start gap-1.5 cursor-pointer min-w-0"
+                className="d-flex align-items-center gap-2.5 cursor-pointer p-1 rounded"
+                style={{ transition: 'background-color 0.15s ease' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.03)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 onClick={() => toggleTask(task.id)}
               >
-                <div className="flex-shrink-0 pt-0.5">
+                <div className="flex-shrink-0">
                   {task.completed ? (
-                    <CheckSquare size={12} className="text-success" />
+                    <CheckSquare size={15} className="text-success" />
                   ) : (
-                    <Square size={12} className="text-muted" />
+                    <Square size={15} className="text-muted" />
                   )}
                 </div>
-                <div className="flex-grow-1 min-w-0">
+                <div className="flex-grow-1 min-w-0 pe-2">
                   <div
-                    className={`fw-medium text-truncate ${task.completed ? 'text-decoration-line-through text-muted' : 'text-sa-charcoal'}`}
-                    style={{ fontSize: '10px', lineHeight: 1.2 }}
+                    className={`fw-semibold text-truncate ${task.completed ? 'text-decoration-line-through text-muted' : 'text-sa-charcoal'}`}
+                    style={{ fontSize: '12px', lineHeight: 1.25 }}
                   >
                     {task.title}
                   </div>
-                  <div className="text-muted text-truncate" style={{ fontSize: '8.5px', lineHeight: 1, marginTop: '1px' }}>
+                  <div className="text-muted text-truncate" style={{ fontSize: '11px', lineHeight: 1.2, marginTop: '2px' }}>
                     {task.subtext}
                   </div>
                 </div>
                 <span
-                  className="badge flex-shrink-0 fw-normal"
+                  className="badge flex-shrink-0 fw-medium rounded-pill ms-auto"
                   style={{
-                    fontSize: '8px',
-                    padding: '1.5px 4.5px',
+                    fontSize: '10px',
+                    padding: '3px 8px',
                     backgroundColor: task.priority === 'High' ? '#FDF0F0' : '#FEF8EB',
-                    color: task.priority === 'High' ? '#A91D22' : '#D97718'
+                    color: task.priority === 'High' ? '#8B1216' : '#D97718'
                   }}
                 >
                   {task.priority}
@@ -737,112 +893,135 @@ export default function TeacherDashboard() {
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Card 3: Recent Announcements */}
+      {/* 6. RECENT ANNOUNCEMENTS & THIS MONTH'S HOURS (2 EQUAL COLUMNS - ZERO OVERLAP) */}
+      <div className="teacher-two-col-grid">
+        {/* Card 1: Recent Announcements */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '210px', padding: '14px 18px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Megaphone size={13} className="text-danger flex-shrink-0" />
-              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
+          <div className="d-flex align-items-center justify-content-between pb-2 mb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+              <Megaphone size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <h4 className="teacher-card-heading">
                 Recent Announcements
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/announcements')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-2"
+              style={{ fontSize: '11.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View All &rarr;
             </button>
           </div>
-          <div className="d-flex flex-column justify-content-around flex-grow-1 pt-0.5" style={{ gap: '3px', minWidth: 0 }}>
-            {recentAnnouncements.map((item) => (
-              <div key={item.id} className="d-flex align-items-center justify-content-between" style={{ fontSize: '10px' }}>
-                <div className="d-flex align-items-center gap-1.5" style={{ minWidth: 0 }}>
-                  <span className="rounded-circle flex-shrink-0" style={{ width: '5px', height: '5px', backgroundColor: item.dotColor }} />
-                  <span className="text-sa-charcoal fw-medium" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{item.title}</span>
-                </div>
-                <span className="text-muted flex-shrink-0 ps-1" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>{item.date}</span>
+
+          <div className="d-flex flex-column justify-content-around flex-grow-1" style={{ gap: '8px' }}>
+            {recentAnnouncements.length === 0 ? (
+              <div className="text-center py-4 text-sa-muted" style={{ fontSize: '11.5px' }}>
+                No recent announcements
               </div>
-            ))}
+            ) : (
+              recentAnnouncements.map((item) => (
+                <div key={item.id} className="d-flex align-items-start justify-content-between p-1 rounded" style={{ fontSize: '11.5px', gap: '8px' }}>
+                  <div className="d-flex align-items-start gap-2 min-w-0">
+                    <span className="rounded-circle flex-shrink-0 mt-1" style={{ width: '6px', height: '6px', backgroundColor: item.dotColor }} />
+                    <span className="text-sa-charcoal fw-medium" style={{ fontSize: '12px', lineHeight: 1.35 }}>{item.title}</span>
+                  </div>
+                  <span className="text-muted flex-shrink-0 ps-2" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>{item.date}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Card 4: This Month's Hours */}
+        {/* Card 2: This Month's Hours */}
         <div
-          className="sa-card teacher-grid-card bg-white rounded-3 border d-flex flex-column overflow-hidden"
-          style={{ height: '168px', padding: '10px 12px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          className="teacher-grid-card d-flex flex-column overflow-hidden"
+          style={{ minHeight: '210px', padding: '14px 18px' }}
         >
-          <div className="d-flex align-items-center justify-content-between pb-1 border-bottom flex-shrink-0">
-            <div className="d-flex align-items-center gap-1.5 min-w-0">
-              <Clock size={13} className="text-danger flex-shrink-0" />
-              <h4 className="teacher-card-heading brand-font fw-bold m-0 text-sa-charcoal" style={{ fontSize: '12px' }}>
+          <div className="d-flex align-items-center justify-content-between pb-2 mb-1.5 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+            <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+              <Clock size={16} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <h4 className="teacher-card-heading">
                 This Month's Hours
               </h4>
             </div>
             <button
               onClick={() => navigate('/teacher/working-time')}
-              className="btn btn-link p-0 text-decoration-none text-danger fw-semibold flex-shrink-0 ms-1"
-              style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold flex-shrink-0 ms-2"
+              style={{ fontSize: '11.5px', whiteSpace: 'nowrap', color: '#8B1216' }}
             >
               View Details &rarr;
             </button>
           </div>
-          <div className="d-flex flex-column justify-content-between flex-grow-1 pt-1 pb-0" style={{ minWidth: 0 }}>
+
+          <div className="d-flex flex-column justify-content-between flex-grow-1 pt-1">
+            {/* Progress Bar Section */}
             <div>
               <div className="d-flex align-items-baseline justify-content-between">
                 <div>
-                  <span className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '14.5px' }}>0</span>
-                  <span className="text-muted" style={{ fontSize: '10.5px' }}> / 0 hrs</span>
+                  <span className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '16px' }}>{totalWorkingHours}</span>
+                  <span className="text-muted" style={{ fontSize: '11.5px' }}> / 160 hrs</span>
                 </div>
-                <span className="text-muted fw-semibold" style={{ fontSize: '10px' }}>0%</span>
+                <span className="fw-bold" style={{ fontSize: '11.5px', color: '#168554' }}>
+                  {Math.min(100, Math.round((parseFloat(totalWorkingHours) / 160) * 100))}%
+                </span>
               </div>
-              <div className="progress mt-1" style={{ height: '4.5px', backgroundColor: '#F1F5F9' }}>
+              <div className="progress mt-1.5" style={{ height: '6px', backgroundColor: '#F1F5F9', borderRadius: '4px' }}>
                 <div
                   className="progress-bar"
                   role="progressbar"
-                  style={{ width: '0%', backgroundColor: '#A91D22', borderRadius: '3px' }}
-                  aria-valuenow="0"
+                  style={{
+                    width: `${Math.min(100, Math.round((parseFloat(totalWorkingHours) / 160) * 100))}%`,
+                    backgroundColor: '#8B1216',
+                    borderRadius: '4px'
+                  }}
+                  aria-valuenow={Math.round((parseFloat(totalWorkingHours) / 160) * 100)}
                   aria-valuemin="0"
                   aria-valuemax="100"
                 />
               </div>
             </div>
 
+            {/* Estimated Pay Section */}
             <div
-              className="rounded-2 d-flex align-items-center gap-1.5 mt-1"
-              style={{ backgroundColor: '#FAF8F5', border: '1px solid #F1ECE4', padding: '4px 7px' }}
+              className="rounded-3 d-flex align-items-center gap-2.5 mt-2"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                border: '1px solid rgba(220, 38, 38, 0.12)',
+                padding: '8px 12px'
+              }}
             >
               <div
-                className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ width: '24px', height: '24px', backgroundColor: '#FEF8EB', color: '#D97718' }}
+                className="sa-stat-icon-wrapper sa-stat-icon-amber rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center"
+                style={{ width: '32px', height: '32px' }}
               >
-                <Coins size={12} />
+                <Coins size={16} />
               </div>
               <div className="flex-grow-1 min-w-0">
                 <div className="d-flex align-items-center justify-content-between">
-                  <div className="text-sa-muted" style={{ fontSize: '9px', lineHeight: 1 }}>
-                    Estimated Pay
+                  <div className="text-sa-muted" style={{ fontSize: '10.5px', lineHeight: 1.2 }}>
+                    Pending / Est. Pay
                   </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate('/teacher/salary');
                     }}
-                    className="btn btn-link p-0 text-decoration-none text-danger fw-semibold"
-                    style={{ fontSize: '9px', lineHeight: 1 }}
+                    className="btn btn-link p-0 text-decoration-none fw-semibold"
+                    style={{ fontSize: '10.5px', lineHeight: 1.2, color: '#8B1216' }}
                   >
                     View Salary &rarr;
                   </button>
                 </div>
-                <div className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '14px', lineHeight: 1.15 }}>
-                  ₹0
+                <div className="brand-font fw-bold text-sa-charcoal mt-0.5" style={{ fontSize: '15px', lineHeight: 1.2 }}>
+                  ₹{salaryDetails.pending.toLocaleString()}
                 </div>
-                <div className="text-sa-muted" style={{ fontSize: '8.5px', lineHeight: 1 }}>
-                  Based on 0 hrs/month
+                <div className="text-sa-muted" style={{ fontSize: '10px', lineHeight: 1.2 }}>
+                  Status: {salaryDetails.status}
                 </div>
               </div>
             </div>

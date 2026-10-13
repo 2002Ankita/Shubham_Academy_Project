@@ -8,6 +8,7 @@ export default function Modal({
   children,
   footer,
   size = 'md', // 'sm', 'md', 'lg', 'xl'
+  maxWidth,
 }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -40,7 +41,10 @@ export default function Modal({
       tabIndex="-1"
       style={{ backgroundColor: 'rgba(37, 37, 37, 0.65)', backdropFilter: 'blur(3px)', zIndex: 1060 }}
     >
-      <div className={`modal-dialog modal-dialog-centered ${getSizeClass()}`}>
+      <div
+        className={`modal-dialog modal-dialog-centered ${getSizeClass()}`}
+        style={maxWidth ? { maxWidth } : undefined}
+      >
         <div className="modal-content sa-card border-0 shadow-lg">
           <div className="modal-header border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
             <h5 className="modal-title fw-bold text-sa-charcoal brand-font m-0">{title}</h5>

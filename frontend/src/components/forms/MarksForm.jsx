@@ -37,7 +37,7 @@ export default function MarksForm({ students = [], exams = [], onSubmit, loading
   };
 
   return (
-    <form onSubmit={handleSubmit} className="sa-card p-4">
+    <form onSubmit={handleSubmit} className="sa-card p-4" style={{ borderRadius: '18px', boxShadow: '0 3px 10px rgba(15, 23, 42, 0.04)' }}>
       <h5 className="brand-font fw-bold text-sa-charcoal mb-3 fs-6">
         Student Marks Recording Sheet
       </h5>

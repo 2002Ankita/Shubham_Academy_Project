@@ -19,6 +19,7 @@ class ExamCreate(BaseModel):
 class ExamResponse(ExamCreate):
     id: str
     status: str = "Scheduled"
+    teacher_name: Optional[str] = ""
 
 class MarkCreate(BaseModel):
     student_id: str
@@ -46,3 +47,29 @@ class MarkResponse(MarkCreate):
     max_marks: Optional[float] = 100
     exam_date: Optional[str] = ""
     teacher: Optional[str] = ""
+
+class SendMarksNotificationRequest(BaseModel):
+    exam_id: str
+    batch: Optional[str] = ""
+    subject: Optional[str] = ""
+    channel: str = Field(..., pattern=r"^(whatsapp|sms)$")
+    student_ids: Optional[List[str]] = None
+
+class StudentNotificationResult(BaseModel):
+    student_id: str
+    student_name: str
+    parent_name: Optional[str] = ""
+    parent_mobile: Optional[str] = ""
+    masked_mobile: str
+    marks_obtained: float
+    max_marks: float
+    percentage: float
+    status: str  # "sent", "failed", "unconfigured", "missing_phone"
+    message: str
+
+class SendMarksNotificationResponse(BaseModel):
+    summary: dict
+    channel: str
+    results: List[StudentNotificationResult]
+    teacher_notification: Optional[dict] = None
+

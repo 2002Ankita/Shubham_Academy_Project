@@ -196,6 +196,16 @@ export const marksService = {
       }))
     });
     return res.data;
+  },
+
+  sendMarksNotifications: async (payload) => {
+    const res = await api.post('/marks/send-notifications', payload);
+    return res.data;
+  },
+
+  getNotificationLogs: async (limit = 50) => {
+    const res = await api.get('/marks/notification-logs', { params: { limit } });
+    return res.data;
   }
 };
 

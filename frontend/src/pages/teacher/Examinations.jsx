@@ -45,13 +45,14 @@ export default function TeacherExaminations() {
   }).length;
 
   const classOptions = useMemo(() => {
-    const values = exams.map(exam => exam.standard || exam.examStandard || exam.class || 'General');
-    return ['All Classes', ...Array.from(new Set(values.filter(Boolean)))];
+    const values = exams.flatMap(exam => [exam.standard, exam.examStandard, exam.batch, exam.classBatch].filter(Boolean));
+    return ['All Classes', ...Array.from(new Set(values))];
   }, [exams]);
 
   const statusOptions = useMemo(() => {
-    const values = exams.map(exam => exam.status || 'Scheduled');
-    return ['All Status', ...Array.from(new Set(values))];
+    const values = exams.map(exam => exam.status).filter(Boolean);
+    const combined = ['All Status', 'Scheduled', 'Completed', ...values];
+    return Array.from(new Set(combined));
   }, [exams]);
 
   const filteredExams = useMemo(() => {
@@ -60,6 +61,9 @@ export default function TeacherExaminations() {
       const matchesSearch = !term || [
         exam.title,
         exam.standard,
+        exam.examStandard,
+        exam.batch,
+        exam.classBatch,
         exam.subject,
         exam.date,
         exam.startTime,
@@ -67,8 +71,16 @@ export default function TeacherExaminations() {
         exam.status
       ].filter(Boolean).join(' ').toLowerCase().includes(term);
 
-      const matchesClass = classFilter === 'All Classes' || exam.standard === classFilter;
-      const matchesStatus = statusFilter === 'All Status' || exam.status === statusFilter;
+      const matchesClass =
+        classFilter === 'All Classes' ||
+        exam.standard === classFilter ||
+        exam.examStandard === classFilter ||
+        exam.batch === classFilter ||
+        exam.classBatch === classFilter;
+
+      const matchesStatus =
+        statusFilter === 'All Status' ||
+        normalizedStatus(exam.status) === normalizedStatus(statusFilter);
 
       return matchesSearch && matchesClass && matchesStatus;
     });

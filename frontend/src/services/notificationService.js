@@ -105,12 +105,70 @@ export const DEFAULT_NOTIFICATIONS = [
     details: 'Nightly incremental backup of all student profiles, fee registers, and examination rosters was verified and archived to primary cloud vault successfully.',
     read: false,
     forSuperAdminOnly: true
+  },
+  {
+    id: 'NTF-TCH-01',
+    title: 'SMS Alert: Scheduled Examination Assigned',
+    time: '09:00 AM',
+    date: '10 Oct 2026',
+    formattedDateTime: '10 Oct 2026, 09:00 AM',
+    type: 'exam',
+    category: 'Examinations & SMS Alerts',
+    priority: 'High',
+    author: 'Examination Controller & SMS Gateway',
+    details: 'SMS Alert delivered to faculty mobile: Mid-Term Examination for 12th Science (Physics) has been scheduled. You are assigned as faculty supervisor. Roster and marks entry portal are now active under Examinations.',
+    read: false
+  },
+  {
+    id: 'NTF-TCH-02',
+    title: 'SMS Alert: Marks Dispatched to Parents',
+    time: '02:30 PM',
+    date: '08 Oct 2026',
+    formattedDateTime: '08 Oct 2026, 02:30 PM',
+    type: 'marks',
+    category: 'SMS & WhatsApp Dispatches',
+    priority: 'Normal',
+    author: 'Automated SMS Gateway',
+    details: 'SMS delivery summary: Marks notifications for Weekly Test #3 have been dispatched to verified parent numbers. An SMS confirmation copy has been delivered to registered faculty mobile.',
+    read: false
+  },
+  {
+    id: 'NTF-TCH-03',
+    title: 'Biometric RFID In-Punch Verified',
+    time: '08:05 AM',
+    date: '12 Oct 2026',
+    formattedDateTime: '12 Oct 2026, 08:05 AM',
+    type: 'attendance',
+    category: 'Biometrics & Timings',
+    priority: 'Normal',
+    author: 'RFID Biometric Terminal #1',
+    details: 'Faculty RFID smart card punch registered at Main Campus Terminal 1. Time recorded: 08:05 AM. Daily working hours tracker initiated. Status: Present.',
+    read: false
   }
 ];
 
 const READ_STORAGE_KEY = 'sa_read_notifications_v4';
 const DYNAMIC_NOTIFICATIONS_KEY = 'sa_dynamic_notifications_v2';
 const SELECTED_NOTICE_KEY = 'sa_selected_notice';
+const CUSTOM_NOTIFICATIONS_KEY = 'sa_custom_notifications_v1';
+
+function getCustomNotifications() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_NOTIFICATIONS_KEY) || localStorage.getItem(DYNAMIC_NOTIFICATIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomNotifications(items) {
+  try {
+    localStorage.setItem(CUSTOM_NOTIFICATIONS_KEY, JSON.stringify(items));
+    localStorage.setItem(DYNAMIC_NOTIFICATIONS_KEY, JSON.stringify(items));
+  } catch (err) {
+    console.error('Error saving custom notifications:', err);
+  }
+}
 
 function getReadIds() {
   try {
@@ -129,37 +187,52 @@ function saveReadIds(ids) {
   }
 }
 
-function getDynamicNotifications() {
-  try {
-    const raw = localStorage.getItem(DYNAMIC_NOTIFICATIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveDynamicNotifications(list) {
-  try {
-    localStorage.setItem(DYNAMIC_NOTIFICATIONS_KEY, JSON.stringify(list));
-  } catch (err) {
-    console.error('Error saving dynamic notifications:', err);
-  }
+function getCombinedNotifications(isSuperAdmin = false) {
+  const customItems = getCustomNotifications();
+  const defaultItems = isSuperAdmin
+    ? DEFAULT_NOTIFICATIONS
+    : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+  return [...customItems, ...defaultItems];
 }
 
 export const notificationService = {
   addNotification: (notif) => {
-    const current = getDynamicNotifications();
-    const updated = [notif, ...current.filter(n => n.id !== notif.id)];
-    saveDynamicNotifications(updated);
+    const now = new Date();
+    const timeStr = notif.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = notif.date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    const newEntry = {
+      id: notif.id || `NTF-DYN-${Date.now()}`,
+      title: notif.title || 'Notification Alert',
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: notif.formattedDateTime || `${dateStr}, ${timeStr}`,
+      type: notif.type || 'alert',
+      category: notif.category || 'SMS & System Alerts',
+      priority: notif.priority || 'Normal',
+      author: notif.author || 'Shubham Academy System',
+      details: notif.details || '',
+      read: false,
+      forSuperAdminOnly: notif.forSuperAdminOnly || false,
+      studentId: notif.studentId,
+      studentName: notif.studentName,
+      discountAmount: notif.discountAmount,
+      recommendedBy: notif.recommendedBy
+    };
+
+    const current = getCustomNotifications();
+    const filtered = current.filter(n => n.id !== newEntry.id);
+    saveCustomNotifications([newEntry, ...filtered]);
+
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: notif }));
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: newEntry }));
     }
-    return notif;
+    return newEntry;
   },
 
   syncDiscountApprovals: (pendingList = []) => {
     if (!pendingList || pendingList.length === 0) return;
-    const current = getDynamicNotifications();
+    const current = getCustomNotifications();
     let hasChanges = false;
     const updated = [...current];
 
@@ -190,7 +263,7 @@ export const notificationService = {
     });
 
     if (hasChanges) {
-      saveDynamicNotifications(updated);
+      saveCustomNotifications(updated);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
       }
@@ -198,16 +271,12 @@ export const notificationService = {
   },
 
   getAllList: (isSuperAdmin = false) => {
-    const dynamicList = getDynamicNotifications();
-    const all = [...dynamicList, ...DEFAULT_NOTIFICATIONS];
-    return isSuperAdmin
-      ? all
-      : all.filter(n => !n.forSuperAdminOnly);
+    return getCombinedNotifications(isSuperAdmin);
   },
 
   getNotifications: (isSuperAdmin = false) => {
     const readIds = getReadIds();
-    const items = notificationService.getAllList(isSuperAdmin);
+    const items = getCombinedNotifications(isSuperAdmin);
 
     return items.map(n => ({
       ...n,
@@ -217,14 +286,14 @@ export const notificationService = {
 
   getUnreadNotifications: (isSuperAdmin = false) => {
     const readIds = getReadIds();
-    const items = notificationService.getAllList(isSuperAdmin);
+    const items = getCombinedNotifications(isSuperAdmin);
     return items
       .filter(n => !readIds.includes(n.id))
       .map(n => ({ ...n, read: false }));
   },
 
   getAllAnnouncements: (isSuperAdmin = false) => {
-    return notificationService.getAllList(isSuperAdmin);
+    return getCombinedNotifications(isSuperAdmin);
   },
 
   getUnreadCount: (isSuperAdmin = false) => {

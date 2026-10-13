@@ -27,7 +27,8 @@ import {
   AlertCircle,
   Download,
   Calendar,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 

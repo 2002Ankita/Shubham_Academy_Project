@@ -35,7 +35,8 @@ import {
   Clock,
   Calendar,
   Crown,
-  LifeBuoy
+  LifeBuoy,
+  StickyNote
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -243,12 +244,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
         { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck },
+        { label: 'Daily Activity', path: '/teacher/daily-activity', icon: FileText },
         { label: 'Leave Request', path: '/teacher/leave-request', icon: Calendar },
         { label: 'Teachers', path: '/teacher/teachers', icon: TeachersWritingIcon },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
-        { label: 'Notes', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
+        { label: 'Notes', path: '/teacher/notes', icon: StickyNote },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
       ];

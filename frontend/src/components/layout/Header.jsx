@@ -190,23 +190,24 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       </div>
 
       {/* Middle side: Search input matching reference image */}
-      <div className="d-none d-md-block position-relative flex-grow-1 mx-3" style={{ maxWidth: '380px' }}>
+      <div className="d-none d-md-block position-relative flex-grow-1 mx-3 mx-lg-4" style={{ maxWidth: '380px' }}>
         <form onSubmit={handleSearchSubmit}>
-          <div className="position-relative">
+          <div className="position-relative d-flex align-items-center">
             <Search
-              size={14}
+              size={15}
               className="position-absolute text-muted"
-              style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+              style={{ left: '13px', top: '50%', transform: 'translateY(-50%)' }}
             />
             <input
               type="text"
-              className="form-control form-control-sm rounded-pill"
+              className="form-control"
               style={{
-                height: '36px',
-                paddingLeft: '34px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                fontSize: '0.80rem'
+                height: '38px',
+                paddingLeft: '36px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '10px',
+                fontSize: '0.82rem'
               }}
               placeholder={
                 isSuperAdmin
@@ -267,23 +268,23 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
               onMouseLeave={() => setIsDateHovered(false)}
               className="d-flex align-items-center justify-content-between transition-all"
               style={{
-                width: '195px',
-                height: '42px',
-                padding: '0 13px',
+                width: '190px',
+                height: '38px',
+                padding: '0 11px',
                 backgroundColor: isDateHovered ? '#FFF8F8' : '#FFFFFF',
-                border: isDateHovered ? '1px solid var(--sa-primary-red)' : '1px solid #E3E7ED',
-                borderRadius: '8px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                border: isDateHovered ? '1px solid var(--sa-primary-red)' : '1px solid #E2E8F0',
+                borderRadius: '10px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 cursor: 'pointer',
                 userSelect: 'none'
               }}
               title="Select Date"
             >
-              <div className="d-flex align-items-center" style={{ gap: '8px' }}>
-                <Calendar size={17} style={{ color: 'var(--sa-primary-red)', flexShrink: 0 }} />
+              <div className="d-flex align-items-center" style={{ gap: '7px' }}>
+                <Calendar size={15} style={{ color: 'var(--sa-primary-red)', flexShrink: 0 }} />
                 <span
                   style={{
-                    fontSize: '14px',
+                    fontSize: '13px',
                     fontWeight: 500,
                     color: '#1E293B',
                     lineHeight: 1,
@@ -291,17 +292,17 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   }}
                 >
                   <span className="d-none d-sm-inline">{selectedOption.label.split('(')[0]}</span>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748B' }}>
                     {selectedOption.label.match(/\((.*?)\)/)?.[1] || selectedOption.label}
                   </span>
                 </span>
               </div>
               <ChevronDown
-                size={14}
+                size={13}
                 style={{
                   color: '#64748B',
                   flexShrink: 0,
-                  marginLeft: '8px',
+                  marginLeft: '6px',
                   transition: 'transform 0.2s ease',
                   transform: showDatePicker ? 'rotate(180deg)' : 'none'
                 }}
@@ -311,11 +312,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
             {/* Dropdown Menu */}
             {showDatePicker && (
               <div
-                className="position-absolute end-0 mt-1 bg-white border rounded-3 shadow-lg p-2"
+                className="position-absolute end-0 mt-1.5 bg-white border rounded-3 shadow-lg p-2"
                 style={{
                   width: '215px',
                   zIndex: 1060,
-                  borderColor: '#E3E7ED'
+                  borderColor: '#E2E8F0'
                 }}
               >
                 <div className="px-2 py-1 small text-muted fw-semibold border-bottom mb-1" style={{ fontSize: '11px' }}>
@@ -387,12 +388,18 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           </>
         )}
 
-        {/* Notifications Icon with right margin to ensure 18px gap to profile */}
-        <div className="position-relative teacher-header-notifications" ref={notificationsRef} style={{ marginRight: '4px' }}>
+        {/* Notifications Icon */}
+        <div className="position-relative teacher-header-notifications" ref={notificationsRef}>
           <button
             type="button"
-            className="btn btn-light rounded-circle position-relative text-sa-charcoal border"
-            style={{ width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            className="btn btn-light rounded-circle position-relative text-sa-charcoal d-flex align-items-center justify-content-center"
+            style={{
+              width: '38px',
+              height: '38px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              padding: 0
+            }}
             onClick={() => setShowNotifications(!showNotifications)}
             aria-label="Notifications"
           >
@@ -400,7 +407,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
             {unreadCount > 0 && (
               <span
                 className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                style={{ fontSize: '0.58rem', padding: '0.15em 0.4em' }}
+                style={{ fontSize: '0.58rem', padding: '0.2em 0.45em' }}
               >
                 {unreadCount}
               </span>
@@ -561,27 +568,24 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           )}
         </div>
 
+        {/* Subtle Divider */}
+        <div className="d-none d-sm-block" style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0', margin: '0 2px' }} />
+
         {/* User Profile avatar & info */}
         <div
-          className={`position-relative h-100 d-flex align-items-center ${isTeacher ? 'teacher-header-profile' : ''}`}
+          className="position-relative d-flex align-items-center"
           ref={userMenuRef}
-          style={{ width: 'auto', maxWidth: isTeacher ? '195px' : '205px' }}
+          style={{ width: 'auto' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between px-2 px-sm-3 h-100 cursor-pointer w-100"
+            className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 cursor-pointer transition-all"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
               cursor: 'pointer',
-              borderLeft: '1px solid rgba(220, 38, 38, 0.14)',
-              borderRight: showUserMenu ? '1px solid rgba(220, 38, 38, 0.14)' : '1px solid transparent',
-              borderTop: showUserMenu ? '1px solid rgba(220, 38, 38, 0.14)' : '1px solid transparent',
-              borderBottom: 'none',
-              background: showUserMenu ? 'rgba(255, 255, 255, 0.92)' : 'transparent',
-              backdropFilter: showUserMenu ? 'blur(20px) saturate(190%)' : 'none',
-              WebkitBackdropFilter: showUserMenu ? 'blur(20px) saturate(190%)' : 'none',
-              borderTopLeftRadius: showUserMenu ? '14px' : '0',
-              borderTopRightRadius: showUserMenu ? '14px' : '0',
-              zIndex: 1061,
+              userSelect: 'none',
+              borderRadius: '10px',
+              border: showUserMenu ? '1px solid #E2E8F0' : '1px solid transparent',
+              backgroundColor: showUserMenu ? '#F8FAFC' : 'transparent',
               transition: 'all 0.15s ease'
             }}
           >
@@ -607,11 +611,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   }
                   alt="Avatar"
                   className="rounded-circle object-fit-cover border flex-shrink-0"
-                  style={{ width: isTeacher ? '28px' : '34px', height: isTeacher ? '28px' : '34px' }}
+                  style={{ width: '34px', height: '34px' }}
                 />
               )}
               <div className="d-none d-sm-flex flex-column text-start text-truncate" style={{ lineHeight: 1.15 }}>
-                <span className="fw-bold text-sa-charcoal text-truncate" style={{ fontSize: isTeacher ? '0.80rem' : '0.85rem' }}>
+                <span className="fw-bold text-sa-charcoal text-truncate" style={{ fontSize: '0.82rem' }}>
                   {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
                 </span>
                 <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
@@ -621,7 +625,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
             </div>
             <ChevronDown
               size={13}
-              className="text-sa-muted ms-1 flex-shrink-0"
+              className="text-sa-muted ms-1.5 flex-shrink-0"
               style={{
                 transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 0.2s ease'
@@ -631,26 +635,15 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
           {showUserMenu && (
             <div
-              className="position-absolute shadow-lg"
+              className="position-absolute shadow-lg bg-white border rounded-3 p-2"
               style={{
-                top: 'calc(100% - 2px)',
+                top: 'calc(100% + 6px)',
                 right: 0,
                 minWidth: '205px',
-                width: 'max(100%, 205px)',
                 zIndex: 1060,
-                background: 'rgba(255, 255, 255, 0.92)',
-                backdropFilter: 'blur(20px) saturate(190%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(190%)',
-                borderLeft: '1px solid rgba(220, 38, 38, 0.14)',
-                borderRight: '1px solid rgba(220, 38, 38, 0.14)',
-                borderBottom: '1px solid rgba(220, 38, 38, 0.14)',
-                borderTop: 'none',
-                borderBottomLeftRadius: '14px',
-                borderBottomRightRadius: '14px',
-                borderTopLeftRadius: 0,
-                borderTopRightRadius: 0,
-                boxShadow: '0 14px 28px rgba(185, 28, 28, 0.08), 0 6px 14px rgba(0, 0, 0, 0.04)',
-                padding: '6px'
+                borderColor: '#E2E8F0',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)'
               }}
             >
               {/* View Profile Item */}

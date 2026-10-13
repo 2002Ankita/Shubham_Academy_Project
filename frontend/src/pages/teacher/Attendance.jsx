@@ -9,7 +9,6 @@ import Button from '../../components/common/Button';
 export default function TeacherAttendance() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const [teacherRecords, setTeacherRecords] = useState([]);
   const [teacherRecordsLoading, setTeacherRecordsLoading] = useState(true);
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);

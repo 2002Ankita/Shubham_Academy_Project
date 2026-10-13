@@ -25,16 +25,16 @@ export default function LeaveRequest() {
       if (!user) return;
       const data = await leaveService.getTeacherLeaveRequests(user.id);
       // Map data to frontend format
-      const formatted = data.map(r => ({
+      const formatted = (data || []).map(r => ({
         id: r.id,
         leaveType: r.leave_type,
-        fromDate: r.from_date.split('T')[0],
-        toDate: r.to_date.split('T')[0],
-        days: r.number_of_days,
-        reason: r.reason,
-        appliedDate: new Date(r.created_at).toLocaleDateString(),
-        status: r.status,
-        adminComment: r.admin_comment
+        fromDate: r.from_date ? String(r.from_date).split('T')[0] : '',
+        toDate: r.to_date ? String(r.to_date).split('T')[0] : '',
+        days: r.number_of_days || 0,
+        reason: r.reason || '',
+        appliedDate: r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
+        status: r.status || 'Pending',
+        adminComment: r.admin_comment || ''
       }));
       setRequests(formatted);
       
@@ -88,13 +88,35 @@ export default function LeaveRequest() {
   return (
     <div className="d-flex flex-column gap-3">
       {/* 1. Page Header */}
-      <div>
-        <h1 className="fw-bold brand-font text-sa-charcoal m-0 fs-4">
-          Leave Request
-        </h1>
-        <p className="text-sa-muted m-0 mt-0.5 small">
-          Apply for leave and track your leave requests.
-        </p>
+      <div className="d-flex align-items-center gap-3 pt-0 pb-0.5">
+        <button
+          type="button"
+          onClick={() => navigate('/teacher/dashboard')}
+          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            borderColor: '#E2E8F0',
+            backgroundColor: '#FFFFFF',
+            color: '#0F172A',
+            padding: 0,
+            cursor: 'pointer'
+          }}
+          aria-label="Back to dashboard"
+          title="Back to dashboard"
+        >
+          <ArrowLeft size={18} />
+        </button>
+
+        <div>
+          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '23px', lineHeight: 1.25 }}>
+            Leave Request
+          </h1>
+          <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
+            Apply for leave and track your leave requests
+          </p>
+        </div>
       </div>
 
       {/* 2. Top Summary Cards */}
