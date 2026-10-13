@@ -9,14 +9,14 @@ import {
   Plus, 
   AlertTriangle, 
   Search, 
-  Layers, 
-  CheckCircle2, 
-  ArrowUpRight,
-  Package,
-  Sparkles,
-  RefreshCw,
-  PlusCircle,
-  MinusCircle
+  Package, 
+  Sparkles, 
+  RefreshCw, 
+  PlusCircle, 
+  MinusCircle,
+  Edit3,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -30,10 +30,12 @@ export default function NotesStock() {
 
   // Modals
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [replenishModalOpen, setReplenishModalOpen] = useState(false);
   const [selectedBookForReplenish, setSelectedBookForReplenish] = useState(null);
   const [replenishQty, setReplenishQty] = useState(25);
 
+  // New Book State
   const [newBook, setNewBook] = useState({
     category: 'Theory',
     subject: 'Physics',
@@ -44,6 +46,9 @@ export default function NotesStock() {
     unitCost: 350
   });
 
+  // Edit Book State
+  const [editingBook, setEditingBook] = useState(null);
+
   const fetchStock = async () => {
     setLoading(true);
     try {
@@ -52,14 +57,14 @@ export default function NotesStock() {
         id: item.id,
         title: item.title,
         category: item.category || (item.title.toLowerCase().includes('cet') ? 'CET' : 'Theory'),
-        subject: item.subject || 'General',
+        subject: item.subject || 'Physics',
         standard: item.standard || '11th & 12th Science',
         inStock: Number(item.in_stock) || 0,
         reorderLevel: Number(item.reorder_level) || 15,
         unitCost: Number(item.unit_cost) || 350
       })));
     } catch (err) {
-      toast.error('Failed to load books and stock inventory');
+      toast.error('Failed to load books and stock inventory from database');
     } finally {
       setLoading(false);
     }
@@ -109,6 +114,56 @@ export default function NotesStock() {
       fetchStock();
     } catch (err) {
       toast.error('Failed to add book stock to database');
+    }
+  };
+
+  const handleOpenEditModal = (row) => {
+    setEditingBook({
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      subject: row.subject,
+      standard: row.standard,
+      inStock: row.inStock,
+      reorderLevel: row.reorderLevel,
+      unitCost: row.unitCost
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateStock = async (e) => {
+    e.preventDefault();
+    if (!editingBook) return;
+    try {
+      await inventoryService.updateItem(editingBook.id, {
+        title: editingBook.title,
+        category: editingBook.category,
+        subject: editingBook.subject,
+        standard: editingBook.standard,
+        in_stock: Number(editingBook.inStock),
+        reorder_level: Number(editingBook.reorderLevel),
+        unit_cost: Number(editingBook.unitCost)
+      });
+      toast.success(`Book stock for "${editingBook.title}" updated successfully!`);
+      setEditModalOpen(false);
+      setEditingBook(null);
+      fetchStock();
+    } catch (err) {
+      toast.error('Failed to update book stock');
+    }
+  };
+
+  const handleDeleteStock = async (bookId, bookTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${bookTitle}" from inventory?`)) {
+      return;
+    }
+    try {
+      await inventoryService.deleteItem(bookId);
+      toast.success(`Book "${bookTitle}" removed from inventory.`);
+      setStock(prev => prev.filter(b => b.id !== bookId));
+      fetchStock();
+    } catch (err) {
+      toast.error('Failed to delete book stock');
     }
   };
 
@@ -166,7 +221,7 @@ export default function NotesStock() {
             <span>Books & Stock Inventory</span>
           </h3>
           <span className="small text-sa-muted">
-            Warehouse copies, available stock, and reorder levels for Theory and CET books
+            Live warehouse stock records, copies on hand, and reorder levels for Theory and CET books
           </span>
         </div>
 
@@ -187,7 +242,7 @@ export default function NotesStock() {
             <div>
               <span className="text-sa-muted fw-semibold small d-block">Total Books in Stock</span>
               <div className="fw-bold brand-font text-sa-charcoal fs-3">{totalCopies}</div>
-              <span className="small text-success fw-medium">Across all streams & categories</span>
+              <span className="small text-success fw-medium">Live database count</span>
             </div>
             <div className="rounded-circle p-2.5 bg-primary bg-opacity-10 text-primary">
               <Package size={24} />
@@ -244,7 +299,7 @@ export default function NotesStock() {
             <input
               type="text"
               className="form-control ps-5 py-2 text-sm"
-              placeholder="Search by book name, subject, standard, or ID..."
+              placeholder="Search by book name, subject, standard, or SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -278,7 +333,7 @@ export default function NotesStock() {
               <option value="Physics">Physics</option>
               <option value="Chemistry">Chemistry</option>
               <option value="Biology">Biology</option>
-              <option value="Maths">Mathematics</option>
+              <option value="Maths">Maths</option>
             </select>
           </div>
         </div>
@@ -311,7 +366,7 @@ export default function NotesStock() {
               title: 'Subject',
               width: '130px',
               render: (val) => (
-                <span className="fw-semibold text-sa-charcoal">{val || 'General'}</span>
+                <span className="fw-semibold text-sa-charcoal">{val || 'Physics'}</span>
               )
             },
             {
@@ -369,7 +424,7 @@ export default function NotesStock() {
               key: 'actions',
               title: 'Stock Actions',
               align: 'end',
-              width: '180px',
+              width: '210px',
               render: (_, row) => (
                 <div className="d-flex align-items-center justify-content-end gap-1.5">
                   <button
@@ -400,13 +455,29 @@ export default function NotesStock() {
                   >
                     + Restock
                   </Button>
+                  <button
+                    type="button"
+                    title="Edit book stock"
+                    className="btn btn-sm btn-light border p-1 text-primary"
+                    onClick={() => handleOpenEditModal(row)}
+                  >
+                    <Edit3 size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete book"
+                    className="btn btn-sm btn-light border p-1 text-danger"
+                    onClick={() => handleDeleteStock(row.id, row.title)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               )
             }
           ]}
           data={filteredStock}
           loading={loading}
-          emptyText="No books found matching criteria."
+          emptyText="No books found in database."
         />
       </div>
 
@@ -415,7 +486,7 @@ export default function NotesStock() {
         <form onSubmit={handleAddStock} className="d-flex flex-column gap-3">
           <div className="row g-3">
             <div className="col-12 col-md-6">
-              <label className="form-label small fw-bold">Book Category</label>
+              <label className="form-label small fw-bold">Book Type</label>
               <select
                 className="form-select"
                 value={newBook.category}
@@ -436,8 +507,8 @@ export default function NotesStock() {
               >
                 <option value="Physics">Physics</option>
                 <option value="Chemistry">Chemistry</option>
+                <option value="Maths">Maths</option>
                 <option value="Biology">Biology</option>
-                <option value="Maths">Mathematics</option>
               </select>
             </div>
           </div>
@@ -513,7 +584,115 @@ export default function NotesStock() {
         </form>
       </Modal>
 
-      {/* 6. Modal: Restock Existing Book */}
+      {/* 6. Modal: Edit Book Stock */}
+      {editModalOpen && editingBook && (
+        <Modal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          title={`Edit Book Stock: ${editingBook.title}`}
+        >
+          <form onSubmit={handleUpdateStock} className="d-flex flex-column gap-3">
+            <div className="row g-3">
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold">Book Type</label>
+                <select
+                  className="form-select"
+                  value={editingBook.category}
+                  onChange={(e) => setEditingBook({ ...editingBook, category: e.target.value })}
+                  required
+                >
+                  <option value="Theory">Theory Book</option>
+                  <option value="CET">CET Book</option>
+                </select>
+              </div>
+              <div className="col-12 col-md-6">
+                <label className="form-label small fw-bold">Subject</label>
+                <select
+                  className="form-select"
+                  value={editingBook.subject}
+                  onChange={(e) => setEditingBook({ ...editingBook, subject: e.target.value })}
+                  required
+                >
+                  <option value="Physics">Physics</option>
+                  <option value="Chemistry">Chemistry</option>
+                  <option value="Maths">Maths</option>
+                  <option value="Biology">Biology</option>
+                </select>
+              </div>
+            </div>
+
+            <Input
+              label="Module / Book Title"
+              name="title"
+              value={editingBook.title}
+              onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })}
+              required
+            />
+
+            <Select
+              label="Target Class Stream"
+              name="standard"
+              value={editingBook.standard}
+              onChange={(e) => setEditingBook({ ...editingBook, standard: e.target.value })}
+              options={[
+                '11th & 12th Science',
+                '11th pcm tarabai park',
+                '11th pcb tarabai park',
+                '11th pcmb tarabai park',
+                '12th pcm tarabai park',
+                '12th pcb tarabai park',
+                '12th pcmb tarabai park',
+                '11th pcm Mangalvar peth',
+                '11th pcb Mangalvar peth',
+                '12th pcm Mangalvar peth'
+              ]}
+            />
+
+            <div className="row g-3">
+              <div className="col-4">
+                <Input
+                  label="Available Copies"
+                  name="inStock"
+                  type="number"
+                  value={editingBook.inStock}
+                  onChange={(e) => setEditingBook({ ...editingBook, inStock: e.target.value })}
+                  required
+                  min="0"
+                />
+              </div>
+              <div className="col-4">
+                <Input
+                  label="Reorder Threshold"
+                  name="reorderLevel"
+                  type="number"
+                  value={editingBook.reorderLevel}
+                  onChange={(e) => setEditingBook({ ...editingBook, reorderLevel: e.target.value })}
+                  required
+                  min="1"
+                />
+              </div>
+              <div className="col-4">
+                <Input
+                  label="Unit Cost (₹)"
+                  name="unitCost"
+                  type="number"
+                  value={editingBook.unitCost}
+                  onChange={(e) => setEditingBook({ ...editingBook, unitCost: e.target.value })}
+                  required
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <Button variant="light" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="primary" icon={CheckCircle2}>Update Book Stock</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* 7. Modal: Restock Existing Book */}
       {selectedBookForReplenish && (
         <Modal
           isOpen={replenishModalOpen}
@@ -525,7 +704,7 @@ export default function NotesStock() {
               <div className="small text-sa-muted">Current Available Stock</div>
               <div className="fw-bold fs-4 text-sa-charcoal">{selectedBookForReplenish.inStock} Copies</div>
               <div className="small text-secondary mt-1">
-                Category: <strong>{selectedBookForReplenish.category}</strong> | Subject: <strong>{selectedBookForReplenish.subject}</strong>
+                Type: <strong>{selectedBookForReplenish.category}</strong> | Subject: <strong>{selectedBookForReplenish.subject}</strong>
               </div>
             </div>
 

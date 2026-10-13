@@ -21,41 +21,6 @@ import inventoryService from '../../services/inventoryService';
 import notesService from '../../services/notesService';
 import { useAuth } from '../../hooks/useAuth';
 
-const DEFAULT_LECTURE_NOTES = [
-  {
-    id: 'LN-2026-101',
-    notesTitle: 'Matrices, Determinants & Differentiation Formula Handbook',
-    subject: 'Mathematics',
-    teacherName: 'Prof. Shubham Sir',
-    date: '2026-03-15',
-    summary: 'Comprehensive theorem summaries, matrix inversion shortcuts, and calculus derivatives list.'
-  },
-  {
-    id: 'LN-2026-102',
-    notesTitle: 'Rotational Dynamics & Wave Optics Key Derivations',
-    subject: 'Physics',
-    teacherName: 'Dr. Priya Kulkarni',
-    date: '2026-03-22',
-    summary: 'Handwritten formulas and essential derivations for rotational motion and Young double slit experiment.'
-  },
-  {
-    id: 'LN-2026-103',
-    notesTitle: 'Chemical Thermodynamics & Coordination Compounds Notes',
-    subject: 'Chemistry',
-    teacherName: 'Prof. Rajesh Patil',
-    date: '2026-03-25',
-    summary: 'Thermodynamic state functions, enthalpy changes, and IUPAC nomenclature of coordination complexes.'
-  },
-  {
-    id: 'LN-2026-104',
-    notesTitle: 'Genetic Inheritance & Molecular Biology Quick Revision',
-    subject: 'Biology',
-    teacherName: 'Dr. Sneha Deshmukh',
-    date: '2026-03-30',
-    summary: 'Mendelian ratios, DNA replication steps, and protein synthesis flowcharts.'
-  }
-];
-
 export default function StudentNotesDelivery() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('books'); // 'books' or 'lectureNotes'
@@ -80,7 +45,7 @@ export default function StudentNotesDelivery() {
   });
 
   // Digital notes download state
-  const [lectureNotes, setLectureNotes] = useState(DEFAULT_LECTURE_NOTES);
+  const [lectureNotes, setLectureNotes] = useState([]);
   const [notesSearch, setNotesSearch] = useState('');
 
   const loadData = async () => {
@@ -108,12 +73,16 @@ export default function StudentNotesDelivery() {
             notesTitle: n.title,
             subject: n.subject || 'General',
             teacherName: n.teacherName || 'Faculty',
-            date: n.createdAt ? n.createdAt.split('T')[0] : '2026-03-20',
+            date: n.createdAt ? n.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
             summary: n.content
           }));
-          setLectureNotes([...mapped, ...DEFAULT_LECTURE_NOTES]);
+          setLectureNotes(mapped);
+        } else {
+          setLectureNotes([]);
         }
-      } catch {}
+      } catch {
+        setLectureNotes([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -475,30 +444,33 @@ export default function StudentNotesDelivery() {
             <Table
               columns={[
                 {
-                  key: 'book_title',
-                  title: 'Book Module',
-                  render: (val, row) => (
-                    <div className="d-flex align-items-center gap-2">
-                      <BookMarked size={16} className="text-sa-primary flex-shrink-0" />
-                      <span className="fw-bold text-sa-charcoal">{val || row.bookTitle}</span>
-                    </div>
-                  )
-                },
-                {
                   key: 'category',
-                  title: 'Type',
-                  width: '110px',
-                  render: (val) => (
-                    <span className="badge px-2 py-0.5 rounded-pill bg-light border text-dark fw-semibold">
-                      {val || 'Curriculum'}
+                  title: 'Book Type',
+                  width: '120px',
+                  render: (val, row) => (
+                    <span
+                      className="badge px-2.5 py-1 fw-bold rounded-pill"
+                      style={{
+                        fontSize: '0.72rem',
+                        backgroundColor: (val || '').toLowerCase() === 'cet' ? '#FEF3C7' : '#FEE2E2',
+                        color: (val || '').toLowerCase() === 'cet' ? '#92400E' : '#991B1B',
+                        border: (val || '').toLowerCase() === 'cet' ? '1px solid #FCD34D' : '1px solid #FCA5A5'
+                      }}
+                    >
+                      {val || ((row.book_title || '').toLowerCase().includes('cet') ? 'CET' : 'Theory')}
                     </span>
                   )
                 },
                 {
                   key: 'subject',
                   title: 'Subject',
-                  width: '130px',
-                  render: (val) => <span className="fw-semibold text-sa-charcoal">{val || 'General'}</span>
+                  width: '150px',
+                  render: (val) => (
+                    <div className="d-flex align-items-center gap-2">
+                      <BookMarked size={16} className="text-sa-primary flex-shrink-0" />
+                      <span className="fw-bold text-sa-charcoal">{val || 'General'}</span>
+                    </div>
+                  )
                 },
                 {
                   key: 'status',

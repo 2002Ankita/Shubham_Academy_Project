@@ -6,6 +6,7 @@ from app.schemas.inventory import (
 )
 from app.services.inventory_service import (
     add_inventory_item, get_inventory_items, update_inventory_item, adjust_inventory_stock,
+    delete_inventory_item,
     add_delivery, update_delivery, delete_delivery, get_deliveries,
     get_student_book_delivery_status
 )
@@ -28,6 +29,11 @@ async def list_items(token: str = Depends(oauth2_scheme)):
 async def edit_item(item_id: str, update_in: InventoryItemUpdate, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     return await update_inventory_item(item_id, update_in)
+
+@router.delete("/items/{item_id}")
+async def remove_item(item_id: str, token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    return await delete_inventory_item(item_id)
 
 @router.post("/items/{item_id}/adjust-stock", response_model=InventoryItemResponse)
 async def adjust_stock(item_id: str, delta: int = Body(..., embed=True), token: str = Depends(oauth2_scheme)):

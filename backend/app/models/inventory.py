@@ -18,11 +18,14 @@ class InventoryItem(Document):
         name = "inventory_items"
 
 class InventoryDelivery(Document):
-    student: Link[Student]
+    student: Optional[Link[Student]] = None
     inventory_item: Optional[Link[InventoryItem]] = None
     book_title: Optional[str] = None
     category: Optional[str] = "Theory"  # "Theory" | "CET"
     subject: Optional[str] = "Physics"  # "Physics" | "Chemistry" | "Biology" | "Maths"
+    recipient_type: Optional[str] = "Student"  # "Student" | "Teacher"
+    recipient_name: Optional[str] = None
+    recipient_id: Optional[str] = None
     status: str = "Pending Pickup"
     date: Optional[datetime] = None
     handed_over_by: Optional[str] = None

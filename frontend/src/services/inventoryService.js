@@ -16,6 +16,11 @@ export const inventoryService = {
     return res.data;
   },
 
+  deleteItem: async (id) => {
+    const res = await api.delete(`/inventory/items/${id}`);
+    return res.data;
+  },
+
   adjustStock: async (id, delta) => {
     const res = await api.post(`/inventory/items/${id}/adjust-stock`, { delta });
     return res.data;
@@ -26,19 +31,28 @@ export const inventoryService = {
     const res = await api.get(url);
     return (res.data || []).map(d => ({
       ...d,
-      studentName: d.student_name || 'Student',
-      rollNumber: d.roll_number || d.student_roll_no || 'N/A',
-      bookTitle: d.book_title || '',
+      recipientType: d.recipient_type || 'Student',
+      recipientName: d.recipient_name || d.student_name || 'Recipient',
+      studentName: d.recipient_name || d.student_name || 'Recipient',
+      rollNumber: d.roll_number || d.student_roll_no || (d.recipient_type === 'Teacher' ? 'Faculty Staff' : 'N/A'),
+      bookTitle: d.book_title || `${d.category || 'Theory'} - ${d.subject || 'Physics'}`,
       category: d.category || 'Theory',
-      subject: d.subject || 'General',
+      subject: d.subject || 'Physics',
       handedOverBy: d.handed_over_by || d.verified_by || '--',
       verifiedBy: d.handed_over_by || d.verified_by || '--',
+      rawDate: d.raw_date || null,
+      date: d.date || '--',
       remarks: d.remarks || ''
     }));
   },
 
   createDelivery: async (data) => {
     const res = await api.post('/inventory/deliveries', data);
+    return res.data;
+  },
+
+  updateDelivery: async (id, data) => {
+    const res = await api.put(`/inventory/deliveries/${id}`, data);
     return res.data;
   },
 
