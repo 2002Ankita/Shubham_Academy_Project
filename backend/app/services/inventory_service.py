@@ -4,6 +4,7 @@ from app.models.user import User
 from app.schemas.inventory import (
     InventoryItemCreate,
     InventoryItemUpdate,
+    InventoryItemRestock,
     InventoryDeliveryCreate,
     InventoryDeliveryUpdate
 )
@@ -85,6 +86,22 @@ async def adjust_inventory_stock(item_id: str, delta: int) -> dict:
     d["id"] = str(item.id)
     return d
 
+async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock) -> dict:
+    try:
+        item = await InventoryItem.get(ObjectId(item_id))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid item ID")
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    
+    qty = max(0, restock_in.quantity)
+    item.in_stock += qty
+    item.total_stock = (item.total_stock or 0) + qty
+    await item.save()
+    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+    d["id"] = str(item.id)
+    return d
+
 async def get_inventory_items() -> list[dict]:
     items = await InventoryItem.find_all().to_list()
     res = []
@@ -95,6 +112,8 @@ async def get_inventory_items() -> list[dict]:
             d["category"] = "Theory"
         if not d.get("subject"):
             d["subject"] = "General"
+        if not d.get("total_stock"):
+            d["total_stock"] = d.get("in_stock", 50)
         res.append(d)
     return res
 
@@ -173,7 +192,7 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
     if delivery.date:
         date_str = delivery.date.strftime("%Y-%m-%d %H:%M")
         raw_date_iso = delivery.date.isoformat()
-    elif delivery.status == "Delivered":
+    elif delivery.status in ["Delivered", "Handed Over"]:
         date_str = delivery.created_at.strftime("%Y-%m-%d %H:%M") if delivery.created_at else "--"
         raw_date_iso = delivery.created_at.isoformat() if delivery.created_at else None
 
@@ -188,10 +207,14 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
         "book_title": book_title,
         "category": category,
         "subject": subject,
+        "item_id": str(item_obj.id) if item_obj else None,
+        "available_stock": item_obj.in_stock if item_obj else 0,
+        "quantity": getattr(delivery, 'quantity', 1) or 1,
         "status": delivery.status,
         "date": date_str,
         "raw_date": raw_date_iso,
         "handed_over_by": handed_over_by,
+        "handed_over_to": delivery.handed_over_to or recipient_name,
         "verified_by": handed_over_by,
         "remarks": delivery.remarks or ""
     }
@@ -253,10 +276,11 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     status = delivery_in.status or "Delivered"
     handed_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academy Staff"
     
-    # Handover date: if provided, use it. If not provided and status is Delivered, use datetime.utcnow()
     handover_date = delivery_in.date
-    if not handover_date and status == "Delivered":
+    if not handover_date and status in ["Delivered", "Handed Over"]:
         handover_date = datetime.utcnow()
+
+    qty = getattr(delivery_in, "quantity", 1) or 1
 
     delivery = InventoryDelivery(
         student=student,
@@ -267,6 +291,7 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         recipient_type=recipient_type,
         recipient_name=recipient_name,
         recipient_id=str(recipient_id) if recipient_id else None,
+        quantity=qty,
         status=status,
         date=handover_date,
         handed_over_by=handed_by,
@@ -277,9 +302,9 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     )
     await delivery.insert()
 
-    # Decrement available stock if delivered
-    if status == "Delivered" and item and item.in_stock > 0:
-        item.in_stock -= 1
+    # Decrement available stock if delivered or handed over
+    if status in ["Delivered", "Handed Over"] and item and item.in_stock > 0:
+        item.in_stock = max(0, item.in_stock - qty)
         await item.save()
 
     return await _format_delivery(delivery)
@@ -359,7 +384,8 @@ async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_u
         delivery.verified_by = current_user_name
 
     # Check status transitions for stock adjustments
-    if new_status == "Delivered" and old_status != "Delivered":
+    qty = getattr(delivery, "quantity", 1) or 1
+    if new_status in ["Delivered", "Handed Over"] and old_status not in ["Delivered", "Handed Over"]:
         if not delivery.date:
             delivery.date = datetime.utcnow()
         # Decrement stock
@@ -378,11 +404,11 @@ async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_u
                 InventoryItem.subject == delivery.subject
             )
         if target_item and target_item.in_stock > 0:
-            target_item.in_stock -= 1
+            target_item.in_stock = max(0, target_item.in_stock - qty)
             await target_item.save()
             delivery.inventory_item = target_item
 
-    elif new_status != "Delivered" and old_status == "Delivered":
+    elif new_status not in ["Delivered", "Handed Over"] and old_status in ["Delivered", "Handed Over"]:
         delivery.date = None
         # Restore stock
         target_item = None
@@ -400,7 +426,7 @@ async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_u
                 InventoryItem.subject == old_subj
             )
         if target_item:
-            target_item.in_stock += 1
+            target_item.in_stock += qty
             await target_item.save()
 
     await delivery.save()
@@ -415,7 +441,8 @@ async def delete_delivery(id: str) -> dict:
         raise HTTPException(status_code=404, detail="Delivery record not found")
 
     # Restore stock if was delivered
-    if delivery.status == "Delivered":
+    if delivery.status in ["Delivered", "Handed Over"]:
+        qty = getattr(delivery, "quantity", 1) or 1
         try:
             target_item = None
             if getattr(delivery, "inventory_item", None):
@@ -429,7 +456,7 @@ async def delete_delivery(id: str) -> dict:
                     InventoryItem.subject == delivery.subject
                 )
             if target_item:
-                target_item.in_stock += 1
+                target_item.in_stock += qty
                 await target_item.save()
         except Exception as e:
             print(f"Warning: could not restore stock on delete: {e}")
@@ -509,8 +536,7 @@ async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
             target_subj = "Maths"
 
         if target_subj and cat in status_matrix:
-            is_delivered = fd.get("status") == "Delivered"
-            # If already marked as delivered, prioritize delivered status
+            is_delivered = fd.get("status") in ["Delivered", "Handed Over"]
             current_status = status_matrix[cat][target_subj]
             if is_delivered or current_status["status"] == "Not Delivered":
                 status_matrix[cat][target_subj] = {

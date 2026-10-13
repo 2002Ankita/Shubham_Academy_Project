@@ -23,6 +23,7 @@ import {
   Megaphone,
   Zap,
   BookOpen,
+  BookMarked,
   ChevronDown,
   ChevronRight,
   Coins,
@@ -769,6 +770,35 @@ export default function TeacherDashboard() {
                 </div>
               </div>
               <ChevronRight size={15} style={{ color: '#8B1216' }} className="flex-shrink-0 ms-1" />
+            </button>
+
+            {/* Action 4: Notes Stock & Handover */}
+            <button
+              onClick={() => navigate('/teacher/notes-stock')}
+              className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
+              style={{
+                backgroundColor: '#F0FDF4',
+                borderColor: 'rgba(22, 101, 52, 0.16)',
+                height: '46px'
+              }}
+            >
+              <div className="d-flex align-items-center gap-2.5 min-w-0">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '32px', height: '32px', backgroundColor: 'rgba(22, 101, 52, 0.1)', color: '#166534' }}
+                >
+                  <BookMarked size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#166534', lineHeight: 1.2 }}>
+                    Notes Stock & Handover
+                  </span>
+                  <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
+                    Track inventory & handouts
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={15} style={{ color: '#166534' }} className="flex-shrink-0 ms-1" />
             </button>
           </div>
         </div>

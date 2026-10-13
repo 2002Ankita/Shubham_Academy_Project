@@ -14,10 +14,10 @@ import {
   Package, 
   Trash2, 
   Edit3, 
-  RefreshCw,
   GraduationCap,
   Briefcase,
-  Calendar
+  Calendar,
+  Printer
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -62,6 +62,8 @@ export default function NotesDelivery() {
   // Modal States
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [voucherModalOpen, setVoucherModalOpen] = useState(false);
+  const [viewingVoucher, setViewingVoucher] = useState(null);
 
   // New Handover Form State
   const [newDelivery, setNewDelivery] = useState({
@@ -598,6 +600,17 @@ export default function NotesDelivery() {
                   )}
                   <button
                     type="button"
+                    title="Print Handover Slip / Receipt"
+                    className="btn btn-sm btn-light border p-1 text-secondary"
+                    onClick={() => {
+                      setViewingVoucher(row);
+                      setVoucherModalOpen(true);
+                    }}
+                  >
+                    <Printer size={15} />
+                  </button>
+                  <button
+                    type="button"
                     title="Edit handover record"
                     className="btn btn-sm btn-light border p-1 text-primary"
                     onClick={() => handleOpenEditModal(row)}
@@ -1033,6 +1046,72 @@ export default function NotesDelivery() {
           </form>
         </Modal>
       )}
+
+      {/* 7. Modal: Notes Handover Voucher Slip */}
+      <Modal isOpen={voucherModalOpen} onClose={() => setVoucherModalOpen(false)} title="Notes Handover Voucher Slip">
+        {viewingVoucher && (
+          <div className="d-flex flex-column gap-3">
+            <div className="p-4 bg-white border rounded-3" id="print-slip">
+              <div className="text-center pb-2 border-bottom border-2 border-danger">
+                <h4 className="fw-extrabold text-danger m-0">SHUBHAM ACADEMY</h4>
+                <div className="small text-muted fw-bold">Notes Handover & Verification Slip</div>
+              </div>
+
+              <div className="row g-2 mt-2 py-2 border-bottom small">
+                <div className="col-6"><strong>ID:</strong> #{viewingVoucher.id?.slice(-6).toUpperCase()}</div>
+                <div className="col-6 text-end"><strong>Date:</strong> {viewingVoucher.date}</div>
+              </div>
+
+              <table className="table table-bordered my-3 small">
+                <tbody>
+                  <tr>
+                    <th className="bg-light" style={{ width: '35%' }}>Notes Title</th>
+                    <td className="fw-bold">{viewingVoucher.bookTitle}</td>
+                  </tr>
+                  <tr>
+                    <th className="bg-light">Recipient</th>
+                    <td className="fw-bold">{viewingVoucher.recipientName || viewingVoucher.studentName || viewingVoucher.handedOverTo}</td>
+                  </tr>
+                  <tr>
+                    <th className="bg-light">Roll / ID Number</th>
+                    <td>{viewingVoucher.rollNumber || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <th className="bg-light">Who Handed Them Over</th>
+                    <td className="fw-bold text-danger">{viewingVoucher.handedOverBy}</td>
+                  </tr>
+                  <tr>
+                    <th className="bg-light">Status</th>
+                    <td><span className="badge bg-success-subtle text-success">{viewingVoucher.status}</span></td>
+                  </tr>
+                  <tr>
+                    <th className="bg-light">Remarks</th>
+                    <td>{viewingVoucher.remarks || 'Confirmed handover'}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="row g-4 mt-3 pt-3 border-top text-center small">
+                <div className="col-6">
+                  <div className="border-bottom pb-4 mb-1"></div>
+                  <strong>{viewingVoucher.handedOverBy}</strong>
+                  <div className="text-muted">Staff Signature</div>
+                </div>
+                <div className="col-6">
+                  <div className="border-bottom pb-4 mb-1"></div>
+                  <strong>{viewingVoucher.recipientName || viewingVoucher.studentName || viewingVoucher.handedOverTo}</strong>
+                  <div className="text-muted">Recipient Signature</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 border-top pt-3">
+              <Button variant="light" onClick={() => setVoucherModalOpen(false)}>Close</Button>
+              <Button variant="primary" icon={Printer} onClick={() => window.print()}>Print Voucher</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

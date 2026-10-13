@@ -11,6 +11,7 @@ import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
 import {
   StickyNote,
+  BookMarked,
   Plus,
   Send,
   Save,
@@ -375,25 +376,43 @@ export default function TeacherNotes() {
           </div>
         </div>
 
-        {/* + Add Note Primary Button */}
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="btn d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs"
-          style={{
-            backgroundColor: '#8B1216',
-            fontSize: '13px',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
-        >
-          <Plus size={16} />
-          <span>Add Note</span>
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/notes-stock')}
+            className="btn btn-outline-danger d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+            style={{
+              fontSize: '13px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
+            }}
+          >
+            <BookMarked size={16} />
+            <span>Stock & Handover Tracking</span>
+          </button>
+
+          {/* + Add Note Primary Button */}
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="btn d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs"
+            style={{
+              backgroundColor: '#8B1216',
+              fontSize: '13px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+          >
+            <Plus size={16} />
+            <span>Add Note</span>
+          </button>
+        </div>
       </div>
 
       {/* 3. NOTES SUMMARY SECTION */}

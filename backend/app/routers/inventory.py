@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Query, Body
 from typing import List, Optional
 from app.schemas.inventory import (
-    InventoryItemCreate, InventoryItemResponse, InventoryItemUpdate,
+    InventoryItemCreate, InventoryItemResponse, InventoryItemUpdate, InventoryItemRestock,
     InventoryDeliveryCreate, InventoryDeliveryResponse, InventoryDeliveryUpdate
 )
 from app.services.inventory_service import (
     add_inventory_item, get_inventory_items, update_inventory_item, adjust_inventory_stock,
     delete_inventory_item,
+    restock_inventory_item,
     add_delivery, update_delivery, delete_delivery, get_deliveries,
     get_student_book_delivery_status
 )
@@ -24,6 +25,11 @@ async def create_item(item_in: InventoryItemCreate, token: str = Depends(oauth2_
 async def list_items(token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     return await get_inventory_items()
+
+@router.post("/items/{item_id}/restock", response_model=InventoryItemResponse)
+async def restock_item(item_id: str, restock_in: InventoryItemRestock, token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    return await restock_inventory_item(item_id, restock_in)
 
 @router.put("/items/{item_id}", response_model=InventoryItemResponse)
 async def edit_item(item_id: str, update_in: InventoryItemUpdate, token: str = Depends(oauth2_scheme)):
@@ -53,6 +59,10 @@ async def list_deliveries(student_id: Optional[str] = Query(None), token: str = 
 @router.put("/deliveries/{delivery_id}", response_model=InventoryDeliveryResponse)
 async def mark_delivery_status(delivery_id: str, update_in: InventoryDeliveryUpdate, token: str = Depends(oauth2_scheme)):
     user = await get_current_user(token)
+    if not update_in.verified_by:
+        update_in.verified_by = user.full_name
+    if not update_in.handed_over_by:
+        update_in.handed_over_by = user.full_name
     return await update_delivery(delivery_id, update_in, current_user_name=user.full_name)
 
 @router.delete("/deliveries/{delivery_id}")
