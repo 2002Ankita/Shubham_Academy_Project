@@ -47,6 +47,6 @@ async def delete_teacher_endpoint(id: str, token: str = Depends(oauth2_scheme)):
     from fastapi import HTTPException
     try:
         await delete_teacher(id)
-        return {"message": "Teacher deactivated successfully"}
+        return {"message": "Teacher deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))

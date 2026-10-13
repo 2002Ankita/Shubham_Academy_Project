@@ -20,13 +20,20 @@ import {
   Users,
   CreditCard,
   Eye,
-  ShieldCheck
+  ShieldCheck,
+  Tag,
+  AlertTriangle,
+  UserCheck
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
+import notificationService from '../../services/notificationService';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function StudentRegistration() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -71,6 +78,12 @@ export default function StudentRegistration() {
     rfidFee: 4000,
     totalFees: 45000,
     discountAmount: 0,
+    discountReason: 'Academic Merit Scholarship',
+    discountRecommendedBy: '',
+    discountApprovedBy: '',
+    customDiscountApprover: '',
+    superadminAuthMode: 'dashboard',
+    superadminAuthCode: '',
     paymentMode: 'Installments',
     downPayment: 15000,
     scholarshipCode: '',
@@ -83,11 +96,13 @@ export default function StudentRegistration() {
   });
 
   useEffect(() => {
-    const total = (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0);
-    if (total !== formData.totalFees) {
-      setFormData(prev => ({ ...prev, totalFees: total }));
+    const gross = (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0);
+    const disc = Number(formData.discountAmount) || 0;
+    const net = Math.max(0, gross - disc);
+    if (net !== formData.totalFees) {
+      setFormData(prev => ({ ...prev, totalFees: net }));
     }
-  }, [formData.tuitionFee, formData.moduleFee, formData.rfidFee]);
+  }, [formData.tuitionFee, formData.moduleFee, formData.rfidFee, formData.discountAmount]);
 
   const [errors, setErrors] = useState({});
 
@@ -182,6 +197,10 @@ export default function StudentRegistration() {
       setCurrentStep(3);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (currentStep === 3) {
+      if (Number(formData.discountAmount) > 0 && !formData.discountRecommendedBy?.trim()) {
+        toast.error('Please enter the name of the staff or counselor recommending this discount.');
+        return;
+      }
       setCurrentStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -218,14 +237,44 @@ export default function StudentRegistration() {
         standard: formData.currentClass,
         batch: formData.batch,
         totalFees: formData.totalFees,
+        originalFees: (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0),
+        discountAmount: Number(formData.discountAmount) || 0,
+        discountReason: formData.discountReason || (Number(formData.discountAmount) > 0 ? (formData.scholarshipCode ? `Code: ${formData.scholarshipCode}` : 'Scholarship Concession') : ''),
+        discountRecommendedBy: Number(formData.discountAmount) > 0 ? (formData.discountRecommendedBy?.trim() || 'Miss Shilpa') : '',
+        discountOfferedBy: Number(formData.discountAmount) > 0 ? (formData.discountRecommendedBy?.trim() || 'Miss Shilpa') : '',
+        discountApprovedBy: '',
+        superadmin_auth_code: '',
         rfidCard: formData.rfidCard,
         status: 'Active',
         password: formData.password || 'password123',
         admission_date: new Date(formData.admissionDate).toISOString()
       };
 
-      await studentService.create(payload);
-      toast.success(`Student ${formData.fullName} successfully registered! Admission ID: ${formData.studentId}`);
+      const created = await studentService.create(payload);
+      
+      // Dispatch real-time notification to Superadmin dashboard if discount was recommended
+      if (Number(formData.discountAmount) > 0) {
+        notificationService.addNotification({
+          id: `NTF-DISC-${created?.id || Date.now()}`,
+          title: `🔔 Fee Concession Approval: ${formData.fullName}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedDateTime: new Date().toLocaleString(),
+          type: 'discount_approval',
+          category: 'Discount & Fees',
+          priority: 'High',
+          author: formData.discountRecommendedBy?.trim() || 'Miss Shilpa (Counselor)',
+          details: `${formData.discountRecommendedBy?.trim() || 'Miss Shilpa'} recommended a concession of ₹${Number(formData.discountAmount).toLocaleString()} for ${formData.fullName} (${formData.currentClass || 'Course'}). Superadmin approval is required before student ledger updates.`,
+          read: false,
+          forSuperAdminOnly: true,
+          studentId: created?.id,
+          studentName: formData.fullName,
+          discountAmount: formData.discountAmount,
+          recommendedBy: formData.discountRecommendedBy?.trim() || 'Miss Shilpa'
+        });
+      }
+
+      toast.success(`Student ${formData.fullName} successfully registered! Concession sent to Superadmin for approval.`);
       localStorage.removeItem('sa_registration_draft');
       navigate('/admin/students');
     } catch (error) {
@@ -289,7 +338,7 @@ export default function StudentRegistration() {
           </div>
 
           {/* Status */}
-          <div className="d-flex align-items-center justify-content-between py-1.5">
+          <div className="d-flex align-items-center justify-content-between py-1.5 border-bottom border-light">
             <div className="d-flex align-items-center gap-2.5 text-sa-muted small">
               <Clock size={18} style={{ color: '#8B1216' }} />
               <span className="fw-semibold text-secondary">Status</span>
@@ -301,6 +350,37 @@ export default function StudentRegistration() {
               Draft
             </span>
           </div>
+
+          {/* Fees & Discount Indicator */}
+          <div className="d-flex align-items-center justify-content-between py-1.5 border-bottom border-light">
+            <div className="d-flex align-items-center gap-2.5 text-sa-muted small">
+              <CreditCard size={18} style={{ color: '#8B1216' }} />
+              <span className="fw-semibold text-secondary">Net Fee</span>
+            </div>
+            <span className="fw-bold small" style={{ color: '#8B1216' }}>
+              ₹{(formData.totalFees || 0).toLocaleString()}
+            </span>
+          </div>
+
+          {Number(formData.discountAmount) > 0 && (
+            <div className="p-2.5 rounded-2 bg-light border mt-2">
+              <div className="d-flex align-items-center justify-content-between small mb-1">
+                <span className="fw-semibold text-secondary">Discount Offered:</span>
+                <span className="fw-bold text-success">-₹{Number(formData.discountAmount).toLocaleString()}</span>
+              </div>
+              <div className="d-flex align-items-center justify-content-between small">
+                <span className="text-muted" style={{ fontSize: '0.78rem' }}>Approval:</span>
+                <span
+                  className={`badge px-2 py-0.5 rounded-1 ${
+                    isSuperAdmin ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
+                  }`}
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  {isSuperAdmin ? 'Pre-Approved by Superadmin' : 'Pending Superadmin Approval'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RFID Information Notice Box */}
@@ -1005,7 +1085,7 @@ export default function StudentRegistration() {
                       
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>Tuition & Laboratory Fee</span>
-                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
                           <input 
                             type="number" 
@@ -1020,7 +1100,7 @@ export default function StudentRegistration() {
                       
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>Study Modules & Books</span>
-                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
                           <input 
                             type="number" 
@@ -1035,7 +1115,7 @@ export default function StudentRegistration() {
                       
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>RFID & Test Series</span>
-                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '100px' }}>
+                        <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
                           <input 
                             type="number" 
@@ -1047,15 +1127,163 @@ export default function StudentRegistration() {
                           />
                         </div>
                       </div>
+
+                      <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-secondary small fw-semibold">
+                        <span>Gross Total Fees</span>
+                        <span>₹{((Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0)).toLocaleString()}</span>
+                      </div>
+
+                      {/* Student Discount Concession & Superadmin Approval Authority */}
+                      <div className="p-3 my-2 rounded-2 border bg-white" style={{ borderColor: '#E2E8F0' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <span className="small fw-bold text-success d-flex align-items-center gap-1.5" style={{ fontSize: '0.90rem' }}>
+                            <Tag size={15} /> Student Discount Concession
+                          </span>
+                          <div className="d-flex align-items-center bg-white border border-success rounded px-2.5 py-1" style={{ width: '130px' }}>
+                            <span className="text-success small me-1 fw-bold">-₹</span>
+                            <input 
+                              type="number" 
+                              name="discountAmount"
+                              min="0"
+                              value={formData.discountAmount}
+                              onChange={handleInputChange}
+                              className="form-control form-control-sm border-0 p-0 text-end fw-bold text-success"
+                              style={{ boxShadow: 'none', fontSize: '0.92rem' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Quick Preset Discount Pills */}
+                        <div className="d-flex flex-wrap align-items-center gap-1 mb-2.5">
+                          <span className="text-muted small me-1" style={{ fontSize: '0.72rem' }}>Quick presets:</span>
+                          {[
+                            { label: '₹0', val: 0 },
+                            { label: '₹2,500', val: 2500 },
+                            { label: '₹5,000', val: 5000 },
+                            { label: '₹10,000', val: 10000 },
+                            { label: '10% (₹4,500)', val: 4500 },
+                            { label: '20% (₹9,000)', val: 9000 },
+                          ].map(preset => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, discountAmount: preset.val }))}
+                              className={`btn btn-sm py-0 px-2 rounded-pill border ${
+                                Number(formData.discountAmount) === preset.val
+                                  ? 'bg-success text-white border-success fw-bold'
+                                  : 'bg-light text-secondary border-secondary-subtle'
+                              }`}
+                              style={{ fontSize: '0.69rem' }}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Concession Reason / Category */}
+                        <div className="mb-2.5">
+                          <label className="form-label text-dark fw-semibold mb-1 d-block" style={{ fontSize: '0.76rem' }}>
+                            Discount Reason / Concession Category <span className="text-danger">*</span>
+                          </label>
+                          <select
+                            name="discountReason"
+                            value={formData.discountReason}
+                            onChange={handleInputChange}
+                            className="form-select form-select-sm"
+                            style={{ fontSize: '0.82rem' }}
+                          >
+                            <option value="Academic Merit Scholarship">Academic Merit Scholarship</option>
+                            <option value="Director Special Concession">Director's Special Concession</option>
+                            <option value="Sibling / Family Discount">Sibling / Family Discount</option>
+                            <option value="EWS / Financial Aid">EWS / Financial Aid Assistance</option>
+                            <option value="Sports & Extracurricular Quota">Sports & Extracurricular Quota</option>
+                            <option value="Staff Ward Concession">Staff Ward Concession</option>
+                            <option value="Early Bird Admission Offer">Early Bird Admission Offer</option>
+                            <option value="Custom Reason">Other / Special Approval</option>
+                          </select>
+                        </div>
+
+                        {/* Discount Recommended By (Fill Name Manually) */}
+                        <div className="p-2.5 rounded-2 border bg-light" style={{ borderColor: '#E2E8F0' }}>
+                          <label className="form-label text-dark fw-bold mb-1.5 d-flex align-items-center justify-content-between" style={{ fontSize: '0.80rem' }}>
+                            <span className="d-flex align-items-center gap-1.5">
+                              <UserCheck size={15} style={{ color: '#8B1216' }} />
+                              Discount Recommended By (Fill Name Manually) <span className="text-danger">*</span>
+                            </span>
+                          </label>
+
+                          <div className="position-relative">
+                            <input
+                              type="text"
+                              name="discountRecommendedBy"
+                              value={formData.discountRecommendedBy}
+                              onChange={handleInputChange}
+                              placeholder="Enter name of counselor / staff recommending discount (e.g. Miss Shilpa)"
+                              className="form-control form-control-sm fw-semibold bg-white"
+                              style={{ fontSize: '0.86rem', padding: '0.50rem 0.75rem' }}
+                            />
+                          </div>
+
+                          <div className="d-flex align-items-center justify-content-between mt-1.5 flex-wrap gap-1">
+                            <span className="text-muted" style={{ fontSize: '0.73rem' }}>
+                              Type the name of staff recommending this concession. Final approval authority is given to Superadmin on the dashboard.
+                            </span>
+                            {formData.discountRecommendedBy !== 'Miss Shilpa' && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, discountRecommendedBy: 'Miss Shilpa' }))}
+                                className="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill"
+                                style={{ fontSize: '0.70rem' }}
+                              >
+                                Fill "Miss Shilpa"
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Live Status Badge */}
+                          <div className="mt-2 pt-1 border-top">
+                            {Number(formData.discountAmount) > 0 ? (
+                              formData.discountRecommendedBy?.trim() ? (
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-1">
+                                  <span className="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2.5 fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                                    <UserCheck size={13} />
+                                    Recommended by: {formData.discountRecommendedBy}
+                                  </span>
+                                  <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-1 px-2.5 fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '0.73rem' }}>
+                                    <Clock size={12} />
+                                    Pending Superadmin Approval
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="badge bg-warning text-dark py-1 px-2.5 fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}>
+                                  <Clock size={13} />
+                                  Please type the name of the person recommending this discount
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted small fst-italic" style={{ fontSize: '0.73rem' }}>
+                                Standard Gross Fees Apply (₹0 Concession)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       
                       <div className="d-flex justify-content-between pt-3 fw-bold text-sa-charcoal align-items-center">
-                        <span>Total Course Fee</span>
-                        <span style={{ color: '#8B1216', fontSize: '1.15rem' }}>₹{(Number(formData.totalFees) || 0).toLocaleString()}</span>
+                        <div>
+                          <span className="d-block" style={{ fontSize: '0.94rem' }}>Net Payable Fee</span>
+                          {Number(formData.discountAmount) > 0 && (
+                            <span className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
+                              Includes ₹{Number(formData.discountAmount).toLocaleString()} concession
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ color: '#8B1216', fontSize: '1.25rem' }}>₹{(Number(formData.totalFees) || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Payment Options */}
+                  {/* Payment Options & Fee Decision Summary */}
                   <div className="col-12 col-md-6">
                     <div className="row g-3">
                       <div className="col-12">
@@ -1090,6 +1318,61 @@ export default function StudentRegistration() {
                         <span className="text-muted mt-1 d-block" style={{ fontSize: '0.74rem' }}>
                           Remaining balance: ₹{(formData.totalFees - Number(formData.downPayment || 0)).toLocaleString()}
                         </span>
+                      </div>
+
+                      {/* Superadmin Fee Decision & Authority Summary Card */}
+                      <div className="col-12">
+                        <div className="p-3.5 rounded-3 border bg-white shadow-xs" style={{ borderColor: '#E2E8F0' }}>
+                          <div className="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+                            <ShieldCheck size={18} style={{ color: '#8B1216' }} />
+                            <h6 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>
+                              Fee Decision & Superadmin Authority
+                            </h6>
+                          </div>
+
+                          <div className="d-flex flex-column gap-1.5" style={{ fontSize: '0.82rem' }}>
+                            <div className="d-flex justify-content-between text-secondary">
+                              <span>Gross Course Fees:</span>
+                              <strong className="text-dark">₹{((Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0)).toLocaleString()}</strong>
+                            </div>
+
+                            <div className="d-flex justify-content-between text-success">
+                              <span>Discount Concession:</span>
+                              <strong>-₹{Number(formData.discountAmount || 0).toLocaleString()}</strong>
+                            </div>
+
+                            <div className="d-flex justify-content-between pt-1 border-top fw-bold text-sa-charcoal">
+                              <span>Net Decided Fees:</span>
+                              <span style={{ color: '#8B1216', fontSize: '0.96rem' }}>₹{Number(formData.totalFees || 0).toLocaleString()}</span>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-top">
+                              <span className="text-muted d-block" style={{ fontSize: '0.73rem' }}>Discount Recommendation:</span>
+                              <div className="fw-bold text-dark mt-0.5 d-flex align-items-center gap-1" style={{ fontSize: '0.84rem' }}>
+                                {Number(formData.discountAmount) > 0 ? (
+                                  formData.discountRecommendedBy?.trim() ? (
+                                    <span className="text-primary d-inline-flex align-items-center gap-1">
+                                      <UserCheck size={14} className="text-primary" />
+                                      Recommended by: {formData.discountRecommendedBy}
+                                    </span>
+                                  ) : (
+                                    <span className="text-warning small">Fill recommender name above</span>
+                                  )
+                                ) : (
+                                  'Standard Gross Fee (No Discount)'
+                                )}
+                              </div>
+                              {Number(formData.discountAmount) > 0 && (
+                                <div className="mt-1">
+                                  <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0.5 px-1.5" style={{ fontSize: '0.70rem' }}>
+                                    <Clock size={10} className="me-1" />
+                                    Requires Superadmin Sign-Off
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="col-12">
@@ -1208,6 +1491,44 @@ export default function StudentRegistration() {
                         <div><strong>Name:</strong> {formData.parentName || 'Parent'} ({formData.relation})</div>
                         <div><strong>Parent Phone:</strong> {formData.parentPhone || 'Not provided'}</div>
                         <div><strong>Occupation:</strong> {formData.parentOccupation || 'N/A'}</div>
+                      </div>
+
+                      {/* Fee and Discount Review Block */}
+                      <div className="pt-2 border-top">
+                        <h6 className="fw-bold text-sa-charcoal pb-1 mb-2">Fee & Concession Review</h6>
+                        <div className="d-flex justify-content-between text-muted mb-1">
+                          <span>Gross Total Fee:</span>
+                          <span>₹{((Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0)).toLocaleString()}</span>
+                        </div>
+                        {Number(formData.discountAmount) > 0 && (
+                          <>
+                            <div className="d-flex justify-content-between text-success fw-semibold mb-1">
+                              <span>Discount Concession:</span>
+                              <span>-₹{Number(formData.discountAmount).toLocaleString()}</span>
+                            </div>
+                            <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: '0.78rem' }}>
+                              <span>Concession Reason:</span>
+                              <span>{formData.discountReason || 'Concession'}</span>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted" style={{ fontSize: '0.78rem' }}>Recommended By:</span>
+                              <strong className="text-dark d-flex align-items-center gap-1" style={{ fontSize: '0.80rem' }}>
+                                <UserCheck size={13} className="text-primary" />
+                                {formData.discountRecommendedBy?.trim() || 'Counselor Desk'}
+                              </strong>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <span className="text-muted" style={{ fontSize: '0.78rem' }}>Approval Authority:</span>
+                              <span className="badge bg-warning-subtle text-warning-emphasis px-2 py-0.5 rounded-1 border border-warning-subtle" style={{ fontSize: '0.74rem' }}>
+                                <Clock size={11} className="me-1" /> Pending Superadmin Approval (On Dashboard)
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <div className="d-flex justify-content-between fw-bold text-sa-charcoal mt-1.5 pt-1.5 border-top">
+                          <span>Net Payable:</span>
+                          <span style={{ color: '#8B1216' }}>₹{Number(formData.totalFees).toLocaleString()}</span>
+                        </div>
                       </div>
 
                       <div className="pt-2 border-top mt-auto">

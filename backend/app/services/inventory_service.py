@@ -4,191 +4,76 @@ from app.models.user import User
 from app.schemas.inventory import (
     InventoryItemCreate,
     InventoryItemRestock,
+    InventoryItemUpdate,
     InventoryDeliveryCreate,
     InventoryDeliveryUpdate
 )
 from fastapi import HTTPException
 from bson import ObjectId
 from datetime import datetime, timedelta
+from typing import Optional
 
-async def seed_initial_inventory_if_empty():
-    count = await InventoryItem.count()
-    if count > 0:
-        return
+DEFAULT_BOOKS = [
+    # Theory Books
+    {"title": "Theory - Physics", "category": "Theory", "subject": "Physics", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Chemistry", "category": "Theory", "subject": "Chemistry", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Biology", "category": "Theory", "subject": "Biology", "standard": "11th & 12th Science", "in_stock": 45, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Mathematics", "category": "Theory", "subject": "Maths", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    # CET Books
+    {"title": "CET - Physics", "category": "CET", "subject": "Physics", "standard": "11th & 12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Chemistry", "category": "CET", "subject": "Chemistry", "standard": "11th & 12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Biology", "category": "CET", "subject": "Biology", "standard": "11th & 12th Science", "in_stock": 40, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Mathematics", "category": "CET", "subject": "Maths", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 400.0},
+]
 
-    # Seed realistic study notes inventory
-    sample_items = [
-        InventoryItem(
-            title="Matrices & Differential Calculus Handbook",
-            standard="12th pcm tarabai park",
-            subject="Mathematics",
-            in_stock=45,
-            total_stock=60,
-            reorder_level=15,
-            unit_cost=350.0
-        ),
-        InventoryItem(
-            title="Rotational Dynamics & Wave Optics Key Derivations",
-            standard="12th pcm tarabai park",
-            subject="Physics",
-            in_stock=38,
-            total_stock=60,
-            reorder_level=15,
-            unit_cost=420.0
-        ),
-        InventoryItem(
-            title="Chemical Thermodynamics & Coordination Compounds",
-            standard="12th pcb tarabai park",
-            subject="Chemistry",
-            in_stock=12,
-            total_stock=50,
-            reorder_level=15,
-            unit_cost=380.0
-        ),
-        InventoryItem(
-            title="Modern Physics Numerical Problem-Solving Guide",
-            standard="12th pcm Mangalvar peth",
-            subject="Physics",
-            in_stock=52,
-            total_stock=70,
-            reorder_level=20,
-            unit_cost=400.0
-        ),
-        InventoryItem(
-            title="Genetic Inheritance & Molecular Biology Handbook",
-            standard="12th pcb Mangalvar peth",
-            subject="Biology",
-            in_stock=8,
-            total_stock=40,
-            reorder_level=10,
-            unit_cost=450.0
-        ),
-        InventoryItem(
-            title="Thermodynamics & Kinetic Theory Revision Notes",
-            standard="11th pcm tarabai park",
-            subject="Physics",
-            in_stock=64,
-            total_stock=80,
-            reorder_level=20,
-            unit_cost=320.0
-        ),
-        InventoryItem(
-            title="Organic Chemistry Reaction Mechanism Reference",
-            standard="11th pcmb tarabai park",
-            subject="Chemistry",
-            in_stock=5,
-            total_stock=50,
-            reorder_level=15,
-            unit_cost=390.0
-        ),
-    ]
-
-    for item in sample_items:
-        await item.insert()
-
-    # Seed initial handover records
-    # Try resolving an existing student from DB if available
-    first_student = await Student.find_one()
-    item_math = await InventoryItem.find_one(InventoryItem.title == "Matrices & Differential Calculus Handbook")
-    item_phys = await InventoryItem.find_one(InventoryItem.title == "Rotational Dynamics & Wave Optics Key Derivations")
-    item_chem = await InventoryItem.find_one(InventoryItem.title == "Chemical Thermodynamics & Coordination Compounds")
-    item_bio = await InventoryItem.find_one(InventoryItem.title == "Genetic Inheritance & Molecular Biology Handbook")
-
-    now = datetime.utcnow()
-    sample_deliveries = []
-
-    if item_phys:
-        sample_deliveries.append(
-            InventoryDelivery(
-                student=first_student,
-                inventory_item=item_phys,
-                quantity=1,
-                handed_over_by="Dr. Priya Kulkarni (Physics Faculty)",
-                handed_over_to="Aarav Deshmukh",
-                student_roll_no="STU-2026-001",
-                standard="12th Science - Alpha",
-                status="Handed Over",
-                date=now - timedelta(days=1, hours=3),
-                verified_by="Dr. Priya Kulkarni",
-                remarks="Direct classroom handover with formula cheat sheet"
-            )
-        )
-
-    if item_math:
-        sample_deliveries.append(
-            InventoryDelivery(
-                student=first_student,
-                inventory_item=item_math,
-                quantity=1,
-                handed_over_by="Prof. Shubham Sharma (Academic Director)",
-                handed_over_to="Rohan Patil",
-                student_roll_no="STU-2026-002",
-                standard="12th Science - Alpha",
-                status="Handed Over",
-                date=now - timedelta(days=2, hours=5),
-                verified_by="Prof. Shubham Sharma",
-                remarks="Collected at Admin Desk, parent signature confirmed"
-            )
-        )
-
-    if item_chem:
-        sample_deliveries.append(
-            InventoryDelivery(
-                student=first_student,
-                inventory_item=item_chem,
-                quantity=1,
-                handed_over_by="Prof. Rajesh Patil (Chemistry Faculty)",
-                handed_over_to="Neha Joshi",
-                student_roll_no="STU-2026-003",
-                standard="12th Science - Beta",
-                status="Handed Over",
-                date=now - timedelta(days=3, hours=2),
-                verified_by="Prof. Rajesh Patil",
-                remarks="Post-laboratory session distribution, signed in register"
-            )
-        )
-
-    if item_bio:
-        sample_deliveries.append(
-            InventoryDelivery(
-                student=first_student,
-                inventory_item=item_bio,
-                quantity=1,
-                handed_over_by="Dr. Sneha Deshmukh (Biology Faculty)",
-                handed_over_to="Aditya Shinde",
-                student_roll_no="STU-2026-004",
-                standard="12th Science - Beta",
-                status="Handed Over",
-                date=now - timedelta(days=4, hours=1),
-                verified_by="Dr. Sneha Deshmukh",
-                remarks="Distributed with model question paper set"
-            )
-        )
-
-    for deliv in sample_deliveries:
-        await deliv.insert()
+async def ensure_default_books():
+    """Ensure that the core Theory, CET, and module books exist in inventory items."""
+    try:
+        count = await InventoryItem.count()
+        if count == 0:
+            for book in DEFAULT_BOOKS:
+                new_item = InventoryItem(**book)
+                await new_item.insert()
+    except Exception as e:
+        print(f"Error ensuring default books: {e}")
 
 async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
-    data = item_in.dict()
-    if not data.get("total_stock"):
-        data["total_stock"] = data.get("in_stock", 0)
-    item = InventoryItem(**data)
+    item_dict = item_in.model_dump() if hasattr(item_in, "model_dump") else item_in.dict()
+    if not item_dict.get("total_stock"):
+        item_dict["total_stock"] = item_dict.get("in_stock", 0)
+    item = InventoryItem(**item_dict)
     await item.insert()
-    d = item.dict()
+    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     d["id"] = str(item.id)
     return d
 
-async def get_inventory_items() -> list[dict]:
-    await seed_initial_inventory_if_empty()
-    items = await InventoryItem.find_all().to_list()
-    res = []
-    for item in items:
-        d = item.dict()
-        d["id"] = str(item.id)
-        if not d.get("total_stock"):
-            d["total_stock"] = d.get("in_stock", 0)
-        res.append(d)
-    return res
+async def update_inventory_item(item_id: str, update_in: InventoryItemUpdate) -> dict:
+    item = await InventoryItem.get(ObjectId(item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Book item not found")
+    
+    update_data = (update_in.model_dump(exclude_unset=True) 
+                   if hasattr(update_in, "model_dump") 
+                   else update_in.dict(exclude_unset=True))
+    
+    for key, value in update_data.items():
+        if value is not None:
+            setattr(item, key, value)
+            
+    await item.save()
+    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+    d["id"] = str(item.id)
+    return d
+
+async def adjust_inventory_stock(item_id: str, delta: int) -> dict:
+    item = await InventoryItem.get(ObjectId(item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Book item not found")
+    item.in_stock = max(0, item.in_stock + delta)
+    await item.save()
+    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+    d["id"] = str(item.id)
+    return d
 
 async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock) -> dict:
     item = await InventoryItem.get(ObjectId(item_id))
@@ -199,9 +84,36 @@ async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock)
     item.in_stock += qty
     item.total_stock = (item.total_stock or 0) + qty
     await item.save()
-    d = item.dict()
+    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     d["id"] = str(item.id)
     return d
+
+async def get_inventory_items() -> list[dict]:
+    await ensure_default_books()
+    items = await InventoryItem.find_all().to_list()
+    res = []
+    for item in items:
+        d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        d["id"] = str(item.id)
+        if not d.get("total_stock"):
+            d["total_stock"] = d.get("in_stock", 0)
+        # Ensure category and subject exist for legacy records
+        if not d.get("category"):
+            d["category"] = "CET" if "cet" in (d.get("title") or "").lower() else "Theory"
+        if not d.get("subject"):
+            t = (d.get("title") or "").lower()
+            if "physic" in t:
+                d["subject"] = "Physics"
+            elif "chem" in t:
+                d["subject"] = "Chemistry"
+            elif "bio" in t:
+                d["subject"] = "Biology"
+            elif "math" in t:
+                d["subject"] = "Maths"
+            else:
+                d["subject"] = "General"
+        res.append(d)
+    return res
 
 async def _format_delivery(delivery: InventoryDelivery) -> dict:
     student_obj = None
@@ -237,27 +149,61 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
         except Exception:
             item_obj = None
 
+    book_title = delivery.book_title or (item_obj.title if item_obj else "Study Notes Package")
+    
+    category = delivery.category
+    if not category:
+        if item_obj and getattr(item_obj, "category", None):
+            category = item_obj.category
+        else:
+            category = "CET" if "cet" in book_title.lower() else "Theory"
+
+    subject = delivery.subject
+    if not subject:
+        if item_obj and getattr(item_obj, "subject", None):
+            subject = item_obj.subject
+        else:
+            t = book_title.lower()
+            if "physic" in t:
+                subject = "Physics"
+            elif "chem" in t:
+                subject = "Chemistry"
+            elif "bio" in t:
+                subject = "Biology"
+            elif "math" in t:
+                subject = "Maths"
+            else:
+                subject = "General"
+
     handed_by = delivery.handed_over_by or delivery.verified_by or "Academic Staff"
     handed_to = student_name or delivery.handed_over_to or "Student"
-    formatted_date = delivery.date.strftime("%d %b %Y, %I:%M %p") if delivery.date else "--"
+    
+    date_str = "--"
+    if delivery.date:
+        date_str = delivery.date.strftime("%Y-%m-%d %H:%M")
+    elif delivery.status in ["Delivered", "Handed Over"]:
+        date_str = delivery.created_at.strftime("%Y-%m-%d %H:%M") if delivery.created_at else "--"
 
     return {
         "id": str(delivery.id),
+        "student_id": str(student_obj.id) if student_obj else (delivery.student_roll_no or ""),
         "student_name": handed_to,
-        "roll_number": roll_number or "--",
-        "book_title": item_obj.title if item_obj else "Study Notes Package",
+        "roll_number": roll_number or "N/A",
+        "book_title": book_title,
+        "category": category,
+        "subject": subject,
         "item_id": str(item_obj.id) if item_obj else None,
         "available_stock": item_obj.in_stock if item_obj else 0,
         "quantity": getattr(delivery, 'quantity', 1) or 1,
         "handed_over_by": handed_by,
         "handed_over_to": handed_to,
         "status": delivery.status or "Handed Over",
-        "date": formatted_date,
+        "date": date_str,
         "verified_by": delivery.verified_by or handed_by,
         "remarks": delivery.remarks or ""
     }
 
-async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: str = None) -> dict:
+async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: Optional[str] = None) -> dict:
     student_obj = None
     if delivery_in.student_id:
         from app.services.student_service import resolve_student
@@ -266,23 +212,37 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         except Exception:
             student_obj = None
 
-    try:
-        item = await InventoryItem.get(ObjectId(delivery_in.inventory_item_id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid inventory item ID")
-
-    if not item:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-
-    qty = max(1, delivery_in.quantity)
-    handed_by = delivery_in.handed_over_by or current_user_name or "Academic Staff"
+    await ensure_default_books()
     
-    student_name = delivery_in.handed_over_to
-    roll_no = delivery_in.student_roll_no
+    item = None
+    if delivery_in.inventory_item_id:
+        try:
+            item = await InventoryItem.get(ObjectId(delivery_in.inventory_item_id))
+        except Exception:
+            item = None
+
+    category = delivery_in.category or "Theory"
+    subject = delivery_in.subject or "Physics"
+    
+    if not item:
+        matched_items = await InventoryItem.find(
+            InventoryItem.category == category,
+            InventoryItem.subject == subject
+        ).to_list()
+        if matched_items:
+            item = matched_items[0]
+
+    book_title = delivery_in.book_title
+    if not book_title:
+        book_title = item.title if item else f"{category} - {subject}"
+
+    # Student name resolution
+    student_name = delivery_in.handed_over_to or ""
+    roll_no = delivery_in.student_roll_no or ""
 
     if student_obj:
         if not roll_no:
-            roll_no = student_obj.student_id
+            roll_no = student_obj.student_id or ""
         if not student_name and getattr(student_obj, "user", None):
             try:
                 user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
@@ -294,64 +254,220 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     if not student_name:
         student_name = "Student"
 
-    # Decrement available stock if handing over
+    qty = max(1, delivery_in.quantity)
     status = delivery_in.status or "Handed Over"
-    if status in ["Handed Over", "Delivered"]:
+    handed_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academic Staff"
+    handover_date = datetime.utcnow() if status in ["Handed Over", "Delivered"] else None
+
+    # Decrement available stock if handing over/delivered
+    if status in ["Handed Over", "Delivered"] and item and item.in_stock > 0:
         item.in_stock = max(0, item.in_stock - qty)
         await item.save()
 
     delivery = InventoryDelivery(
         student=student_obj,
         inventory_item=item,
+        book_title=book_title,
+        category=category,
+        subject=subject,
         quantity=qty,
         handed_over_by=handed_by,
         handed_over_to=student_name,
         student_roll_no=roll_no,
-        standard=delivery_in.standard or (student_obj.standard if student_obj else item.standard),
+        standard=delivery_in.standard or (student_obj.standard if student_obj else (item.standard if item else None)),
         status=status,
-        date=datetime.utcnow(),
+        date=handover_date,
         verified_by=handed_by,
         remarks=delivery_in.remarks
     )
     await delivery.insert()
+
     return await _format_delivery(delivery)
 
-async def update_delivery(id: str, update_in: InventoryDeliveryUpdate) -> dict:
+async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_user_name: Optional[str] = None) -> dict:
     try:
         delivery = await InventoryDelivery.get(ObjectId(id))
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid delivery ID")
 
     if not delivery:
-        raise HTTPException(status_code=404, detail="Delivery not found")
-        
-    old_status = delivery.status
-    delivery.status = update_in.status
+        raise HTTPException(status_code=404, detail="Delivery record not found")
 
-    if update_in.handed_over_by:
-        delivery.handed_over_by = update_in.handed_over_by
-    if update_in.verified_by:
-        delivery.verified_by = update_in.verified_by
-    if update_in.remarks:
+    old_status = delivery.status
+    new_status = update_in.status
+    delivery.status = new_status
+
+    if update_in.remarks is not None:
         delivery.remarks = update_in.remarks
 
-    # If status changed to Handed Over/Delivered, deduct stock
-    if update_in.status in ["Handed Over", "Delivered"] and old_status not in ["Handed Over", "Delivered"]:
+    if update_in.handed_over_by or update_in.verified_by:
+        staff_name = update_in.handed_over_by or update_in.verified_by
+        delivery.handed_over_by = staff_name
+        delivery.verified_by = staff_name
+    elif not delivery.handed_over_by and current_user_name:
+        delivery.handed_over_by = current_user_name
+        delivery.verified_by = current_user_name
+
+    # Handle status transition and stock adjustments
+    qty = getattr(delivery, 'quantity', 1) or 1
+    if new_status in ["Delivered", "Handed Over"] and old_status not in ["Delivered", "Handed Over"]:
         delivery.date = datetime.utcnow()
-        try:
-            item = await InventoryItem.get(delivery.inventory_item.ref.id)
-            if item and item.in_stock > 0:
-                item.in_stock = max(0, item.in_stock - getattr(delivery, 'quantity', 1))
-                await item.save()
-        except Exception:
-            pass
+        if getattr(delivery, "inventory_item", None):
+            try:
+                item = await InventoryItem.get(delivery.inventory_item.ref.id)
+                if item and item.in_stock > 0:
+                    item.in_stock = max(0, item.in_stock - qty)
+                    await item.save()
+            except Exception:
+                pass
+    elif new_status not in ["Delivered", "Handed Over"] and old_status in ["Delivered", "Handed Over"]:
+        delivery.date = None
+        if getattr(delivery, "inventory_item", None):
+            try:
+                item = await InventoryItem.get(delivery.inventory_item.ref.id)
+                if item:
+                    item.in_stock += qty
+                    await item.save()
+            except Exception:
+                pass
 
     await delivery.save()
     return await _format_delivery(delivery)
 
-async def get_deliveries() -> list[dict]:
-    await seed_initial_inventory_if_empty()
+async def delete_delivery(id: str) -> dict:
+    delivery = await InventoryDelivery.get(ObjectId(id))
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery record not found")
+
+    qty = getattr(delivery, 'quantity', 1) or 1
+    if delivery.status in ["Delivered", "Handed Over"] and getattr(delivery, "inventory_item", None):
+        try:
+            item = await InventoryItem.get(delivery.inventory_item.ref.id)
+            if item:
+                item.in_stock += qty
+                await item.save()
+        except Exception:
+            pass
+
+    await delivery.delete()
+    return {"message": "Delivery record removed successfully", "id": id}
+
+async def get_deliveries(student_id: Optional[str] = None) -> list[dict]:
+    await ensure_default_books()
+    if student_id:
+        from app.services.student_service import resolve_student
+        student = await resolve_student(student_id)
+        if student:
+            deliveries = await InventoryDelivery.find({"student.$id": student.id}).to_list()
+            return [await _format_delivery(d) for d in deliveries]
+
     deliveries = await InventoryDelivery.find_all().to_list()
-    # Sort reverse by date/created_at
-    deliveries.sort(key=lambda d: d.created_at, reverse=True)
+    deliveries.sort(key=lambda d: d.created_at or datetime.min, reverse=True)
     return [await _format_delivery(d) for d in deliveries]
+
+async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
+    """
+    Returns subject-wise status of Theory and CET books delivery for the given student.
+    Connects with Student Dashboard to show delivered or pending per subject.
+    """
+    from app.services.student_service import resolve_student
+    student = await resolve_student(student_id_or_user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    await ensure_default_books()
+
+    deliveries = await InventoryDelivery.find({"student.$id": student.id}).to_list()
+    if not deliveries and student.student_id:
+        deliveries = await InventoryDelivery.find(InventoryDelivery.student_roll_no == student.student_id).to_list()
+
+    formatted_deliveries = [await _format_delivery(d) for d in deliveries]
+
+    subjects = ["Physics", "Chemistry", "Biology", "Maths"]
+    categories = ["Theory", "CET"]
+
+    status_matrix = {
+        "Theory": {},
+        "CET": {}
+    }
+
+    for cat in categories:
+        for subj in subjects:
+            status_matrix[cat][subj] = {
+                "delivered": False,
+                "status": "Not Delivered",
+                "date": None,
+                "handed_over_by": None,
+                "delivery_id": None,
+                "book_title": f"{cat} - {subj}"
+            }
+
+    delivered_count = 0
+    pending_count = 0
+
+    for fd in formatted_deliveries:
+        cat_raw = (fd.get("category") or "").strip().lower()
+        title_raw = (fd.get("book_title") or "").strip().lower()
+        subj_raw = (fd.get("subject") or "").strip().lower()
+
+        cat = "CET" if "cet" in cat_raw or "cet" in title_raw else "Theory"
+
+        target_subj = None
+        if "physic" in subj_raw or "physic" in title_raw:
+            target_subj = "Physics"
+        elif "chem" in subj_raw or "chem" in title_raw:
+            target_subj = "Chemistry"
+        elif "bio" in subj_raw or "bio" in title_raw:
+            target_subj = "Biology"
+        elif "math" in subj_raw or "math" in title_raw:
+            target_subj = "Maths"
+
+        if target_subj and cat in status_matrix:
+            is_delivered = fd.get("status") in ["Delivered", "Handed Over"]
+            current_status = status_matrix[cat][target_subj]
+            if is_delivered or current_status["status"] == "Not Delivered":
+                status_matrix[cat][target_subj] = {
+                    "delivered": is_delivered,
+                    "status": fd.get("status"),
+                    "date": fd.get("date"),
+                    "handed_over_by": fd.get("handed_over_by"),
+                    "delivery_id": fd.get("id"),
+                    "book_title": fd.get("book_title")
+                }
+
+    for cat in categories:
+        for subj in subjects:
+            if status_matrix[cat][subj]["delivered"]:
+                delivered_count += 1
+            elif status_matrix[cat][subj]["status"] == "Pending Pickup":
+                pending_count += 1
+
+    not_delivered_count = 8 - (delivered_count + pending_count)
+
+    student_name = ""
+    if getattr(student, "user", None):
+        try:
+            user_obj = student.user if isinstance(student.user, User) else await User.get(student.user.ref.id)
+            if user_obj:
+                student_name = user_obj.full_name
+        except Exception:
+            pass
+
+    return {
+        "student": {
+            "id": str(student.id),
+            "student_id": student.student_id,
+            "name": student_name,
+            "standard": student.standard,
+            "batch": student.batch
+        },
+        "theory": status_matrix["Theory"],
+        "cet": status_matrix["CET"],
+        "deliveries": formatted_deliveries,
+        "summary": {
+            "total_books": 8,
+            "delivered_count": delivered_count,
+            "pending_count": pending_count,
+            "not_delivered_count": not_delivered_count
+        }
+    }

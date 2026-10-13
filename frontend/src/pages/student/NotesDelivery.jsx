@@ -1,29 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
-import { Download, FileText, Calendar, UserCheck, Search } from 'lucide-react';
+import BackButton from '../../components/common/BackButton';
+import { 
+  Truck, 
+  CheckCircle2, 
+  Clock, 
+  Download, 
+  FileText, 
+  Calendar, 
+  UserCheck, 
+  Search, 
+  BookMarked, 
+  Sparkles, 
+  AlertCircle,
+  Package,
+  ShieldCheck
+} from 'lucide-react';
 import { toast } from 'react-toastify';
+import inventoryService from '../../services/inventoryService';
 import notesService from '../../services/notesService';
 import { useAuth } from '../../hooks/useAuth';
 
-const DEFAULT_DELIVERIES = [
+const DEFAULT_LECTURE_NOTES = [
   {
-    id: 'ND-2026-101',
+    id: 'LN-2026-101',
     notesTitle: 'Matrices, Determinants & Differentiation Formula Handbook',
-    subject: 'Mathematics - I',
+    subject: 'Mathematics',
     teacherName: 'Prof. Shubham Sir',
     date: '2026-03-15',
     summary: 'Comprehensive theorem summaries, matrix inversion shortcuts, and calculus derivatives list.'
   },
   {
-    id: 'ND-2026-102',
-    notesTitle: 'Definite Integration, Differential Equations & Vectors Guide',
-    subject: 'Mathematics - II',
-    teacherName: 'Prof. Shubham Sir',
-    date: '2026-03-18',
-    summary: 'Step-by-step methods for integration by parts, partial fractions, and differential equations.'
-  },
-  {
-    id: 'ND-2026-103',
+    id: 'LN-2026-102',
     notesTitle: 'Rotational Dynamics & Wave Optics Key Derivations',
     subject: 'Physics',
     teacherName: 'Dr. Priya Kulkarni',
@@ -31,7 +39,7 @@ const DEFAULT_DELIVERIES = [
     summary: 'Handwritten formulas and essential derivations for rotational motion and Young double slit experiment.'
   },
   {
-    id: 'ND-2026-104',
+    id: 'LN-2026-103',
     notesTitle: 'Chemical Thermodynamics & Coordination Compounds Notes',
     subject: 'Chemistry',
     teacherName: 'Prof. Rajesh Patil',
@@ -39,15 +47,7 @@ const DEFAULT_DELIVERIES = [
     summary: 'Thermodynamic state functions, enthalpy changes, and IUPAC nomenclature of coordination complexes.'
   },
   {
-    id: 'ND-2026-105',
-    notesTitle: 'Mathematical Logic & Trigonometric Functions Short Tricks',
-    subject: 'Mathematics - I',
-    teacherName: 'Prof. Aniket Kadam',
-    date: '2026-03-28',
-    summary: 'Truth tables, logical equivalences, and principal value branches of inverse trigonometric functions.'
-  },
-  {
-    id: 'ND-2026-106',
+    id: 'LN-2026-104',
     notesTitle: 'Genetic Inheritance & Molecular Biology Quick Revision',
     subject: 'Biology',
     teacherName: 'Dr. Sneha Deshmukh',
@@ -56,45 +56,71 @@ const DEFAULT_DELIVERIES = [
   }
 ];
 
-const formatToYMD = (dateStr) => {
-  if (!dateStr) return '2026-03-15';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
-  }
-  return dateStr;
-};
-
 export default function StudentNotesDelivery() {
   const { user } = useAuth();
-  const [deliveries, setDeliveries] = useState(DEFAULT_DELIVERIES);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('All');
+  const [activeTab, setActiveTab] = useState('books'); // 'books' or 'lectureNotes'
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadNotes = async () => {
+  // Books Delivery Matrix State
+  const [deliveryStatus, setDeliveryStatus] = useState({
+    theory: {
+      Physics: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'Theory - Physics' },
+      Chemistry: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'Theory - Chemistry' },
+      Biology: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'Theory - Biology' },
+      Maths: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'Theory - Mathematics' }
+    },
+    cet: {
+      Physics: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'CET - Physics' },
+      Chemistry: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'CET - Chemistry' },
+      Biology: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'CET - Biology' },
+      Maths: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null, book_title: 'CET - Mathematics' }
+    },
+    deliveries: [],
+    summary: { total_books: 8, delivered_count: 0, pending_count: 0, not_delivered_count: 8 }
+  });
+
+  // Digital notes download state
+  const [lectureNotes, setLectureNotes] = useState(DEFAULT_LECTURE_NOTES);
+  const [notesSearch, setNotesSearch] = useState('');
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const studentId = user?.id || 'STU-001';
+      // 1. Fetch live books delivery status from database
       try {
-        const liveNotes = await notesService.getForStudent(user || { standard: '12th Science', id: 'STU-001' });
+        const matrixData = await inventoryService.getStudentDeliveryStatus(studentId);
+        if (matrixData) setDeliveryStatus(matrixData);
+      } catch (err) {
+        // Fallback to my-status
+        try {
+          const myMatrix = await inventoryService.getMyDeliveryStatus();
+          if (myMatrix) setDeliveryStatus(myMatrix);
+        } catch {}
+      }
+
+      // 2. Fetch teacher uploaded digital notes
+      try {
+        const liveNotes = await notesService.getForStudent(user || { standard: '12th Science', id: studentId });
         if (liveNotes && Array.isArray(liveNotes) && liveNotes.length > 0) {
-          const liveMapped = liveNotes.map((n, idx) => ({
+          const mapped = liveNotes.map((n, idx) => ({
             id: n.id || `LIVE-${idx}`,
             notesTitle: n.title,
-            subject: n.subject || 'Mathematics - I',
-            teacherName: n.teacherName || 'Prof. Shubham Sir',
-            date: n.createdAt ? formatToYMD(n.createdAt) : formatToYMD(new Date()),
+            subject: n.subject || 'General',
+            teacherName: n.teacherName || 'Faculty',
+            date: n.createdAt ? n.createdAt.split('T')[0] : '2026-03-20',
             summary: n.content
           }));
-          // Combine live notes with default deliveries
-          setDeliveries([...liveMapped, ...DEFAULT_DELIVERIES]);
-        } else {
-          setDeliveries(DEFAULT_DELIVERIES);
+          setLectureNotes([...mapped, ...DEFAULT_LECTURE_NOTES]);
         }
-      } catch (e) {
-        setDeliveries(DEFAULT_DELIVERIES);
-      }
-    };
-    loadNotes();
+      } catch {}
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, [user]);
 
   const handleDownload = (item) => {
@@ -111,57 +137,25 @@ export default function StudentNotesDelivery() {
             body { font-family: Calibri, Arial, sans-serif; margin: 40px; color: #1f2937; line-height: 1.6; }
             .header { text-align: center; border-bottom: 2px solid #8B1216; padding-bottom: 12px; margin-bottom: 20px; }
             .title { font-size: 20pt; font-weight: bold; color: #8B1216; margin: 0; }
-            .subtitle { font-size: 11pt; color: #6b7280; margin-top: 4px; }
             .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
             .meta-table td { padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 10pt; }
             .meta-label { font-weight: bold; background-color: #f9fafb; width: 25%; }
-            .section-title { font-size: 13pt; font-weight: bold; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; margin-top: 20px; }
-            .content-box { background-color: #f8fafc; border-left: 4px solid #8B1216; padding: 12px 16px; margin: 15px 0; font-size: 11pt; }
-            ul { margin-top: 6px; padding-left: 20px; }
-            li { margin-bottom: 6px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 9pt; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+            .content-box { background-color: #f8fafc; border-left: 4px solid #8B1216; padding: 12px 16px; margin: 15px 0; }
           </style>
         </head>
         <body>
           <div class="header">
             <div class="title">SHUBHAM ACADEMY</div>
-            <div class="subtitle">Official Faculty Study Material & Notes Delivery</div>
+            <div>Official Faculty Study Material & Lecture Notes</div>
           </div>
-
           <table class="meta-table">
-            <tr>
-              <td class="meta-label">Notes Title:</td>
-              <td style="font-weight: bold; color: #8B1216;">${item.notesTitle || item.title}</td>
-            </tr>
-            <tr>
-              <td class="meta-label">Subject:</td>
-              <td>${item.subject}</td>
-            </tr>
-            <tr>
-              <td class="meta-label">Teacher Name:</td>
-              <td>${item.teacherName || item.teacher || 'Faculty'}</td>
-            </tr>
-            <tr>
-              <td class="meta-label">Date:</td>
-              <td>${item.date}</td>
-            </tr>
+            <tr><td class="meta-label">Notes Title:</td><td style="font-weight: bold; color: #8B1216;">${item.notesTitle || item.title}</td></tr>
+            <tr><td class="meta-label">Subject:</td><td>${item.subject}</td></tr>
+            <tr><td class="meta-label">Teacher:</td><td>${item.teacherName || 'Faculty'}</td></tr>
+            <tr><td class="meta-label">Date:</td><td>${item.date}</td></tr>
           </table>
-
-          <div class="section-title">Overview & Notes Summary</div>
           <div class="content-box">
             ${item.summary || 'Essential lecture notes, key formulas, derivations, and practice questions for student revision.'}
-          </div>
-
-          <div class="section-title">Syllabus Coverage & Important Topics</div>
-          <ul>
-            <li><strong>Core Concepts:</strong> Detailed mathematical and conceptual explanations.</li>
-            <li><strong>Essential Formulae:</strong> Step-by-step derivations and sign conventions.</li>
-            <li><strong>Board Pattern Questions:</strong> Selected examination problems with model solutions.</li>
-            <li><strong>Practice Exercises:</strong> Self-assessment exercises for competitive preparation.</li>
-          </ul>
-
-          <div class="footer">
-            Shubham Academy &bull; Education Builds Brighter Future &bull; For Student Use Only
           </div>
         </body>
         </html>
@@ -177,153 +171,446 @@ export default function StudentNotesDelivery() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast.success(`"${item.notesTitle || item.title}" downloaded successfully!`);
+      toast.success(`"${item.notesTitle || item.title}" downloaded!`);
     } catch (err) {
-      console.error('Download error:', err);
       toast.error('Failed to download notes file.');
     }
   };
 
-  const filteredDeliveries = deliveries.filter(item => {
-    const matchesSubject = selectedSubject === 'All' || item.subject === selectedSubject;
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return matchesSubject;
-    const matchesSearch =
-      (item.notesTitle && item.notesTitle.toLowerCase().includes(q)) ||
-      (item.subject && item.subject.toLowerCase().includes(q)) ||
-      (item.teacherName && item.teacherName.toLowerCase().includes(q));
-    return matchesSubject && matchesSearch;
-  });
+  const deliveredCount = deliveryStatus.summary?.delivered_count || 0;
+  const pendingCount = deliveryStatus.summary?.pending_count || 0;
+  const notDeliveredCount = deliveryStatus.summary?.not_delivered_count || (8 - deliveredCount - pendingCount);
 
   return (
-    <div className="d-flex flex-column gap-4">
-      {/* 1. Header */}
+    <div className="d-flex flex-column gap-4 pb-4">
+      {/* Back button */}
       <div>
-        <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-          Notes Delivery
-        </h3>
-        <span className="small text-sa-muted">
-          Access and download teacher-delivered lecture notes and study material
-        </span>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
       </div>
 
-      {/* 2. Filter & Search Controls */}
-      <div className="sa-card p-3">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-7 position-relative">
-            <Search
-              size={16}
-              className="position-absolute top-50 start-0 translate-middle-y ms-3 text-sa-muted"
-            />
-            <input
-              type="text"
-              className="form-control ps-5 py-2 text-sm"
-              placeholder="Search by notes title, subject, or teacher name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="col-12 col-md-5 d-flex justify-content-md-end align-items-center gap-2">
-            <select
-              className="form-select form-select-sm shadow-xs w-100 w-md-auto"
-              style={{
-                minWidth: '180px',
-                paddingRight: '2.5rem',
-                cursor: 'pointer',
-                fontWeight: 500
-              }}
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-            >
-              <option value="All">All Subjects</option>
-              <option value="Mathematics - I">Mathematics - I</option>
-              <option value="Mathematics - II">Mathematics - II</option>
-              <option value="Physics">Physics</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="Biology">Biology</option>
-            </select>
-          </div>
+      {/* Header */}
+      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+        <div>
+          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
+            <Truck className="text-sa-primary" size={24} />
+            <span>Books Delivery & Study Material Handover</span>
+          </h3>
+          <span className="small text-sa-muted">
+            Live database verification of Theory and CET books handed over by academy staff
+          </span>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="d-flex p-1 bg-light rounded-3 border">
+          <button
+            type="button"
+            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all ${
+              activeTab === 'books' ? 'bg-white shadow-xs text-sa-primary' : 'text-sa-muted'
+            }`}
+            onClick={() => setActiveTab('books')}
+          >
+            Physical Books ({deliveredCount}/8)
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all ${
+              activeTab === 'lectureNotes' ? 'bg-white shadow-xs text-sa-primary' : 'text-sa-muted'
+            }`}
+            onClick={() => setActiveTab('lectureNotes')}
+          >
+            Digital Notes & Handouts
+          </button>
         </div>
       </div>
 
-      {/* 3. Notes Delivery Table: Clean headers with Notes Title, Subject, Teacher Name, Date, Download */}
-      <div className="sa-card p-4">
-        <Table
-          columns={[
-            {
-              key: 'notesTitle',
-              title: 'Notes Title',
-              render: (val, row) => (
-                <div className="d-flex align-items-center gap-2">
-                  <FileText size={16} className="text-secondary flex-shrink-0" />
-                  <span className="fw-semibold text-sa-charcoal">
-                    {val || row.title}
+      {activeTab === 'books' ? (
+        <>
+          {/* Summary KPI Cards */}
+          <div className="row g-3">
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="sa-card p-3 d-flex align-items-center justify-content-between h-100 bg-white border">
+                <div>
+                  <span className="text-sa-muted fw-semibold small d-block">Curriculum Books Total</span>
+                  <div className="fw-bold brand-font text-sa-charcoal fs-3">8 Books</div>
+                  <span className="small text-secondary">4 Theory + 4 CET</span>
+                </div>
+                <div className="rounded-circle p-2.5 bg-primary bg-opacity-10 text-primary">
+                  <Package size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="sa-card p-3 d-flex align-items-center justify-content-between h-100 bg-white border">
+                <div>
+                  <span className="text-sa-muted fw-semibold small d-block">Delivered to You</span>
+                  <div className="fw-bold brand-font fs-3 text-success">{deliveredCount} Books</div>
+                  <span className="small text-success fw-medium">Handover confirmed</span>
+                </div>
+                <div className="rounded-circle p-2.5 bg-success bg-opacity-10 text-success">
+                  <CheckCircle2 size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="sa-card p-3 d-flex align-items-center justify-content-between h-100 bg-white border">
+                <div>
+                  <span className="text-sa-muted fw-semibold small d-block">Pending Collection</span>
+                  <div className="fw-bold brand-font fs-3 text-warning-emphasis">{pendingCount} Books</div>
+                  <span className="small text-warning-emphasis fw-medium">Ready at pickup desk</span>
+                </div>
+                <div className="rounded-circle p-2.5 bg-warning bg-opacity-10 text-warning-emphasis">
+                  <Clock size={24} />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 col-sm-6 col-xl-3">
+              <div className="sa-card p-3 d-flex align-items-center justify-content-between h-100 bg-white border">
+                <div>
+                  <span className="text-sa-muted fw-semibold small d-block">Remaining Handouts</span>
+                  <div className="fw-bold brand-font fs-3 text-danger">{notDeliveredCount} Books</div>
+                  <span className="small text-danger fw-medium">Yet to be issued</span>
+                </div>
+                <div className="rounded-circle p-2.5 bg-danger bg-opacity-10 text-danger">
+                  <AlertCircle size={24} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Subject-Wise Books Delivery Grid (Theory & CET) */}
+          <div className="row g-3 g-xl-4">
+            {/* Theory Books Column */}
+            <div className="col-12 col-lg-6">
+              <div className="sa-card p-3.5 p-xl-4 bg-white border h-100 d-flex flex-column">
+                <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="badge px-2.5 py-1 fw-bold rounded-pill text-uppercase" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', fontSize: '0.74rem' }}>
+                      Theory Books
+                    </span>
+                    <h5 className="m-0 fw-bold brand-font text-sa-charcoal fs-6">Board Syllabus Modules</h5>
+                  </div>
+                  <span className="badge bg-light text-sa-charcoal border small fw-semibold">
+                    {Object.values(deliveryStatus.theory || {}).filter(b => b.delivered).length} / 4 Delivered
                   </span>
                 </div>
-              )
-            },
-            {
-              key: 'subject',
-              title: 'Subject',
-              width: '140px',
-              render: (val) => (
-                <span className="fw-medium text-sa-charcoal text-nowrap" style={{ whiteSpace: 'nowrap' }}>
-                  {val || 'N/A'}
-                </span>
-              )
-            },
-            {
-              key: 'teacherName',
-              title: 'Teacher Name',
-              width: '160px',
-              render: (val, row) => (
-                <div className="d-flex align-items-center gap-1.5 text-nowrap" style={{ whiteSpace: 'nowrap' }}>
-                  <UserCheck size={14} className="text-success flex-shrink-0" />
-                  <span className="fw-medium text-sa-charcoal small text-nowrap" style={{ whiteSpace: 'nowrap' }}>
-                    {val || row.teacher || 'Faculty'}
+
+                <div className="d-flex flex-column gap-3 flex-grow-1">
+                  {[
+                    { name: 'Physics', key: 'Physics' },
+                    { name: 'Chemistry', key: 'Chemistry' },
+                    { name: 'Biology', key: 'Biology' },
+                    { name: 'Mathematics', key: 'Maths' }
+                  ].map(({ name, key }) => {
+                    const item = deliveryStatus.theory?.[key] || { delivered: false, status: 'Not Delivered' };
+                    const isDelivered = item.delivered;
+                    const isPending = item.status === 'Pending Pickup';
+
+                    return (
+                      <div
+                        key={key}
+                        className="p-3 rounded-3 border bg-light d-flex flex-column gap-2 transition-all"
+                        style={{
+                          backgroundColor: isDelivered ? '#F9FDFB' : isPending ? '#FFFDF5' : '#FCFDFE',
+                          borderColor: isDelivered ? '#A7F3D0' : isPending ? '#FDE68A' : '#E2E8F0'
+                        }}
+                      >
+                        <div className="d-flex align-items-center justify-content-between">
+                          <div className="d-flex align-items-center gap-2">
+                            <div
+                              className="rounded-circle p-2 d-flex align-items-center justify-content-center"
+                              style={{
+                                backgroundColor: isDelivered ? '#DEF7EC' : isPending ? '#FEF3C7' : '#F1F5F9',
+                                color: isDelivered ? '#03543F' : isPending ? '#92400E' : '#64748B'
+                              }}
+                            >
+                              {isDelivered ? <CheckCircle2 size={18} /> : isPending ? <Clock size={18} /> : <BookMarked size={18} />}
+                            </div>
+                            <div>
+                              <span className="fw-bold text-sa-charcoal d-block" style={{ fontSize: '0.92rem' }}>
+                                Theory - {name}
+                              </span>
+                              <span className="text-sa-muted small">Standard Academy Theory Module</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isDelivered ? (
+                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                ✓ Handed Over
+                              </span>
+                            ) : isPending ? (
+                              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                ⏳ Ready for Pickup
+                              </span>
+                            ) : (
+                              <span className="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill fw-medium">
+                                Not Delivered
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Handover Details Footer */}
+                        {isDelivered ? (
+                          <div className="pt-2 border-top mt-1 d-flex flex-wrap align-items-center justify-content-between text-sa-muted small" style={{ fontSize: '0.74rem' }}>
+                            <span>
+                              Handed over by: <strong className="text-sa-charcoal">{item.handed_over_by || 'Academy Staff'}</strong>
+                            </span>
+                            <span>Date: <strong className="text-sa-charcoal">{item.date || '--'}</strong></span>
+                          </div>
+                        ) : (
+                          <div className="pt-1.5 border-top text-sa-muted small" style={{ fontSize: '0.72rem' }}>
+                            {isPending ? 'Your book set is packed and waiting at the admin pickup desk.' : 'Please visit the admin counter or contact your academic coordinator.'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* CET Books Column */}
+            <div className="col-12 col-lg-6">
+              <div className="sa-card p-3.5 p-xl-4 bg-white border h-100 d-flex flex-column">
+                <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="badge px-2.5 py-1 fw-bold rounded-pill text-uppercase" style={{ backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '0.74rem' }}>
+                      CET Books
+                    </span>
+                    <h5 className="m-0 fw-bold brand-font text-sa-charcoal fs-6">Entrance Exam Guidebooks</h5>
+                  </div>
+                  <span className="badge bg-light text-sa-charcoal border small fw-semibold">
+                    {Object.values(deliveryStatus.cet || {}).filter(b => b.delivered).length} / 4 Delivered
                   </span>
                 </div>
-              )
-            },
-            {
-              key: 'date',
-              title: 'Date',
-              width: '140px',
-              render: (val) => (
-                <div
-                  className="d-inline-flex align-items-center gap-1 px-2 py-1 bg-light border rounded small text-dark fw-medium text-nowrap"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  <Calendar size={13} className="text-secondary flex-shrink-0" />
-                  <span className="text-nowrap" style={{ whiteSpace: 'nowrap' }}>
-                    {formatToYMD(val)}
-                  </span>
+
+                <div className="d-flex flex-column gap-3 flex-grow-1">
+                  {[
+                    { name: 'Physics', key: 'Physics' },
+                    { name: 'Chemistry', key: 'Chemistry' },
+                    { name: 'Biology', key: 'Biology' },
+                    { name: 'Mathematics', key: 'Maths' }
+                  ].map(({ name, key }) => {
+                    const item = deliveryStatus.cet?.[key] || { delivered: false, status: 'Not Delivered' };
+                    const isDelivered = item.delivered;
+                    const isPending = item.status === 'Pending Pickup';
+
+                    return (
+                      <div
+                        key={key}
+                        className="p-3 rounded-3 border bg-light d-flex flex-column gap-2 transition-all"
+                        style={{
+                          backgroundColor: isDelivered ? '#F9FDFB' : isPending ? '#FFFDF5' : '#FCFDFE',
+                          borderColor: isDelivered ? '#A7F3D0' : isPending ? '#FDE68A' : '#E2E8F0'
+                        }}
+                      >
+                        <div className="d-flex align-items-center justify-content-between">
+                          <div className="d-flex align-items-center gap-2">
+                            <div
+                              className="rounded-circle p-2 d-flex align-items-center justify-content-center"
+                              style={{
+                                backgroundColor: isDelivered ? '#DEF7EC' : isPending ? '#FEF3C7' : '#F1F5F9',
+                                color: isDelivered ? '#03543F' : isPending ? '#92400E' : '#64748B'
+                              }}
+                            >
+                              {isDelivered ? <CheckCircle2 size={18} /> : isPending ? <Clock size={18} /> : <Sparkles size={18} />}
+                            </div>
+                            <div>
+                              <span className="fw-bold text-sa-charcoal d-block" style={{ fontSize: '0.92rem' }}>
+                                CET - {name}
+                              </span>
+                              <span className="text-sa-muted small">MHT-CET Competitive Guide</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isDelivered ? (
+                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                ✓ Handed Over
+                              </span>
+                            ) : isPending ? (
+                              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                ⏳ Ready for Pickup
+                              </span>
+                            ) : (
+                              <span className="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill fw-medium">
+                                Not Delivered
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Handover Details Footer */}
+                        {isDelivered ? (
+                          <div className="pt-2 border-top mt-1 d-flex flex-wrap align-items-center justify-content-between text-sa-muted small" style={{ fontSize: '0.74rem' }}>
+                            <span>
+                              Handed over by: <strong className="text-sa-charcoal">{item.handed_over_by || 'Academy Staff'}</strong>
+                            </span>
+                            <span>Date: <strong className="text-sa-charcoal">{item.date || '--'}</strong></span>
+                          </div>
+                        ) : (
+                          <div className="pt-1.5 border-top text-sa-muted small" style={{ fontSize: '0.72rem' }}>
+                            {isPending ? 'Your CET guidebook is prepared at the admin pickup desk.' : 'Please visit the admin counter or contact your academic coordinator.'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )
-            },
-            {
-              key: 'download',
-              title: 'Download',
-              align: 'center',
-              width: '130px',
-              render: (_, row) => (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 shadow-xs fw-semibold text-nowrap"
-                  style={{ whiteSpace: 'nowrap' }}
-                  onClick={() => handleDownload(row)}
-                  title={`Download ${row.notesTitle || row.title}`}
-                >
-                  <Download size={14} />
-                  <span>Download</span>
-                </button>
-              )
-            }
-          ]}
-          data={filteredDeliveries}
-          emptyText="No notes delivered at this time."
-        />
-      </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Official Database Pickup History */}
+          <div className="sa-card p-4 bg-white border">
+            <h5 className="fw-bold brand-font text-sa-charcoal mb-3 fs-6 d-flex align-items-center gap-2">
+              <ShieldCheck size={18} className="text-success" />
+              <span>Official Handover Verification Records</span>
+            </h5>
+
+            <Table
+              columns={[
+                {
+                  key: 'book_title',
+                  title: 'Book Module',
+                  render: (val, row) => (
+                    <div className="d-flex align-items-center gap-2">
+                      <BookMarked size={16} className="text-sa-primary flex-shrink-0" />
+                      <span className="fw-bold text-sa-charcoal">{val || row.bookTitle}</span>
+                    </div>
+                  )
+                },
+                {
+                  key: 'category',
+                  title: 'Type',
+                  width: '110px',
+                  render: (val) => (
+                    <span className="badge px-2 py-0.5 rounded-pill bg-light border text-dark fw-semibold">
+                      {val || 'Curriculum'}
+                    </span>
+                  )
+                },
+                {
+                  key: 'subject',
+                  title: 'Subject',
+                  width: '130px',
+                  render: (val) => <span className="fw-semibold text-sa-charcoal">{val || 'General'}</span>
+                },
+                {
+                  key: 'status',
+                  title: 'Status',
+                  width: '130px',
+                  render: (val) => (
+                    <span className={val === 'Delivered' ? 'badge-paid' : 'badge-pending'}>
+                      {val === 'Delivered' ? <CheckCircle2 size={12} /> : <Clock size={12} />} {val}
+                    </span>
+                  )
+                },
+                {
+                  key: 'date',
+                  title: 'Handover Date & Time',
+                  width: '170px',
+                  render: (val) => <span className="small text-sa-muted">{val || '--'}</span>
+                },
+                {
+                  key: 'handed_over_by',
+                  title: 'Who Handed Them Over',
+                  width: '180px',
+                  render: (val, row) => (
+                    <div className="d-flex align-items-center gap-1.5">
+                      <UserCheck size={14} className="text-success" />
+                      <span className="fw-semibold text-sa-charcoal small">
+                        {val || row.handedOverBy || row.verifiedBy || '--'}
+                      </span>
+                    </div>
+                  )
+                }
+              ]}
+              data={deliveryStatus.deliveries || []}
+              loading={loading}
+              emptyText="No official physical book handovers recorded yet for your account."
+            />
+          </div>
+        </>
+      ) : (
+        /* Tab 2: Digital Notes Downloads */
+        <div className="d-flex flex-column gap-3">
+          <div className="sa-card p-3 bg-white border">
+            <div className="position-relative">
+              <Search size={16} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-sa-muted" />
+              <input
+                type="text"
+                className="form-control ps-5 py-2 text-sm"
+                placeholder="Search downloadable lecture notes, formulas, topics..."
+                value={notesSearch}
+                onChange={(e) => setNotesSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="sa-card p-4 bg-white border">
+            <Table
+              columns={[
+                {
+                  key: 'notesTitle',
+                  title: 'Handout / Notes Title',
+                  render: (val, row) => (
+                    <div className="d-flex align-items-center gap-2">
+                      <FileText size={16} className="text-secondary flex-shrink-0" />
+                      <span className="fw-semibold text-sa-charcoal">{val || row.title}</span>
+                    </div>
+                  )
+                },
+                {
+                  key: 'subject',
+                  title: 'Subject',
+                  width: '140px',
+                  render: (val) => <span className="fw-medium text-sa-charcoal">{val}</span>
+                },
+                {
+                  key: 'teacherName',
+                  title: 'Faculty',
+                  width: '160px',
+                  render: (val) => (
+                    <div className="d-flex align-items-center gap-1.5">
+                      <UserCheck size={14} className="text-success" />
+                      <span className="fw-medium text-sa-charcoal small">{val}</span>
+                    </div>
+                  )
+                },
+                {
+                  key: 'date',
+                  title: 'Date',
+                  width: '130px',
+                  render: (val) => <span className="small text-sa-muted">{val}</span>
+                },
+                {
+                  key: 'download',
+                  title: 'Download',
+                  align: 'center',
+                  width: '130px',
+                  render: (_, row) => (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 shadow-xs fw-semibold"
+                      onClick={() => handleDownload(row)}
+                    >
+                      <Download size={14} />
+                      <span>Download</span>
+                    </button>
+                  )
+                }
+              ]}
+              data={lectureNotes.filter(n => !notesSearch || n.notesTitle.toLowerCase().includes(notesSearch.toLowerCase()) || n.subject.toLowerCase().includes(notesSearch.toLowerCase()))}
+              emptyText="No digital notes available at this time."
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

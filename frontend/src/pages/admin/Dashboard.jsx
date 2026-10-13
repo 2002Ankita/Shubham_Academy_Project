@@ -5,6 +5,7 @@ import attendanceService from '../../services/attendanceService';
 import feeService from '../../services/feeService';
 import examService from '../../services/examService';
 import batchService from '../../services/batchService';
+import inventoryService from '../../services/inventoryService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -30,23 +31,36 @@ import {
   Package,
   FileText,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Tag,
+  Clock,
+  Sparkles,
+  BookOpen,
+  BookMarked,
+  Truck
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
 
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
   const [feePeriod, setFeePeriod] = useState('This Month');
 
   // Dynamic Data States
   const [totalStudents, setTotalStudents] = useState(0);
+  const [allStudents, setAllStudents] = useState([]);
   const [presentToday, setPresentToday] = useState(0);
   const [monthlyFees, setMonthlyFees] = useState(0);
   const [pendingFees, setPendingFees] = useState(0);
   const [recentAdmissions, setRecentAdmissions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
+  const [discountActionLoading, setDiscountActionLoading] = useState(false);
   
   const [attendanceData, setAttendanceData] = useState([
     { day: 'Mon', present: 0, absent: 0 },
@@ -58,36 +72,44 @@ export default function AdminDashboard() {
     { day: 'Sun', present: 0, absent: 0 },
   ]);
   const [scheduleList, setScheduleList] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [studentsRes, attendanceRes, feesRes, examsRes, batchesRes, summaryRes] = await Promise.allSettled([
-          studentService.getAll(),
-          attendanceService.getLogs(),
-          feeService.getAll(),
-          examService.getAll(),
-          batchService.getBatches(),
-          attendanceService.getReportSummary()
-        ]);
+  const fetchDashboardData = async () => {
+    try {
+      const [studentsRes, attendanceRes, feesRes, examsRes, batchesRes, summaryRes, inventoryRes] = await Promise.allSettled([
+        studentService.getAll(),
+        attendanceService.getLogs(),
+        feeService.getAll(),
+        examService.getAll(),
+        batchService.getBatches(),
+        attendanceService.getReportSummary(),
+        inventoryService.getItems()
+      ]);
 
-        if (studentsRes.status === 'fulfilled') {
-          const students = studentsRes.value || [];
-          setTotalStudents(students.length);
-          
-          // Sort for recent admissions (mock logic, based on ID for now)
-          const sorted = [...students].reverse().slice(0, 5).map((s, idx) => ({
-            id: idx + 1,
-            name: s.name,
-            class: s.standard || 'N/A',
-            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-            status: s.status || 'Active'
-          }));
-          setRecentAdmissions(sorted);
-        }
+      if (studentsRes.status === 'fulfilled') {
+        const students = studentsRes.value || [];
+        setTotalStudents(students.length);
+        setAllStudents(students);
+        
+        // Sort for recent admissions
+        const sorted = [...students].reverse().slice(0, 5).map((s, idx) => ({
+          id: s.id || idx + 1,
+          name: s.name,
+          class: s.standard || 'N/A',
+          date: s.admissionDate ? new Date(s.admissionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          status: s.status || 'Active',
+          totalFees: s.totalFees || 0,
+          originalFees: s.originalFees || s.totalFees || 0,
+          discountAmount: s.discountAmount || 0,
+          discountReason: s.discountReason || '',
+          discountStatus: s.discountStatus || 'NONE',
+          discountApprovedBy: s.discountApprovedBy || ''
+        }));
+        setRecentAdmissions(sorted);
+      }
 
-        if (attendanceRes.status === 'fulfilled') {
-          const logs = attendanceRes.value || [];
+      if (attendanceRes.status === 'fulfilled') {
+        const logs = attendanceRes.value || [];
           const present = logs.filter(l => l.status === 'Present').length;
           setPresentToday(present > 0 ? present : logs.length);
         }
@@ -139,13 +161,54 @@ export default function AdminDashboard() {
           }));
           setScheduleList(formatted);
         }
+
+        if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
+          setInventoryItems(inventoryRes.value);
+        }
       } catch (err) {
         console.error('Error fetching admin dashboard data:', err);
       }
-    };
+  };
 
+  useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const pendingDiscounts = allStudents.filter(
+    (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
+  );
+  const approvedDiscounts = allStudents.filter(
+    (s) => s.discountStatus === 'APPROVED' && Number(s.discountAmount) > 0
+  );
+
+  const handleApproveDiscount = async (studentId, studentName) => {
+    if (!window.confirm(`Approve discount for ${studentName} as Superadmin?`)) return;
+    setDiscountActionLoading(true);
+    try {
+      await studentService.approveDiscount(studentId);
+      toast.success(`Discount for ${studentName} successfully approved by Superadmin!`);
+      await fetchDashboardData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to approve discount');
+    } finally {
+      setDiscountActionLoading(false);
+    }
+  };
+
+  const handleRejectDiscount = async (studentId, studentName) => {
+    const reason = window.prompt(`Enter rejection reason for ${studentName}'s discount:`, 'Discount criteria not met');
+    if (reason === null) return;
+    setDiscountActionLoading(true);
+    try {
+      await studentService.rejectDiscount(studentId, reason);
+      toast.info(`Discount for ${studentName} rejected.`);
+      await fetchDashboardData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to reject discount');
+    } finally {
+      setDiscountActionLoading(false);
+    }
+  };
 
   const feeData = [
     { name: 'Collected', value: monthlyFees > 0 ? monthlyFees : 1, amount: `₹${monthlyFees.toLocaleString()}`, color: '#8B1216' },
@@ -169,7 +232,7 @@ export default function AdminDashboard() {
       >
         <div className="row g-0 align-items-center">
           {/* Left Text */}
-          <div className="col-12 col-md-5 col-lg-5 p-4 ps-md-4 ps-xl-5 py-md-4">
+          <div className="col-12 col-md-6 col-lg-6 p-4 ps-md-4 ps-xl-5 py-md-4">
             <h1
               className="fw-bold brand-font text-sa-charcoal m-0"
               style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
@@ -182,10 +245,39 @@ export default function AdminDashboard() {
             >
               Discipline Today, A Brighter Tomorrow.
             </p>
+
+            {/* Quick Actions: Student Onboarding & Fee Deciding */}
+            <div className="d-flex flex-wrap align-items-center gap-2.5 mt-3 pt-1">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/students/register')}
+                className="btn d-inline-flex align-items-center gap-2 px-3.5 py-2 rounded-2 fw-semibold text-white shadow-sm transition-all"
+                style={{ backgroundColor: '#8B1216', fontSize: '0.86rem', border: 'none' }}
+              >
+                <UserPlus size={16} />
+                <span>Onboard Student & Decide Fees</span>
+              </button>
+
+              {pendingDiscounts.length > 0 && (
+                <a
+                  href="#discount-approvals-widget"
+                  className="btn d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-bold text-decoration-none shadow-sm transition-all"
+                  style={{
+                    backgroundColor: '#FEF3C7',
+                    border: '1.5px solid #F59E0B',
+                    color: '#B45309',
+                    fontSize: '0.84rem'
+                  }}
+                >
+                  <ShieldCheck size={16} />
+                  <span>{pendingDiscounts.length} Discounts Pending Superadmin</span>
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Right Hero Illustration */}
-          <div className="col-12 col-md-7 col-lg-7 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3">
+          <div className="col-12 col-md-6 col-lg-6 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3">
             <img
               src="/assets/superadminhero.png"
               alt="Shubham Academy Celebration"
@@ -314,6 +406,216 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Student Discount Approvals & Fee Decisions Widget on Admin Dashboard */}
+      <div id="discount-approvals-widget" className="sa-card p-4 bg-white rounded-3 border shadow-sm">
+        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 pb-3 border-bottom">
+          <div className="d-flex align-items-center gap-2.5">
+            <div
+              className="rounded-circle d-inline-flex align-items-center justify-content-center text-white flex-shrink-0"
+              style={{ width: '38px', height: '38px', backgroundColor: '#8B1216' }}
+            >
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2">
+                <h5 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '1.08rem' }}>
+                  Student Discount Approvals & Fee Decisions
+                </h5>
+                {pendingDiscounts.length > 0 ? (
+                  <span className="badge bg-warning text-dark px-2.5 py-1 fw-bold rounded-pill">
+                    {pendingDiscounts.length} Pending Superadmin Approval
+                  </span>
+                ) : (
+                  <span className="badge bg-success-subtle text-success px-2.5 py-1 fw-bold rounded-pill">
+                    All Approvals Up to Date
+                  </span>
+                )}
+              </div>
+              <span className="text-muted small" style={{ fontSize: '0.82rem' }}>
+                Whenever a discount is offered at student onboarding, the system permanently displays who approved it. Final approval must be given by the Superadmin.
+              </span>
+            </div>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/students/register')}
+              className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold text-white rounded-2 shadow-sm"
+              style={{ backgroundColor: '#8B1216', fontSize: '0.82rem' }}
+            >
+              <UserPlus size={15} /> Onboard Student & Decide Fees
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/students')}
+              className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-secondary fw-semibold rounded-2"
+              style={{ fontSize: '0.82rem' }}
+            >
+              <span>Student Directory</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/super-admin/dashboard')}
+              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold rounded-2"
+              style={{ fontSize: '0.82rem' }}
+              title="Connect with Super Admin Dashboard"
+            >
+              <ShieldCheck size={14} />
+              <span>Super Admin Dashboard</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Pending Approvals Table */}
+        {pendingDiscounts.length > 0 ? (
+          <div>
+            <div className="p-2.5 mb-3 rounded-2 border bg-warning-subtle border-warning d-flex align-items-center gap-2 small text-warning-emphasis">
+              <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+              <span>
+                <strong>Action Required:</strong> The following student discount concessions were offered during onboarding and are awaiting final <strong>Superadmin</strong> approval.
+              </span>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.86rem' }}>
+                <thead className="table-light">
+                  <tr className="text-secondary small">
+                    <th>Student Details</th>
+                    <th>Fee Decided Breakdown</th>
+                    <th>Concession Scheme</th>
+                    <th>Recommended By</th>
+                    <th>Current Status</th>
+                    <th className="text-end">Final Superadmin Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingDiscounts.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <div
+                          className="fw-bold text-sa-charcoal cursor-pointer hover-underline"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigate(`/admin/students/${s.id}`)}
+                        >
+                          {s.name}
+                        </div>
+                        <div className="text-muted small" style={{ fontSize: '0.74rem' }}>
+                          Roll: {s.rollNumber || 'Auto'} • {s.standard}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="d-flex align-items-center gap-1.5">
+                          <span className="text-muted text-decoration-line-through small">
+                            ₹{Number(s.originalFees || (s.totalFees + s.discountAmount)).toLocaleString()}
+                          </span>
+                          <span className="fw-bold text-success">
+                            -₹{Number(s.discountAmount).toLocaleString()}
+                          </span>
+                          <span className="fw-bold" style={{ color: '#8B1216' }}>
+                            ➔ ₹{Number(s.totalFees).toLocaleString()}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge bg-light text-dark border">
+                          {s.discountReason || 'Concession'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="text-secondary fw-semibold small">
+                          {s.discountRecommendedBy || s.discountOfferedBy || 'Miss Shilpa'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge bg-warning text-dark px-2.5 py-1 d-inline-flex align-items-center gap-1">
+                          <Clock size={12} /> Pending Superadmin Approval
+                        </span>
+                      </td>
+                      <td className="text-end">
+                        {isSuperAdmin ? (
+                          <div className="d-flex align-items-center justify-content-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={discountActionLoading}
+                              onClick={() => handleApproveDiscount(s.id, s.name)}
+                              className="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 py-1 fw-bold shadow-sm"
+                              style={{ fontSize: '0.78rem' }}
+                              title="Grant Final Approval as Superadmin"
+                            >
+                              <ShieldCheck size={14} /> Approve Discount
+                            </button>
+                            <button
+                              type="button"
+                              disabled={discountActionLoading}
+                              onClick={() => handleRejectDiscount(s.id, s.name)}
+                              className="btn btn-sm btn-outline-danger px-2.5 py-1 fw-semibold"
+                              style={{ fontSize: '0.78rem' }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="small text-muted fst-italic">
+                            Must be approved by Superadmin
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {approvedDiscounts.length > 0 ? (
+              <div>
+                <div className="small fw-semibold text-secondary mb-2.5">
+                  Recently Approved Student Concessions:
+                </div>
+                <div className="row g-2.5">
+                  {approvedDiscounts.slice(0, 4).map((s) => (
+                    <div key={s.id} className="col-12 col-md-6 col-xl-3">
+                      <div className="p-3 rounded-2 bg-light border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                          <div className="d-flex justify-content-between align-items-start mb-1">
+                            <strong
+                              className="text-sa-charcoal small cursor-pointer"
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => navigate(`/admin/students/${s.id}`)}
+                            >
+                              {s.name}
+                            </strong>
+                            <span className="badge bg-success-subtle text-success small fw-bold">
+                              -₹{Number(s.discountAmount).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-muted small" style={{ fontSize: '0.74rem' }}>
+                            Class: {s.standard} • Net Fee: <strong>₹{Number(s.totalFees).toLocaleString()}</strong>
+                          </div>
+                        </div>
+                        <div
+                          className="mt-2 pt-2 border-top text-success fw-semibold small d-flex align-items-center gap-1"
+                          style={{ fontSize: '0.73rem' }}
+                        >
+                          <CheckCircle2 size={13} className="text-success flex-shrink-0" />
+                          <span>Approved by: {s.discountApprovedBy || 'Superadmin'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2 bg-light text-muted small text-center fst-italic">
+                No discount concessions currently pending. When a discount is offered during student onboarding, it will appear here for Superadmin review.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Row 2: Analytics & Schedule (3 Cards) */}
@@ -553,7 +855,28 @@ export default function AdminDashboard() {
                   {recentAdmissions.map((row) => (
                     <tr key={row.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
                       <td className="text-sa-muted py-2">{row.id}</td>
-                      <td className="fw-semibold text-sa-charcoal py-2">{row.name}</td>
+                      <td className="py-2">
+                        <span
+                          className="fw-semibold text-sa-charcoal d-block cursor-pointer hover-underline"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigate(`/admin/students/${row.id}`)}
+                        >
+                          {row.name}
+                        </span>
+                        {Number(row.discountAmount) > 0 && (
+                          <div className="small mt-0.5" style={{ fontSize: '0.69rem', lineHeight: 1.25 }}>
+                            {row.discountStatus === 'APPROVED' ? (
+                              <span className="text-success fw-semibold">
+                                ✓ ₹{Number(row.discountAmount).toLocaleString()} Disc • By: <strong>{row.discountApprovedBy || 'Superadmin'}</strong>
+                              </span>
+                            ) : (
+                              <span className="text-warning-emphasis fw-semibold">
+                                ⏳ ₹{Number(row.discountAmount).toLocaleString()} Disc (Pending Superadmin)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="text-sa-muted py-2">{row.class}</td>
                       <td className="text-sa-muted py-2">{row.date}</td>
                       <td className="text-end py-2">
@@ -572,15 +895,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Low Stock Alert */}
+        {/* Books & Stock Inventory */}
         <div className="col-12 col-lg-4">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
-                <Package size={18} style={{ color: 'var(--sa-primary-red)' }} />
+                <BookMarked size={18} style={{ color: 'var(--sa-primary-red)' }} />
                 <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
-                  Low Stock Alert
+                  Books & Stock Inventory
                 </h2>
               </div>
               <button
@@ -588,33 +911,99 @@ export default function AdminDashboard() {
                 className="btn btn-link p-0 text-decoration-none fw-semibold"
                 style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
               >
-                View All &rarr;
+                Manage Stock &rarr;
               </button>
             </div>
 
-            {/* List */}
-            <div className="d-flex flex-column gap-2.5 flex-grow-1">
-              {lowStockItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="d-flex align-items-center justify-content-between py-1.5 px-2 rounded-2"
-                  style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
-                >
-                  <span className="text-sa-charcoal fw-medium" style={{ fontSize: '0.84rem' }}>
-                    {item.name}
-                  </span>
-                  <span
-                    className="badge rounded-2 fw-semibold px-2 py-1"
-                    style={{
-                      backgroundColor: item.type === 'danger' ? '#FDF0F0' : '#FEF8EB',
-                      color: item.type === 'danger' ? '#DC2626' : '#D97718',
-                      fontSize: '0.74rem'
-                    }}
-                  >
-                    {item.count}
-                  </span>
+            {/* Quick Stats Pill */}
+            <div className="d-flex align-items-center justify-content-between p-2 rounded-2 mb-2.5" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div className="text-center flex-grow-1 border-end">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>TOTAL COPIES</div>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.05rem' }}>
+                  {inventoryItems.reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
                 </div>
-              ))}
+              </div>
+              <div className="text-center flex-grow-1 border-end">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>THEORY BOOKS</div>
+                <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: '#8B1216' }}>
+                  {inventoryItems.filter(it => (it.category || '').toLowerCase() === 'theory').reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
+                </div>
+              </div>
+              <div className="text-center flex-grow-1">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>CET BOOKS</div>
+                <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: '#D97706' }}>
+                  {inventoryItems.filter(it => (it.category || '').toLowerCase() === 'cet').reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Book Subjects Stock List */}
+            <div className="d-flex flex-column gap-2 flex-grow-1 overflow-auto" style={{ maxHeight: '215px' }}>
+              {inventoryItems.length > 0 ? (
+                inventoryItems.slice(0, 6).map((item, idx) => {
+                  const isLow = Number(item.in_stock) <= Number(item.reorder_level);
+                  const isCET = (item.category || '').toLowerCase() === 'cet';
+                  return (
+                    <div
+                      key={item.id || idx}
+                      className="d-flex align-items-center justify-content-between py-1.5 px-2 rounded-2"
+                      style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <span
+                          className="badge rounded-1 px-1.5 py-0.5 fw-bold"
+                          style={{
+                            fontSize: '0.66rem',
+                            backgroundColor: isCET ? '#FEF3C7' : '#FEE2E2',
+                            color: isCET ? '#B45309' : '#991B1B'
+                          }}
+                        >
+                          {item.category || (isCET ? 'CET' : 'Theory')}
+                        </span>
+                        <span className="text-sa-charcoal fw-semibold text-truncate" style={{ fontSize: '0.82rem', maxWidth: '140px' }}>
+                          {item.subject ? `${item.subject}` : item.title}
+                        </span>
+                      </div>
+                      <div className="d-flex align-items-center gap-1.5">
+                        <span className="fw-bold" style={{ fontSize: '0.82rem', color: isLow ? '#DC2626' : '#168554' }}>
+                          {item.in_stock} Copies
+                        </span>
+                        {isLow && (
+                          <span className="badge rounded-pill bg-danger-subtle text-danger" style={{ fontSize: '0.65rem' }}>
+                            Low
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center text-sa-muted py-3 small">
+                  Loading books & stock inventory...
+                </div>
+              )}
+            </div>
+
+            {/* Quick Action Footer */}
+            <div className="mt-3 pt-2.5 border-top d-flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/notes/stock')}
+                className="btn btn-sm btn-outline-secondary w-50 d-flex align-items-center justify-content-center gap-1 rounded-2"
+                style={{ fontSize: '0.76rem', fontWeight: 600 }}
+              >
+                <BookOpen size={13} />
+                <span>Books Stock</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/notes/delivery')}
+                className="btn btn-sm text-white w-50 d-flex align-items-center justify-content-center gap-1 rounded-2 shadow-xs"
+                style={{ backgroundColor: '#8B1216', fontSize: '0.76rem', fontWeight: 600 }}
+              >
+                <Truck size={13} />
+                <span>Books Delivery</span>
+              </button>
             </div>
           </div>
         </div>

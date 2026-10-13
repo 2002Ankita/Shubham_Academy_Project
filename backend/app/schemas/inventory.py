@@ -4,28 +4,51 @@ from datetime import datetime
 
 class InventoryItemCreate(BaseModel):
     title: str
-    standard: str
-    subject: Optional[str] = None
-    in_stock: int
+    category: Optional[str] = "Theory"  # "Theory" or "CET"
+    subject: Optional[str] = "Physics"  # "Physics", "Chemistry", "Biology", "Maths"
+    standard: Optional[str] = "11th & 12th Science"
+    in_stock: int = 50
     total_stock: Optional[int] = None
-    reorder_level: int
-    unit_cost: float
+    reorder_level: int = 15
+    unit_cost: float = 350.0
 
 class InventoryItemRestock(BaseModel):
     quantity: int
 
-class InventoryItemResponse(InventoryItemCreate):
+class InventoryItemUpdate(BaseModel):
+    title: Optional[str] = None
+    category: Optional[str] = None
+    subject: Optional[str] = None
+    standard: Optional[str] = None
+    in_stock: Optional[int] = None
+    reorder_level: Optional[int] = None
+    unit_cost: Optional[float] = None
+
+class InventoryItemResponse(BaseModel):
     id: str
+    title: str
+    category: Optional[str] = "Theory"
+    subject: Optional[str] = "Physics"
+    standard: str = "11th & 12th Science"
+    in_stock: int = 50
+    total_stock: Optional[int] = None
+    reorder_level: int = 15
+    unit_cost: float = 350.0
+    created_at: Optional[datetime] = None
 
 class InventoryDeliveryCreate(BaseModel):
     student_id: Optional[str] = None
-    inventory_item_id: str
+    inventory_item_id: Optional[str] = None
+    category: Optional[str] = "Theory"
+    subject: Optional[str] = "Physics"
+    book_title: Optional[str] = None
     quantity: int = 1
     handed_over_by: Optional[str] = None
     handed_over_to: Optional[str] = None
     student_roll_no: Optional[str] = None
     standard: Optional[str] = None
-    status: Optional[str] = "Handed Over"
+    status: Optional[str] = "Handed Over"  # "Handed Over" or "Pending Pickup"
+    verified_by: Optional[str] = None
     remarks: Optional[str] = None
 
 class InventoryDeliveryUpdate(BaseModel):
@@ -36,15 +59,18 @@ class InventoryDeliveryUpdate(BaseModel):
 
 class InventoryDeliveryResponse(BaseModel):
     id: str
+    student_id: Optional[str] = ""
     student_name: str
     roll_number: str
     book_title: str
+    category: Optional[str] = "Theory"
+    subject: Optional[str] = "Physics"
     item_id: Optional[str] = None
     available_stock: Optional[int] = None
     quantity: int = 1
-    handed_over_by: str
-    handed_over_to: str
-    status: str
-    date: str
-    verified_by: str
-    remarks: Optional[str] = None
+    handed_over_by: Optional[str] = "--"
+    handed_over_to: Optional[str] = "--"
+    status: str = "Handed Over"
+    date: str = ""
+    verified_by: Optional[str] = "--"
+    remarks: Optional[str] = ""

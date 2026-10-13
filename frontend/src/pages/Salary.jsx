@@ -39,30 +39,30 @@ export default function Salary() {
 
   const summary = currentSalary ? {
     currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
-    payPeriod: currentSalary.month || 'N/A',
-    workingHours: '160 hrs',
-    workingHoursSubtext: 'Standard monthly quota',
-    hourlyRate: '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
-    hourlyRateSubtext: 'Standard slab rate',
-    paymentStatus: currentSalary.status || 'N/A',
-    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : 'Pending',
+    payPeriod: currentSalary.month || selectedMonth || 'N/A',
     amountPaid: `₹${safeNum(currentSalary.amountPaid).toLocaleString()}`,
     amountPaidSubtext: 'Total received this month',
     amountPending: `₹${safeNum(currentSalary.amountPending).toLocaleString()}`,
     amountPendingSubtext: 'Remaining balance',
+    workingHours: currentSalary.workingHours ? `${currentSalary.workingHours} hrs` : '160 hrs',
+    workingHoursSubtext: currentSalary.workingHoursSubtext || 'Standard monthly quota',
+    hourlyRate: currentSalary.hourlyRate ? `₹${currentSalary.hourlyRate}` : '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
+    hourlyRateSubtext: currentSalary.hourlyRateSubtext || 'Standard slab rate',
+    paymentStatus: currentSalary.status || 'N/A',
+    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
   } : {
     currentMonthSalary: '₹0',
-    payPeriod: 'N/A',
+    payPeriod: selectedMonth || 'N/A',
+    amountPaid: '₹0',
+    amountPaidSubtext: '-',
+    amountPending: '₹0',
+    amountPendingSubtext: '-',
     workingHours: '0 hrs',
     workingHoursSubtext: '-',
     hourlyRate: '₹0',
     hourlyRateSubtext: '-',
     paymentStatus: 'N/A',
-    paymentStatusSubtext: '-',
-    amountPaid: '₹0',
-    amountPaidSubtext: '-',
-    amountPending: '₹0',
-    amountPendingSubtext: '-'
+    paymentStatusSubtext: '-'
   };
 
   const deductions = safeNum(currentSalary?.deductions);
@@ -78,7 +78,7 @@ export default function Salary() {
     otherDeductions: deductions - pt,
     netSalary: safeNum(currentSalary.netPayable),
     workingHours: Math.round(safeNum(currentSalary.workingHours || 160)),
-    payPeriod: currentSalary.month || 'N/A'
+    payPeriod: currentSalary.month || selectedMonth || 'N/A'
   } : {
     basicSalary: 0,
     workingHoursPay: 0,
@@ -89,7 +89,7 @@ export default function Salary() {
     otherDeductions: 0,
     netSalary: 0,
     workingHours: 0,
-    payPeriod: 'N/A'
+    payPeriod: selectedMonth || 'N/A'
   };
 
   const history = salaries.map(s => ({

@@ -13,10 +13,14 @@ async def add_student(
     student_in: StudentCreate, 
     token: str = Depends(oauth2_scheme)
 ):
-    # Enforce role (simplified)
+    current_user = await get_current_user(token)
+    return await create_student(student_in, current_user)
+
+@router.get("/discounts/approvals")
+async def list_discount_approvals(status: str = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    # Ideally use require_roles(["SUPER_ADMIN", "ADMIN"]) here
-    return await create_student(student_in)
+    from app.services.student_service import get_discount_approvals
+    return await get_discount_approvals(status)
 
 @router.get("", response_model=List[StudentResponse])
 async def list_students(token: str = Depends(oauth2_scheme)):
@@ -45,3 +49,22 @@ async def delete_student_endpoint(id: str, token: str = Depends(oauth2_scheme)):
     from app.services.student_service import delete_student
     await delete_student(id)
     return {"message": "Student deleted successfully"}
+
+@router.post("/{id}/offer-discount", response_model=StudentResponse)
+async def offer_discount_endpoint(id: str, payload: dict, token: str = Depends(oauth2_scheme)):
+    current_user = await get_current_user(token)
+    from app.services.student_service import offer_student_discount
+    return await offer_student_discount(id, payload, current_user)
+
+@router.post("/{id}/approve-discount", response_model=StudentResponse)
+async def approve_discount_endpoint(id: str, token: str = Depends(oauth2_scheme)):
+    current_user = await get_current_user(token)
+    from app.services.student_service import approve_student_discount
+    return await approve_student_discount(id, current_user)
+
+@router.post("/{id}/reject-discount", response_model=StudentResponse)
+async def reject_discount_endpoint(id: str, payload: dict = None, token: str = Depends(oauth2_scheme)):
+    current_user = await get_current_user(token)
+    reason = (payload or {}).get("reason", "Rejected by Superadmin")
+    from app.services.student_service import reject_student_discount
+    return await reject_student_discount(id, reason, current_user)

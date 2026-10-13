@@ -17,7 +17,9 @@ import {
   Search,
   RefreshCw,
   Package,
-  Layers
+  Layers,
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -26,67 +28,73 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function NotesDelivery() {
   const { user } = useAuth();
+  const currentStaffName = user?.full_name || user?.name || 'Academy Staff';
+
   const [deliveries, setDeliveries] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+
+  // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [subjectFilter, setSubjectFilter] = useState('All');
 
-  const [newDelivery, setNewDelivery] = useState({
-    studentId: '',
-    inventoryItemId: '',
-    handedOverBy: '',
-    quantity: 1,
-    status: 'Handed Over',
-    remarks: 'Direct handout at pickup desk'
-  });
-
+  // Modal States
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState(null);
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [viewingVoucher, setViewingVoucher] = useState(null);
 
-  const fetchDeliveries = async () => {
+  // New Handover Form State
+  const [newDelivery, setNewDelivery] = useState({
+    studentId: '',
+    inventoryItemId: '',
+    category: 'Theory',
+    subject: 'Physics',
+    handedOverBy: currentStaffName,
+    quantity: 1,
+    status: 'Handed Over',
+    remarks: 'Direct pickup at academy counter'
+  });
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await inventoryService.getDeliveries();
-      setDeliveries(data);
+      const [delivData, itemsData, studentsData] = await Promise.all([
+        inventoryService.getDeliveries(),
+        inventoryService.getItems(),
+        studentService.getAll()
+      ]);
+      setDeliveries(delivData || []);
+      setInventoryItems(itemsData || []);
+      setStudents(studentsData || []);
     } catch (err) {
-      toast.error('Failed to load deliveries');
+      toast.error('Failed to load books delivery data');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchItems = async () => {
-    try {
-      const data = await inventoryService.getItems();
-      setInventoryItems(data);
-    } catch (err) {}
-  };
-
-  const fetchStudents = async () => {
-    try {
-      const data = await studentService.getAll();
-      setStudents(data);
-    } catch (err) {}
-  };
-
   useEffect(() => {
-    fetchDeliveries();
-    fetchItems();
-    fetchStudents();
+    fetchData();
   }, []);
 
-  const [editingDelivery, setEditingDelivery] = useState(null);
+  useEffect(() => {
+    if (user?.full_name || user?.name) {
+      setNewDelivery(prev => ({
+        ...prev,
+        handedOverBy: user.full_name || user.name
+      }));
+    }
+  }, [user]);
 
-  const handleMarkDelivered = async (id, studentName) => {
+  const handleMarkDelivered = async (id, studentName, bookTitle) => {
     try {
-      const staffName = user?.name || user?.full_name || 'Academic Desk';
-      await inventoryService.updateDeliveryStatus(id, 'Handed Over', staffName, 'Pickup verified at desk');
-      toast.success(`Notes handed over successfully to ${studentName}!`);
-      fetchDeliveries();
-      fetchItems();
+      await inventoryService.updateDeliveryStatus(id, 'Handed Over', currentStaffName, 'Pickup verified at desk');
+      toast.success(`Book "${bookTitle || 'Notes'}" handed over to ${studentName}!`);
+      fetchData();
     } catch (err) {
       toast.error('Failed to log handover');
     }
@@ -94,28 +102,40 @@ export default function NotesDelivery() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!editingDelivery) return;
     try {
       await inventoryService.updateDeliveryStatus(
         editingDelivery.id,
         editingDelivery.status,
-        editingDelivery.handedOverBy || user?.name || 'Staff Desk',
+        editingDelivery.handedOverBy || currentStaffName,
         editingDelivery.remarks
       );
       setEditingDelivery(null);
       toast.success('Handover record updated successfully!');
-      fetchDeliveries();
-      fetchItems();
+      fetchData();
     } catch (err) {
       toast.error('Failed to update delivery');
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this handover record?')) return;
+    try {
+      await inventoryService.deleteDelivery(id);
+      toast.success('Delivery record deleted');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to delete record');
+    }
+  };
+
   const handleOpenCreateModal = () => {
-    const defaultStaff = user?.name || user?.full_name || 'Academic Desk';
     setNewDelivery({
-      studentId: students[0]?.id || '',
+      studentId: students[0]?.id || students[0]?._id || '',
       inventoryItemId: inventoryItems[0]?.id || '',
-      handedOverBy: defaultStaff,
+      category: 'Theory',
+      subject: 'Physics',
+      handedOverBy: currentStaffName,
       quantity: 1,
       status: 'Handed Over',
       remarks: 'Direct pickup at academy counter'
@@ -125,18 +145,26 @@ export default function NotesDelivery() {
 
   const handleCreateDelivery = async (e) => {
     e.preventDefault();
+    if (!newDelivery.studentId) {
+      toast.error('Please select a recipient student');
+      return;
+    }
+
     const selectedItem = inventoryItems.find(i => i.id === newDelivery.inventoryItemId);
     if (selectedItem && selectedItem.inStock < Number(newDelivery.quantity) && newDelivery.status === 'Handed Over') {
       toast.error(`Insufficient stock! Only ${selectedItem.inStock} copies available.`);
       return;
     }
 
-    const stu = students.find(s => s.id === newDelivery.studentId);
+    const stu = students.find(s => (s.id || s._id || s.student_id) === newDelivery.studentId);
     try {
       await inventoryService.createDelivery({
         student_id: newDelivery.studentId,
-        inventory_item_id: newDelivery.inventoryItemId,
-        handed_over_by: newDelivery.handedOverBy || user?.name || 'Academic Staff',
+        inventory_item_id: newDelivery.inventoryItemId || (selectedItem ? selectedItem.id : null),
+        category: newDelivery.category,
+        subject: newDelivery.subject,
+        book_title: selectedItem ? selectedItem.title : `${newDelivery.category} - ${newDelivery.subject}`,
+        handed_over_by: newDelivery.handedOverBy || currentStaffName,
         handed_over_to: stu ? stu.name : 'Student',
         student_roll_no: stu ? (stu.rollNumber || stu.student_id) : 'N/A',
         quantity: Number(newDelivery.quantity) || 1,
@@ -145,8 +173,7 @@ export default function NotesDelivery() {
       });
       toast.success('New notes handover logged successfully!');
       setModalOpen(false);
-      fetchDeliveries();
-      fetchItems();
+      fetchData();
     } catch (err) {
       toast.error('Failed to log new handover. Check student selection.');
     }
@@ -171,12 +198,18 @@ export default function NotesDelivery() {
       (statusFilter === 'Handed Over' && (d.status === 'Handed Over' || d.status === 'Delivered')) ||
       (statusFilter === 'Pending Pickup' && d.status === 'Pending Pickup');
 
-    return matchesSearch && matchesStatus;
+    const matchesCategory =
+      categoryFilter === 'All' || (d.category && d.category.toLowerCase() === categoryFilter.toLowerCase());
+
+    const matchesSubject =
+      subjectFilter === 'All' || (d.subject && d.subject.toLowerCase() === subjectFilter.toLowerCase());
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesSubject;
   });
 
   return (
     <div className="d-flex flex-column gap-3 w-100 pb-4">
-      {/* 1. Header & Primary Action Buttons (Single-line heading + compact action buttons) */}
+      {/* 1. Header & Primary Action Buttons */}
       <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 pt-1">
         <div style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -197,7 +230,7 @@ export default function NotesDelivery() {
             type="button"
             className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
             style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
-            onClick={() => { fetchDeliveries(); fetchItems(); }}
+            onClick={fetchData}
             title="Refresh Deliveries data"
           >
             <RefreshCw size={14} className="flex-shrink-0" />
@@ -315,7 +348,7 @@ export default function NotesDelivery() {
         </div>
       </div>
 
-      {/* Edit Form if selected */}
+      {/* Edit Form Modal/Panel if selected */}
       {editingDelivery && (
         <form onSubmit={handleUpdate} className="sa-card p-4 bg-light border-start border-4 border-primary">
           <h5 className="fw-bold text-sa-charcoal">Update Handover: #{editingDelivery.id?.slice(-6).toUpperCase()}</h5>
@@ -358,11 +391,11 @@ export default function NotesDelivery() {
 
       {/* 3. Main Table Container */}
       <div className="sa-card p-3 p-md-4">
-        {/* Search & Filters Bar with Matching Heights */}
+        {/* Search & Filters Bar with Matching 36px Heights */}
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2.5 pb-3 mb-3 border-bottom">
-          <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '850px' }}>
-            <div className="input-group" style={{ minWidth: '240px', flex: '1 1 240px', height: '36px' }}>
-              <span className="input-group-text bg-white border-end-0 text-muted py-0">
+          <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '900px' }}>
+            <div className="input-group" style={{ minWidth: '220px', flex: '1 1 220px', height: '36px' }}>
+              <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
                 <Search size={15} />
               </span>
               <input
@@ -377,17 +410,41 @@ export default function NotesDelivery() {
 
             <select
               className="form-select form-select-sm"
-              style={{ width: 'auto', minWidth: '180px', height: '36px', fontSize: '13px' }}
+              style={{ width: 'auto', minWidth: '160px', height: '36px', fontSize: '13px' }}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="All">All Handover Statuses</option>
+              <option value="All">All Statuses</option>
               <option value="Handed Over">Handed Over</option>
               <option value="Pending Pickup">Pending Pickup</option>
             </select>
+
+            <select
+              className="form-select form-select-sm"
+              style={{ width: 'auto', minWidth: '140px', height: '36px', fontSize: '13px' }}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="All">All Types</option>
+              <option value="Theory">Theory Books</option>
+              <option value="CET">CET Books</option>
+            </select>
+
+            <select
+              className="form-select form-select-sm"
+              style={{ width: 'auto', minWidth: '140px', height: '36px', fontSize: '13px' }}
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+            >
+              <option value="All">All Subjects</option>
+              <option value="Physics">Physics</option>
+              <option value="Chemistry">Chemistry</option>
+              <option value="Biology">Biology</option>
+              <option value="Maths">Mathematics</option>
+            </select>
           </div>
 
-          <span className="small text-muted fw-semibold">
+          <span className="small text-muted fw-semibold text-nowrap">
             Total {filteredDeliveries.length} handovers tracked
           </span>
         </div>
@@ -398,7 +455,7 @@ export default function NotesDelivery() {
             {
               key: 'id',
               title: 'Tracking ID',
-              width: '90px',
+              width: '95px',
               render: (val) => (
                 <span className="badge bg-light text-dark border font-monospace px-1.5 py-0.5 text-nowrap" style={{ fontSize: '11px' }}>
                   #{val ? val.slice(-6).toUpperCase() : 'HO-001'}
@@ -408,13 +465,14 @@ export default function NotesDelivery() {
             {
               key: 'bookTitle',
               title: 'Notes Package',
+              minWidth: '220px',
               render: (val, row) => (
                 <div className="py-0.5">
                   <div className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '13px', lineHeight: 1.25 }}>
                     <BookMarked size={15} className="text-sa-primary flex-shrink-0" />
                     <span>{val}</span>
                   </div>
-                  <div className="d-flex align-items-center gap-1.5 mt-0.5 text-muted" style={{ fontSize: '11px' }}>
+                  <div className="d-flex align-items-center gap-1.5 mt-0.5 text-muted text-nowrap" style={{ fontSize: '11px' }}>
                     <span>{row.availableStock !== undefined ? `${row.availableStock} in stock` : 'In Stock'}</span>
                     <span>•</span>
                     <span>Qty: {row.quantity || 1} copy</span>
@@ -475,7 +533,7 @@ export default function NotesDelivery() {
             {
               key: 'status',
               title: 'Status',
-              width: '120px',
+              width: '125px',
               render: (val) => (
                 <span className={`badge px-2 py-0.5 small d-inline-flex align-items-center gap-1 text-nowrap ${
                   val === 'Delivered' || val === 'Handed Over'
@@ -496,7 +554,7 @@ export default function NotesDelivery() {
                 <div className="d-flex gap-1.5 justify-content-end align-items-center text-nowrap">
                   <button
                     type="button"
-                    className="btn btn-sm btn-light border px-2 py-1 text-primary d-inline-flex align-items-center gap-1 small"
+                    className="btn btn-sm btn-light border px-2 py-1 text-primary d-inline-flex align-items-center gap-1 small text-nowrap"
                     style={{ borderRadius: '6px', fontSize: '12px' }}
                     onClick={() => {
                       setViewingVoucher(row);
@@ -509,7 +567,7 @@ export default function NotesDelivery() {
 
                   <button
                     type="button"
-                    className="btn btn-sm btn-light border px-2 py-1 text-secondary small"
+                    className="btn btn-sm btn-light border px-2 py-1 text-secondary small text-nowrap"
                     style={{ borderRadius: '6px', fontSize: '12px' }}
                     onClick={() => setEditingDelivery(row)}
                   >
@@ -519,13 +577,23 @@ export default function NotesDelivery() {
                   {row.status === 'Pending Pickup' && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-primary px-2 py-1 small"
+                      className="btn btn-sm btn-primary px-2 py-1 small text-nowrap"
                       style={{ borderRadius: '6px', fontSize: '12px' }}
-                      onClick={() => handleMarkDelivered(val, row.studentName)}
+                      onClick={() => handleMarkDelivered(val, row.studentName, row.bookTitle)}
                     >
                       Confirm
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border px-1.5 py-1 text-danger small text-nowrap"
+                    style={{ borderRadius: '6px' }}
+                    onClick={() => handleDelete(val)}
+                    title="Delete record"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               )
             }
@@ -535,7 +603,7 @@ export default function NotesDelivery() {
         />
       </div>
 
-      {/* Modal: Log New Delivery */}
+      {/* Modal: Log New Handover */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Log Notes Handover to Student">
         <form onSubmit={handleCreateDelivery} className="d-flex flex-column gap-3">
           <div>
@@ -615,7 +683,7 @@ export default function NotesDelivery() {
                 name="remarks"
                 value={newDelivery.remarks}
                 onChange={(e) => setNewDelivery({ ...newDelivery, remarks: e.target.value })}
-                placeholder="e.g. RFID card scan verified"
+                placeholder="e.g. Counter pickup verified"
               />
             </div>
           </div>

@@ -85,10 +85,23 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     notificationService.setSelectedNotice(notif);
     setShowNotifications(false);
 
+    if (notif.type === 'discount_approval' || notif.category === 'Discount & Fees') {
+      navigate('/super-admin/dashboard');
+      setTimeout(() => {
+        const el = document.getElementById('superadmin-discount-approvals');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+      return;
+    }
+
     const targetRoute = isStudent
       ? '/student/announcements'
       : isTeacher
       ? '/teacher/announcements'
+      : isSuperAdmin
+      ? '/super-admin/dashboard'
       : '/admin/notices';
 
     navigate(targetRoute, { state: { selectedNotice: notif } });
@@ -403,18 +416,33 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
           {showNotifications && (
             <div
-              className="position-absolute end-0 mt-2 bg-white border rounded-3 shadow-lg p-3"
-              style={{ width: 'min(385px, calc(100vw - 20px))', zIndex: 1050 }}
+              className="position-absolute end-0 mt-2 bg-white border shadow-lg p-3"
+              style={{
+                width: '390px',
+                maxWidth: 'calc(100vw - 20px)',
+                borderRadius: '16px',
+                boxShadow: '0 16px 40px -8px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.06)',
+                borderColor: '#E2E8F0',
+                zIndex: 1050
+              }}
             >
-              <div className="d-flex align-items-center justify-content-between pb-2 border-bottom mb-2">
+              <div className="d-flex align-items-center justify-content-between pb-2.5 border-bottom mb-2.5">
                 <div className="d-flex align-items-center gap-2">
-                  <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>Notifications</span>
+                  <span className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '0.92rem' }}>
+                    Notifications
+                  </span>
                   {unreadCount > 0 ? (
-                    <span className="badge bg-danger rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
+                    <span
+                      className="badge rounded-pill px-2 py-0.5 fw-semibold"
+                      style={{ fontSize: '0.68rem', backgroundColor: '#FEE2E2', color: '#991B1B' }}
+                    >
                       {unreadCount} New
                     </span>
                   ) : (
-                    <span className="badge bg-light text-muted border rounded-pill px-2 py-1" style={{ fontSize: '0.68rem' }}>
+                    <span
+                      className="badge rounded-pill px-2 py-0.5 fw-medium"
+                      style={{ fontSize: '0.68rem', backgroundColor: '#F1F5F9', color: '#64748B' }}
+                    >
                       All Clear
                     </span>
                   )}
@@ -422,8 +450,8 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 {unreadCount > 0 && (
                   <button
                     type="button"
-                    className="btn btn-link p-0 text-decoration-none"
-                    style={{ fontSize: '0.75rem', color: '#881337', fontWeight: 600 }}
+                    className="btn btn-link p-0 text-decoration-none fw-semibold"
+                    style={{ fontSize: '0.75rem', color: '#8B1216' }}
                     onClick={handleMarkAllRead}
                   >
                     Clear all
@@ -435,11 +463,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 <div className="text-center py-4 px-3 text-sa-muted">
                   <div
                     className="d-inline-flex align-items-center justify-content-center rounded-circle mb-2"
-                    style={{ width: '40px', height: '40px', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
+                    style={{ width: '42px', height: '42px', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
                   >
                     <CheckCircle size={20} className="text-success" />
                   </div>
-                  <p className="small fw-bold text-sa-charcoal mb-0" style={{ fontSize: '0.82rem' }}>
+                  <p className="small fw-bold text-sa-charcoal mb-0" style={{ fontSize: '0.84rem' }}>
                     No new notifications
                   </p>
                   <p className="text-sa-muted mb-0 mt-1" style={{ fontSize: '0.74rem' }}>
@@ -448,45 +476,61 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 </div>
               ) : (
                 <div
-                  className="d-flex flex-column gap-1.5"
+                  className="d-flex flex-column gap-2 w-100"
                   style={{
-                    maxHeight: '370px',
+                    maxHeight: '380px',
                     overflowY: 'auto',
                     overflowX: 'hidden',
-                    paddingRight: '3px'
+                    paddingRight: '2px'
                   }}
                 >
                   {notificationsList.map((item) => (
                     <div
                       key={item.id}
-                      className="p-2.5 rounded-2 border d-flex align-items-center justify-content-between gap-2 cursor-pointer transition-all"
+                      className="w-100 p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2"
                       style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
                         cursor: 'pointer',
                         backgroundColor: '#FFFFFF',
-                        borderColor: '#F1F5F9',
-                        transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)'
+                        borderColor: '#E2E8F0',
+                        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FFF1F2';
-                        e.currentTarget.style.borderColor = '#FDA4AF';
-                        e.currentTarget.style.transform = 'translateX(3px)';
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(136, 19, 55, 0.08)';
+                        e.currentTarget.style.backgroundColor = '#FFF5F5';
+                        e.currentTarget.style.borderColor = '#FECDD3';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 18, 22, 0.08)';
+                        const arrow = e.currentTarget.querySelector('.notification-arrow');
+                        if (arrow) {
+                          arrow.style.transform = 'translateX(2px)';
+                          arrow.style.color = '#8B1216';
+                        }
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = '#FFFFFF';
-                        e.currentTarget.style.borderColor = '#F1F5F9';
-                        e.currentTarget.style.transform = 'translateX(0px)';
+                        e.currentTarget.style.borderColor = '#E2E8F0';
+                        e.currentTarget.style.transform = 'none';
                         e.currentTarget.style.boxShadow = 'none';
+                        const arrow = e.currentTarget.querySelector('.notification-arrow');
+                        if (arrow) {
+                          arrow.style.transform = 'none';
+                          arrow.style.color = '#94a3b8';
+                        }
                       }}
                       onClick={() => handleNotificationClick(item)}
                     >
-                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-1">
+                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-2">
                         <span
                           className="rounded-circle bg-danger flex-shrink-0"
-                          style={{ width: '6.5px', height: '6.5px' }}
+                          style={{
+                            width: '6.5px',
+                            height: '6.5px',
+                            boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.15)'
+                          }}
                         />
                         <span
-                          className="fw-bold text-sa-charcoal text-truncate d-block"
+                          className="fw-semibold text-sa-charcoal text-truncate d-block"
                           style={{ fontSize: '0.81rem' }}
                           title={item.title}
                         >
@@ -494,9 +538,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                         </span>
                       </div>
 
-                      <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                      <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
                         <span
-                          className="badge rounded-pill fw-semibold d-inline-flex align-items-center"
+                          className="badge rounded-pill fw-medium d-inline-flex align-items-center"
                           style={{
                             backgroundColor: '#F8FAFC',
                             color: '#64748B',
@@ -509,7 +553,12 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                           <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
                           <span>{item.time}</span>
                         </span>
-                        <ChevronRight size={13} className="text-sa-muted flex-shrink-0" />
+                        <div
+                          className="notification-arrow d-flex align-items-center justify-content-center text-muted"
+                          style={{ width: '14px', height: '14px', transition: 'all 0.18s ease' }}
+                        >
+                          <ChevronRight size={14} />
+                        </div>
                       </div>
                     </div>
                   ))}

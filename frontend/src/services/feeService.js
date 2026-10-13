@@ -12,6 +12,11 @@ export const feeService = {
       rollNumber: fee.roll_number || 'N/A',
       standard: 'N/A',
       totalFees: fee.total_fees || 0,
+      originalFees: fee.original_fees || 0,
+      discountAmount: fee.discount_amount || 0,
+      discountReason: fee.discount_reason || '',
+      discountStatus: fee.discount_status || 'NONE',
+      discountApprovedBy: fee.discount_approved_by || '',
       amountPaid: fee.amount_paid,
       pendingAmount: fee.pending_fees || 0,
       paymentDate: fee.payment_date.split('T')[0],
@@ -33,6 +38,11 @@ export const feeService = {
       rollNumber: fee.student_id.substring(fee.student_id.length - 6),
       standard: fee.standard + ' - ' + fee.batch + ' - ' + fee.branch,
       totalFees: fee.total_fees,
+      originalFees: fee.original_fees || 0,
+      discountAmount: fee.discount_amount || 0,
+      discountReason: fee.discount_reason || '',
+      discountStatus: fee.discount_status || 'NONE',
+      discountApprovedBy: fee.discount_approved_by || '',
       amountPaid: fee.amount_paid,
       pendingAmount: fee.pending_fees,
       paymentDate: 'N/A',
@@ -51,6 +61,11 @@ export const feeService = {
       
       const details = await api.get(`/fees/${found.studentId}`);
       found.totalFees = details.data.total_fees;
+      found.originalFees = details.data.original_fees;
+      found.discountAmount = details.data.discount_amount;
+      found.discountReason = details.data.discount_reason;
+      found.discountStatus = details.data.discount_status;
+      found.discountApprovedBy = details.data.discount_approved_by;
       found.pendingAmount = details.data.pending_fees;
       return found;
     } catch {

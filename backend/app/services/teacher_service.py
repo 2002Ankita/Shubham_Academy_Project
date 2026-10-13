@@ -167,8 +167,6 @@ async def delete_teacher(id: str):
             user_obj = await User.get(teacher.user.ref.id)
             teacher.user = user_obj
         if teacher.user:
-            teacher.user.is_active = False
-            await teacher.user.save()
+            await teacher.user.delete()
         
-        teacher.status = "Inactive"
-        await teacher.save()
+        await teacher.delete()

@@ -101,9 +101,40 @@ export default function FeeReceipt() {
                 <td>{receipt.feeHead || 'Tuition & Academic Facilities Fee'}</td>
                 <td className="text-end fw-semibold">₹ {receipt.amountPaid?.toLocaleString()}</td>
               </tr>
+              {Number(receipt.discountAmount) > 0 && (
+                <>
+                  <tr>
+                    <td className="text-muted">Original Gross Course Fees</td>
+                    <td className="text-end text-muted">
+                      ₹ {(receipt.originalFees || (receipt.totalFees + receipt.discountAmount))?.toLocaleString()}
+                    </td>
+                  </tr>
+                  <tr className="table-light">
+                    <td>
+                      <div className="fw-semibold text-success">
+                        Discount Concession ({receipt.discountReason || 'Approved Concession'})
+                      </div>
+                      <div className="small mt-0.5" style={{ fontSize: '0.80rem' }}>
+                        {receipt.discountStatus === 'APPROVED' ? (
+                          <span className="text-success fw-semibold">
+                            ✓ Approved by: <strong>{receipt.discountApprovedBy || 'Superadmin'}</strong>
+                          </span>
+                        ) : (
+                          <span className="text-warning-emphasis">
+                            ⏳ Status: Pending Superadmin Approval
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-end fw-bold text-success">
+                      -₹ {receipt.discountAmount?.toLocaleString()}
+                    </td>
+                  </tr>
+                </>
+              )}
               <tr>
-                <td className="text-muted">Total Applicable Course Fees</td>
-                <td className="text-end text-muted">₹ {receipt.totalFees?.toLocaleString()}</td>
+                <td className="text-muted">Total Net Course Fees</td>
+                <td className="text-end text-muted fw-semibold">₹ {receipt.totalFees?.toLocaleString()}</td>
               </tr>
               <tr>
                 <td className="fw-bold">Total Amount Received (Paid)</td>
@@ -123,9 +154,17 @@ export default function FeeReceipt() {
 
         {/* Footer & Signature */}
         <div className="d-flex align-items-end justify-content-between pt-4 border-top">
-          <div className="d-flex align-items-center gap-2 text-success small">
-            <CheckCircle2 size={18} />
-            <span className="fw-semibold">Electronically Verified Payment</span>
+          <div>
+            <div className="d-flex align-items-center gap-2 text-success small mb-1">
+              <CheckCircle2 size={18} />
+              <span className="fw-semibold">Electronically Verified Payment</span>
+            </div>
+            {Number(receipt.discountAmount) > 0 && receipt.discountApprovedBy && (
+              <div className="text-muted small" style={{ fontSize: '0.78rem' }}>
+                Discount Concession Approved by:{' '}
+                <strong className="text-dark">{receipt.discountApprovedBy}</strong>
+              </div>
+            )}
           </div>
           <div className="text-center" style={{ minWidth: '160px' }}>
             <div className="border-bottom pb-4 mb-1" />

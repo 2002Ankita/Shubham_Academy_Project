@@ -37,7 +37,10 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
         "payment_method": payment.payment_method,
         "transaction_reference": payment.transaction_reference,
         "remarks": payment.remarks,
-        "payment_date": payment.payment_date
+        "payment_date": payment.payment_date,
+        "discount_amount": getattr(student_obj, "discount_amount", 0.0) if student_obj else 0.0,
+        "discount_status": getattr(student_obj, "discount_status", "NONE") if student_obj else "NONE",
+        "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None
     }
 
 async def create_fee_structure(structure_in: FeeStructureCreate) -> dict:
@@ -168,7 +171,14 @@ async def get_fee_details(student_id: str) -> FeeDetailsResponse:
         student_id=str(student.id),
         total_fees=total_fees,
         amount_paid=total_paid,
-        pending_fees=pending_fees
+        pending_fees=pending_fees,
+        original_fees=getattr(student, "original_fees", 0.0) or total_fees,
+        discount_amount=getattr(student, "discount_amount", 0.0) or 0.0,
+        discount_reason=getattr(student, "discount_reason", None),
+        discount_status=getattr(student, "discount_status", "NONE") or "NONE",
+        discount_offered_by=getattr(student, "discount_offered_by", None),
+        discount_approved_by=getattr(student, "discount_approved_by", None),
+        discount_approved_at=getattr(student, "discount_approved_at", None)
     )
 
 async def get_pending_fees() -> list[PendingFeeResponse]:

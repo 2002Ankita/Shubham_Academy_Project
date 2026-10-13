@@ -81,8 +81,24 @@ export default function FeeCollection() {
             { key: 'feeHead', title: 'Fee Particulars' },
             {
               key: 'totalFees',
-              title: 'Total Amount',
-              render: (val) => <span className="fw-semibold">₹ {val?.toLocaleString() || 0}</span>
+              title: 'Course Fee & Concession',
+              render: (val, row) => (
+                <div>
+                  <span className="fw-semibold d-block">₹ {val?.toLocaleString() || 0}</span>
+                  {row.discountAmount > 0 && (
+                    <div className="small mt-0.5" style={{ fontSize: '0.70rem' }}>
+                      <span className="badge bg-success-subtle text-success">
+                        -₹{row.discountAmount.toLocaleString()} Disc
+                      </span>
+                      {row.discountApprovedBy && (
+                        <span className="text-muted d-block" style={{ fontSize: '0.67rem' }}>
+                          By: <strong>{row.discountApprovedBy}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
             },
             {
               key: 'amountPaid',

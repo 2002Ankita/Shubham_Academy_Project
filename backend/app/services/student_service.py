@@ -5,6 +5,9 @@ from app.core.security import get_password_hash
 from bson import ObjectId
 import uuid
 
+from app.models.discount import DiscountApproval
+from datetime import datetime
+
 async def _format_student(student: Student) -> dict:
     user_obj = None
     if isinstance(student.user, User):
@@ -31,9 +34,25 @@ async def _format_student(student: Student) -> dict:
         "rfid_tag": student.rfid_tag,
         "total_fees": student.total_fees,
         "admission_date": student.admission_date,
+        "original_fees": getattr(student, "original_fees", student.total_fees) or student.total_fees,
+        "discount_amount": getattr(student, "discount_amount", 0.0) or 0.0,
+        "discount_reason": getattr(student, "discount_reason", None),
+        "discount_status": getattr(student, "discount_status", "NONE") or "NONE",
+        "discount_offered_by": getattr(student, "discount_offered_by", None),
+        "discount_recommended_by": getattr(student, "discount_recommended_by", None) or getattr(student, "discount_offered_by", None),
+        "discount_offered_at": getattr(student, "discount_offered_at", None),
+        "discount_approved_by": getattr(student, "discount_approved_by", None),
+        "discount_approved_at": getattr(student, "discount_approved_at", None),
+        "discount_rejection_reason": getattr(student, "discount_rejection_reason", None),
     }
 
-async def create_student(student_in: StudentCreate) -> dict:
+def is_superadmin_user(user: User) -> bool:
+    if not user:
+        return False
+    role_clean = (user.role or "").lower().replace("-", "_").strip()
+    return role_clean in ["super_admin", "superadmin"]
+
+async def create_student(student_in: StudentCreate, current_user: User = None) -> dict:
     # 1. Create User account for student
     student_id = student_in.student_id if student_in.student_id else f"STU-{uuid.uuid4().hex[:6].upper()}"
     from fastapi import HTTPException
@@ -54,6 +73,40 @@ async def create_student(student_in: StudentCreate) -> dict:
         raise HTTPException(status_code=400, detail="Invalid mobile number format")
         
     existing_mobile = await Student.find_one(Student.mobile_number == student_in.mobile_number)
+
+    # Determine fees & discount status
+    orig_fees = student_in.original_fees if (student_in.original_fees and student_in.original_fees > 0) else (student_in.total_fees + (student_in.discount_amount or 0.0))
+    disc_amount = float(student_in.discount_amount or 0.0)
+    disc_reason = student_in.discount_reason or ("Scholarship Concession" if disc_amount > 0 else None)
+    
+    is_super = is_superadmin_user(current_user)
+    disc_status = "NONE"
+    disc_offered_by = None
+    disc_recommended_by = None
+    disc_offered_at = None
+    disc_approved_by = None
+    disc_approved_at = None
+    
+    if disc_amount > 0:
+        disc_offered_at = datetime.utcnow()
+        # Recommended by: staff or counselor recommends the discount during onboarding
+        recommender = (
+            (student_in.discount_recommended_by and student_in.discount_recommended_by.strip())
+            or (student_in.discount_offered_by and student_in.discount_offered_by.strip())
+            or (student_in.discount_approved_by and student_in.discount_approved_by.strip() and "PENDING" not in student_in.discount_approved_by.upper() and student_in.discount_approved_by.strip())
+            or (current_user.full_name if current_user else "Miss Shilpa")
+        )
+        disc_recommended_by = recommender
+        disc_offered_by = recommender
+        
+        # During onboarding, discounts are ONLY recommended, NEVER directly approved.
+        # They are submitted as PENDING so that the Superadmin has sole authority to Approve or Reject on the Super Admin Dashboard.
+        disc_status = "PENDING"
+        disc_approved_by = None
+        disc_approved_at = None
+        final_total_fees = orig_fees
+    else:
+        final_total_fees = orig_fees
     
     # UPSERT LOGIC
     # If the student exists by email or mobile, we update them instead of rejecting
@@ -84,28 +137,20 @@ async def create_student(student_in: StudentCreate) -> dict:
             existing_student.rfid_tag = student_in.rfid_tag
         if getattr(student_in, "admission_date", None):
             existing_student.admission_date = student_in.admission_date
-        existing_student.total_fees = student_in.total_fees
+        existing_student.total_fees = final_total_fees
+        existing_student.original_fees = orig_fees
+        if disc_amount > 0:
+            existing_student.discount_amount = disc_amount
+            existing_student.discount_reason = disc_reason
+            existing_student.discount_status = disc_status
+            existing_student.discount_offered_by = disc_offered_by
+            existing_student.discount_recommended_by = disc_recommended_by
+            existing_student.discount_offered_at = disc_offered_at
+            existing_student.discount_approved_by = disc_approved_by
+            existing_student.discount_approved_at = disc_approved_at
         await existing_student.save()
         
-        return {
-            "id": str(existing_student.id),
-            "student_id": existing_student.student_id,
-            "full_name": student_in.full_name,
-            "email": student_in.email,
-            "mobile_number": existing_student.mobile_number,
-            "date_of_birth": existing_student.date_of_birth,
-            "gender": existing_student.gender,
-            "address": existing_student.address,
-            "parent_name": existing_student.parent_name,
-            "parent_mobile": existing_student.parent_mobile,
-            "standard": existing_student.standard,
-            "batch": existing_student.batch,
-            "branch": existing_student.branch,
-            "academic_year": existing_student.academic_year,
-            "rfid_tag": existing_student.rfid_tag,
-            "total_fees": existing_student.total_fees,
-            "admission_date": existing_student.admission_date,
-        }
+        return await _format_student(existing_student)
 
     user = User(
         email=student_in.email,
@@ -133,11 +178,42 @@ async def create_student(student_in: StudentCreate) -> dict:
         branch=student_in.branch,
         academic_year=student_in.academic_year,
         rfid_tag=student_in.rfid_tag,
-        total_fees=student_in.total_fees
+        total_fees=final_total_fees,
+        original_fees=orig_fees,
+        discount_amount=disc_amount,
+        discount_reason=disc_reason,
+        discount_status=disc_status,
+        discount_offered_by=disc_offered_by,
+        discount_recommended_by=disc_recommended_by,
+        discount_offered_at=disc_offered_at,
+        discount_approved_by=disc_approved_by,
+        discount_approved_at=disc_approved_at
     )
     if getattr(student_in, "admission_date", None):
         student.admission_date = student_in.admission_date
     await student.insert()
+
+    if disc_amount > 0:
+        approval_record = DiscountApproval(
+            student_id=str(student.id),
+            student_name=user.full_name,
+            roll_number=student.student_id,
+            standard=student.standard,
+            original_fees=orig_fees,
+            discount_amount=disc_amount,
+            final_fees=max(0.0, orig_fees - disc_amount),
+            discount_reason=disc_reason or "Fee Concession",
+            status=disc_status,
+            offered_by=disc_offered_by or "Admin",
+            recommended_by=disc_recommended_by or disc_offered_by or "Miss Shilpa",
+            offered_by_email=current_user.email if current_user else None,
+            offered_at=disc_offered_at or datetime.utcnow(),
+            approved_by=disc_approved_by,
+            approved_by_email=None,
+            approved_at=disc_approved_at
+        )
+        await approval_record.insert()
+
     return await _format_student(student)
 
 async def get_students() -> list[dict]:
@@ -220,4 +296,209 @@ async def delete_student(id: str):
         await student.user.delete()
         
     await student.delete()
+
+async def offer_student_discount(id: str, offer_in: dict, current_user: User) -> dict:
+    from fastapi import HTTPException
+    student = await resolve_student(id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    disc_amount = float(offer_in.get("discount_amount") or 0.0)
+    if disc_amount <= 0:
+        raise HTTPException(status_code=400, detail="Discount amount must be greater than zero")
+
+    disc_reason = offer_in.get("discount_reason") or "Fee Concession"
+    curr_total = getattr(student, "total_fees", 0.0)
+    curr_orig = getattr(student, "original_fees", 0.0)
+    
+    # If student already has an original_fees recorded and > 0, keep it; else compute
+    if curr_orig > 0:
+        orig_fees = curr_orig
+    else:
+        orig_fees = offer_in.get("original_fees") or curr_total
+        if orig_fees <= 0:
+            orig_fees = curr_total
+
+    is_super = is_superadmin_user(current_user)
+    offered_at = datetime.utcnow()
+    offered_by = f"{current_user.full_name} ({current_user.role})"
+
+    if is_super:
+        disc_status = "APPROVED"
+        approved_by = f"{current_user.full_name} (Superadmin)"
+        approved_at = datetime.utcnow()
+        final_total = max(0.0, orig_fees - disc_amount)
+    else:
+        disc_status = "PENDING"
+        approved_by = None
+        approved_at = None
+        final_total = orig_fees # remains original fee pending approval
+
+    student.original_fees = orig_fees
+    student.discount_amount = disc_amount
+    student.discount_reason = disc_reason
+    student.discount_status = disc_status
+    student.discount_offered_by = offered_by
+    student.discount_offered_at = offered_at
+    student.discount_approved_by = approved_by
+    student.discount_approved_at = approved_at
+    student.discount_rejection_reason = None
+    if is_super:
+        student.total_fees = final_total
+    await student.save()
+
+    # Get student name
+    student_name = ""
+    if isinstance(student.user, User):
+        student_name = student.user.full_name
+    elif student.user:
+        user_obj = await User.get(student.user.ref.id)
+        if user_obj:
+            student_name = user_obj.full_name
+
+    approval = DiscountApproval(
+        student_id=str(student.id),
+        student_name=student_name,
+        roll_number=student.student_id,
+        standard=student.standard,
+        original_fees=orig_fees,
+        discount_amount=disc_amount,
+        final_fees=max(0.0, orig_fees - disc_amount),
+        discount_reason=disc_reason,
+        status=disc_status,
+        offered_by=offered_by,
+        offered_by_email=current_user.email,
+        offered_at=offered_at,
+        approved_by=approved_by,
+        approved_by_email=current_user.email if is_super else None,
+        approved_at=approved_at
+    )
+    await approval.insert()
+
+    return await _format_student(student)
+
+async def approve_student_discount(id: str, current_user: User) -> dict:
+    from fastapi import HTTPException
+    # Strict role enforcement: Only Superadmin can approve discount
+    if not is_superadmin_user(current_user):
+        raise HTTPException(
+            status_code=403, 
+            detail="Forbidden: Final approval for student discount must be given by the Superadmin."
+        )
+
+    student = await resolve_student(id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    disc_amount = getattr(student, "discount_amount", 0.0)
+    if disc_amount <= 0:
+        raise HTTPException(status_code=400, detail="No active discount offer to approve")
+
+    orig_fees = getattr(student, "original_fees", 0.0) or student.total_fees
+    student.original_fees = orig_fees
+    student.discount_status = "APPROVED"
+    student.discount_approved_by = f"{current_user.full_name} (Superadmin)"
+    student.discount_approved_at = datetime.utcnow()
+    student.discount_rejection_reason = None
+    student.total_fees = max(0.0, orig_fees - disc_amount)
+    await student.save()
+
+    # Update or create DiscountApproval record
+    existing_approval = await DiscountApproval.find_one(
+        DiscountApproval.student_id == str(student.id),
+        DiscountApproval.status == "PENDING"
+    )
+    if existing_approval:
+        existing_approval.status = "APPROVED"
+        existing_approval.approved_by = f"{current_user.full_name} (Superadmin)"
+        existing_approval.approved_by_email = current_user.email
+        existing_approval.approved_at = datetime.utcnow()
+        await existing_approval.save()
+    else:
+        student_name = ""
+        if isinstance(student.user, User):
+            student_name = student.user.full_name
+        elif student.user:
+            u_obj = await User.get(student.user.ref.id)
+            if u_obj:
+                student_name = u_obj.full_name
+        approval = DiscountApproval(
+            student_id=str(student.id),
+            student_name=student_name,
+            roll_number=student.student_id,
+            standard=student.standard,
+            original_fees=orig_fees,
+            discount_amount=disc_amount,
+            final_fees=max(0.0, orig_fees - disc_amount),
+            discount_reason=student.discount_reason or "Fee Concession",
+            status="APPROVED",
+            offered_by=student.discount_offered_by or "Admin",
+            offered_at=student.discount_offered_at or datetime.utcnow(),
+            approved_by=f"{current_user.full_name} (Superadmin)",
+            approved_by_email=current_user.email,
+            approved_at=datetime.utcnow()
+        )
+        await approval.insert()
+
+    return await _format_student(student)
+
+async def reject_student_discount(id: str, reason: str, current_user: User) -> dict:
+    from fastapi import HTTPException
+    # Strict role enforcement: Only Superadmin can reject
+    if not is_superadmin_user(current_user):
+        raise HTTPException(
+            status_code=403, 
+            detail="Forbidden: Only Superadmin can reject student discounts."
+        )
+
+    student = await resolve_student(id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student.discount_status = "REJECTED"
+    student.discount_rejection_reason = reason or "Rejected by Superadmin"
+    if getattr(student, "original_fees", 0.0) > 0:
+        student.total_fees = student.original_fees
+    await student.save()
+
+    existing_approval = await DiscountApproval.find_one(
+        DiscountApproval.student_id == str(student.id),
+        DiscountApproval.status == "PENDING"
+    )
+    if existing_approval:
+        existing_approval.status = "REJECTED"
+        existing_approval.rejection_reason = reason or "Rejected by Superadmin"
+        await existing_approval.save()
+
+    return await _format_student(student)
+
+async def get_discount_approvals(status: str = None) -> list[dict]:
+    query = {}
+    if status and status.upper() != "ALL":
+        query = {"status": status.upper()}
+    
+    approvals = await DiscountApproval.find(query).sort("-offered_at").to_list()
+    res = []
+    for a in approvals:
+        res.append({
+            "id": str(a.id),
+            "student_id": a.student_id,
+            "student_name": a.student_name,
+            "roll_number": a.roll_number,
+            "standard": a.standard,
+            "original_fees": a.original_fees,
+            "discount_amount": a.discount_amount,
+            "final_fees": a.final_fees,
+            "discount_reason": a.discount_reason,
+            "status": a.status,
+            "offered_by": a.offered_by,
+            "recommended_by": getattr(a, "recommended_by", None) or a.offered_by,
+            "offered_by_email": a.offered_by_email,
+            "offered_at": a.offered_at.isoformat() if a.offered_at else None,
+            "approved_by": a.approved_by,
+            "approved_by_email": a.approved_by_email,
+            "approved_at": a.approved_at.isoformat() if a.approved_at else None,
+            "rejection_reason": a.rejection_reason
+        })
+    return res
 

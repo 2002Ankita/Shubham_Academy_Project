@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import marksService from '../../services/marksService';
 import { Calendar, UserCheck, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -43,6 +44,11 @@ export default function StudentResults() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {/* Back button */}
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* Header Banner */}
       <div>
         <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">

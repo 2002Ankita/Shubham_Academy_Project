@@ -148,12 +148,13 @@ export const DEFAULT_NOTIFICATIONS = [
 ];
 
 const READ_STORAGE_KEY = 'sa_read_notifications_v4';
+const DYNAMIC_NOTIFICATIONS_KEY = 'sa_dynamic_notifications_v2';
 const SELECTED_NOTICE_KEY = 'sa_selected_notice';
 const CUSTOM_NOTIFICATIONS_KEY = 'sa_custom_notifications_v1';
 
 function getCustomNotifications() {
   try {
-    const raw = localStorage.getItem(CUSTOM_NOTIFICATIONS_KEY);
+    const raw = localStorage.getItem(CUSTOM_NOTIFICATIONS_KEY) || localStorage.getItem(DYNAMIC_NOTIFICATIONS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -163,6 +164,7 @@ function getCustomNotifications() {
 function saveCustomNotifications(items) {
   try {
     localStorage.setItem(CUSTOM_NOTIFICATIONS_KEY, JSON.stringify(items));
+    localStorage.setItem(DYNAMIC_NOTIFICATIONS_KEY, JSON.stringify(items));
   } catch (err) {
     console.error('Error saving custom notifications:', err);
   }
@@ -194,6 +196,84 @@ function getCombinedNotifications(isSuperAdmin = false) {
 }
 
 export const notificationService = {
+  addNotification: (notif) => {
+    const now = new Date();
+    const timeStr = notif.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = notif.date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    const newEntry = {
+      id: notif.id || `NTF-DYN-${Date.now()}`,
+      title: notif.title || 'Notification Alert',
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: notif.formattedDateTime || `${dateStr}, ${timeStr}`,
+      type: notif.type || 'alert',
+      category: notif.category || 'SMS & System Alerts',
+      priority: notif.priority || 'Normal',
+      author: notif.author || 'Shubham Academy System',
+      details: notif.details || '',
+      read: false,
+      forSuperAdminOnly: notif.forSuperAdminOnly || false,
+      studentId: notif.studentId,
+      studentName: notif.studentName,
+      discountAmount: notif.discountAmount,
+      recommendedBy: notif.recommendedBy
+    };
+
+    const current = getCustomNotifications();
+    const filtered = current.filter(n => n.id !== newEntry.id);
+    saveCustomNotifications([newEntry, ...filtered]);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: newEntry }));
+    }
+    return newEntry;
+  },
+
+  syncDiscountApprovals: (pendingList = []) => {
+    if (!pendingList || pendingList.length === 0) return;
+    const current = getCustomNotifications();
+    let hasChanges = false;
+    const updated = [...current];
+
+    pendingList.forEach((s) => {
+      const notifId = `NTF-DISC-${s.id}`;
+      const exists = updated.some(n => n.id === notifId);
+      if (!exists) {
+        hasChanges = true;
+        updated.unshift({
+          id: notifId,
+          title: `🔔 Fee Concession Approval: ${s.name}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedDateTime: new Date().toLocaleString(),
+          type: 'discount_approval',
+          category: 'Discount & Fees',
+          priority: 'High',
+          author: s.discountRecommendedBy || s.discountOfferedBy || 'Miss Shilpa (Counselor)',
+          details: `${s.discountRecommendedBy || s.discountOfferedBy || 'Counselor'} recommended a concession of ₹${Number(s.discountAmount || 0).toLocaleString()} for ${s.name} (${s.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
+          read: false,
+          forSuperAdminOnly: true,
+          studentId: s.id,
+          studentName: s.name,
+          discountAmount: s.discountAmount,
+          recommendedBy: s.discountRecommendedBy || s.discountOfferedBy
+        });
+      }
+    });
+
+    if (hasChanges) {
+      saveCustomNotifications(updated);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    }
+  },
+
+  getAllList: (isSuperAdmin = false) => {
+    return getCombinedNotifications(isSuperAdmin);
+  },
+
   getNotifications: (isSuperAdmin = false) => {
     const readIds = getReadIds();
     const items = getCombinedNotifications(isSuperAdmin);
@@ -216,34 +296,6 @@ export const notificationService = {
     return getCombinedNotifications(isSuperAdmin);
   },
 
-  addNotification: (notif) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    
-    const newEntry = {
-      id: `NTF-DYN-${Date.now()}`,
-      title: notif.title || 'Notification Alert',
-      time: timeStr,
-      date: dateStr,
-      formattedDateTime: `${dateStr}, ${timeStr}`,
-      type: notif.type || 'alert',
-      category: notif.category || 'SMS & System Alerts',
-      priority: notif.priority || 'Normal',
-      author: notif.author || 'Shubham Academy System',
-      details: notif.details || '',
-      read: false
-    };
-
-    const current = getCustomNotifications();
-    saveCustomNotifications([newEntry, ...current]);
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: newEntry }));
-    }
-    return newEntry;
-  },
-
   getUnreadCount: (isSuperAdmin = false) => {
     const unread = notificationService.getUnreadNotifications(isSuperAdmin);
     return unread.length;
@@ -261,9 +313,7 @@ export const notificationService = {
   },
 
   markAllAsRead: (isSuperAdmin = false) => {
-    const notifs = isSuperAdmin
-      ? DEFAULT_NOTIFICATIONS
-      : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+    const notifs = notificationService.getAllList(isSuperAdmin);
     const readIds = notifs.map(n => n.id);
     saveReadIds(readIds);
     if (typeof window !== 'undefined') {

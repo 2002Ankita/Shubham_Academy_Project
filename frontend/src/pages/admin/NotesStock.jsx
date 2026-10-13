@@ -72,6 +72,7 @@ export default function NotesStock() {
 
   const [newBook, setNewBook] = useState({
     title: '',
+    category: 'Theory',
     subject: 'Physics',
     standard: '12th pcm tarabai park',
     inStock: 50,
@@ -134,51 +135,55 @@ export default function NotesStock() {
     setRestockModalOpen(true);
   };
 
-  const handleLogHandover = async (e) => {
+  const handleHandoverSubmit = async (e) => {
     e.preventDefault();
-    if (!handoverForm.inventoryItemId) {
-      toast.error('Please select a notes module');
+    const item = stock.find(s => s.id === handoverForm.inventoryItemId);
+    if (!item) {
+      toast.error('Please select a valid note package');
       return;
     }
 
-    const selectedItem = stock.find(s => s.id === handoverForm.inventoryItemId);
-    if (selectedItem && selectedItem.inStock < Number(handoverForm.quantity) && handoverForm.status === 'Handed Over') {
-      toast.error(`Insufficient stock! Only ${selectedItem.inStock} copies available.`);
+    if (item.inStock < Number(handoverForm.quantity)) {
+      toast.error(`Not enough stock available! Only ${item.inStock} copies remaining.`);
       return;
     }
 
     let studentName = handoverForm.manualStudentName;
     let rollNo = handoverForm.manualRollNo;
-    let std = selectedItem?.standard || '';
+    let standard = item.standard;
 
     if (handoverForm.studentId) {
-      const stu = students.find(s => s.id === handoverForm.studentId);
-      if (stu) {
-        studentName = stu.name;
-        rollNo = stu.rollNumber || stu.student_id;
-        std = stu.standard || std;
+      const selectedStudent = students.find(s => (s.id || s._id) === handoverForm.studentId);
+      if (selectedStudent) {
+        studentName = selectedStudent.name;
+        rollNo = selectedStudent.rollNumber || selectedStudent.student_id;
+        standard = selectedStudent.standard || item.standard;
       }
     }
 
+    if (!studentName) {
+      toast.error('Please select or specify a student recipient');
+      return;
+    }
+
     try {
-      const payload = {
-        inventory_item_id: handoverForm.inventoryItemId,
-        student_id: handoverForm.studentId || undefined,
-        handed_over_to: studentName || 'Student',
+      await inventoryService.createDelivery({
+        student_id: handoverForm.studentId || null,
+        inventory_item_id: item.id,
+        handed_over_by: handoverForm.handedOverBy || user?.name || 'Academic Staff',
+        handed_over_to: studentName,
         student_roll_no: rollNo || 'N/A',
-        standard: std,
+        standard: standard,
         quantity: Number(handoverForm.quantity) || 1,
-        handed_over_by: handoverForm.handedOverBy || user?.name || 'Staff Desk',
         status: handoverForm.status,
         remarks: handoverForm.remarks
-      };
+      });
 
-      await inventoryService.createDelivery(payload);
-      toast.success(`Notes handed over successfully to ${studentName || 'student'}!`);
+      toast.success(`Handover recorded! Handed over to ${studentName}.`);
       setHandoverModalOpen(false);
       loadData();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to log handover');
+      toast.error('Failed to record handover');
     }
   };
 
@@ -186,7 +191,7 @@ export default function NotesStock() {
     e.preventDefault();
     if (!selectedItemForRestock) return;
     try {
-      await inventoryService.restockItem(selectedItemForRestock.id, restockQty);
+      await inventoryService.restockItem(selectedItemForRestock.id, Number(restockQty));
       toast.success(`Added +${restockQty} copies to "${selectedItemForRestock.title}"!`);
       setRestockModalOpen(false);
       loadData();
@@ -200,6 +205,7 @@ export default function NotesStock() {
     try {
       await inventoryService.createItem({
         title: newBook.title,
+        category: newBook.category || 'Theory',
         subject: newBook.subject,
         standard: newBook.standard,
         in_stock: Number(newBook.inStock),
@@ -211,6 +217,7 @@ export default function NotesStock() {
       setAddStockModalOpen(false);
       setNewBook({
         title: '',
+        category: 'Theory',
         subject: 'Physics',
         standard: '12th pcm tarabai park',
         inStock: 50,
@@ -240,7 +247,7 @@ export default function NotesStock() {
 
   // KPI calculations
   const totalAvailableStock = stock.reduce((sum, item) => sum + (Number(item.inStock) || 0), 0);
-  const totalHandedOverCopies = deliveries.reduce((sum, del) => del.status === 'Handed Over' ? sum + (Number(del.quantity) || 1) : sum, 0);
+  const totalHandedOverCopies = deliveries.reduce((sum, del) => del.status === 'Handed Over' || del.status === 'Delivered' ? sum + (Number(del.quantity) || 1) : sum, 0);
   const lowStockCount = stock.filter(item => Number(item.inStock) <= Number(item.reorderLevel)).length;
   const totalModulesCount = stock.length;
 
@@ -265,25 +272,28 @@ export default function NotesStock() {
     return matchesSearch && matchesStream && matchesStatus;
   });
 
-  // Filtered handover records
+  // Filtered deliveries list
   const filteredDeliveries = deliveries.filter(del => {
     const q = searchHandover.toLowerCase();
     const matchesSearch =
       (del.bookTitle && del.bookTitle.toLowerCase().includes(q)) ||
       (del.studentName && del.studentName.toLowerCase().includes(q)) ||
-      (del.handedOverBy && del.handedOverBy.toLowerCase().includes(q)) ||
+      (del.handedOverTo && del.handedOverTo.toLowerCase().includes(q)) ||
       (del.rollNumber && del.rollNumber.toLowerCase().includes(q)) ||
-      (del.id && del.id.toLowerCase().includes(q));
+      (del.handedOverBy && del.handedOverBy.toLowerCase().includes(q));
 
     const matchesStatus = selectedHandoverStatus === 'All' || del.status === selectedHandoverStatus;
-    const matchesFaculty = selectedHandoverFaculty === 'All' || (del.handedOverBy && del.handedOverBy.includes(selectedHandoverFaculty));
+
+    const matchesFaculty =
+      selectedHandoverFaculty === 'All' ||
+      (del.handedOverBy && del.handedOverBy.toLowerCase().includes(selectedHandoverFaculty.toLowerCase()));
 
     return matchesSearch && matchesStatus && matchesFaculty;
   });
 
   return (
     <div className="d-flex flex-column gap-3 w-100 pb-4">
-      {/* 1. Header & Primary Action Buttons (Balanced single-line heading + compact action buttons) */}
+      {/* 1. Header & Primary Action Buttons */}
       <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 pt-1">
         <div style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -291,58 +301,58 @@ export default function NotesStock() {
               Notes Stock & Handover Tracking
             </h2>
             <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
-              Real-time Inventory
+              Inventory & Distribution
             </span>
           </div>
           <span className="small text-sa-muted mt-1 d-block" style={{ fontSize: '12.5px' }}>
-            Monitor available module copies, log student distribution, and track who handed over notes to which student
+            Monitor physical stock levels, who handed over notes, and to which students materials were distributed
           </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-wrap flex-shrink-0">
+        <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs"
-            style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
+            className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
+            style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
             onClick={loadData}
-            title="Refresh Stock & Handover data"
+            title="Reload latest inventory counts"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} className="flex-shrink-0" />
             <span>Refresh</span>
           </button>
 
           <button
             type="button"
-            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs"
-            style={{ borderRadius: '8px', fontSize: '13px', height: '36px', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+            className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
+            style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
             onClick={() => setAddStockModalOpen(true)}
           >
-            <Plus size={15} />
+            <Plus size={14} className="flex-shrink-0" />
             <span>Add New Module</span>
           </button>
 
           <button
             type="button"
-            className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs"
-            style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px' }}
+            className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 py-1.5 fw-semibold shadow-xs text-nowrap"
+            style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
             onClick={() => openHandoverModal()}
           >
-            <Send size={14} />
-            <span>Log Notes Handover</span>
+            <Send size={14} className="flex-shrink-0" />
+            <span>Log Handover</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Key Metrics Cards (Clean, proportionate 4-column cards) */}
+      {/* 2. Key Metrics Cards */}
       <div className="row g-3">
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 border-start border-4 border-success d-flex flex-column justify-content-between">
+          <div className="sa-card p-3 h-100 border-start border-4 border-primary d-flex flex-column justify-content-between">
             <div>
               <div className="d-flex align-items-center justify-content-between mb-1.5">
                 <span className="text-sa-muted small fw-bold text-uppercase tracking-wider" style={{ fontSize: '11px' }}>
-                  Available Stock In Hand
+                  Available Stock of Notes
                 </span>
-                <div className="rounded-circle p-1.5 bg-success-subtle text-success">
+                <div className="rounded-circle p-1.5 bg-primary-subtle text-primary">
                   <Package size={17} />
                 </div>
               </div>
@@ -350,23 +360,23 @@ export default function NotesStock() {
                 <h3 className="fs-3 fw-extrabold text-sa-charcoal mb-0">
                   {totalAvailableStock}
                 </h3>
-                <span className="small text-muted fw-semibold" style={{ fontSize: '12px' }}>Copies Available</span>
+                <span className="small text-muted fw-semibold" style={{ fontSize: '12px' }}>Total Copies</span>
               </div>
             </div>
-            <div className="mt-2 small text-success d-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
-              <CheckCircle2 size={13} /> Ready for student distribution
+            <div className="mt-2 small text-primary d-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
+              <CheckCircle2 size={13} /> Stored across academy lockers
             </div>
           </div>
         </div>
 
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="sa-card p-3 h-100 border-start border-4 border-primary d-flex flex-column justify-content-between">
+          <div className="sa-card p-3 h-100 border-start border-4 border-success d-flex flex-column justify-content-between">
             <div>
               <div className="d-flex align-items-center justify-content-between mb-1.5">
                 <span className="text-sa-muted small fw-bold text-uppercase tracking-wider" style={{ fontSize: '11px' }}>
-                  Total Handed Over
+                  Handed Over to Students
                 </span>
-                <div className="rounded-circle p-1.5 bg-primary-subtle text-primary">
+                <div className="rounded-circle p-1.5 bg-success-subtle text-success">
                   <UserCheck size={17} />
                 </div>
               </div>
@@ -440,7 +450,7 @@ export default function NotesStock() {
         </div>
       </div>
 
-      {/* 3. Main Content Container (Tabs + Filter Bar + Table inside a unified, perfectly aligned card) */}
+      {/* 3. Main Content Container (Tabs + Filter Bar + Table) */}
       <div className="sa-card p-3 p-md-4">
         {/* Modern Segmented Tab Switcher */}
         <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-3 mb-3 border-bottom">
@@ -488,8 +498,8 @@ export default function NotesStock() {
 
           <span className="small text-muted fw-semibold">
             {activeTab === 'stock'
-              ? `Showing ${filteredStock.length} of ${stock.length} modules`
-              : `Showing ${filteredDeliveries.length} of ${deliveries.length} handovers`}
+              ? `Showing ${filteredStock.length} of ${stock.length} catalog items`
+              : `Showing ${filteredDeliveries.length} handover transactions`}
           </span>
         </div>
 
@@ -500,14 +510,14 @@ export default function NotesStock() {
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-2.5">
               <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '850px' }}>
                 <div className="input-group" style={{ minWidth: '240px', flex: '1 1 240px', height: '36px' }}>
-                  <span className="input-group-text bg-white border-end-0 text-muted py-0">
+                  <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
                     <Search size={15} />
                   </span>
                   <input
                     type="text"
                     className="form-control border-start-0 ps-0 text-sm"
                     style={{ height: '36px', fontSize: '13px' }}
-                    placeholder="Search by module title, subject or SKU..."
+                    placeholder="Search package title, subject, or code..."
                     value={searchStock}
                     onChange={(e) => setSearchStock(e.target.value)}
                   />
@@ -520,61 +530,65 @@ export default function NotesStock() {
                   onChange={(e) => setSelectedStockStream(e.target.value)}
                 >
                   <option value="All">All Streams & Centers</option>
-                  <option value="12th pcm tarabai park">12th PCM - Tarabai Park</option>
-                  <option value="12th pcb tarabai park">12th PCB - Tarabai Park</option>
-                  <option value="12th pcm Mangalvar peth">12th PCM - Mangalvar Peth</option>
-                  <option value="12th pcb Mangalvar peth">12th PCB - Mangalvar Peth</option>
-                  <option value="11th pcm tarabai park">11th PCM - Tarabai Park</option>
-                  <option value="11th pcmb tarabai park">11th PCMB - Tarabai Park</option>
+                  <option value="12th pcm tarabai park">12th PCM Tarabai Park</option>
+                  <option value="12th pcb tarabai park">12th PCB Tarabai Park</option>
+                  <option value="12th pcmb tarabai park">12th PCMB Tarabai Park</option>
+                  <option value="11th pcm tarabai park">11th PCM Tarabai Park</option>
+                  <option value="11th pcmb tarabai park">11th PCMB Tarabai Park</option>
+                  <option value="12th pcm Mangalvar peth">12th PCM Mangalwar Peth</option>
+                  <option value="12th pcb Mangalvar peth">12th PCB Mangalwar Peth</option>
                 </select>
 
                 <select
                   className="form-select form-select-sm"
-                  style={{ width: 'auto', minWidth: '160px', height: '36px', fontSize: '13px' }}
+                  style={{ width: 'auto', minWidth: '150px', height: '36px', fontSize: '13px' }}
                   value={selectedStockStatus}
                   onChange={(e) => setSelectedStockStatus(e.target.value)}
                 >
                   <option value="All">All Stock Levels</option>
-                  <option value="In Stock">In Stock (Healthy)</option>
-                  <option value="Low Stock">Low Stock Alerts</option>
+                  <option value="In Stock">In Stock Healthy</option>
+                  <option value="Low Stock">Low Stock Alert</option>
                   <option value="Out of Stock">Out of Stock</option>
                 </select>
               </div>
+
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs"
+                style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
+                onClick={() => setAddStockModalOpen(true)}
+              >
+                <Plus size={14} />
+                <span>New Notes Title</span>
+              </button>
             </div>
 
-            {/* Table */}
+            {/* Notes Stock Table */}
             <Table
               columns={[
                 {
                   key: 'id',
-                  title: 'SKU',
+                  title: 'SKU / ID',
                   width: '85px',
                   render: (val) => (
-                    <span className="badge bg-light text-dark border font-monospace px-1.5 py-0.5" style={{ fontSize: '11px' }}>
-                      #{val ? val.slice(-6).toUpperCase() : 'SKU'}
+                    <span className="badge bg-light text-dark border font-monospace px-1.5 py-0.5 text-nowrap" style={{ fontSize: '11px' }}>
+                      #{val ? val.slice(-5).toUpperCase() : 'BK-01'}
                     </span>
                   )
                 },
                 {
                   key: 'title',
-                  title: 'Notes & Material Package',
+                  title: 'Notes Package',
                   render: (val, row) => (
-                    <div className="d-flex align-items-center gap-2.5 py-0.5">
-                      <div className="rounded-2 p-1.5 bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: '32px', height: '32px' }}>
-                        <BookMarked size={16} />
+                    <div className="py-0.5">
+                      <div className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '13.5px', lineHeight: 1.25 }}>
+                        <BookMarked size={16} className="text-sa-primary flex-shrink-0" />
+                        <span>{val}</span>
                       </div>
-                      <div>
-                        <span className="fw-bold text-sa-charcoal d-block" style={{ fontSize: '13px', lineHeight: 1.25 }}>
-                          {val}
-                        </span>
-                        <div className="d-flex align-items-center gap-2 mt-0.5">
-                          <span className="badge bg-light text-secondary border px-1.5 py-0" style={{ fontSize: '10px' }}>
-                            {row.subject || 'General'}
-                          </span>
-                          <span className="text-muted" style={{ fontSize: '11px' }}>
-                            ₹{row.unitCost} / unit
-                          </span>
-                        </div>
+                      <div className="d-flex align-items-center gap-2 mt-1 text-muted" style={{ fontSize: '11px' }}>
+                        <span className="badge bg-light text-secondary border px-1.5 py-0">{row.subject || 'General'}</span>
+                        <span>•</span>
+                        <span>Unit: ₹{row.unitCost || 350}</span>
                       </div>
                     </div>
                   )
@@ -584,8 +598,8 @@ export default function NotesStock() {
                   title: 'Class Stream',
                   width: '180px',
                   render: (val) => (
-                    <span className="text-sa-charcoal small fw-medium text-capitalize text-nowrap">
-                      {val}
+                    <span className="badge bg-light text-sa-charcoal border text-uppercase px-2 py-1 text-nowrap" style={{ fontSize: '11px' }}>
+                      {val || 'General Stream'}
                     </span>
                   )
                 },
@@ -642,7 +656,7 @@ export default function NotesStock() {
                     <div className="d-flex gap-1.5 justify-content-end align-items-center text-nowrap">
                       <button
                         type="button"
-                        className="btn btn-sm btn-light border px-2 py-1 small d-inline-flex align-items-center gap-1 text-secondary"
+                        className="btn btn-sm btn-light border px-2 py-1 small d-inline-flex align-items-center gap-1 text-secondary text-nowrap"
                         style={{ borderRadius: '6px', fontSize: '12px' }}
                         onClick={() => openRestockModal(row)}
                         title="Add more printed copies"
@@ -652,7 +666,7 @@ export default function NotesStock() {
 
                       <button
                         type="button"
-                        className="btn btn-sm text-white px-2.5 py-1 small d-inline-flex align-items-center gap-1"
+                        className="btn btn-sm text-white px-2.5 py-1 small d-inline-flex align-items-center gap-1 text-nowrap"
                         style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '6px', fontSize: '12px' }}
                         onClick={() => openHandoverModal(row.id)}
                         disabled={Number(row.inStock) === 0}
@@ -677,7 +691,7 @@ export default function NotesStock() {
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-2.5">
               <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '850px' }}>
                 <div className="input-group" style={{ minWidth: '240px', flex: '1 1 240px', height: '36px' }}>
-                  <span className="input-group-text bg-white border-end-0 text-muted py-0">
+                  <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
                     <Search size={15} />
                   </span>
                   <input
@@ -717,15 +731,16 @@ export default function NotesStock() {
 
               <button
                 type="button"
-                className="btn btn-sm text-white px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5"
-                style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', height: '36px', fontSize: '13px' }}
+                className="btn btn-sm text-white px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 text-nowrap"
+                style={{ backgroundColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px' }}
                 onClick={() => openHandoverModal()}
               >
-                <Send size={14} /> Log Handover
+                <Send size={14} />
+                <span>Log New Handover</span>
               </button>
             </div>
 
-            {/* Table */}
+            {/* Handover Tracking Register Table */}
             <Table
               columns={[
                 {
@@ -733,7 +748,7 @@ export default function NotesStock() {
                   title: 'Tracking ID',
                   width: '95px',
                   render: (val) => (
-                    <span className="badge bg-light text-dark border font-monospace px-1.5 py-0.5" style={{ fontSize: '11px' }}>
+                    <span className="badge bg-light text-dark border font-monospace px-1.5 py-0.5 text-nowrap" style={{ fontSize: '11px' }}>
                       #{val ? val.slice(-6).toUpperCase() : 'HO-001'}
                     </span>
                   )
@@ -741,13 +756,14 @@ export default function NotesStock() {
                 {
                   key: 'bookTitle',
                   title: 'Notes Package',
+                  minWidth: '220px',
                   render: (val, row) => (
                     <div>
                       <div className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '13px' }}>
                         <BookMarked size={15} className="text-sa-primary flex-shrink-0" />
                         <span>{val}</span>
                       </div>
-                      <div className="d-flex align-items-center gap-1.5 mt-0.5 text-muted" style={{ fontSize: '11px' }}>
+                      <div className="d-flex align-items-center gap-1.5 mt-0.5 text-muted text-nowrap" style={{ fontSize: '11px' }}>
                         <span>Qty: {row.quantity || 1} copy</span>
                         <span>•</span>
                         <span>Stock left: {row.availableStock !== undefined ? `${row.availableStock} copies` : 'In Stock'}</span>
@@ -810,7 +826,7 @@ export default function NotesStock() {
                   title: 'Status',
                   width: '120px',
                   render: (val) => (
-                    <span className={`badge px-2 py-0.5 small d-inline-flex align-items-center gap-1 ${
+                    <span className={`badge px-2 py-0.5 small d-inline-flex align-items-center gap-1 text-nowrap ${
                       val === 'Handed Over' || val === 'Delivered'
                         ? 'bg-success-subtle text-success border border-success-subtle'
                         : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
@@ -836,7 +852,7 @@ export default function NotesStock() {
                     <div className="d-flex gap-1.5 justify-content-end align-items-center text-nowrap">
                       <button
                         type="button"
-                        className="btn btn-sm btn-light border px-2 py-1 text-primary d-inline-flex align-items-center gap-1 small"
+                        className="btn btn-sm btn-light border px-2 py-1 text-primary d-inline-flex align-items-center gap-1 small text-nowrap"
                         style={{ borderRadius: '6px', fontSize: '12px' }}
                         onClick={() => {
                           setViewingVoucher(row);
@@ -844,15 +860,15 @@ export default function NotesStock() {
                         }}
                         title="Print / View Handover Voucher"
                       >
-                        <Printer size={12} /> Receipt
+                        <Printer size={12} /> Voucher
                       </button>
 
                       {row.status === 'Pending Pickup' && (
                         <button
                           type="button"
-                          className="btn btn-sm btn-primary px-2 py-1 small"
+                          className="btn btn-sm btn-primary px-2 py-1 small text-nowrap"
                           style={{ borderRadius: '6px', fontSize: '12px' }}
-                          onClick={() => handleMarkHandoverComplete(val, row.studentName)}
+                          onClick={() => handleMarkHandoverComplete(val, row.studentName || row.handedOverTo)}
                         >
                           Confirm
                         </button>
@@ -868,119 +884,88 @@ export default function NotesStock() {
         )}
       </div>
 
-      {/* 4. Modal: Log Notes Handover */}
+      {/* 4. Modal: Record Notes Handover to Student */}
       <Modal
         isOpen={handoverModalOpen}
         onClose={() => setHandoverModalOpen(false)}
-        title="Log Notes Handover to Student"
+        title="Distribute & Hand Over Notes to Student"
       >
-        <form onSubmit={handleLogHandover} className="d-flex flex-column gap-3">
-          <div className="p-3 bg-light rounded-3 border">
-            <span className="small text-muted d-block mb-1">
-              Handover Authorization
-            </span>
-            <div className="d-flex align-items-center gap-2">
-              <ShieldCheck size={18} className="text-success" />
-              <span className="fw-bold text-sa-charcoal">
-                Authorized By: {handoverForm.handedOverBy || user?.name || 'Staff Member'}
-              </span>
-            </div>
-          </div>
-
+        <form onSubmit={handleHandoverSubmit} className="d-flex flex-column gap-3">
           <div>
-            <label className="form-label small fw-bold">Select Notes / Material Module *</label>
+            <label className="form-label small fw-bold">Select Material Package *</label>
             <select
               className="form-select"
               value={handoverForm.inventoryItemId}
               onChange={(e) => setHandoverForm({ ...handoverForm, inventoryItemId: e.target.value })}
               required
             >
-              <option value="">-- Choose Module Package --</option>
+              <option value="">-- Choose Module --</option>
               {stock.map(item => (
                 <option key={item.id} value={item.id} disabled={Number(item.inStock) <= 0}>
-                  {item.title} ({item.inStock} copies available) {Number(item.inStock) <= 0 ? ' [OUT OF STOCK]' : ''}
+                  {item.title} ({item.inStock} copies available) {Number(item.inStock) <= 0 ? '[OUT OF STOCK]' : ''}
                 </option>
               ))}
             </select>
-            {handoverForm.inventoryItemId && (
-              <div className="mt-1 small">
-                {(() => {
-                  const itm = stock.find(s => s.id === handoverForm.inventoryItemId);
-                  if (!itm) return null;
-                  return (
-                    <span className={itm.inStock <= itm.reorderLevel ? 'text-danger fw-bold' : 'text-success'}>
-                      Current available stock: {itm.inStock} copies (Reorder threshold: {itm.reorderLevel})
-                    </span>
-                  );
-                })()}
+          </div>
+
+          <div>
+            <label className="form-label small fw-bold">To Whom Handed Over (Select Student) *</label>
+            <select
+              className="form-select"
+              value={handoverForm.studentId}
+              onChange={(e) => setHandoverForm({ ...handoverForm, studentId: e.target.value })}
+            >
+              <option value="">-- Choose Student from Directory --</option>
+              {students.map(s => (
+                <option key={s.id || s._id} value={s.id || s._id}>
+                  {s.name} ({s.rollNumber || s.student_id || 'N/A'}) - {s.standard || '12th'}
+                </option>
+              ))}
+            </select>
+            <div className="small text-muted mt-1">Or write manual recipient name if not in directory:</div>
+          </div>
+
+          {!handoverForm.studentId && (
+            <div className="row g-2">
+              <div className="col-7">
+                <Input
+                  label="Student Full Name"
+                  name="manualStudentName"
+                  value={handoverForm.manualStudentName}
+                  onChange={(e) => setHandoverForm({ ...handoverForm, manualStudentName: e.target.value })}
+                  placeholder="e.g. Atharva Kulkarni"
+                />
               </div>
-            )}
-          </div>
-
-          <div className="row g-2">
-            <div className="col-12">
-              <label className="form-label small fw-bold">Select Registered Student *</label>
-              <select
-                className="form-select"
-                value={handoverForm.studentId}
-                onChange={(e) => setHandoverForm({ ...handoverForm, studentId: e.target.value })}
-              >
-                <option value="">-- Select Student from Register --</option>
-                {students.map(s => (
-                  <option key={s.id || s._id} value={s.id || s._id}>
-                    {s.name} (Roll: {s.rollNumber || s.student_id || 'N/A'}, Class: {s.standard || '12th'})
-                  </option>
-                ))}
-              </select>
+              <div className="col-5">
+                <Input
+                  label="Roll / ID Number"
+                  name="manualRollNo"
+                  value={handoverForm.manualRollNo}
+                  onChange={(e) => setHandoverForm({ ...handoverForm, manualRollNo: e.target.value })}
+                  placeholder="e.g. STU-2026-088"
+                />
+              </div>
             </div>
-
-            {!handoverForm.studentId && (
-              <>
-                <div className="col-7">
-                  <Input
-                    label="Or Enter Student Full Name"
-                    name="manualStudentName"
-                    value={handoverForm.manualStudentName}
-                    onChange={(e) => setHandoverForm({ ...handoverForm, manualStudentName: e.target.value })}
-                    placeholder="e.g. Aarav Deshmukh"
-                  />
-                </div>
-                <div className="col-5">
-                  <Input
-                    label="Student Roll No"
-                    name="manualRollNo"
-                    value={handoverForm.manualRollNo}
-                    onChange={(e) => setHandoverForm({ ...handoverForm, manualRollNo: e.target.value })}
-                    placeholder="e.g. STU-2026-001"
-                  />
-                </div>
-              </>
-            )}
-          </div>
+          )}
 
           <div className="row g-2">
             <div className="col-8">
-              <label className="form-label small fw-bold">Who Handed Them Over *</label>
+              <label className="form-label small fw-bold">Who Handed Them Over (Faculty / Staff Name) *</label>
               <input
                 type="text"
                 className="form-control"
                 value={handoverForm.handedOverBy}
                 onChange={(e) => setHandoverForm({ ...handoverForm, handedOverBy: e.target.value })}
-                placeholder="Faculty or Staff member name"
+                placeholder="Staff / Teacher Name"
                 required
               />
-              <span className="small text-muted" style={{ fontSize: '11px' }}>
-                e.g. Dr. Priya Kulkarni (Physics Faculty) or Prof. Shubham Sharma
-              </span>
             </div>
-
             <div className="col-4">
               <Input
-                label="Quantity (Copies)"
+                label="Copies"
                 name="quantity"
                 type="number"
                 min="1"
-                max="5"
                 value={handoverForm.quantity}
                 onChange={(e) => setHandoverForm({ ...handoverForm, quantity: e.target.value })}
                 required
@@ -996,82 +981,83 @@ export default function NotesStock() {
                 value={handoverForm.status}
                 onChange={(e) => setHandoverForm({ ...handoverForm, status: e.target.value })}
               >
-                <option value="Handed Over">Handed Over (Immediately)</option>
-                <option value="Pending Pickup">Pending Pickup (Ready at Desk)</option>
+                <option value="Handed Over">Handed Over (Physical Distribution)</option>
+                <option value="Pending Pickup">Pending Pickup at Desk</option>
               </select>
             </div>
-
             <div className="col-6">
               <Input
-                label="Verification Remarks"
+                label="Remarks / Verification"
                 name="remarks"
                 value={handoverForm.remarks}
                 onChange={(e) => setHandoverForm({ ...handoverForm, remarks: e.target.value })}
-                placeholder="e.g. In-class distribution, Signed register"
+                placeholder="e.g. RFID scanned, signed slip"
               />
             </div>
           </div>
 
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" onClick={() => setHandoverModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" icon={Send}>Log Handover & Deduct Stock</Button>
+            <Button type="submit" variant="primary" icon={Send}>Record Handover</Button>
           </div>
         </form>
       </Modal>
 
-      {/* 5. Modal: Restock Existing Module */}
-      <Modal
-        isOpen={restockModalOpen}
-        onClose={() => setRestockModalOpen(false)}
-        title="Restock Module Copies"
-      >
-        {selectedItemForRestock && (
+      {/* 5. Modal: Quick Restock Copies */}
+      {selectedItemForRestock && (
+        <Modal
+          isOpen={restockModalOpen}
+          onClose={() => setRestockModalOpen(false)}
+          title={`Restock Printed Copies: ${selectedItemForRestock.title}`}
+        >
           <form onSubmit={handleRestockSubmit} className="d-flex flex-column gap-3">
             <div className="p-3 bg-light rounded-3 border">
-              <div className="fw-bold text-sa-charcoal fs-6">
-                {selectedItemForRestock.title}
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="small text-muted fw-bold">Current Stock Level:</span>
+                <span className="badge bg-secondary">{selectedItemForRestock.inStock} copies available</span>
               </div>
-              <div className="text-muted small mt-1">
-                Class Stream: {selectedItemForRestock.standard}
-              </div>
-              <div className="mt-2 d-flex align-items-center gap-3">
-                <span className="badge bg-primary px-2 py-1">
-                  Current Available Stock: {selectedItemForRestock.inStock} copies
-                </span>
-                <span className="badge bg-secondary px-2 py-1">
-                  Reorder Level: {selectedItemForRestock.reorderLevel} copies
-                </span>
+              <div className="small text-muted">
+                Class Stream: <strong>{selectedItemForRestock.standard}</strong>
               </div>
             </div>
 
             <div>
-              <Input
-                label="Number of New Printed Copies Received"
-                name="restockQty"
+              <label className="form-label small fw-bold">Number of New Copies to Add *</label>
+              <input
                 type="number"
-                min="1"
+                className="form-control form-control-lg fw-bold"
                 value={restockQty}
                 onChange={(e) => setRestockQty(e.target.value)}
+                min="1"
                 required
               />
-              <span className="small text-muted">
-                New Available Stock will be: <strong>{Number(selectedItemForRestock.inStock) + Number(restockQty || 0)} copies</strong>
-              </span>
+              <div className="d-flex gap-2 mt-2">
+                {[10, 25, 50, 100].map(qty => (
+                  <button
+                    key={qty}
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary flex-grow-1"
+                    onClick={() => setRestockQty(qty)}
+                  >
+                    +{qty}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
               <Button variant="light" onClick={() => setRestockModalOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="primary">Add to Inventory</Button>
+              <Button type="submit" variant="primary">Confirm Restock</Button>
             </div>
           </form>
-        )}
-      </Modal>
+        </Modal>
+      )}
 
-      {/* 6. Modal: Add New Book Module */}
+      {/* 6. Modal: Add New Note Module to Catalog */}
       <Modal
         isOpen={addStockModalOpen}
         onClose={() => setAddStockModalOpen(false)}
-        title="Add New Study Material / Notes Module"
+        title="Add New Study Notes Module"
       >
         <form onSubmit={handleAddNewBook} className="d-flex flex-column gap-3">
           <Input
@@ -1106,11 +1092,12 @@ export default function NotesStock() {
           </div>
 
           <Select
-            label="Class / Stream Batch"
+            label="Target Class Stream"
             name="standard"
             value={newBook.standard}
             onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
             options={[
+              '11th & 12th Science',
               '11th pcm tarabai park',
               '11th pcb tarabai park',
               '11th pcmb tarabai park',
@@ -1119,10 +1106,7 @@ export default function NotesStock() {
               '12th pcmb tarabai park',
               '11th pcm Mangalvar peth',
               '11th pcb Mangalvar peth',
-              '11th pcmb Mangalvar peth',
-              '12th pcm Mangalvar peth',
-              '12th pcb Mangalvar peth',
-              '12th pcmb Mangalvar peth'
+              '12th pcm Mangalvar peth'
             ]}
           />
 
@@ -1135,6 +1119,7 @@ export default function NotesStock() {
                 value={newBook.inStock}
                 onChange={(e) => setNewBook({ ...newBook, inStock: e.target.value })}
                 required
+                min="1"
               />
             </div>
             <div className="col-6">
@@ -1145,6 +1130,7 @@ export default function NotesStock() {
                 value={newBook.reorderLevel}
                 onChange={(e) => setNewBook({ ...newBook, reorderLevel: e.target.value })}
                 required
+                min="1"
               />
             </div>
           </div>

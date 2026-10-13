@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import feeService from '../../services/feeService';
 import { CreditCard, Download, CheckCircle2, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -312,6 +313,11 @@ export default function StudentFees() {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {/* Back button */}
+      <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
+      </div>
+
       {/* 1. Header */}
       <div className="d-flex justify-content-between align-items-end">
         <div>

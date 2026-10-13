@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Table from '../../components/common/Table';
+import BackButton from '../../components/common/BackButton';
 import { BookOpen, UserCheck, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
@@ -63,6 +64,7 @@ export default function StudentClasses() {
   return (
     <div className="d-flex flex-column gap-4">
       <div>
+        <BackButton to="/student/dashboard" label="Back to Dashboard" />
         <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
           My Weekly Class Schedule & Timetable
         </h3>
