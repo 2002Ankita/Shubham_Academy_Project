@@ -252,7 +252,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
         { label: 'Notes', path: '/teacher/notes', icon: StickyNote },
-        { label: 'Notes & Stock', path: '/teacher/notes-stock', icon: NotesStockIcon, matchPrefixes: ['/teacher/notes-stock', '/teacher/notes/stock'] },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
       ];

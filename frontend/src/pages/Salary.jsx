@@ -34,12 +34,13 @@ export default function Salary() {
 
   // Get current month's salary (assuming latest one is current)
   const currentSalary = salaries.length > 0 ? salaries[salaries.length - 1] : null;
+  const currentMonthName = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 
   const safeNum = (val) => Number(val) || 0;
 
   const summary = currentSalary ? {
     currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
-    payPeriod: currentSalary.month || selectedMonth || 'N/A',
+    payPeriod: currentSalary.month || currentMonthName,
     amountPaid: `₹${safeNum(currentSalary.amountPaid).toLocaleString()}`,
     amountPaidSubtext: 'Total received this month',
     amountPending: `₹${safeNum(currentSalary.amountPending).toLocaleString()}`,
@@ -52,7 +53,7 @@ export default function Salary() {
     paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
   } : {
     currentMonthSalary: '₹0',
-    payPeriod: selectedMonth || 'N/A',
+    payPeriod: currentMonthName,
     amountPaid: '₹0',
     amountPaidSubtext: '-',
     amountPending: '₹0',
@@ -78,7 +79,7 @@ export default function Salary() {
     otherDeductions: deductions - pt,
     netSalary: safeNum(currentSalary.netPayable),
     workingHours: Math.round(safeNum(currentSalary.workingHours || 160)),
-    payPeriod: currentSalary.month || selectedMonth || 'N/A'
+    payPeriod: currentSalary.month || currentMonthName
   } : {
     basicSalary: 0,
     workingHoursPay: 0,
@@ -89,7 +90,7 @@ export default function Salary() {
     otherDeductions: 0,
     netSalary: 0,
     workingHours: 0,
-    payPeriod: selectedMonth || 'N/A'
+    payPeriod: currentMonthName
   };
 
   const history = salaries.map(s => ({
