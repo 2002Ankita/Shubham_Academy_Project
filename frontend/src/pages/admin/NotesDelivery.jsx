@@ -32,6 +32,16 @@ const getCurrentLocalDateTime = () => {
   return new Date(now.getTime() - offset).toISOString().slice(0, 16);
 };
 
+// Helper to normalize subject so Maths/Mathematics never defaults to Physics
+const normalizeSubject = (subj, title = '') => {
+  const combined = `${subj || ''} ${title || ''}`.trim().toLowerCase();
+  if (combined.includes('math')) return 'Maths';
+  if (combined.includes('chem')) return 'Chemistry';
+  if (combined.includes('bio')) return 'Biology';
+  if (combined.includes('phys')) return 'Physics';
+  return subj ? subj.trim() : 'Maths';
+};
+
 export default function NotesDelivery() {
   const { user } = useAuth();
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
@@ -59,7 +69,7 @@ export default function NotesDelivery() {
     recipientId: '',
     recipientName: '',
     category: 'Theory', // 'Theory' or 'CET'
-    subject: 'Physics', // 'Physics', 'Chemistry', 'Biology', 'Maths'
+    subject: 'Maths', // 'Maths', 'Physics', 'Chemistry', 'Biology'
     status: 'Delivered', // 'Delivered' or 'Pending Pickup'
     date: getCurrentLocalDateTime(),
     handedOverBy: currentStaffName,
@@ -158,7 +168,7 @@ export default function NotesDelivery() {
       recipientId: row.recipientId || row.studentId || '',
       recipientName: row.recipientName || row.studentName || '',
       category: row.category || 'Theory',
-      subject: row.subject || 'Physics',
+      subject: normalizeSubject(row.subject, row.bookTitle),
       status: row.status || 'Delivered',
       date: initialDate,
       handedOverBy: row.handedOverBy && row.handedOverBy !== '--' ? row.handedOverBy : currentStaffName,
@@ -530,8 +540,8 @@ export default function NotesDelivery() {
               key: 'subject',
               title: 'Subject',
               width: '130px',
-              render: (val) => (
-                <span className="fw-semibold text-sa-charcoal">{val || 'Physics'}</span>
+              render: (val, row) => (
+                <span className="fw-semibold text-sa-charcoal">{normalizeSubject(val, row.bookTitle)}</span>
               )
             },
             {
@@ -718,13 +728,13 @@ export default function NotesDelivery() {
               <label className="form-label small fw-bold">Subject</label>
               <select
                 className="form-select"
-                value={newDelivery.subject}
+                value={normalizeSubject(newDelivery.subject)}
                 onChange={(e) => setNewDelivery({ ...newDelivery, subject: e.target.value })}
                 required
               >
+                <option value="Maths">Maths</option>
                 <option value="Physics">Physics</option>
                 <option value="Chemistry">Chemistry</option>
-                <option value="Maths">Maths</option>
                 <option value="Biology">Biology</option>
               </select>
             </div>
@@ -943,13 +953,13 @@ export default function NotesDelivery() {
                 <label className="form-label small fw-bold">Subject</label>
                 <select
                   className="form-select"
-                  value={editingDelivery.subject}
+                  value={normalizeSubject(editingDelivery.subject)}
                   onChange={(e) => setEditingDelivery({ ...editingDelivery, subject: e.target.value })}
                   required
                 >
+                  <option value="Maths">Maths</option>
                   <option value="Physics">Physics</option>
                   <option value="Chemistry">Chemistry</option>
-                  <option value="Maths">Maths</option>
                   <option value="Biology">Biology</option>
                 </select>
               </div>

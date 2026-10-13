@@ -26,15 +26,8 @@ DEFAULT_BOOKS = [
 ]
 
 async def ensure_default_books():
-    """Ensure that the core Theory and CET books exist in inventory items if collection is empty."""
-    try:
-        count = await InventoryItem.count()
-        if count == 0:
-            for book in DEFAULT_BOOKS:
-                new_item = InventoryItem(**book)
-                await new_item.insert()
-    except Exception as e:
-        print(f"Error ensuring default books: {e}")
+    """No hardcoded auto-injection. Users fill inventory information by themselves."""
+    pass
 
 async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
     item_dict = item_in.model_dump() if hasattr(item_in, "model_dump") else item_in.dict()
@@ -93,27 +86,15 @@ async def adjust_inventory_stock(item_id: str, delta: int) -> dict:
     return d
 
 async def get_inventory_items() -> list[dict]:
-    await ensure_default_books()
     items = await InventoryItem.find_all().to_list()
     res = []
     for item in items:
         d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
         d["id"] = str(item.id)
-        # Ensure category and subject exist for legacy records
         if not d.get("category"):
-            d["category"] = "CET" if "cet" in (d.get("title") or "").lower() else "Theory"
+            d["category"] = "Theory"
         if not d.get("subject"):
-            t = (d.get("title") or "").lower()
-            if "physic" in t:
-                d["subject"] = "Physics"
-            elif "chem" in t:
-                d["subject"] = "Chemistry"
-            elif "bio" in t:
-                d["subject"] = "Biology"
-            elif "math" in t:
-                d["subject"] = "Maths"
-            else:
-                d["subject"] = "General"
+            d["subject"] = "General"
         res.append(d)
     return res
 

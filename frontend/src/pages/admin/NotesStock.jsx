@@ -3,7 +3,6 @@ import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import { 
   BookMarked, 
   Plus, 
@@ -21,6 +20,16 @@ import {
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
 
+// Helper to normalize subject so Maths/Mathematics never defaults to Physics
+const normalizeSubject = (subj, title = '') => {
+  const combined = `${subj || ''} ${title || ''}`.trim().toLowerCase();
+  if (combined.includes('math')) return 'Maths';
+  if (combined.includes('chem')) return 'Chemistry';
+  if (combined.includes('bio')) return 'Biology';
+  if (combined.includes('phys')) return 'Physics';
+  return subj ? subj.trim() : 'General';
+};
+
 export default function NotesStock() {
   const [stock, setStock] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +44,16 @@ export default function NotesStock() {
   const [selectedBookForReplenish, setSelectedBookForReplenish] = useState(null);
   const [replenishQty, setReplenishQty] = useState(25);
 
-  // New Book State
+  // New Book State - no hardcoded defaults, user fills information themselves
   const [newBook, setNewBook] = useState({
     category: 'Theory',
-    subject: 'Physics',
-    title: 'Theory - Physics',
-    standard: '11th & 12th Science',
-    inStock: 50,
-    reorderLevel: 15,
-    unitCost: 350
+    subject: 'Maths',
+    customSubject: '',
+    title: '',
+    standard: '',
+    inStock: '',
+    reorderLevel: '',
+    unitCost: ''
   });
 
   // Edit Book State
@@ -53,16 +63,19 @@ export default function NotesStock() {
     setLoading(true);
     try {
       const data = await inventoryService.getItems();
-      setStock((data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        category: item.category || (item.title.toLowerCase().includes('cet') ? 'CET' : 'Theory'),
-        subject: item.subject || 'Physics',
-        standard: item.standard || '11th & 12th Science',
-        inStock: Number(item.in_stock) || 0,
-        reorderLevel: Number(item.reorder_level) || 15,
-        unitCost: Number(item.unit_cost) || 350
-      })));
+      setStock((data || []).map(item => {
+        const normSubj = normalizeSubject(item.subject, item.title);
+        return {
+          id: item.id,
+          title: item.title || '',
+          category: item.category || (item.title && item.title.toLowerCase().includes('cet') ? 'CET' : 'Theory'),
+          subject: normSubj,
+          standard: item.standard || '11th & 12th Science',
+          inStock: Number(item.in_stock) ?? 0,
+          reorderLevel: Number(item.reorder_level) ?? 15,
+          unitCost: Number(item.unit_cost) ?? 0
+        };
+      }));
     } catch (err) {
       toast.error('Failed to load books and stock inventory from database');
     } finally {
@@ -74,59 +87,63 @@ export default function NotesStock() {
     fetchStock();
   }, []);
 
-  const handleCategoryChange = (cat) => {
-    setNewBook(prev => {
-      const subj = prev.subject || 'Physics';
-      return {
-        ...prev,
-        category: cat,
-        title: `${cat} - ${subj}`,
-        unitCost: cat === 'CET' ? 400 : 350
-      };
+  const handleOpenAddModal = () => {
+    setNewBook({
+      category: 'Theory',
+      subject: 'Maths',
+      customSubject: '',
+      title: '',
+      standard: '',
+      inStock: '',
+      reorderLevel: '',
+      unitCost: ''
     });
-  };
-
-  const handleSubjectChange = (subj) => {
-    setNewBook(prev => {
-      const cat = prev.category || 'Theory';
-      return {
-        ...prev,
-        subject: subj,
-        title: `${cat} - ${subj}`
-      };
-    });
+    setModalOpen(true);
   };
 
   const handleAddStock = async (e) => {
     e.preventDefault();
+    if (!newBook.title.trim()) {
+      toast.error('Please enter a book title');
+      return;
+    }
+
+    const finalSubject = newBook.subject === 'Other' && newBook.customSubject
+      ? newBook.customSubject.trim()
+      : newBook.subject;
+
     try {
       await inventoryService.createItem({
-        title: newBook.title,
+        title: newBook.title.trim(),
         category: newBook.category,
-        subject: newBook.subject,
-        standard: newBook.standard,
-        in_stock: Number(newBook.inStock),
-        reorder_level: Number(newBook.reorderLevel),
-        unit_cost: Number(newBook.unitCost)
+        subject: finalSubject,
+        standard: newBook.standard || 'General',
+        in_stock: Number(newBook.inStock) || 0,
+        reorder_level: Number(newBook.reorderLevel) || 10,
+        unit_cost: Number(newBook.unitCost) || 0
       });
-      toast.success(`Book stock for "${newBook.title}" successfully added!`);
+      toast.success(`Book "${newBook.title}" added to inventory successfully!`);
       setModalOpen(false);
       fetchStock();
     } catch (err) {
-      toast.error('Failed to add book stock to database');
+      console.error('Add stock error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to add book stock to database');
     }
   };
 
   const handleOpenEditModal = (row) => {
+    const normSubj = normalizeSubject(row.subject, row.title);
+    const isStandardSubj = ['Physics', 'Chemistry', 'Maths', 'Biology'].includes(normSubj);
     setEditingBook({
       id: row.id,
-      title: row.title,
-      category: row.category,
-      subject: row.subject,
-      standard: row.standard,
-      inStock: row.inStock,
-      reorderLevel: row.reorderLevel,
-      unitCost: row.unitCost
+      title: row.title || '',
+      category: row.category || 'Theory',
+      subject: isStandardSubj ? normSubj : 'Other',
+      customSubject: isStandardSubj ? '' : normSubj,
+      standard: row.standard || '',
+      inStock: row.inStock ?? 0,
+      reorderLevel: row.reorderLevel ?? 15,
+      unitCost: row.unitCost ?? 0
     });
     setEditModalOpen(true);
   };
@@ -134,36 +151,43 @@ export default function NotesStock() {
   const handleUpdateStock = async (e) => {
     e.preventDefault();
     if (!editingBook) return;
+
+    const finalSubject = editingBook.subject === 'Other' && editingBook.customSubject
+      ? editingBook.customSubject.trim()
+      : editingBook.subject;
+
     try {
       await inventoryService.updateItem(editingBook.id, {
-        title: editingBook.title,
+        title: editingBook.title.trim(),
         category: editingBook.category,
-        subject: editingBook.subject,
-        standard: editingBook.standard,
-        in_stock: Number(editingBook.inStock),
-        reorder_level: Number(editingBook.reorderLevel),
-        unit_cost: Number(editingBook.unitCost)
+        subject: finalSubject,
+        standard: editingBook.standard || 'General',
+        in_stock: Number(editingBook.inStock) || 0,
+        reorder_level: Number(editingBook.reorderLevel) || 0,
+        unit_cost: Number(editingBook.unitCost) || 0
       });
       toast.success(`Book stock for "${editingBook.title}" updated successfully!`);
       setEditModalOpen(false);
       setEditingBook(null);
       fetchStock();
     } catch (err) {
-      toast.error('Failed to update book stock');
+      console.error('Update stock error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to update book stock');
     }
   };
 
   const handleDeleteStock = async (bookId, bookTitle) => {
-    if (!window.confirm(`Are you sure you want to delete "${bookTitle}" from inventory?`)) {
+    if (!window.confirm(`Are you sure you want to delete "${bookTitle}" from inventory? This cannot be undone.`)) {
       return;
     }
     try {
       await inventoryService.deleteItem(bookId);
-      toast.success(`Book "${bookTitle}" removed from inventory.`);
+      toast.success(`Book "${bookTitle}" removed from inventory successfully.`);
       setStock(prev => prev.filter(b => b.id !== bookId));
       fetchStock();
     } catch (err) {
-      toast.error('Failed to delete book stock');
+      console.error('Delete stock error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to delete book stock');
     }
   };
 
@@ -193,8 +217,8 @@ export default function NotesStock() {
 
   // KPI Calculations
   const totalCopies = stock.reduce((acc, it) => acc + it.inStock, 0);
-  const theoryCopies = stock.filter(it => it.category === 'Theory').reduce((acc, it) => acc + it.inStock, 0);
-  const cetCopies = stock.filter(it => it.category === 'CET').reduce((acc, it) => acc + it.inStock, 0);
+  const theoryCopies = stock.filter(it => (it.category || '').toLowerCase() === 'theory').reduce((acc, it) => acc + it.inStock, 0);
+  const cetCopies = stock.filter(it => (it.category || '').toLowerCase() === 'cet').reduce((acc, it) => acc + it.inStock, 0);
   const lowStockCount = stock.filter(it => it.inStock <= it.reorderLevel).length;
 
   // Filtered list
@@ -221,7 +245,7 @@ export default function NotesStock() {
             <span>Books & Stock Inventory</span>
           </h3>
           <span className="small text-sa-muted">
-            Live warehouse stock records, copies on hand, and reorder levels for Theory and CET books
+            Live database warehouse stock, copies on hand, and reorder levels for Theory and CET books
           </span>
         </div>
 
@@ -229,7 +253,7 @@ export default function NotesStock() {
           <Button variant="outline" icon={RefreshCw} onClick={fetchStock}>
             Refresh
           </Button>
-          <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
+          <Button variant="primary" icon={Plus} onClick={handleOpenAddModal}>
             Add New Book Stock
           </Button>
         </div>
@@ -255,7 +279,7 @@ export default function NotesStock() {
             <div>
               <span className="text-sa-muted fw-semibold small d-block">Theory Books Available</span>
               <div className="fw-bold brand-font fs-3" style={{ color: '#8B1216' }}>{theoryCopies}</div>
-              <span className="small text-sa-muted">Physics, Chem, Bio, Maths</span>
+              <span className="small text-sa-muted">Board & Theory curriculum</span>
             </div>
             <div className="rounded-circle p-2.5 text-danger bg-danger bg-opacity-10">
               <BookMarked size={24} />
@@ -268,7 +292,7 @@ export default function NotesStock() {
             <div>
               <span className="text-sa-muted fw-semibold small d-block">CET Books Available</span>
               <div className="fw-bold brand-font fs-3 text-warning-emphasis">{cetCopies}</div>
-              <span className="small text-sa-muted">Physics, Chem, Bio, Maths</span>
+              <span className="small text-sa-muted">Competitive entrance guides</span>
             </div>
             <div className="rounded-circle p-2.5 bg-warning bg-opacity-10 text-warning-emphasis">
               <Sparkles size={24} />
@@ -330,10 +354,10 @@ export default function NotesStock() {
               onChange={(e) => setSubjectFilter(e.target.value)}
             >
               <option value="All">All Subjects</option>
+              <option value="Maths">Maths</option>
               <option value="Physics">Physics</option>
               <option value="Chemistry">Chemistry</option>
               <option value="Biology">Biology</option>
-              <option value="Maths">Maths</option>
             </select>
           </div>
         </div>
@@ -364,9 +388,9 @@ export default function NotesStock() {
             {
               key: 'subject',
               title: 'Subject',
-              width: '130px',
+              width: '140px',
               render: (val) => (
-                <span className="fw-semibold text-sa-charcoal">{val || 'Physics'}</span>
+                <span className="fw-bold text-sa-charcoal">{val || 'Maths'}</span>
               )
             },
             {
@@ -481,7 +505,7 @@ export default function NotesStock() {
         />
       </div>
 
-      {/* 5. Modal: Add New Book Stock */}
+      {/* 5. Modal: Add New Book Stock (User fills in information themselves) */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add Printed Book Stock">
         <form onSubmit={handleAddStock} className="d-flex flex-column gap-3">
           <div className="row g-3">
@@ -490,7 +514,7 @@ export default function NotesStock() {
               <select
                 className="form-select"
                 value={newBook.category}
-                onChange={(e) => handleCategoryChange(e.target.value)}
+                onChange={(e) => setNewBook({ ...newBook, category: e.target.value })}
                 required
               >
                 <option value="Theory">Theory Book</option>
@@ -502,62 +526,89 @@ export default function NotesStock() {
               <select
                 className="form-select"
                 value={newBook.subject}
-                onChange={(e) => handleSubjectChange(e.target.value)}
+                onChange={(e) => setNewBook({ ...newBook, subject: e.target.value })}
                 required
               >
+                <option value="Maths">Maths</option>
                 <option value="Physics">Physics</option>
                 <option value="Chemistry">Chemistry</option>
-                <option value="Maths">Maths</option>
                 <option value="Biology">Biology</option>
+                <option value="Other">Other / Custom</option>
               </select>
             </div>
           </div>
 
-          <Input
-            label="Module / Book Title"
-            name="title"
-            value={newBook.title}
-            onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
-            placeholder="e.g. Theory - Physics"
-            required
-          />
+          {newBook.subject === 'Other' && (
+            <div>
+              <label className="form-label small fw-bold">Custom Subject Name</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter custom subject name..."
+                value={newBook.customSubject}
+                onChange={(e) => setNewBook({ ...newBook, customSubject: e.target.value })}
+                required
+              />
+            </div>
+          )}
 
-          <Select
-            label="Target Class Stream"
-            name="standard"
-            value={newBook.standard}
-            onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
-            options={[
-              '11th & 12th Science',
-              '11th pcm tarabai park',
-              '11th pcb tarabai park',
-              '11th pcmb tarabai park',
-              '12th pcm tarabai park',
-              '12th pcb tarabai park',
-              '12th pcmb tarabai park',
-              '11th pcm Mangalvar peth',
-              '11th pcb Mangalvar peth',
-              '12th pcm Mangalvar peth'
-            ]}
-          />
+          <div>
+            <label className="form-label small fw-bold">
+              Module / Book Title <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="e.g. current electricity, Matrices Part 1, Rotational Dynamics..."
+              value={newBook.title}
+              onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="form-label small fw-bold">Target Class / Stream</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="e.g. 11th pcm tarabai park, 12th Science..."
+              list="streams-datalist"
+              value={newBook.standard}
+              onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
+            />
+            <datalist id="streams-datalist">
+              <option value="11th & 12th Science" />
+              <option value="11th pcm tarabai park" />
+              <option value="11th pcb tarabai park" />
+              <option value="11th pcmb tarabai park" />
+              <option value="12th pcm tarabai park" />
+              <option value="12th pcb tarabai park" />
+              <option value="12th pcmb tarabai park" />
+              <option value="11th pcm Mangalvar peth" />
+              <option value="11th pcb Mangalvar peth" />
+              <option value="12th pcm Mangalvar peth" />
+            </datalist>
+          </div>
 
           <div className="row g-3">
             <div className="col-4">
-              <Input
-                label="Copies Added"
-                name="inStock"
+              <label className="form-label small fw-bold">Available Copies *</label>
+              <input
                 type="number"
+                className="form-control"
+                placeholder="e.g. 50"
                 value={newBook.inStock}
                 onChange={(e) => setNewBook({ ...newBook, inStock: e.target.value })}
                 required
-                min="1"
+                min="0"
               />
             </div>
             <div className="col-4">
-              <Input
-                label="Reorder Threshold"
-                name="reorderLevel"
+              <label className="form-label small fw-bold">Reorder Level *</label>
+              <input
                 type="number"
+                className="form-control"
+                placeholder="e.g. 15"
                 value={newBook.reorderLevel}
                 onChange={(e) => setNewBook({ ...newBook, reorderLevel: e.target.value })}
                 required
@@ -565,10 +616,11 @@ export default function NotesStock() {
               />
             </div>
             <div className="col-4">
-              <Input
-                label="Cost per Unit (₹)"
-                name="unitCost"
+              <label className="form-label small fw-bold">Unit Cost (₹) *</label>
+              <input
                 type="number"
+                className="form-control"
+                placeholder="e.g. 350"
                 value={newBook.unitCost}
                 onChange={(e) => setNewBook({ ...newBook, unitCost: e.target.value })}
                 required
@@ -613,47 +665,71 @@ export default function NotesStock() {
                   onChange={(e) => setEditingBook({ ...editingBook, subject: e.target.value })}
                   required
                 >
+                  <option value="Maths">Maths</option>
                   <option value="Physics">Physics</option>
                   <option value="Chemistry">Chemistry</option>
-                  <option value="Maths">Maths</option>
                   <option value="Biology">Biology</option>
+                  <option value="Other">Other / Custom</option>
                 </select>
               </div>
             </div>
 
-            <Input
-              label="Module / Book Title"
-              name="title"
-              value={editingBook.title}
-              onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })}
-              required
-            />
+            {editingBook.subject === 'Other' && (
+              <div>
+                <label className="form-label small fw-bold">Custom Subject Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter custom subject name..."
+                  value={editingBook.customSubject}
+                  onChange={(e) => setEditingBook({ ...editingBook, customSubject: e.target.value })}
+                  required
+                />
+              </div>
+            )}
 
-            <Select
-              label="Target Class Stream"
-              name="standard"
-              value={editingBook.standard}
-              onChange={(e) => setEditingBook({ ...editingBook, standard: e.target.value })}
-              options={[
-                '11th & 12th Science',
-                '11th pcm tarabai park',
-                '11th pcb tarabai park',
-                '11th pcmb tarabai park',
-                '12th pcm tarabai park',
-                '12th pcb tarabai park',
-                '12th pcmb tarabai park',
-                '11th pcm Mangalvar peth',
-                '11th pcb Mangalvar peth',
-                '12th pcm Mangalvar peth'
-              ]}
-            />
+            <div>
+              <label className="form-label small fw-bold">
+                Module / Book Title <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={editingBook.title}
+                onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="form-label small fw-bold">Target Class Stream</label>
+              <input
+                type="text"
+                className="form-control"
+                list="streams-datalist-edit"
+                value={editingBook.standard}
+                onChange={(e) => setEditingBook({ ...editingBook, standard: e.target.value })}
+              />
+              <datalist id="streams-datalist-edit">
+                <option value="11th & 12th Science" />
+                <option value="11th pcm tarabai park" />
+                <option value="11th pcb tarabai park" />
+                <option value="11th pcmb tarabai park" />
+                <option value="12th pcm tarabai park" />
+                <option value="12th pcb tarabai park" />
+                <option value="12th pcmb tarabai park" />
+                <option value="11th pcm Mangalvar peth" />
+                <option value="11th pcb Mangalvar peth" />
+                <option value="12th pcm Mangalvar peth" />
+              </datalist>
+            </div>
 
             <div className="row g-3">
               <div className="col-4">
-                <Input
-                  label="Available Copies"
-                  name="inStock"
+                <label className="form-label small fw-bold">Available Copies *</label>
+                <input
                   type="number"
+                  className="form-control"
                   value={editingBook.inStock}
                   onChange={(e) => setEditingBook({ ...editingBook, inStock: e.target.value })}
                   required
@@ -661,21 +737,21 @@ export default function NotesStock() {
                 />
               </div>
               <div className="col-4">
-                <Input
-                  label="Reorder Threshold"
-                  name="reorderLevel"
+                <label className="form-label small fw-bold">Reorder Threshold *</label>
+                <input
                   type="number"
+                  className="form-control"
                   value={editingBook.reorderLevel}
                   onChange={(e) => setEditingBook({ ...editingBook, reorderLevel: e.target.value })}
                   required
-                  min="1"
+                  min="0"
                 />
               </div>
               <div className="col-4">
-                <Input
-                  label="Unit Cost (₹)"
-                  name="unitCost"
+                <label className="form-label small fw-bold">Unit Cost (₹) *</label>
+                <input
                   type="number"
+                  className="form-control"
                   value={editingBook.unitCost}
                   onChange={(e) => setEditingBook({ ...editingBook, unitCost: e.target.value })}
                   required
