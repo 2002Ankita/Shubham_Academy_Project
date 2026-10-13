@@ -5,6 +5,7 @@ import attendanceService from '../../services/attendanceService';
 import feeService from '../../services/feeService';
 import examService from '../../services/examService';
 import batchService from '../../services/batchService';
+import inventoryService from '../../services/inventoryService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -36,7 +37,10 @@ import {
   AlertTriangle,
   Tag,
   Clock,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  BookMarked,
+  Truck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -68,16 +72,18 @@ export default function AdminDashboard() {
     { day: 'Sun', present: 0, absent: 0 },
   ]);
   const [scheduleList, setScheduleList] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
 
   const fetchDashboardData = async () => {
     try {
-      const [studentsRes, attendanceRes, feesRes, examsRes, batchesRes, summaryRes] = await Promise.allSettled([
+      const [studentsRes, attendanceRes, feesRes, examsRes, batchesRes, summaryRes, inventoryRes] = await Promise.allSettled([
         studentService.getAll(),
         attendanceService.getLogs(),
         feeService.getAll(),
         examService.getAll(),
         batchService.getBatches(),
-        attendanceService.getReportSummary()
+        attendanceService.getReportSummary(),
+        inventoryService.getItems()
       ]);
 
       if (studentsRes.status === 'fulfilled') {
@@ -154,6 +160,10 @@ export default function AdminDashboard() {
             status: 'Upcoming'
           }));
           setScheduleList(formatted);
+        }
+
+        if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
+          setInventoryItems(inventoryRes.value);
         }
       } catch (err) {
         console.error('Error fetching admin dashboard data:', err);
@@ -885,15 +895,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Low Stock Alert */}
+        {/* Books & Stock Inventory */}
         <div className="col-12 col-lg-4">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
               <div className="d-flex align-items-center gap-2">
-                <Package size={18} style={{ color: 'var(--sa-primary-red)' }} />
+                <BookMarked size={18} style={{ color: 'var(--sa-primary-red)' }} />
                 <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
-                  Low Stock Alert
+                  Books & Stock Inventory
                 </h2>
               </div>
               <button
@@ -901,33 +911,99 @@ export default function AdminDashboard() {
                 className="btn btn-link p-0 text-decoration-none fw-semibold"
                 style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
               >
-                View All &rarr;
+                Manage Stock &rarr;
               </button>
             </div>
 
-            {/* List */}
-            <div className="d-flex flex-column gap-2.5 flex-grow-1">
-              {lowStockItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="d-flex align-items-center justify-content-between py-1.5 px-2 rounded-2"
-                  style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
-                >
-                  <span className="text-sa-charcoal fw-medium" style={{ fontSize: '0.84rem' }}>
-                    {item.name}
-                  </span>
-                  <span
-                    className="badge rounded-2 fw-semibold px-2 py-1"
-                    style={{
-                      backgroundColor: item.type === 'danger' ? '#FDF0F0' : '#FEF8EB',
-                      color: item.type === 'danger' ? '#DC2626' : '#D97718',
-                      fontSize: '0.74rem'
-                    }}
-                  >
-                    {item.count}
-                  </span>
+            {/* Quick Stats Pill */}
+            <div className="d-flex align-items-center justify-content-between p-2 rounded-2 mb-2.5" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div className="text-center flex-grow-1 border-end">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>TOTAL COPIES</div>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.05rem' }}>
+                  {inventoryItems.reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
                 </div>
-              ))}
+              </div>
+              <div className="text-center flex-grow-1 border-end">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>THEORY BOOKS</div>
+                <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: '#8B1216' }}>
+                  {inventoryItems.filter(it => (it.category || '').toLowerCase() === 'theory').reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
+                </div>
+              </div>
+              <div className="text-center flex-grow-1">
+                <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>CET BOOKS</div>
+                <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: '#D97706' }}>
+                  {inventoryItems.filter(it => (it.category || '').toLowerCase() === 'cet').reduce((acc, it) => acc + (Number(it.in_stock) || 0), 0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Book Subjects Stock List */}
+            <div className="d-flex flex-column gap-2 flex-grow-1 overflow-auto" style={{ maxHeight: '215px' }}>
+              {inventoryItems.length > 0 ? (
+                inventoryItems.slice(0, 6).map((item, idx) => {
+                  const isLow = Number(item.in_stock) <= Number(item.reorder_level);
+                  const isCET = (item.category || '').toLowerCase() === 'cet';
+                  return (
+                    <div
+                      key={item.id || idx}
+                      className="d-flex align-items-center justify-content-between py-1.5 px-2 rounded-2"
+                      style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <span
+                          className="badge rounded-1 px-1.5 py-0.5 fw-bold"
+                          style={{
+                            fontSize: '0.66rem',
+                            backgroundColor: isCET ? '#FEF3C7' : '#FEE2E2',
+                            color: isCET ? '#B45309' : '#991B1B'
+                          }}
+                        >
+                          {item.category || (isCET ? 'CET' : 'Theory')}
+                        </span>
+                        <span className="text-sa-charcoal fw-semibold text-truncate" style={{ fontSize: '0.82rem', maxWidth: '140px' }}>
+                          {item.subject ? `${item.subject}` : item.title}
+                        </span>
+                      </div>
+                      <div className="d-flex align-items-center gap-1.5">
+                        <span className="fw-bold" style={{ fontSize: '0.82rem', color: isLow ? '#DC2626' : '#168554' }}>
+                          {item.in_stock} Copies
+                        </span>
+                        {isLow && (
+                          <span className="badge rounded-pill bg-danger-subtle text-danger" style={{ fontSize: '0.65rem' }}>
+                            Low
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center text-sa-muted py-3 small">
+                  Loading books & stock inventory...
+                </div>
+              )}
+            </div>
+
+            {/* Quick Action Footer */}
+            <div className="mt-3 pt-2.5 border-top d-flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/notes/stock')}
+                className="btn btn-sm btn-outline-secondary w-50 d-flex align-items-center justify-content-center gap-1 rounded-2"
+                style={{ fontSize: '0.76rem', fontWeight: 600 }}
+              >
+                <BookOpen size={13} />
+                <span>Books Stock</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/notes/delivery')}
+                className="btn btn-sm text-white w-50 d-flex align-items-center justify-content-center gap-1 rounded-2 shadow-xs"
+                style={{ backgroundColor: '#8B1216', fontSize: '0.76rem', fontWeight: 600 }}
+              >
+                <Truck size={13} />
+                <span>Books Delivery</span>
+              </button>
             </div>
           </div>
         </div>

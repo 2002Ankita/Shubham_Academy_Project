@@ -11,14 +11,29 @@ export const inventoryService = {
     return res.data;
   },
 
-  getDeliveries: async () => {
-    const res = await api.get('/inventory/deliveries');
-    return res.data.map(d => ({
+  updateItem: async (id, data) => {
+    const res = await api.put(`/inventory/items/${id}`, data);
+    return res.data;
+  },
+
+  adjustStock: async (id, delta) => {
+    const res = await api.post(`/inventory/items/${id}/adjust-stock`, { delta });
+    return res.data;
+  },
+
+  getDeliveries: async (studentId = null) => {
+    const url = studentId ? `/inventory/deliveries?student_id=${encodeURIComponent(studentId)}` : '/inventory/deliveries';
+    const res = await api.get(url);
+    return (res.data || []).map(d => ({
       ...d,
-      studentName: d.student_name,
-      rollNumber: d.roll_number,
-      bookTitle: d.book_title,
-      verifiedBy: d.verified_by
+      studentName: d.student_name || 'Student',
+      rollNumber: d.roll_number || d.student_roll_no || 'N/A',
+      bookTitle: d.book_title || '',
+      category: d.category || 'Theory',
+      subject: d.subject || 'General',
+      handedOverBy: d.handed_over_by || d.verified_by || '--',
+      verifiedBy: d.handed_over_by || d.verified_by || '--',
+      remarks: d.remarks || ''
     }));
   },
 
@@ -27,9 +42,29 @@ export const inventoryService = {
     return res.data;
   },
 
-  updateDeliveryStatus: async (id, status, verifiedBy) => {
-    const payload = { status, verified_by: verifiedBy };
+  updateDeliveryStatus: async (id, status, handedOverBy = null, remarks = null) => {
+    const payload = { 
+      status, 
+      handed_over_by: handedOverBy,
+      verified_by: handedOverBy,
+      remarks 
+    };
     const res = await api.put(`/inventory/deliveries/${id}`, payload);
+    return res.data;
+  },
+
+  deleteDelivery: async (id) => {
+    const res = await api.delete(`/inventory/deliveries/${id}`);
+    return res.data;
+  },
+
+  getStudentDeliveryStatus: async (studentId) => {
+    const res = await api.get(`/inventory/student/${encodeURIComponent(studentId)}/status`);
+    return res.data;
+  },
+
+  getMyDeliveryStatus: async () => {
+    const res = await api.get('/inventory/my-status');
     return res.data;
   }
 };

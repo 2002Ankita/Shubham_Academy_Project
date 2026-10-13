@@ -6,10 +6,12 @@ from app.models.user import User
 
 class InventoryItem(Document):
     title: str
-    standard: str
-    in_stock: int
-    reorder_level: int
-    unit_cost: float
+    category: str = "Theory"  # "Theory" | "CET"
+    subject: str = "Physics"  # "Physics" | "Chemistry" | "Biology" | "Maths"
+    standard: str = "11th & 12th Science"
+    in_stock: int = 50
+    reorder_level: int = 15
+    unit_cost: float = 350.0
     created_at: datetime = datetime.utcnow()
 
     class Settings:
@@ -17,10 +19,17 @@ class InventoryItem(Document):
 
 class InventoryDelivery(Document):
     student: Link[Student]
-    inventory_item: Link[InventoryItem]
+    inventory_item: Optional[Link[InventoryItem]] = None
+    book_title: Optional[str] = None
+    category: Optional[str] = "Theory"  # "Theory" | "CET"
+    subject: Optional[str] = "Physics"  # "Physics" | "Chemistry" | "Biology" | "Maths"
     status: str = "Pending Pickup"
     date: Optional[datetime] = None
+    handed_over_by: Optional[str] = None
     verified_by: Optional[str] = None
+    handed_over_to: Optional[str] = None
+    student_roll_no: Optional[str] = None
+    remarks: Optional[str] = None
     created_at: datetime = datetime.utcnow()
 
     class Settings:

@@ -20,7 +20,12 @@ import {
   CreditCard,
   Bell,
   ArrowRight,
-  Megaphone
+  Megaphone,
+  Truck,
+  CheckCircle2,
+  AlertCircle,
+  BookMarked,
+  Sparkles
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { toast } from 'react-toastify';
@@ -33,6 +38,7 @@ import examService from '../../services/examService';
 import marksService from '../../services/marksService';
 import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
+import inventoryService from '../../services/inventoryService';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -49,6 +55,21 @@ export default function StudentDashboard() {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [loading, setLoading] = useState(true);
+  const [bookDeliveryData, setBookDeliveryData] = useState({
+    theory: {
+      Physics: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Chemistry: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Biology: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Maths: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null }
+    },
+    cet: {
+      Physics: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Chemistry: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Biology: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null },
+      Maths: { delivered: false, status: 'Not Delivered', date: null, handed_over_by: null }
+    },
+    summary: { total_books: 8, delivered_count: 0, pending_count: 0, not_delivered_count: 8 }
+  });
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -64,7 +85,8 @@ export default function StudentDashboard() {
           feesData,
           attendanceData,
           detailsData,
-          batchesDataRes
+          batchesDataRes,
+          deliveryDataRes
         ] = await Promise.allSettled([
           studentService.getById(studentId),
           noticeService.getAll(),
@@ -73,7 +95,8 @@ export default function StudentDashboard() {
           feeService.getAll(),
           attendanceService.getLogs(),
           feeService.getFeeDetails(studentId),
-          batchService.getBatches()
+          batchService.getBatches(),
+          inventoryService.getStudentDeliveryStatus(studentId).catch(() => inventoryService.getMyDeliveryStatus().catch(() => null))
         ]);
 
         if (studentData.status === 'fulfilled' && studentData.value) {
@@ -164,6 +187,9 @@ export default function StudentDashboard() {
                  isOngoing: false
               })));
            }
+        }
+        if (deliveryDataRes?.status === 'fulfilled' && deliveryDataRes.value) {
+          setBookDeliveryData(deliveryDataRes.value);
         }
       } catch (err) {
         console.warn('Dashboard service loading fallback:', err);
@@ -676,6 +702,192 @@ export default function StudentDashboard() {
                 </div>
                 <ChevronRight size={17} className="text-sa-primary" />
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. BOOKS DELIVERY STATUS (Theory & CET for Physics, Chem, Bio, Maths)     */}
+      {/* ========================================================================= */}
+      <div className="sa-card p-3.5 p-xl-4 bg-white border rounded-4 shadow-xs">
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+          <div className="d-flex align-items-center gap-2.5">
+            <div className="p-2 rounded-3 text-white" style={{ backgroundColor: '#8B1216' }}>
+              <Truck size={20} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2">
+                <h5 className="m-0 fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.1rem' }}>
+                  Books Delivery & Handover Status
+                </h5>
+                <span
+                  className="badge rounded-pill px-2.5 py-1 fw-bold text-uppercase"
+                  style={{
+                    backgroundColor: (bookDeliveryData.summary?.delivered_count || 0) === 8 ? '#DEF7EC' : '#FEF3C7',
+                    color: (bookDeliveryData.summary?.delivered_count || 0) === 8 ? '#03543F' : '#92400E',
+                    fontSize: '0.72rem'
+                  }}
+                >
+                  {bookDeliveryData.summary?.delivered_count || 0} / 8 Books Delivered
+                </span>
+              </div>
+              <span className="small text-sa-muted">
+                Official handover verification for Theory and CET curriculum books
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold"
+            style={{ fontSize: '0.80rem' }}
+            onClick={() => navigate('/student/notes-delivery')}
+          >
+            <span>View Full Delivery Desk</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {/* 2 Subject Groups: Theory Books & CET Books */}
+        <div className="row g-3 g-xl-4">
+          {/* Column 1: Theory Books (Physics, Chemistry, Biology, Maths) */}
+          <div className="col-12 col-lg-6">
+            <div className="p-3 rounded-3 border h-100" style={{ backgroundColor: '#FCFDFE' }}>
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="d-flex align-items-center gap-2">
+                  <span className="badge px-2 py-1 fw-bold rounded-pill text-uppercase" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', fontSize: '0.72rem' }}>
+                    Theory Books
+                  </span>
+                  <span className="fw-bold text-sa-charcoal small">Core Board Syllabus</span>
+                </div>
+                <span className="small text-sa-muted fw-semibold">
+                  {Object.values(bookDeliveryData.theory || {}).filter(b => b.delivered).length} / 4 Received
+                </span>
+              </div>
+
+              <div className="d-flex flex-column gap-2">
+                {[
+                  { name: 'Physics', key: 'Physics' },
+                  { name: 'Chemistry', key: 'Chemistry' },
+                  { name: 'Biology', key: 'Biology' },
+                  { name: 'Mathematics', key: 'Maths' }
+                ].map(({ name, key }) => {
+                  const item = bookDeliveryData.theory?.[key] || { delivered: false, status: 'Not Delivered' };
+                  const isDelivered = item.delivered;
+                  const isPending = item.status === 'Pending Pickup';
+
+                  return (
+                    <div
+                      key={key}
+                      className="d-flex align-items-center justify-content-between p-2.5 rounded-2 bg-white border"
+                      style={{ borderLeft: isDelivered ? '4px solid #10B981' : isPending ? '4px solid #F59E0B' : '4px solid #E2E8F0' }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="rounded-circle p-1.5" style={{ backgroundColor: isDelivered ? '#ECFDF5' : '#F8FAFC', color: isDelivered ? '#10B981' : '#64748B' }}>
+                          {isDelivered ? <CheckCircle2 size={16} /> : <BookMarked size={16} />}
+                        </div>
+                        <div>
+                          <span className="fw-bold text-sa-charcoal d-block" style={{ fontSize: '0.86rem' }}>
+                            Theory - {name}
+                          </span>
+                          {isDelivered && item.handed_over_by && (
+                            <span className="small text-sa-muted d-block" style={{ fontSize: '0.72rem' }}>
+                              Handed over by: <strong className="text-sa-charcoal">{item.handed_over_by}</strong> {item.date ? `(${item.date})` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        {isDelivered ? (
+                          <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small fw-semibold">
+                            ✓ Delivered
+                          </span>
+                        ) : isPending ? (
+                          <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill small fw-semibold">
+                            ⏳ Ready for Pickup
+                          </span>
+                        ) : (
+                          <span className="badge bg-secondary-subtle text-secondary px-2 py-1 rounded-pill small fw-medium">
+                            Not Handed Over
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Column 2: CET Books (Physics, Chemistry, Biology, Maths) */}
+          <div className="col-12 col-lg-6">
+            <div className="p-3 rounded-3 border h-100" style={{ backgroundColor: '#FCFDFE' }}>
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="d-flex align-items-center gap-2">
+                  <span className="badge px-2 py-1 fw-bold rounded-pill text-uppercase" style={{ backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '0.72rem' }}>
+                    CET Books
+                  </span>
+                  <span className="fw-bold text-sa-charcoal small">Competitive Entrance</span>
+                </div>
+                <span className="small text-sa-muted fw-semibold">
+                  {Object.values(bookDeliveryData.cet || {}).filter(b => b.delivered).length} / 4 Received
+                </span>
+              </div>
+
+              <div className="d-flex flex-column gap-2">
+                {[
+                  { name: 'Physics', key: 'Physics' },
+                  { name: 'Chemistry', key: 'Chemistry' },
+                  { name: 'Biology', key: 'Biology' },
+                  { name: 'Mathematics', key: 'Maths' }
+                ].map(({ name, key }) => {
+                  const item = bookDeliveryData.cet?.[key] || { delivered: false, status: 'Not Delivered' };
+                  const isDelivered = item.delivered;
+                  const isPending = item.status === 'Pending Pickup';
+
+                  return (
+                    <div
+                      key={key}
+                      className="d-flex align-items-center justify-content-between p-2.5 rounded-2 bg-white border"
+                      style={{ borderLeft: isDelivered ? '4px solid #10B981' : isPending ? '4px solid #F59E0B' : '4px solid #E2E8F0' }}
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="rounded-circle p-1.5" style={{ backgroundColor: isDelivered ? '#ECFDF5' : '#F8FAFC', color: isDelivered ? '#10B981' : '#64748B' }}>
+                          {isDelivered ? <CheckCircle2 size={16} /> : <BookMarked size={16} />}
+                        </div>
+                        <div>
+                          <span className="fw-bold text-sa-charcoal d-block" style={{ fontSize: '0.86rem' }}>
+                            CET - {name}
+                          </span>
+                          {isDelivered && item.handed_over_by && (
+                            <span className="small text-sa-muted d-block" style={{ fontSize: '0.72rem' }}>
+                              Handed over by: <strong className="text-sa-charcoal">{item.handed_over_by}</strong> {item.date ? `(${item.date})` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        {isDelivered ? (
+                          <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small fw-semibold">
+                            ✓ Delivered
+                          </span>
+                        ) : isPending ? (
+                          <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill small fw-semibold">
+                            ⏳ Ready for Pickup
+                          </span>
+                        ) : (
+                          <span className="badge bg-secondary-subtle text-secondary px-2 py-1 rounded-pill small fw-medium">
+                            Not Handed Over
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
