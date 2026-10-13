@@ -109,6 +109,7 @@ export const DEFAULT_NOTIFICATIONS = [
 ];
 
 const READ_STORAGE_KEY = 'sa_read_notifications_v4';
+const DYNAMIC_NOTIFICATIONS_KEY = 'sa_dynamic_notifications_v2';
 const SELECTED_NOTICE_KEY = 'sa_selected_notice';
 
 function getReadIds() {
@@ -128,12 +129,85 @@ function saveReadIds(ids) {
   }
 }
 
+function getDynamicNotifications() {
+  try {
+    const raw = localStorage.getItem(DYNAMIC_NOTIFICATIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDynamicNotifications(list) {
+  try {
+    localStorage.setItem(DYNAMIC_NOTIFICATIONS_KEY, JSON.stringify(list));
+  } catch (err) {
+    console.error('Error saving dynamic notifications:', err);
+  }
+}
+
 export const notificationService = {
+  addNotification: (notif) => {
+    const current = getDynamicNotifications();
+    const updated = [notif, ...current.filter(n => n.id !== notif.id)];
+    saveDynamicNotifications(updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: notif }));
+    }
+    return notif;
+  },
+
+  syncDiscountApprovals: (pendingList = []) => {
+    if (!pendingList || pendingList.length === 0) return;
+    const current = getDynamicNotifications();
+    let hasChanges = false;
+    const updated = [...current];
+
+    pendingList.forEach((s) => {
+      const notifId = `NTF-DISC-${s.id}`;
+      const exists = updated.some(n => n.id === notifId);
+      if (!exists) {
+        hasChanges = true;
+        updated.unshift({
+          id: notifId,
+          title: `🔔 Fee Concession Approval: ${s.name}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedDateTime: new Date().toLocaleString(),
+          type: 'discount_approval',
+          category: 'Discount & Fees',
+          priority: 'High',
+          author: s.discountRecommendedBy || s.discountOfferedBy || 'Miss Shilpa (Counselor)',
+          details: `${s.discountRecommendedBy || s.discountOfferedBy || 'Counselor'} recommended a concession of ₹${Number(s.discountAmount || 0).toLocaleString()} for ${s.name} (${s.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
+          read: false,
+          forSuperAdminOnly: true,
+          studentId: s.id,
+          studentName: s.name,
+          discountAmount: s.discountAmount,
+          recommendedBy: s.discountRecommendedBy || s.discountOfferedBy
+        });
+      }
+    });
+
+    if (hasChanges) {
+      saveDynamicNotifications(updated);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    }
+  },
+
+  getAllList: (isSuperAdmin = false) => {
+    const dynamicList = getDynamicNotifications();
+    const all = [...dynamicList, ...DEFAULT_NOTIFICATIONS];
+    return isSuperAdmin
+      ? all
+      : all.filter(n => !n.forSuperAdminOnly);
+  },
+
   getNotifications: (isSuperAdmin = false) => {
     const readIds = getReadIds();
-    const items = isSuperAdmin
-      ? DEFAULT_NOTIFICATIONS
-      : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+    const items = notificationService.getAllList(isSuperAdmin);
 
     return items.map(n => ({
       ...n,
@@ -143,19 +217,14 @@ export const notificationService = {
 
   getUnreadNotifications: (isSuperAdmin = false) => {
     const readIds = getReadIds();
-    const items = isSuperAdmin
-      ? DEFAULT_NOTIFICATIONS
-      : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+    const items = notificationService.getAllList(isSuperAdmin);
     return items
       .filter(n => !readIds.includes(n.id))
       .map(n => ({ ...n, read: false }));
   },
 
   getAllAnnouncements: (isSuperAdmin = false) => {
-    const items = isSuperAdmin
-      ? DEFAULT_NOTIFICATIONS
-      : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
-    return items;
+    return notificationService.getAllList(isSuperAdmin);
   },
 
   getUnreadCount: (isSuperAdmin = false) => {
@@ -175,9 +244,7 @@ export const notificationService = {
   },
 
   markAllAsRead: (isSuperAdmin = false) => {
-    const notifs = isSuperAdmin
-      ? DEFAULT_NOTIFICATIONS
-      : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+    const notifs = notificationService.getAllList(isSuperAdmin);
     const readIds = notifs.map(n => n.id);
     saveReadIds(readIds);
     if (typeof window !== 'undefined') {

@@ -85,10 +85,23 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     notificationService.setSelectedNotice(notif);
     setShowNotifications(false);
 
+    if (notif.type === 'discount_approval' || notif.category === 'Discount & Fees') {
+      navigate('/super-admin/dashboard');
+      setTimeout(() => {
+        const el = document.getElementById('superadmin-discount-approvals');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+      return;
+    }
+
     const targetRoute = isStudent
       ? '/student/announcements'
       : isTeacher
       ? '/teacher/announcements'
+      : isSuperAdmin
+      ? '/super-admin/dashboard'
       : '/admin/notices';
 
     navigate(targetRoute, { state: { selectedNotice: notif } });

@@ -32,6 +32,11 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
              return {
                ...prev,
                totalFees: data.total_fees,
+               originalFees: data.original_fees || 0,
+               discountAmount: data.discount_amount || 0,
+               discountReason: data.discount_reason || '',
+               discountStatus: data.discount_status || 'NONE',
+               discountApprovedBy: data.discount_approved_by || '',
                alreadyPaid: data.amount_paid,
                pendingAmount: Math.max(0, pending)
              };
@@ -110,6 +115,37 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
             ]}
           />
         </div>
+
+        {Number(formData.discountAmount) > 0 && (
+          <div className="col-12">
+            <div
+              className={`p-2.5 rounded-2 border d-flex align-items-center justify-content-between ${
+                formData.discountStatus === 'APPROVED'
+                  ? 'bg-success-subtle border-success text-success-emphasis'
+                  : 'bg-warning-subtle border-warning text-warning-emphasis'
+              }`}
+              style={{ fontSize: '0.84rem' }}
+            >
+              <div>
+                <span className="fw-bold me-2">
+                  Student Concession: -₹{Number(formData.discountAmount).toLocaleString()}
+                </span>
+                <span className="text-muted">({formData.discountReason || 'Discount'})</span>
+              </div>
+              <div>
+                {formData.discountStatus === 'APPROVED' ? (
+                  <span className="badge bg-success text-white">
+                    ✓ Approved by: {formData.discountApprovedBy || 'Superadmin'}
+                  </span>
+                ) : (
+                  <span className="badge bg-warning text-dark">
+                    ⏳ Pending Superadmin Approval
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="col-12 col-md-3">
           <Input

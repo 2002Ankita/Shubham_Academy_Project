@@ -17,12 +17,22 @@ class FeePaymentResponse(FeePaymentCreate):
     roll_number: str
     total_fees: float
     pending_fees: float
+    discount_amount: Optional[float] = 0.0
+    discount_status: Optional[str] = "NONE"
+    discount_approved_by: Optional[str] = None
 
 class FeeDetailsResponse(BaseModel):
     student_id: str
     total_fees: float
     amount_paid: float
     pending_fees: float
+    original_fees: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
+    discount_reason: Optional[str] = None
+    discount_status: Optional[str] = "NONE"
+    discount_offered_by: Optional[str] = None
+    discount_approved_by: Optional[str] = None
+    discount_approved_at: Optional[datetime] = None
 
 class FeeStructureCreate(BaseModel):
     standard: str

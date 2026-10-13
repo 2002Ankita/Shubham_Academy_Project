@@ -15,9 +15,19 @@ export const studentService = {
       // Provide defaults for missing frontend-specific mock fields
       rollNumber: student.student_id || 'N/A',
       feesStatus: 'Unknown',
-      totalFees: 0,
+      totalFees: student.total_fees || 0,
       paidFees: 0,
-      attendancePercent: 0
+      attendancePercent: 0,
+      originalFees: student.original_fees || student.total_fees || 0,
+      discountAmount: student.discount_amount || 0,
+      discountReason: student.discount_reason || '',
+      discountStatus: student.discount_status || 'NONE',
+      discountOfferedBy: student.discount_offered_by || '',
+      discountRecommendedBy: student.discount_recommended_by || student.discount_offered_by || '',
+      discountOfferedAt: student.discount_offered_at || null,
+      discountApprovedBy: student.discount_approved_by || '',
+      discountApprovedAt: student.discount_approved_at || null,
+      discountRejectionReason: student.discount_rejection_reason || ''
     }));
   },
 
@@ -32,7 +42,18 @@ export const studentService = {
       standard: student.standard,
       branch: student.branch,
       status: student.is_active !== false ? 'Active' : 'Inactive',
-      rollNumber: student.student_id || 'N/A'
+      rollNumber: student.student_id || 'N/A',
+      totalFees: student.total_fees || 0,
+      originalFees: student.original_fees || student.total_fees || 0,
+      discountAmount: student.discount_amount || 0,
+      discountReason: student.discount_reason || '',
+      discountStatus: student.discount_status || 'NONE',
+      discountOfferedBy: student.discount_offered_by || '',
+      discountRecommendedBy: student.discount_recommended_by || student.discount_offered_by || '',
+      discountOfferedAt: student.discount_offered_at || null,
+      discountApprovedBy: student.discount_approved_by || '',
+      discountApprovedAt: student.discount_approved_at || null,
+      discountRejectionReason: student.discount_rejection_reason || ''
     };
   },
 
@@ -55,6 +76,13 @@ export const studentService = {
       academic_year: data.academic_year || '2023-2024',
       rfid_tag: data.rfidCard || data.rfid_tag,
       total_fees: Number(data.totalFees) || 0,
+      original_fees: Number(data.originalFees) || Number(data.totalFees) || 0,
+      discount_amount: Number(data.discountAmount) || 0,
+      discount_reason: data.discountReason || '',
+      discount_recommended_by: data.discountRecommendedBy || data.discount_recommended_by || data.discountOfferedBy || data.discount_offered_by || '',
+      discount_offered_by: data.discountRecommendedBy || data.discount_recommended_by || data.discountOfferedBy || data.discount_offered_by || '',
+      discount_approved_by: data.discountApprovedBy || data.discount_approved_by || '',
+      superadmin_auth_code: data.superadminAuthCode || data.superadmin_auth_code || '',
       admission_date: data.admission_date
     };
     const res = await api.post('/students', payload);
@@ -75,6 +103,26 @@ export const studentService = {
 
   delete: async (id) => {
     const res = await api.delete(`/students/${id}`);
+    return res.data;
+  },
+
+  offerDiscount: async (id, data) => {
+    const res = await api.post(`/students/${id}/offer-discount`, data);
+    return res.data;
+  },
+
+  approveDiscount: async (id) => {
+    const res = await api.post(`/students/${id}/approve-discount`);
+    return res.data;
+  },
+
+  rejectDiscount: async (id, reason) => {
+    const res = await api.post(`/students/${id}/reject-discount`, { reason });
+    return res.data;
+  },
+
+  getDiscountApprovals: async (status = '') => {
+    const res = await api.get('/students/discounts/approvals', { params: { status } });
     return res.data;
   }
 };
