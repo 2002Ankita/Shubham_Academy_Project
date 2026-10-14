@@ -50,6 +50,7 @@ import AdminReports from '../pages/admin/Reports';
 import LeaveApprovals from '../pages/admin/LeaveApprovals';
 import AdminProfile from '../pages/admin/Profile';
 import BatchManagement from '../pages/admin/BatchManagement';
+import AdminTopicDurationReport from '../pages/admin/TopicDurationReport';
 
 // Teacher Pages
 import TeacherDashboard from '../pages/teacher/Dashboard';
@@ -64,6 +65,7 @@ import TeacherNotes from '../pages/teacher/Notes';
 import TeacherAnnouncements from '../pages/teacher/Announcements';
 import TeacherProfile from '../pages/teacher/Profile';
 import TeacherDailyActivityReport from '../pages/teacher/DailyActivityReport';
+import TeacherTopicDurationPlanner from '../pages/teacher/TopicDurationPlanner';
 import LeaveRequest from '../pages/LeaveRequest';
 import WorkingTime from '../pages/WorkingTime';
 import Salary from '../pages/Salary';
@@ -161,6 +163,8 @@ export default function AppRoutes() {
         <Route path="/admin/notices" element={<Notices />} />
         <Route path="/admin/notifications" element={<Notifications />} />
         <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/topic-duration" element={<AdminTopicDurationReport />} />
+        <Route path="/admin/curriculum-matrix" element={<AdminTopicDurationReport />} />
         <Route path="/admin/contact" element={<SuperAdminContact />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
       </Route>
@@ -179,6 +183,8 @@ export default function AppRoutes() {
         <Route path="/teacher/teachers" element={<TeacherDirectory />} />
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />
         <Route path="/teacher/daily-activity" element={<TeacherDailyActivityReport />} />
+        <Route path="/teacher/topic-duration" element={<TeacherTopicDurationPlanner />} />
+        <Route path="/teacher/topic-pacing" element={<TeacherTopicDurationPlanner />} />
         <Route path="/teacher/leave-request" element={<LeaveRequest />} />
         <Route path="/teacher/working-time" element={<WorkingTime />} />
         <Route path="/teacher/salary" element={<Salary />} />

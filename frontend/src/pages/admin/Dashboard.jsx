@@ -43,10 +43,12 @@ import {
   Truck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
 
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
@@ -182,7 +184,16 @@ export default function AdminDashboard() {
   );
 
   const handleApproveDiscount = async (studentId, studentName) => {
-    if (!window.confirm(`Approve discount for ${studentName} as Superadmin?`)) return;
+    const isConfirmed = await confirm({
+      title: 'Approve Student Discount',
+      message: `Approve discount for ${studentName} as Superadmin?`,
+      subtitle: 'This will authorize the discount and adjust pending fee balances.',
+      confirmText: 'Approve Discount',
+      cancelText: 'Cancel',
+      type: 'warning'
+    });
+    if (!isConfirmed) return;
+
     setDiscountActionLoading(true);
     try {
       await studentService.approveDiscount(studentId);

@@ -7,9 +7,11 @@ import BackButton from '../../components/common/BackButton';
 import teacherService from '../../services/teacherService';
 import { UserPlus, Mail, Phone, Trash2, Clock } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function TeacherList() {
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
   const [teachers, setTeachers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,16 @@ export default function TeacherList() {
   }, []);
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to remove faculty member: ${name}?`)) {
+    const isConfirmed = await confirm({
+      title: 'Remove Faculty Member',
+      message: `Are you sure you want to remove faculty member: ${name}?`,
+      subtitle: 'This will remove the faculty record from your academy directory.',
+      confirmText: 'Remove Faculty',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       await teacherService.delete(id);
       toast.success(`Teacher ${name} removed`);
       setTeachers(teachers.filter(t => t.id !== id));

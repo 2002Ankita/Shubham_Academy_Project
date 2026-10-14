@@ -26,10 +26,12 @@ import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function StudentList() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const [students, setStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'discounts'
@@ -55,7 +57,15 @@ export default function StudentList() {
   }, []);
 
   const handleApproveDiscount = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to approve the discount for ${name} as Superadmin?`)) return;
+    const isConfirmed = await confirm({
+      title: 'Approve Discount',
+      message: `Are you sure you want to approve the discount for ${name} as Superadmin?`,
+      subtitle: 'This will authorize the fee concession for this student.',
+      confirmText: 'Approve Discount',
+      cancelText: 'Cancel',
+      type: 'warning'
+    });
+    if (!isConfirmed) return;
     try {
       await studentService.approveDiscount(id);
       toast.success(`Discount for ${name} successfully approved by Superadmin!`);
@@ -78,7 +88,16 @@ export default function StudentList() {
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to remove student record: ${name}?`)) {
+    const isConfirmed = await confirm({
+      title: 'Remove Student Record',
+      message: `Are you sure you want to remove student record: ${name}?`,
+      subtitle: 'This will permanently remove the student profile.',
+      confirmText: 'Remove Student',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       await studentService.delete(id);
       toast.success(`Student ${name} removed`);
       setStudents(students.filter(s => s.id !== id));

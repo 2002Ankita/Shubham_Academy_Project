@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
+import { useConfirm } from '../../context/ConfirmContext';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -49,6 +50,7 @@ import {
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const [timeRange, setTimeRange] = useState('Last 12 Months');
   const [separateGraphMode, setSeparateGraphMode] = useState('separate'); // 'separate' | 'grouped' | 'stacked'
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Suspended'
@@ -80,7 +82,16 @@ export default function SuperAdminDashboard() {
   }, []);
 
   const handleApproveDiscount = async (studentId, studentName) => {
-    if (!window.confirm(`Confirm Superadmin approval for discount granted to ${studentName}?`)) return;
+    const isConfirmed = await confirm({
+      title: 'Authorize Student Discount',
+      message: `Confirm Superadmin approval for discount granted to ${studentName}?`,
+      subtitle: 'This will authorize the discount ledger concession immediately.',
+      confirmText: 'Approve Discount',
+      cancelText: 'Cancel',
+      type: 'warning'
+    });
+    if (!isConfirmed) return;
+
     setDiscountLoading(true);
     try {
       await studentService.approveDiscount(studentId);

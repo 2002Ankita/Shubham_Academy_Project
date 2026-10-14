@@ -233,6 +233,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
+        { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
         { label: 'Contact', path: '/super-admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/super-admin/contact', '/admin/contact'] },
       ];
@@ -245,6 +246,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'My Classes', path: '/teacher/classes', icon: BookOpen },
         { label: 'Attendance', path: '/teacher/attendance', icon: CalendarCheck },
         { label: 'Daily Activity', path: '/teacher/daily-activity', icon: FileText },
+        { label: 'Topic Duration', path: '/teacher/topic-duration', icon: Clock },
         { label: 'Leave Request', path: '/teacher/leave-request', icon: Calendar },
         { label: 'Teachers', path: '/teacher/teachers', icon: TeachersWritingIcon },
         { label: 'Examinations', path: '/teacher/exams', icon: BookCheck },
@@ -272,6 +274,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
+        { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },
         { label: 'Contact', path: '/admin/contact', icon: ContactPhoneIcon, matchPrefixes: ['/admin/contact'] },
       ];

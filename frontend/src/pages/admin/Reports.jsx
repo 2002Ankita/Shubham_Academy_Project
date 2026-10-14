@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import reportService from '../../services/reportService';
-import { FileText, Download, Plus } from 'lucide-react';
+import { FileText, Download, Plus, BookOpen, ChevronRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function AdminReports() {
+  const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,6 +59,35 @@ export default function AdminReports() {
         <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
           Generate New Custom Report
         </Button>
+      </div>
+
+      {/* Featured Curriculum Pacing & Topic Duration Matrix Card */}
+      <div className="p-3 rounded-3 border d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 shadow-xs bg-white">
+        <div className="d-flex align-items-center gap-3">
+          <div className="p-2.5 rounded-3 text-white d-flex align-items-center justify-content-center" style={{ backgroundColor: '#A91F1F', width: 44, height: 44 }}>
+            <BookOpen size={22} />
+          </div>
+          <div>
+            <div className="d-flex align-items-center gap-2">
+              <span className="fw-bold text-dark fs-6">Topic Duration & Period Allocation Matrix</span>
+              <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '11px' }}>
+                Academic Pacing & Annual Planning
+              </span>
+            </div>
+            <span className="small text-muted d-block mt-0.5">
+              Review topic start/end dates, duration in days, and export Monthly or Yearly Excel matrices for next year&apos;s planning.
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn text-white px-3 py-2 fw-semibold rounded-3 d-flex align-items-center gap-2 flex-shrink-0"
+          style={{ backgroundColor: '#A91F1F' }}
+          onClick={() => navigate('/admin/topic-duration')}
+        >
+          <span>Open Matrix & Exports</span>
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       <div className="sa-card p-4">
