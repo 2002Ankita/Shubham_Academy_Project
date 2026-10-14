@@ -1,30 +1,70 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 
 class StudentBase(BaseModel):
     student_id: Optional[str] = None
-    full_name: str
-    email: Optional[EmailStr] = None
-    mobile_number: str = Field(..., pattern=r"^\d{10}$", json_schema_extra={"description": "10 digit mobile number"})
-    date_of_birth: datetime
-    gender: str
-    address: str
-    parent_name: str
-    parent_mobile: str = Field(..., pattern=r"^\d{10}$", json_schema_extra={"description": "10 digit mobile number"})
-    standard: str
-    batch: str
-    branch: str
-    academic_year: str
+    full_name: Optional[str] = ""
+    email: Optional[str] = None
+    mobile_number: Optional[str] = ""
+    parent_mobile: Optional[str] = ""
+    total_fees: Optional[float] = 0.0
+    paid_fees: Optional[float] = 0.0
+    remaining_fees: Optional[float] = 0.0
+    profile_completed: Optional[bool] = False
+    date_of_birth: Optional[Any] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    parent_name: Optional[str] = None
+    relation: Optional[str] = None
+    parent_email: Optional[str] = None
+    parent_occupation: Optional[str] = None
+    standard: Optional[str] = None
+    batch: Optional[str] = None
+    branch: Optional[str] = "Kolhapur Main Branch"
+    academic_year: Optional[str] = "2025-2026"
+    previous_school: Optional[str] = None
     rfid_tag: Optional[str] = None
-    total_fees: float = 0.0
-    admission_date: Optional[datetime] = None
+    admission_date: Optional[Any] = None
+    avatar: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 class StudentCreate(StudentBase):
-    password: str
+    password: Optional[str] = "password123"
+
+class StudentAdminCreate(BaseModel):
+    full_name: Optional[str] = None
+    name: Optional[str] = None
+    mobile_number: Optional[str] = None
+    phone: Optional[str] = None
+    parent_mobile: Optional[str] = None
+    parentPhone: Optional[str] = None
+    total_fees: Optional[float] = 0.0
+    totalFees: Optional[float] = 0.0
+    paid_fees: Optional[float] = 0.0
+    paidFees: Optional[float] = 0.0
+    remaining_fees: Optional[float] = None
+    password: Optional[str] = "password123"
+    email: Optional[str] = None
+    batch: Optional[str] = None
+    standard: Optional[str] = None
+    admission_date: Optional[Any] = None
+    rfid_tag: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 class StudentResponse(StudentBase):
-    id: str
-    student_id: str
+    id: Optional[str] = None
+    student_id: Optional[str] = None
     rfid_tag: Optional[str] = None
-    admission_date: datetime
+    admission_date: Optional[Any] = None
+
+    class Config:
+        extra = "allow"
+

@@ -35,10 +35,15 @@ import TeacherList from '../pages/admin/TeacherList';
 import AddTeacher from '../pages/admin/AddTeacher';
 import TeacherSalary from '../pages/admin/TeacherSalary';
 import RFIDAttendance from '../pages/admin/RFIDAttendance';
+import TeacherAttendanceTracker from '../pages/admin/TeacherAttendanceTracker';
 import AttendanceReport from '../pages/admin/AttendanceReport';
 import FeeCollection from '../pages/admin/FeeCollection';
 import PendingFees from '../pages/admin/PendingFees';
 import FeeReceipt from '../pages/admin/FeeReceipt';
+import FeeStructure from '../pages/admin/FeeStructure';
+import FeeReceiptsList from '../pages/admin/FeeReceiptsList';
+import FeeReminderSettings from '../pages/admin/FeeReminderSettings';
+import FeeReminderHistory from '../pages/admin/FeeReminderHistory';
 import CreateExam from '../pages/admin/CreateExam';
 import MarksEntry from '../pages/admin/MarksEntry';
 import Results from '../pages/admin/Results';
@@ -143,13 +148,20 @@ export default function AppRoutes() {
         <Route path="/admin/teachers" element={<TeacherList />} />
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
+        <Route path="/admin/teachers/attendance" element={<TeacherAttendanceTracker />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
         <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<RFIDAttendance />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
         <Route path="/admin/fees" element={<FeeCollection />} />
+        <Route path="/admin/fees/structure" element={<FeeStructure />} />
         <Route path="/admin/fees/pending" element={<PendingFees />} />
+        <Route path="/admin/fees/receipts" element={<FeeReceiptsList />} />
         <Route path="/admin/fees/receipt" element={<FeeReceipt />} />
+        <Route path="/admin/fees/reminder-settings" element={<FeeReminderSettings />} />
+        <Route path="/admin/fees/reminders/settings" element={<FeeReminderSettings />} />
+        <Route path="/admin/fees/reminder-history" element={<FeeReminderHistory />} />
+        <Route path="/admin/fees/reminders/history" element={<FeeReminderHistory />} />
         <Route path="/admin/exams" element={<CreateExam />} />
         <Route path="/admin/marks/entry" element={<MarksEntry />} />
         <Route path="/admin/results" element={<Results />} />

@@ -55,7 +55,10 @@ export default function TeacherList() {
           </span>
         </div>
 
-        <div className="d-flex gap-2">
+        <div className="d-flex align-items-center flex-wrap gap-2">
+          <Button variant="outline" icon={Clock} onClick={() => navigate('/admin/teachers/attendance')}>
+            Check-In & Attendance
+          </Button>
           <Button variant="outline" onClick={() => navigate('/admin/teachers/salary')}>
             View Salary Register
           </Button>

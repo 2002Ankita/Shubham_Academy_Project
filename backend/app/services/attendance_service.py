@@ -2,8 +2,22 @@ from app.models.attendance import Attendance
 from app.schemas.attendance import AttendanceCreate
 from app.models.student import Student
 from app.models.teacher import Teacher
+from app.models.user import User
+from app.models.leave_request import LeaveRequest
 from fastapi import HTTPException
 from beanie import PydanticObjectId
+from bson import ObjectId
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+
+def _get_teacher_mongo_query(teacher_id_obj: ObjectId) -> Dict[str, Any]:
+    return {
+        "$or": [
+            {"teacher.$id": teacher_id_obj},
+            {"teacher.id": teacher_id_obj},
+            {"teacher": teacher_id_obj}
+        ]
+    }
 
 async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
     from app.services.student_service import resolve_student
@@ -21,6 +35,9 @@ async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
         date=attendance_in.date,
         status=attendance_in.status,
         rfid_scan_time=attendance_in.rfid_scan_time,
+        check_in_time=attendance_in.check_in_time,
+        check_out_time=attendance_in.check_out_time,
+        total_hours=attendance_in.total_hours,
         remarks=attendance_in.remarks
     )
     await attendance.insert()
@@ -31,11 +48,16 @@ async def get_student_attendance(student_id: str) -> list[Attendance]:
     student = await resolve_student(student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    return await Attendance.find(Attendance.student.id == student.id).to_list()
+    return await Attendance.find({
+        "$or": [
+            {"student.$id": student.id},
+            {"student.id": student.id},
+            {"student": student.id}
+        ]
+    }).sort("-date").to_list()
 
-async def check_in_teacher(attendance_in: AttendanceCreate) -> Attendance:
+async def check_in_teacher(attendance_in: AttendanceCreate) -> dict:
     from app.services.teacher_service import resolve_teacher
-    from datetime import datetime
     teacher = None
     if attendance_in.teacher_id:
         teacher = await resolve_teacher(str(attendance_in.teacher_id))
@@ -43,33 +65,40 @@ async def check_in_teacher(attendance_in: AttendanceCreate) -> Attendance:
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
-    # Check if already checked in today
-    today = attendance_in.date.replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = attendance_in.date.replace(hour=23, minute=59, second=59)
-    existing = await Attendance.find(
-        Attendance.teacher.id == teacher.id,
-        Attendance.date >= today,
-        Attendance.date <= tomorrow
-    ).first_or_none()
+    # Normalize date to day start / day end
+    date_val = attendance_in.date or datetime.utcnow()
+    day_start = date_val.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = date_val.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    existing = await Attendance.find_one({
+        "$and": [
+            _get_teacher_mongo_query(teacher.id),
+            {"date": {"$gte": day_start, "$lte": day_end}}
+        ]
+    })
 
     if existing:
-        raise HTTPException(status_code=400, detail="Already checked in today")
+        raise HTTPException(status_code=400, detail="Teacher is already checked in for today")
+
+    now = datetime.utcnow()
+    check_in_time = attendance_in.check_in_time or now
+    status = "Working" if attendance_in.status in {"Present", "", None} else attendance_in.status
 
     attendance = Attendance(
         teacher=teacher,
-        date=attendance_in.date,
-        status="Working" if attendance_in.status == "Present" else attendance_in.status,
-        check_in_time=datetime.utcnow(),
+        date=date_val,
+        status=status,
+        check_in_time=check_in_time,
         remarks=attendance_in.remarks
     )
     await attendance.insert()
     res = attendance.model_dump()
     res["id"] = str(attendance.id)
+    res["teacher_id"] = str(teacher.id)
     return res
 
-async def check_out_teacher(attendance_in: AttendanceCreate) -> Attendance:
+async def check_out_teacher(attendance_in: AttendanceCreate) -> dict:
     from app.services.teacher_service import resolve_teacher
-    from datetime import datetime
     teacher = None
     if attendance_in.teacher_id:
         teacher = await resolve_teacher(str(attendance_in.teacher_id))
@@ -77,25 +106,36 @@ async def check_out_teacher(attendance_in: AttendanceCreate) -> Attendance:
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
-    today = attendance_in.date.replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = attendance_in.date.replace(hour=23, minute=59, second=59)
-    existing = await Attendance.find(
-        Attendance.teacher.id == teacher.id,
-        Attendance.date >= today,
-        Attendance.date <= tomorrow
-    ).first_or_none()
+    date_val = attendance_in.date or datetime.utcnow()
+    day_start = date_val.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = date_val.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    existing = await Attendance.find_one({
+        "$and": [
+            _get_teacher_mongo_query(teacher.id),
+            {"date": {"$gte": day_start, "$lte": day_end}}
+        ]
+    })
 
     if not existing:
-        raise HTTPException(status_code=400, detail="Not checked in today")
+        raise HTTPException(status_code=400, detail="No check-in record found for today. Please check in first.")
         
     if existing.check_out_time:
-        raise HTTPException(status_code=400, detail="Already checked out")
+        raise HTTPException(status_code=400, detail="Teacher has already checked out today.")
 
     now = datetime.utcnow()
-    existing.check_out_time = now
+    check_out_time = attendance_in.check_out_time or now
+    existing.check_out_time = check_out_time
+    existing.status = "Present"
     
+    if attendance_in.remarks:
+        if existing.remarks:
+            existing.remarks = f"{existing.remarks} | {attendance_in.remarks}"
+        else:
+            existing.remarks = attendance_in.remarks
+
     if existing.check_in_time:
-        diff = now - existing.check_in_time
+        diff = check_out_time - existing.check_in_time
         hours, remainder = divmod(diff.total_seconds(), 3600)
         minutes, _ = divmod(remainder, 60)
         existing.total_hours = f"{int(hours)}h {int(minutes)}m"
@@ -103,6 +143,7 @@ async def check_out_teacher(attendance_in: AttendanceCreate) -> Attendance:
     await existing.save()
     res = existing.model_dump()
     res["id"] = str(existing.id)
+    res["teacher_id"] = str(teacher.id)
     return res
 
 async def get_teacher_attendance(teacher_id: str) -> list[dict]:
@@ -110,7 +151,10 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
     teacher = await resolve_teacher(teacher_id)
     if not teacher:
         return []
-    records = await Attendance.find(Attendance.teacher.id == teacher.id).to_list()
+    records = await Attendance.find(
+        _get_teacher_mongo_query(teacher.id)
+    ).sort("-date", "-check_in_time").to_list()
+
     res = []
     for r in records:
         d = r.model_dump()
@@ -121,3 +165,388 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
         d.pop("student", None)
         res.append(d)
     return res
+
+async def get_all_teachers_attendance(
+    date_str: Optional[str] = None,
+    teacher_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> list[dict]:
+    from app.services.teacher_service import resolve_teacher
+
+    # Preload all teachers with their linked user profiles for high performance
+    teachers = await Teacher.find_all().to_list()
+    teacher_map: Dict[str, Dict[str, Any]] = {}
+    for t in teachers:
+        user_name = ""
+        user_email = ""
+        if isinstance(t.user, User):
+            user_name = t.user.full_name
+            user_email = t.user.email
+        elif t.user:
+            try:
+                user_obj = await User.get(t.user.ref.id)
+                if user_obj:
+                    user_name = user_obj.full_name
+                    user_email = user_obj.email
+            except Exception:
+                pass
+
+        teacher_map[str(t.id)] = {
+            "teacher_id": str(t.id),
+            "teacher_name": user_name or f"Faculty ({t.employee_id})",
+            "employee_id": t.employee_id,
+            "mobile_number": t.mobile_number,
+            "subjects": t.subjects or [],
+            "email": user_email
+        }
+
+    conditions: List[Dict[str, Any]] = [
+        {"$or": [
+            {"teacher": {"$ne": None}},
+            {"teacher.$id": {"$exists": True}},
+            {"teacher.id": {"$exists": True}}
+        ]}
+    ]
+
+    if teacher_id:
+        target_teacher = await resolve_teacher(teacher_id)
+        if target_teacher:
+            conditions.append(_get_teacher_mongo_query(target_teacher.id))
+        else:
+            return []
+
+    if date_str:
+        try:
+            clean_date = date_str.split("T")[0]
+            dt = datetime.strptime(clean_date, "%Y-%m-%d")
+            day_start = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+            conditions.append({"date": {"$gte": day_start, "$lte": day_end}})
+        except Exception:
+            pass
+    elif start_date and end_date:
+        try:
+            s_dt = datetime.strptime(start_date.split("T")[0], "%Y-%m-%d").replace(hour=0, minute=0, second=0)
+            e_dt = datetime.strptime(end_date.split("T")[0], "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999)
+            conditions.append({"date": {"$gte": s_dt, "$lte": e_dt}})
+        except Exception:
+            pass
+
+    if status and status.strip().lower() not in {"all", ""}:
+        conditions.append({"status": {"$regex": f"^{status.strip()}$", "$options": "i"}})
+
+    query = {"$and": conditions} if conditions else {}
+    records = await Attendance.find(query).sort("-date", "-check_in_time").to_list()
+
+    res = []
+    for r in records:
+        tid_str = ""
+        if hasattr(r, "teacher") and r.teacher:
+            if hasattr(r.teacher, "id"):
+                tid_str = str(r.teacher.id)
+            elif hasattr(r.teacher, "ref") and hasattr(r.teacher.ref, "id"):
+                tid_str = str(r.teacher.ref.id)
+            elif isinstance(r.teacher, dict) and "$id" in r.teacher:
+                tid_str = str(r.teacher["$id"])
+            else:
+                tid_str = str(r.teacher)
+
+        t_info = teacher_map.get(tid_str, {})
+
+        hours_str = r.total_hours
+        if not hours_str and r.check_in_time and r.check_out_time:
+            diff = r.check_out_time - r.check_in_time
+            hrs, rem = divmod(diff.total_seconds(), 3600)
+            mins, _ = divmod(rem, 60)
+            hours_str = f"{int(hrs)}h {int(mins)}m"
+        elif not hours_str and r.check_in_time and not r.check_out_time:
+            diff = datetime.utcnow() - r.check_in_time
+            hrs, rem = divmod(diff.total_seconds(), 3600)
+            mins, _ = divmod(rem, 60)
+            hours_str = f"{int(hrs)}h {int(mins)}m"
+
+        res.append({
+            "id": str(r.id),
+            "teacher_id": tid_str or "",
+            "teacher_name": t_info.get("teacher_name", "Faculty Member"),
+            "employee_id": t_info.get("employee_id", "--"),
+            "email": t_info.get("email", ""),
+            "mobile_number": t_info.get("mobile_number", ""),
+            "subjects": t_info.get("subjects", []),
+            "date": r.date.isoformat(),
+            "status": r.status,
+            "check_in_time": r.check_in_time.isoformat() if r.check_in_time else None,
+            "check_out_time": r.check_out_time.isoformat() if r.check_out_time else None,
+            "total_hours": hours_str or "--",
+            "remarks": r.remarks or ""
+        })
+
+    return res
+
+async def get_teachers_attendance_summary(date_str: Optional[str] = None) -> dict:
+    target_date = datetime.utcnow()
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str.split("T")[0], "%Y-%m-%d")
+        except Exception:
+            pass
+
+    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    teachers = await Teacher.find(Teacher.status == "Active").to_list()
+    total_teachers = len(teachers)
+
+    attendance_records = await Attendance.find({
+        "$and": [
+            {"$or": [
+                {"teacher": {"$ne": None}},
+                {"teacher.$id": {"$exists": True}},
+                {"teacher.id": {"$exists": True}}
+            ]},
+            {"date": {"$gte": day_start, "$lte": day_end}}
+        ]
+    }).to_list()
+
+    working_count = 0
+    completed_count = 0
+    checked_in_teacher_ids = set()
+
+    for r in attendance_records:
+        tid = ""
+        if hasattr(r, "teacher") and r.teacher:
+            if hasattr(r.teacher, "id"):
+                tid = str(r.teacher.id)
+            elif hasattr(r.teacher, "ref"):
+                tid = str(r.teacher.ref.id)
+            elif isinstance(r.teacher, dict) and "$id" in r.teacher:
+                tid = str(r.teacher["$id"])
+            else:
+                tid = str(r.teacher)
+        if tid:
+            checked_in_teacher_ids.add(tid)
+
+        if r.check_out_time:
+            completed_count += 1
+        elif r.check_in_time:
+            working_count += 1
+
+    # Check active approved leaves for this date
+    approved_leaves = await LeaveRequest.find({
+        "status": "Approved",
+        "from_date": {"$lte": day_end},
+        "to_date": {"$gte": day_start}
+    }).to_list()
+
+    leave_teacher_ids = set()
+    for l in approved_leaves:
+        if hasattr(l, "teacher") and l.teacher:
+            if hasattr(l.teacher, "id"):
+                leave_teacher_ids.add(str(l.teacher.id))
+            elif hasattr(l.teacher, "ref"):
+                leave_teacher_ids.add(str(l.teacher.ref.id))
+
+    on_leave_count = len(leave_teacher_ids - checked_in_teacher_ids)
+    present_count = len(checked_in_teacher_ids)
+    absent_count = max(0, total_teachers - present_count - on_leave_count)
+
+    return {
+        "date": target_date.strftime("%Y-%m-%d"),
+        "total_teachers": total_teachers,
+        "present_count": present_count,
+        "working_count": working_count,
+        "completed_count": completed_count,
+        "absent_count": absent_count,
+        "on_leave_count": on_leave_count
+    }
+
+async def mark_manual_teacher_attendance(data: dict) -> dict:
+    from app.services.teacher_service import resolve_teacher
+
+    teacher_id = data.get("teacher_id")
+    if not teacher_id:
+        raise HTTPException(status_code=400, detail="Teacher ID is required")
+        
+    teacher = await resolve_teacher(teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    date_val = data.get("date")
+    if isinstance(date_val, str):
+        date_dt = datetime.fromisoformat(date_val.replace("Z", "+00:00"))
+    elif isinstance(date_val, datetime):
+        date_dt = date_val
+    else:
+        date_dt = datetime.utcnow()
+
+    check_in = None
+    if data.get("check_in_time"):
+        if isinstance(data["check_in_time"], str):
+            check_in = datetime.fromisoformat(data["check_in_time"].replace("Z", "+00:00"))
+        else:
+            check_in = data["check_in_time"]
+
+    check_out = None
+    if data.get("check_out_time"):
+        if isinstance(data["check_out_time"], str):
+            check_out = datetime.fromisoformat(data["check_out_time"].replace("Z", "+00:00"))
+        else:
+            check_out = data["check_out_time"]
+
+    total_hours = data.get("total_hours")
+    if not total_hours and check_in and check_out:
+        diff = check_out - check_in
+        hrs, rem = divmod(diff.total_seconds(), 3600)
+        mins, _ = divmod(rem, 60)
+        total_hours = f"{int(hrs)}h {int(mins)}m"
+
+    status = data.get("status", "Present")
+
+    day_start = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    existing = await Attendance.find_one({
+        "$and": [
+            _get_teacher_mongo_query(teacher.id),
+            {"date": {"$gte": day_start, "$lte": day_end}}
+        ]
+    })
+
+    if existing:
+        existing.status = status
+        if check_in:
+            existing.check_in_time = check_in
+        if check_out:
+            existing.check_out_time = check_out
+        if total_hours:
+            existing.total_hours = total_hours
+        if data.get("remarks"):
+            existing.remarks = data["remarks"]
+        await existing.save()
+        res = existing.model_dump()
+        res["id"] = str(existing.id)
+        res["teacher_id"] = str(teacher.id)
+        return res
+
+    attendance = Attendance(
+        teacher=teacher,
+        date=date_dt,
+        status=status,
+        check_in_time=check_in,
+        check_out_time=check_out,
+        total_hours=total_hours,
+        remarks=data.get("remarks")
+    )
+    await attendance.insert()
+    res = attendance.model_dump()
+    res["id"] = str(attendance.id)
+    res["teacher_id"] = str(teacher.id)
+    return res
+
+async def update_attendance_record(record_id: str, data: dict) -> dict:
+    record = await Attendance.get(ObjectId(record_id))
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+
+    if "status" in data and data["status"]:
+        record.status = data["status"]
+    if "remarks" in data:
+        record.remarks = data["remarks"]
+    if "check_in_time" in data:
+        if data["check_in_time"]:
+            record.check_in_time = datetime.fromisoformat(str(data["check_in_time"]).replace("Z", "+00:00"))
+        else:
+            record.check_in_time = None
+    if "check_out_time" in data:
+        if data["check_out_time"]:
+            record.check_out_time = datetime.fromisoformat(str(data["check_out_time"]).replace("Z", "+00:00"))
+        else:
+            record.check_out_time = None
+
+    if "total_hours" in data and data["total_hours"]:
+        record.total_hours = data["total_hours"]
+    elif record.check_in_time and record.check_out_time:
+        diff = record.check_out_time - record.check_in_time
+        hrs, rem = divmod(diff.total_seconds(), 3600)
+        mins, _ = divmod(rem, 60)
+        record.total_hours = f"{int(hrs)}h {int(mins)}m"
+
+    await record.save()
+    res = record.model_dump()
+    res["id"] = str(record.id)
+    return res
+
+async def delete_attendance_record(record_id: str) -> dict:
+    record = await Attendance.get(ObjectId(record_id))
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+    await record.delete()
+    return {"message": "Attendance record deleted successfully"}
+
+async def get_all_attendance_logs(params: Optional[dict] = None) -> list[dict]:
+    # General attendance logs (such as RFID / student gate taps)
+    records = await Attendance.find({"student": {"$ne": None}}).sort("-date").limit(100).to_list()
+    res = []
+    for r in records:
+        student_name = "Student"
+        roll = "--"
+        rfid = "--"
+        if r.student:
+            student_obj = None
+            if isinstance(r.student, Student):
+                student_obj = r.student
+            elif hasattr(r.student, "ref"):
+                student_obj = await Student.get(r.student.ref.id)
+            if student_obj:
+                roll = student_obj.roll_number
+                rfid = student_obj.rfid_tag or "--"
+                if student_obj.user:
+                    u = await User.get(student_obj.user.ref.id) if hasattr(student_obj.user, "ref") else student_obj.user
+                    if u:
+                        student_name = u.full_name
+
+        time_str = r.rfid_scan_time.strftime("%I:%M %p") if r.rfid_scan_time else r.date.strftime("%I:%M %p")
+        res.append({
+            "id": str(r.id),
+            "time": time_str,
+            "studentName": student_name,
+            "rollNumber": roll,
+            "rfidCard": rfid,
+            "gate": "Gate 1",
+            "status": r.status or "Present",
+            "smsAlert": "Dispatched to parents"
+        })
+    return res
+
+async def scan_rfid_card(rfid_card: str, gate: str = "Gate 1") -> dict:
+    from app.services.student_service import resolve_student
+    student = await Student.find_one(Student.rfid_tag == rfid_card)
+    if not student:
+        raise HTTPException(status_code=404, detail=f"No student registered with RFID badge UID: {rfid_card}")
+
+    now = datetime.utcnow()
+    att = Attendance(
+        student=student,
+        date=now,
+        status="Present",
+        rfid_scan_time=now,
+        remarks=f"Scanned at {gate}"
+    )
+    await att.insert()
+    
+    student_name = "Student"
+    if student.user:
+        u = await User.get(student.user.ref.id) if hasattr(student.user, "ref") else student.user
+        if u:
+            student_name = u.full_name
+
+    return {
+        "message": f"Badge verified for {student_name} ({student.roll_number}) at {gate}",
+        "record": {
+            "id": str(att.id),
+            "studentName": student_name,
+            "time": now.strftime("%I:%M %p"),
+            "status": "Present"
+        }
+    }

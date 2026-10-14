@@ -1,24 +1,68 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List
-from app.schemas.attendance import AttendanceCreate, AttendanceResponse
-from app.services.attendance_service import mark_attendance, get_student_attendance
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from app.schemas.attendance import (
+    AttendanceCreate, 
+    AttendanceResponse,
+    TeacherAttendanceRecord,
+    TeacherAttendanceSummary,
+    TeacherManualAttendanceCreate,
+    AttendanceUpdate
+)
+from app.services.attendance_service import (
+    mark_attendance,
+    get_student_attendance,
+    get_teacher_attendance,
+    check_in_teacher,
+    check_out_teacher,
+    get_all_teachers_attendance,
+    get_teachers_attendance_summary,
+    mark_manual_teacher_attendance,
+    update_attendance_record,
+    delete_attendance_record,
+    get_all_attendance_logs,
+    scan_rfid_card
+)
 from app.services.auth_service import get_current_user
 from app.routers.auth import oauth2_scheme
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
-@router.post("", response_model=AttendanceResponse)
-async def create_attendance(
-    attendance_in: AttendanceCreate, 
+@router.get("/teachers", response_model=List[TeacherAttendanceRecord])
+async def list_teachers_attendance(
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    teacher_id: Optional[str] = Query(None, description="Filter by teacher ID"),
+    status: Optional[str] = Query(None, description="Filter by status (Working, Present, Absent, etc.)"),
+    start_date: Optional[str] = Query(None, description="Start date for range query"),
+    end_date: Optional[str] = Query(None, description="End date for range query"),
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
-    return await mark_attendance(attendance_in)
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to view teacher attendance records")
+    return await get_all_teachers_attendance(date, teacher_id, status, start_date, end_date)
 
-@router.get("/student/{student_id}", response_model=List[AttendanceResponse])
-async def list_student_attendance(student_id: str, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    return await get_student_attendance(student_id)
+@router.get("/teachers/summary", response_model=TeacherAttendanceSummary)
+async def get_teachers_summary(
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to view teacher attendance summary")
+    return await get_teachers_attendance_summary(date)
+
+@router.post("/teachers/manual")
+async def manual_teacher_attendance(
+    manual_in: TeacherManualAttendanceCreate,
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to record teacher attendance manually")
+    return await mark_manual_teacher_attendance(manual_in.model_dump())
 
 @router.get("/teacher/{teacher_id}", response_model=List[AttendanceResponse])
 async def list_teacher_attendance(teacher_id: str, token: str = Depends(oauth2_scheme)):
@@ -28,29 +72,80 @@ async def list_teacher_attendance(teacher_id: str, token: str = Depends(oauth2_s
         teacher_id = str(user.id)
     elif role not in {"ADMIN", "SUPER_ADMIN"}:
         raise HTTPException(status_code=403, detail="Not authorized to view teacher attendance")
-    from app.services.attendance_service import get_teacher_attendance
     return await get_teacher_attendance(teacher_id)
 
-@router.post("/check-in", response_model=AttendanceResponse)
+@router.post("/check-in")
 async def check_in(
     attendance_in: AttendanceCreate, 
     token: str = Depends(oauth2_scheme)
 ):
     user = await get_current_user(token)
-    if user.role == "TEACHER":
+    role = user.role.upper()
+    if role == "TEACHER":
         attendance_in.teacher_id = str(user.id)
-        
-    from app.services.attendance_service import check_in_teacher
+    elif role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to check in")
     return await check_in_teacher(attendance_in)
 
-@router.post("/check-out", response_model=AttendanceResponse)
+@router.post("/check-out")
 async def check_out(
     attendance_in: AttendanceCreate, 
     token: str = Depends(oauth2_scheme)
 ):
     user = await get_current_user(token)
-    if user.role == "TEACHER":
+    role = user.role.upper()
+    if role == "TEACHER":
         attendance_in.teacher_id = str(user.id)
-        
-    from app.services.attendance_service import check_out_teacher
+    elif role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to check out")
     return await check_out_teacher(attendance_in)
+
+@router.get("/student/{student_id}", response_model=List[AttendanceResponse])
+async def list_student_attendance(student_id: str, token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    return await get_student_attendance(student_id)
+
+@router.get("")
+async def list_attendance(token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    return await get_all_attendance_logs()
+
+@router.post("/rfid-scan")
+async def rfid_scan(payload: dict, token: str = Depends(oauth2_scheme)):
+    await get_current_user(token)
+    rfid_card = payload.get("rfidCard")
+    gate = payload.get("gate", "Gate 1")
+    if not rfid_card:
+        raise HTTPException(status_code=400, detail="RFID badge card UID is required")
+    return await scan_rfid_card(rfid_card, gate)
+
+@router.post("", response_model=AttendanceResponse)
+async def create_attendance(
+    attendance_in: AttendanceCreate, 
+    token: str = Depends(oauth2_scheme)
+):
+    await get_current_user(token)
+    return await mark_attendance(attendance_in)
+
+@router.put("/{attendance_id}")
+async def update_attendance(
+    attendance_id: str,
+    update_in: AttendanceUpdate,
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to update attendance")
+    return await update_attendance_record(attendance_id, update_in.model_dump(exclude_unset=True))
+
+@router.delete("/{attendance_id}")
+async def delete_attendance(
+    attendance_id: str,
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = user.role.upper()
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to delete attendance")
+    return await delete_attendance_record(attendance_id)

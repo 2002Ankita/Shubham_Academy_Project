@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
+import batchService from '../../services/batchService';
 import BackButton from '../../components/common/BackButton';
 import {
   User,
@@ -15,40 +16,64 @@ import {
   Save,
   Camera,
   Upload,
-  Radio,
   ShieldCheck,
-  ArrowLeft,
   AlertCircle,
   Building2,
   CalendarCheck,
   CreditCard,
-  Award
+  Award,
+  Lock,
+  ArrowLeft,
+  Calendar,
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function StudentProfile() {
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef(null);
+  const [batchesList, setBatchesList] = useState([]);
 
-  // Default profile derived from existing user and studentService defaults
+  // Fetch batches for academic selection
+  useEffect(() => {
+    batchService.getBatches()
+      .then((data) => {
+        if (Array.isArray(data)) setBatchesList(data);
+      })
+      .catch((err) => console.warn('Could not load batches list:', err));
+  }, []);
+
+  // Initial default student profile structure
   const defaultProfile = {
     id: user?.id || 'N/A',
-    name: user?.name || user?.full_name || 'N/A',
-    email: user?.email || 'N/A',
-    phone: user?.phone || user?.mobile_number || 'N/A',
-    rollNumber: user?.rollNumber || user?.student_id || 'N/A',
-    admissionId: 'N/A',
-    standard: user?.standard || user?.course || 'N/A',
-    batch: user?.batch || 'N/A',
-    rfidCard: user?.rfidCard || 'N/A',
-    status: user?.status || 'Active Student',
-    feesStatus: 'Pending',
-    parentName: user?.parentName || user?.parent_name || 'N/A',
-    parentPhone: user?.parentPhone || user?.parent_mobile || 'N/A',
-    address: user?.address || 'N/A',
-    attendancePercent: 0,
-    avatar: user?.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-    academicYear: '2025 - 2026'
+    studentId: user?.rollNumber || user?.student_id || 'Auto-generated',
+    name: user?.name || user?.full_name || '',
+    phone: user?.phone || user?.mobile_number || '',
+    parentPhone: user?.parentPhone || user?.parent_mobile || '',
+    email: user?.email || '',
+    dob: '',
+    gender: 'Male',
+    address: '',
+    city: '',
+    state: 'Maharashtra',
+    pincode: '',
+    standard: user?.standard || '',
+    batch: user?.batch || '',
+    branch: user?.branch || 'Kolhapur Main Branch',
+    academicYear: '2025-2026',
+    previousSchool: '',
+    parentName: user?.parentName || user?.parent_name || '',
+    relation: 'Father',
+    parentEmail: '',
+    parentOccupation: '',
+    rfidCard: user?.rfidCard || 'Pending Assignment',
+    totalFees: Number(user?.totalFees) || 45000,
+    paidFees: Number(user?.paidFees) || 15000,
+    remainingFees: Number(user?.remainingFees) || 30000,
+    feesStatus: 'Partial',
+    profileCompleted: false,
+    avatar: user?.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
   };
 
   const [profile, setProfile] = useState(() => {
@@ -68,117 +93,116 @@ export default function StudentProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Form State for editing
   const [formData, setFormData] = useState({
+    // Admin-entered fields (strictly read-only for students):
     name: profile.name,
-    email: profile.email,
     phone: profile.phone,
-    parentName: profile.parentName,
     parentPhone: profile.parentPhone,
+    totalFees: profile.totalFees,
+    paidFees: profile.paidFees,
+    remainingFees: profile.remainingFees,
+
+    // Student-entered personal fields:
+    email: profile.email,
+    dob: profile.dob,
+    gender: profile.gender || 'Male',
     address: profile.address,
-    avatar: profile.avatar
+    city: profile.city || '',
+    state: profile.state || 'Maharashtra',
+    pincode: profile.pincode || '',
+    avatar: profile.avatar,
+
+    // Student-entered academic fields:
+    standard: profile.standard,
+    batch: profile.batch,
+    branch: profile.branch || 'Kolhapur Main Branch',
+    academicYear: profile.academicYear || '2025-2026',
+    previousSchool: profile.previousSchool || '',
+
+    // Student-entered parent fields:
+    parentName: profile.parentName,
+    relation: profile.relation || 'Father',
+    parentEmail: profile.parentEmail || '',
+    parentOccupation: profile.parentOccupation || ''
   });
+
   const [errors, setErrors] = useState({});
 
-  // Dynamic Profile Completion calculation based on existing profile fields
+  // Dynamic Profile Completion calculation based on all required profile fields
   const profileFields = useMemo(() => [
-    {
-      key: 'avatar',
-      label: 'Profile Photo',
-      isComplete: Boolean(profile?.avatar && typeof profile.avatar === 'string' && profile.avatar.trim().length > 0)
-    },
-    {
-      key: 'name',
-      label: 'Student Full Name',
-      isComplete: Boolean(profile?.name && typeof profile.name === 'string' && profile.name.trim().length > 0)
-    },
-    {
-      key: 'email',
-      label: 'Email',
-      isComplete: Boolean(profile?.email && typeof profile.email === 'string' && profile.email.trim().length > 0)
-    },
-    {
-      key: 'phone',
-      label: 'Mobile Number',
-      isComplete: Boolean(profile?.phone && typeof profile.phone === 'string' && profile.phone.trim().length > 0)
-    },
-    {
-      key: 'address',
-      label: 'Residential Address',
-      isComplete: Boolean(profile?.address && typeof profile.address === 'string' && profile.address.trim().length > 0)
-    },
-    {
-      key: 'parentName',
-      label: 'Parent/Guardian Name',
-      isComplete: Boolean(profile?.parentName && typeof profile.parentName === 'string' && profile.parentName.trim().length > 0)
-    },
-    {
-      key: 'parentPhone',
-      label: 'Emergency Contact',
-      isComplete: Boolean(profile?.parentPhone && typeof profile.parentPhone === 'string' && profile.parentPhone.trim().length > 0)
-    }
+    { key: 'name', label: 'Student Full Name (Admin)', isComplete: Boolean(profile?.name?.trim()) },
+    { key: 'phone', label: 'Mobile Number (Admin)', isComplete: Boolean(profile?.phone?.trim()) },
+    { key: 'parentPhone', label: 'Parent Mobile (Admin)', isComplete: Boolean(profile?.parentPhone?.trim()) },
+    { key: 'dob', label: 'Date of Birth (Student)', isComplete: Boolean(profile?.dob) },
+    { key: 'gender', label: 'Gender (Student)', isComplete: Boolean(profile?.gender) },
+    { key: 'email', label: 'Student Email (Student)', isComplete: Boolean(profile?.email?.trim()) },
+    { key: 'address', label: 'Residential Address (Student)', isComplete: Boolean(profile?.address?.trim()) },
+    { key: 'standard', label: 'Class / Standard (Student)', isComplete: Boolean(profile?.standard && profile.standard !== 'Pending Selection') },
+    { key: 'batch', label: 'Study Batch (Student)', isComplete: Boolean(profile?.batch && profile.batch !== 'Pending Allocation') },
+    { key: 'parentName', label: 'Parent / Guardian Name (Student)', isComplete: Boolean(profile?.parentName?.trim()) }
   ], [profile]);
 
-  const totalApplicableFields = profileFields.length;
-  const completedFieldsCount = profileFields.filter((f) => f.isComplete).length;
-  const missingFields = profileFields.filter((f) => !f.isComplete);
-  const completionPercentage = totalApplicableFields > 0
-    ? Math.round((completedFieldsCount / totalApplicableFields) * 100)
-    : 0;
+  const totalFields = profileFields.length;
+  const completedFields = profileFields.filter((f) => f.isComplete).length;
+  const completionPercentage = Math.round((completedFields / totalFields) * 100);
 
-  const getStatusMessage = (percentage) => {
-    if (percentage === 100) {
-      return 'Your profile is complete.';
-    }
-    if (percentage >= 80) {
-      return 'Your profile is almost complete. Add the remaining details.';
-    }
-    if (percentage >= 50) {
-      return 'Complete a few more details to finish your profile.';
-    }
-    return 'Complete your profile information to keep your account details up to date.';
-  };
-
-  // Sync if auth user updates externally
-  useEffect(() => {
-    if (user?.name && user.name !== profile.name) {
-      setProfile((prev) => ({
-        ...prev,
-        name: user.name,
-        email: user.email || prev.email,
-        avatar: user.avatar || prev.avatar
-      }));
-    }
-  }, [user]);
-
-  // Fetch real data from backend
+  // Fetch real profile data from backend on mount
   useEffect(() => {
     const fetchRealProfile = async () => {
       if (!user?.id) return;
       try {
         const data = await studentService.getById(user.id);
         if (data) {
-          const updatedProfile = {
+          const totalFees = Number(data.total_fees || data.totalFees) || 0;
+          const paidFees = Number(data.paid_fees || data.paidFees) || 0;
+          const remainingFees = Math.max(0, totalFees - paidFees);
+
+          const formattedDob = data.date_of_birth
+            ? new Date(data.date_of_birth).toISOString().split('T')[0]
+            : '';
+
+          const updated = {
             ...profile,
-            name: data.name || profile.name,
+            id: data.id || profile.id,
+            studentId: data.student_id || data.rollNumber || profile.studentId,
+            name: data.full_name || data.name || profile.name,
+            phone: data.mobile_number || data.phone || profile.phone,
+            parentPhone: data.parent_mobile || data.parentPhone || profile.parentPhone,
             email: data.email || profile.email,
-            phone: data.phone || profile.phone,
-            parentName: data.parent_name || profile.parentName,
-            parentPhone: data.parentPhone || profile.parentPhone,
+            dob: formattedDob || profile.dob,
+            gender: data.gender || profile.gender,
             address: data.address || profile.address,
-            rollNumber: data.rollNumber || profile.rollNumber,
+            city: data.city || profile.city,
+            state: data.state || profile.state,
+            pincode: data.pincode || profile.pincode,
             standard: data.standard || profile.standard,
             batch: data.batch || profile.batch,
+            branch: data.branch || profile.branch,
             academicYear: data.academic_year || profile.academicYear,
+            previousSchool: data.previous_school || profile.previousSchool,
+            parentName: data.parent_name || profile.parentName,
+            relation: data.relation || profile.relation,
+            parentEmail: data.parent_email || profile.parentEmail,
+            parentOccupation: data.parent_occupation || profile.parentOccupation,
             rfidCard: data.rfid_tag || profile.rfidCard,
-            id: data.student_id || profile.id
+            totalFees,
+            paidFees,
+            remainingFees,
+            feesStatus: paidFees >= totalFees && totalFees > 0 ? 'Paid' : paidFees > 0 ? 'Partial' : 'Pending',
+            profileCompleted: Boolean(data.profile_completed),
+            avatar: data.avatar || profile.avatar
           };
-          setProfile(updatedProfile);
-          localStorage.setItem('student_profile_data', JSON.stringify(updatedProfile));
+
+          setProfile(updated);
+          localStorage.setItem('student_profile_data', JSON.stringify(updated));
         }
       } catch (err) {
-        console.error("Failed to fetch real profile data:", err);
+        console.warn('Could not fetch real profile data:', err);
       }
     };
+
     fetchRealProfile();
   }, [user?.id]);
 
@@ -187,12 +211,28 @@ export default function StudentProfile() {
     if (isEditing) {
       setFormData({
         name: profile.name,
-        email: profile.email,
         phone: profile.phone,
-        parentName: profile.parentName,
         parentPhone: profile.parentPhone,
+        totalFees: profile.totalFees,
+        paidFees: profile.paidFees,
+        remainingFees: profile.remainingFees,
+        email: profile.email,
+        dob: profile.dob,
+        gender: profile.gender || 'Male',
         address: profile.address,
-        avatar: profile.avatar
+        city: profile.city || '',
+        state: profile.state || 'Maharashtra',
+        pincode: profile.pincode || '',
+        avatar: profile.avatar,
+        standard: profile.standard,
+        batch: profile.batch,
+        branch: profile.branch || 'Kolhapur Main Branch',
+        academicYear: profile.academicYear || '2025-2026',
+        previousSchool: profile.previousSchool || '',
+        parentName: profile.parentName,
+        relation: profile.relation || 'Father',
+        parentEmail: profile.parentEmail || '',
+        parentOccupation: profile.parentOccupation || ''
       });
       setErrors({});
     }
@@ -210,12 +250,11 @@ export default function StudentProfile() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setErrors((prev) => ({ ...prev, avatar: 'Please select a valid image file (PNG, JPG, WebP)' }));
+      toast.error('Please select a valid image file (PNG, JPG, WebP)');
       return;
     }
-
     if (file.size > 2 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, avatar: 'Image size must be less than 2MB' }));
+      toast.error('Image size must be less than 2MB');
       return;
     }
 
@@ -230,40 +269,12 @@ export default function StudentProfile() {
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.name?.trim()) {
-      newErrors.name = 'Student full name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Full name must be at least 2 characters';
-    }
-
-    if (!formData.email?.trim()) {
-      newErrors.email = 'Email address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+    if (formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!formData.phone?.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else {
-      const cleanPhone = formData.phone.replace(/\D/g, '');
-      if (cleanPhone.length < 10) {
-        newErrors.phone = 'Please enter a valid 10-digit phone number';
-      }
-    }
-
-    if (formData.parentName?.trim() && formData.parentName.trim().length < 2) {
-      newErrors.parentName = 'Parent name must be at least 2 characters';
-    }
-
-    if (formData.parentPhone?.trim()) {
-      const cleanParentPhone = formData.parentPhone.replace(/\D/g, '');
-      if (cleanParentPhone.length < 10) {
-        newErrors.parentPhone = 'Please enter a valid 10-digit phone number';
-      }
-    }
-
-    if (formData.address?.trim() && formData.address.trim().length < 6) {
-      newErrors.address = 'Please provide complete street / city details (at least 6 characters)';
+    if (formData.pincode?.trim() && !/^\d{6}$/.test(formData.pincode.trim())) {
+      newErrors.pincode = 'Please enter a valid 6-digit PIN code';
     }
 
     setErrors(newErrors);
@@ -273,65 +284,97 @@ export default function StudentProfile() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!validate()) {
-      toast.error('Please fix the errors in the form before saving.');
       return;
     }
 
     setSaving(true);
     try {
+      // Payload for Student Role Update:
+      // Note: Admin-locked fields (name, phone, parentPhone, fees) are stripped/ignored by backend RBAC for safety
       const updatedFields = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        parentName: (formData.parentName || '').trim(),
-        parentPhone: (formData.parentPhone || '').trim(),
+        email: formData.email?.trim() || undefined,
+        dob: formData.dob || undefined,
+        date_of_birth: formData.dob ? new Date(formData.dob).toISOString() : undefined,
+        gender: formData.gender,
         address: (formData.address || '').trim(),
+        city: (formData.city || '').trim(),
+        state: (formData.state || '').trim(),
+        pincode: (formData.pincode || '').trim(),
+        standard: formData.standard || undefined,
+        batch: formData.batch || undefined,
+        branch: formData.branch,
+        academic_year: formData.academicYear,
+        previous_school: (formData.previousSchool || '').trim(),
+        parent_name: (formData.parentName || '').trim(),
+        relation: formData.relation,
+        parent_email: (formData.parentEmail || '').trim(),
+        parent_occupation: (formData.parentOccupation || '').trim(),
         avatar: formData.avatar
       };
 
-      // 1. Update mock student service
-      if (studentService?.update) {
-        await studentService.update(profile.id, updatedFields);
-      }
+      // 1. Send update to Backend API
+      await studentService.update(profile.id, updatedFields);
 
-      // 2. Update AuthContext & localStorage for session consistency
-      if (updateUser) {
-        updateUser(updatedFields);
-      }
+      // 2. Update local profile state
+      const merged = {
+        ...profile,
+        ...updatedFields,
+        parentName: updatedFields.parent_name,
+        previousSchool: updatedFields.previous_school,
+        parentEmail: updatedFields.parent_email,
+        parentOccupation: updatedFields.parent_occupation,
+        academicYear: updatedFields.academic_year,
+        profileCompleted: Boolean(
+          updatedFields.date_of_birth && 
+          updatedFields.gender && 
+          updatedFields.address && 
+          updatedFields.parent_name
+        )
+      };
 
-      // 3. Update persistent profile data
-      const merged = { ...profile, ...updatedFields };
-      localStorage.setItem('student_profile_data', JSON.stringify(merged));
       setProfile(merged);
+      localStorage.setItem('student_profile_data', JSON.stringify(merged));
+
+      // 3. Update Auth context if needed
+      if (updateUser) {
+        updateUser({
+          email: merged.email,
+          standard: merged.standard,
+          batch: merged.batch,
+          avatar: merged.avatar
+        });
+      }
 
       setIsEditing(false);
       setErrors({});
-      toast.success('Profile updated successfully!');
+      toast.success('Student profile updated successfully!');
     } catch (err) {
-      console.error('Error updating profile:', err);
-      toast.error('Failed to update profile. Please try again.');
+      console.error('Error updating student profile:', err);
+      const detail = err.response?.data?.detail;
+      let errMsg = 'Failed to save student profile. Please try again.';
+      if (typeof detail === 'string') {
+        errMsg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        const item = detail[0];
+        const fieldName = Array.isArray(item.loc) ? item.loc.filter(l => l !== 'body' && l !== 'response').join(' ') : '';
+        errMsg = fieldName ? `${fieldName}: ${item.msg}` : (item.msg || 'Validation error');
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      toast.error(errMsg);
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: profile.name,
-      email: profile.email,
-      phone: profile.phone,
-      parentName: profile.parentName,
-      parentPhone: profile.parentPhone,
-      address: profile.address,
-      avatar: profile.avatar
-    });
     setErrors({});
     setIsEditing(false);
   };
 
   return (
     <div className="d-flex flex-column gap-4" style={{ maxWidth: '1040px', margin: '0 auto' }}>
-      {/* Back button */}
+      {/* Top Breadcrumb */}
       <div>
         <BackButton to="/student/dashboard" label="Back to Dashboard" />
       </div>
@@ -341,36 +384,47 @@ export default function StudentProfile() {
       {/* ========================================================================= */}
       {!isEditing ? (
         <>
-          {/* Header Description */}
-          <div>
-            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-              My Profile
-            </h3>
-            <span className="small text-sa-muted">
-              Manage your student identity, enrolled batch, contact details, and parent alert information
-            </span>
+          {/* Header Title & Status */}
+          <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+            <div>
+              <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+                My Student Profile
+              </h3>
+              <span className="small text-sa-muted">
+                Role-Based Student Profile: Admin-entered fields are protected. Personal and academic details can be edited below.
+              </span>
+            </div>
+
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn text-white fw-semibold px-3 py-1.5 rounded-2 small d-inline-flex align-items-center gap-2 shadow-xs"
+                style={{ backgroundColor: '#8B1216' }}
+                onClick={() => setIsEditing(true)}
+              >
+                <Pencil size={15} />
+                <span>{completionPercentage < 100 ? 'Complete Profile' : 'Edit Profile'}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Profile Overview Card with Edit Profile Button */}
+          {/* Profile Overview Card with Avatar & Progress */}
           <div className="sa-card overflow-hidden">
-            {/* Subtle Shubham Academy top accent strip */}
             <div
               style={{
                 height: '4px',
-                background: 'linear-gradient(90deg, var(--sa-primary-red) 0%, #C4272D 60%, var(--sa-mustard-yellow) 100%)'
+                background: 'linear-gradient(90deg, #8B1216 0%, #C4272D 60%, #F5A900 100%)'
               }}
             />
 
-            <div className="p-4 p-md-4">
+            <div className="p-4">
               <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-4">
-                {/* Left: Avatar and Identity Information */}
-                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3.5 gap-md-4 flex-grow-1 w-100">
-                  {/* Avatar with Circular Profile Progress Completion Ring & Status */}
+                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-4 flex-grow-1 w-100">
+                  {/* Avatar with Circular Ring */}
                   <div
                     className="position-relative flex-shrink-0 d-flex align-items-center justify-content-center"
                     style={{ width: '116px', height: '116px' }}
                   >
-                    {/* SVG Circular Progress Ring */}
                     <svg
                       className="position-absolute top-0 start-0"
                       width="116"
@@ -378,394 +432,286 @@ export default function StudentProfile() {
                       viewBox="0 0 116 116"
                       style={{ transform: 'rotate(-90deg)', pointerEvents: 'none' }}
                     >
-                      {/* Background Track */}
+                      <circle cx="58" cy="58" r="51" fill="none" stroke="#E2E8F0" strokeWidth="5" />
                       <circle
                         cx="58"
                         cy="58"
                         r="51"
                         fill="none"
-                        stroke="#E2E8F0"
-                        strokeWidth="5"
-                      />
-                      {/* Active Progress Ring */}
-                      <circle
-                        cx="58"
-                        cy="58"
-                        r="51"
-                        fill="none"
-                        stroke={completionPercentage === 100 ? '#10B981' : '#A91D22'}
+                        stroke={completionPercentage === 100 ? '#10B981' : '#8B1216'}
                         strokeWidth="5"
                         strokeDasharray={2 * Math.PI * 51}
                         strokeDashoffset={(2 * Math.PI * 51) * (1 - completionPercentage / 100)}
                         strokeLinecap="round"
-                        style={{
-                          transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease'
-                        }}
+                        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
                       />
                     </svg>
 
-                    {/* Circular Avatar Image */}
                     <div
                       className="rounded-circle overflow-hidden shadow-sm"
-                      style={{
-                        width: '92px',
-                        height: '92px',
-                        backgroundColor: '#FFFFFF',
-                        border: '2px solid #FFFFFF'
-                      }}
+                      style={{ width: '92px', height: '92px', backgroundColor: '#FFFFFF', border: '2px solid #FFFFFF' }}
                     >
                       <img
                         src={profile.avatar}
                         alt={profile.name}
                         className="w-100 h-100 rounded-circle"
-                        style={{
-                          objectFit: 'cover',
-                          display: 'block'
-                        }}
+                        style={{ objectFit: 'cover' }}
                       />
                     </div>
 
-                    {/* Status Badge: 100% Completed Checkmark Badge matching reference image vs Incomplete Percentage */}
                     {completionPercentage === 100 ? (
                       <div
                         className="position-absolute d-flex align-items-center justify-content-center rounded-circle shadow-sm"
                         style={{
-                          width: '34px',
-                          height: '34px',
+                          width: '32px',
+                          height: '32px',
                           backgroundColor: '#22C55E',
-                          border: '3.5px solid #FFFFFF',
-                          bottom: '1px',
-                          right: '1px',
-                          zIndex: 4,
-                          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.16)'
+                          border: '3px solid #FFFFFF',
+                          bottom: '2px',
+                          right: '2px',
+                          zIndex: 4
                         }}
-                        title="Profile 100% Complete & Verified"
+                        title="Profile 100% Completed"
                       >
-                        <Check size={19} strokeWidth={3.8} className="text-white" />
+                        <Check size={18} strokeWidth={3.5} className="text-white" />
                       </div>
                     ) : (
                       <div
-                        className="position-absolute start-50 translate-middle-x px-2 py-0.5 rounded-pill shadow-sm fw-bold d-inline-flex align-items-center gap-1"
+                        className="position-absolute start-50 translate-middle-x px-2 py-0.5 rounded-pill shadow-sm fw-bold"
                         style={{
                           bottom: '-6px',
-                          backgroundColor: '#A91D22',
+                          backgroundColor: '#8B1216',
                           color: '#FFFFFF',
                           border: '2px solid #FFFFFF',
-                          fontSize: '0.70rem',
-                          lineHeight: 1.2,
-                          letterSpacing: '0.02em',
-                          whiteSpace: 'nowrap',
+                          fontSize: '0.68rem',
                           zIndex: 3
                         }}
-                        title={`Profile Completion: ${completionPercentage}%`}
                       >
-                        <span>{completionPercentage}%</span>
+                        {completionPercentage}% Done
                       </div>
                     )}
                   </div>
 
                   {/* Identity Details */}
                   <div className="flex-grow-1 w-100">
-                    {/* Student Name + Status Badge */}
-                    <div className="d-flex align-items-center gap-3 flex-wrap mb-2">
-                      <h3
-                        className="brand-font fw-bold m-0 text-sa-charcoal"
-                        style={{ fontSize: '1.45rem', letterSpacing: '-0.02em', lineHeight: 1.2 }}
-                      >
+                    <div className="d-flex align-items-center gap-3 flex-wrap mb-1">
+                      <h3 className="brand-font fw-bold m-0 text-sa-charcoal fs-4">
                         {profile.name}
                       </h3>
-                      <span
-                        className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill fw-semibold flex-shrink-0"
-                        style={{
-                          backgroundColor: 'var(--sa-success-bg, #ECFDF5)',
-                          color: 'var(--sa-success-green, #047857)',
-                          border: '1px solid rgba(22, 133, 84, 0.25)',
-                          fontSize: '0.75rem',
-                          lineHeight: 1
-                        }}
-                      >
-                        <span
-                          className="rounded-circle"
-                          style={{
-                            width: '6px',
-                            height: '6px',
-                            backgroundColor: 'var(--sa-success-green, #10B981)'
-                          }}
-                        />
+                      <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill small">
                         Active Student
                       </span>
+                      {completionPercentage < 100 ? (
+                        <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2.5 py-1 rounded-pill small">
+                          Profile Incomplete ({completionPercentage}%)
+                        </span>
+                      ) : (
+                        <span className="badge bg-success text-white px-2.5 py-1 rounded-pill small">
+                          Profile Completed ✓
+                        </span>
+                      )}
                     </div>
 
-                    {/* Key Identity Row (Structured 3-Column Layout) */}
-                    <div
-                      className="rounded-2 my-3 p-3 px-sm-4"
-                      style={{
-                        backgroundColor: '#F8FAFC',
-                        border: '1px solid #E2E8F0'
-                      }}
-                    >
-                      <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 gap-sm-0">
-                        {/* Column 1: Roll No */}
-                        <div className="flex-fill pe-sm-3">
-                          <span
-                            className="d-block text-uppercase fw-bold text-sa-muted mb-1"
-                            style={{ fontSize: '0.68rem', letterSpacing: '0.06em', lineHeight: 1.2 }}
-                          >
-                            Roll No.
-                          </span>
-                          <span
-                            className="d-block fw-bold text-sa-charcoal"
-                            style={{ fontSize: '0.925rem', lineHeight: 1.3 }}
-                          >
-                            {profile.rollNumber}
-                          </span>
-                        </div>
-
-                        {/* Subtle Divider 1 */}
-                        <div
-                          className="d-none d-sm-block align-self-center mx-2"
-                          style={{ width: '1px', height: '28px', backgroundColor: '#E2E8F0' }}
-                        />
-
-                        {/* Column 2: Student ID */}
-                        <div className="flex-fill px-sm-3">
-                          <span
-                            className="d-block text-uppercase fw-bold text-sa-muted mb-1"
-                            style={{ fontSize: '0.68rem', letterSpacing: '0.06em', lineHeight: 1.2 }}
-                          >
-                            Student ID
-                          </span>
-                          <span
-                            className="d-block fw-bold text-sa-charcoal"
-                            style={{ fontSize: '0.925rem', lineHeight: 1.3 }}
-                          >
-                            {profile.id}
-                          </span>
-                        </div>
-
-                        {/* Subtle Divider 2 */}
-                        <div
-                          className="d-none d-sm-block align-self-center mx-2"
-                          style={{ width: '1px', height: '28px', backgroundColor: '#E2E8F0' }}
-                        />
-
-                        {/* Column 3: Class */}
-                        <div className="flex-fill ps-sm-3">
-                          <span
-                            className="d-block text-uppercase fw-bold text-sa-muted mb-1"
-                            style={{ fontSize: '0.68rem', letterSpacing: '0.06em', lineHeight: 1.2 }}
-                          >
-                            Class
-                          </span>
-                          <span
-                            className="d-block fw-bold text-sa-primary"
-                            style={{ fontSize: '0.925rem', lineHeight: 1.3 }}
-                          >
-                            {profile.standard}
-                          </span>
-                        </div>
+                    <div className="row g-2 mt-2 small text-sa-muted">
+                      <div className="col-12 col-sm-4">
+                        <strong className="text-sa-charcoal d-block">Student ID:</strong>
+                        <span className="text-sa-primary fw-bold">{profile.studentId}</span>
                       </div>
-                    </div>
-
-                    {/* Secondary Information Chips (RFID & Batch) */}
-                    <div className="d-flex align-items-center gap-2.5 flex-wrap">
-                      <div
-                        className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-2"
-                        style={{
-                          backgroundColor: '#FFFFFF',
-                          color: 'var(--sa-charcoal-light, #475569)',
-                          border: '1px solid var(--sa-border, #E2E8F0)',
-                          fontSize: '0.78rem',
-                          height: '34px',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        <Radio size={14} className="text-sa-primary flex-shrink-0" />
-                        <span className="d-inline-flex align-items-center gap-1">
-                          <span className="text-sa-muted">RFID:</span>
-                          <strong className="text-sa-charcoal fw-semibold">{profile.rfidCard}</strong>
-                        </span>
+                      <div className="col-12 col-sm-4">
+                        <strong className="text-sa-charcoal d-block">Enrolled Class:</strong>
+                        <span>{profile.standard || <em className="text-muted">Pending Selection</em>}</span>
                       </div>
-
-                      <div
-                        className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-2"
-                        style={{
-                          backgroundColor: '#FFFFFF',
-                          color: 'var(--sa-charcoal-light, #475569)',
-                          border: '1px solid var(--sa-border, #E2E8F0)',
-                          fontSize: '0.78rem',
-                          height: '34px',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        <Building2 size={14} className="text-sa-muted flex-shrink-0" />
-                        <span className="d-inline-flex align-items-center gap-1">
-                          <span className="text-sa-muted">Batch:</span>
-                          <strong className="text-sa-charcoal fw-semibold">{profile.batch}</strong>
-                        </span>
+                      <div className="col-12 col-sm-4">
+                        <strong className="text-sa-charcoal d-block">Study Batch:</strong>
+                        <span>{profile.batch || <em className="text-muted">Pending Allocation</em>}</span>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Right: Edit Profile Action Button */}
-                <div className="align-self-stretch align-self-md-center flex-shrink-0">
-                  <button
-                    type="button"
-                    className="btn btn-sa-primary w-100 w-md-auto d-inline-flex align-items-center justify-content-center gap-2 px-3.5 py-2.5 rounded-2 shadow-sm"
-                    onClick={() => setIsEditing(true)}
-                    style={{ fontSize: '0.875rem', height: '40px' }}
-                  >
-                    <Pencil size={15} />
-                    <span className="fw-semibold">Edit Profile</span>
-                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Detailed Info Cards Grid */}
-          <div className="row g-3 g-md-4">
-            {/* Card 1: Personal & Contact Information */}
-            <div className="col-12 col-lg-6">
-              <div className="sa-card p-4 h-100 d-flex flex-column">
-                <div className="d-flex align-items-center justify-content-between pb-3 border-bottom mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="p-2 rounded-2 bg-light text-sa-primary">
-                      <User size={18} />
-                    </div>
-                    <h6 className="fw-bold text-sa-charcoal m-0 fs-6">Personal & Contact Info</h6>
-                  </div>
-                  <span className="badge bg-light text-sa-muted border small">Editable</span>
+          {/* Fee Structure Summary (Admin-Entered & Locked) */}
+          <div className="sa-card p-4">
+            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+              <div className="d-flex align-items-center gap-2">
+                <CreditCard size={18} style={{ color: '#8B1216' }} />
+                <h6 className="fw-bold m-0 text-sa-charcoal">Fee Account Overview</h6>
+              </div>
+              <span className="badge bg-light text-muted border d-inline-flex align-items-center gap-1 small">
+                <Lock size={12} /> Managed by Accounts Admin (Read-Only)
+              </span>
+            </div>
+
+            <div className="row g-3">
+              <div className="col-12 col-sm-4">
+                <div className="p-3 rounded-3 bg-light border">
+                  <span className="text-muted small d-block mb-1">Total Course Fee</span>
+                  <h4 className="fw-bold text-sa-charcoal m-0 fs-5">
+                    ₹{Number(profile.totalFees || 0).toLocaleString()}
+                  </h4>
                 </div>
-
-                <div className="d-flex flex-column gap-3 small flex-grow-1">
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Student Full Name</span>
-                    <div className="fw-semibold text-sa-charcoal fs-6">{profile.name}</div>
-                  </div>
-
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Registered Email Address</span>
-                    <div className="d-flex align-items-center gap-2 text-sa-charcoal fw-medium">
-                      <Mail size={15} className="text-sa-primary flex-shrink-0" />
-                      <span>{profile.email}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Student Mobile Phone</span>
-                    <div className="d-flex align-items-center gap-2 text-sa-charcoal fw-medium">
-                      <Phone size={15} className="text-sa-primary flex-shrink-0" />
-                      <span>{profile.phone}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Residential Address</span>
-                    <div className="d-flex align-items-start gap-2 text-sa-charcoal fw-medium">
-                      <MapPin size={15} className="text-sa-primary flex-shrink-0 mt-0.5" />
-                      <span>{profile.address || <span className="text-muted fst-italic fw-normal">Not provided</span>}</span>
-                    </div>
-                  </div>
+              </div>
+              <div className="col-12 col-sm-4">
+                <div className="p-3 rounded-3 bg-light border">
+                  <span className="text-muted small d-block mb-1">Total Fee Paid</span>
+                  <h4 className="fw-bold text-success m-0 fs-5">
+                    ₹{Number(profile.paidFees || 0).toLocaleString()}
+                  </h4>
+                </div>
+              </div>
+              <div className="col-12 col-sm-4">
+                <div className="p-3 rounded-3 bg-light border">
+                  <span className="text-muted small d-block mb-1">Remaining Fee Balance</span>
+                  <h4 className="fw-bold text-danger m-0 fs-5">
+                    ₹{Number(profile.remainingFees || 0).toLocaleString()}
+                  </h4>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Card 2: Parent / Guardian & Emergency Alerts */}
-            <div className="col-12 col-lg-6">
-              <div className="sa-card p-4 h-100 d-flex flex-column">
-                <div className="d-flex align-items-center justify-content-between pb-3 border-bottom mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="p-2 rounded-2 bg-light text-sa-primary">
-                      <ShieldCheck size={18} />
-                    </div>
-                    <h6 className="fw-bold text-sa-charcoal m-0 fs-6">Parent & Emergency Contact</h6>
-                  </div>
-                  <span className="badge bg-light text-sa-muted border small">Editable</span>
-                </div>
-
-                <div className="d-flex flex-column gap-3 small flex-grow-1">
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Parent / Guardian Full Name</span>
-                    <div className="fw-semibold text-sa-charcoal fs-6">
-                      {profile.parentName || <span className="text-muted fst-italic fw-normal fs-6">Not provided</span>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">Emergency & RFID Alert Mobile Phone</span>
-                    <div className="d-flex align-items-center gap-2 text-sa-charcoal fw-medium">
-                      <Phone size={15} className="text-sa-primary flex-shrink-0" />
-                      <span>{profile.parentPhone || <span className="text-muted fst-italic fw-normal">Not provided</span>}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-sa-muted d-block mb-1">RFID Gate SMS Alerts</span>
-                    <div className="d-flex align-items-center gap-2 text-success fw-semibold">
-                      <CheckCircle2 size={16} />
-                      <span>Active (Instant notifications sent on gate punch)</span>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 rounded-2 bg-light border small text-sa-muted mt-auto">
-                    <span className="fw-medium text-sa-charcoal">Note:</span> Attendance timestamps and automated SMS updates are dispatched directly to this parent contact number.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Academic & Enrollment Information */}
-            <div className="col-12">
-              <div className="sa-card p-4">
-                <div className="d-flex align-items-center justify-content-between pb-3 border-bottom mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="p-2 rounded-2 bg-light text-sa-primary">
-                      <GraduationCap size={18} />
-                    </div>
-                    <h6 className="fw-bold text-sa-charcoal m-0 fs-6">Academic & Enrollment Records</h6>
-                  </div>
-                  <span className="badge bg-secondary-subtle text-secondary border small">Admin Managed</span>
-                </div>
-
-                <div className="row g-3">
-                  <div className="col-12 col-sm-6 col-md-3">
-                    <div className="p-3 bg-light rounded-2 border">
-                      <span className="text-sa-muted small d-block mb-1">Roll Number</span>
-                      <span className="fw-bold text-sa-charcoal fs-6">{profile.rollNumber}</span>
-                    </div>
-                  </div>
-
-                  <div className="col-12 col-sm-6 col-md-3">
-                    <div className="p-3 bg-light rounded-2 border">
-                      <span className="text-sa-muted small d-block mb-1">Class & Stream</span>
-                      <span className="fw-bold text-sa-charcoal fs-6">{profile.standard}</span>
-                    </div>
-                  </div>
-
-                  <div className="col-12 col-sm-6 col-md-3">
-                    <div className="p-3 bg-light rounded-2 border">
-                      <span className="text-sa-muted small d-block mb-1">Assigned Batch</span>
-                      <span className="fw-bold text-sa-charcoal fs-6 text-truncate d-block" title={profile.batch}>
-                        {profile.batch}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="col-12 col-sm-6 col-md-3">
-                    <div className="p-3 bg-light rounded-2 border">
-                      <span className="text-sa-muted small d-block mb-1">Smart RFID Badge</span>
-                      <span className="fw-bold text-sa-primary fs-6">{profile.rfidCard}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-top d-flex align-items-start gap-2 text-sa-muted small">
-                  <AlertCircle size={16} className="text-sa-primary flex-shrink-0 mt-0.5" />
-                  <span>
-                    Official academic assignments, batch timetables, and RFID smart badge serial numbers are managed by the Shubham Academy administration. To request updates to academic records, please contact the academy administration desk.
+          {/* 3-Section Cards (Admin-Entered Details, Personal Details, Academic Details) */}
+          <div className="row g-4">
+            {/* Section 1: Admin-Entered Data (Read-Only) */}
+            <div className="col-12 col-md-6">
+              <div className="sa-card p-4 h-100">
+                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                    <ShieldCheck size={18} style={{ color: '#8B1216' }} />
+                    <span>Admin-Entered Basic Info</span>
+                  </h6>
+                  <span className="badge bg-light text-secondary border small d-inline-flex align-items-center gap-1">
+                    <Lock size={12} /> Read-Only
                   </span>
+                </div>
+
+                <div className="d-flex flex-column gap-3 small">
+                  <div>
+                    <span className="text-muted d-block">Student Official Name</span>
+                    <strong className="text-sa-charcoal fs-6">{profile.name}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted d-block">Student Mobile Number</span>
+                    <strong className="text-sa-charcoal">{profile.phone}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted d-block">Parent Mobile (Alerts & SMS)</span>
+                    <strong className="text-sa-charcoal">{profile.parentPhone}</strong>
+                  </div>
+                  <div className="p-2.5 rounded-2 bg-light border text-muted small mt-2">
+                    <Lock size={13} className="me-1 inline-block" />
+                    These core identification details were registered by Academy Admin. To request changes, please contact the admin desk.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Student-Entered Personal Information */}
+            <div className="col-12 col-md-6">
+              <div className="sa-card p-4 h-100">
+                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                    <User size={18} style={{ color: '#8B1216' }} />
+                    <span>Personal Profile Details</span>
+                  </h6>
+                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                </div>
+
+                <div className="d-flex flex-column gap-2.5 small">
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Student Email:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.email || 'Not provided'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Date of Birth:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.dob || 'Not provided'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Gender:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.gender}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Address:</span>
+                    <span className="fw-semibold text-sa-charcoal text-end" style={{ maxWidth: '240px' }}>
+                      {profile.address
+                        ? `${profile.address}${profile.city ? `, ${profile.city}` : ''}${profile.pincode ? ` - ${profile.pincode}` : ''}`
+                        : 'Not provided'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Academic Details */}
+            <div className="col-12 col-md-6">
+              <div className="sa-card p-4 h-100">
+                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                    <GraduationCap size={18} style={{ color: '#8B1216' }} />
+                    <span>Academic & Batch Information</span>
+                  </h6>
+                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                </div>
+
+                <div className="d-flex flex-column gap-2.5 small">
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Enrolled Standard:</span>
+                    <span className="fw-bold text-sa-charcoal">{profile.standard || 'Pending Selection'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Study Batch:</span>
+                    <span className="fw-bold text-sa-primary">{profile.batch || 'Pending Allocation'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Academy Branch:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.branch}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Academic Year:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.academicYear}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Previous School:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.previousSchool || 'Not provided'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Parent & Guardian Details */}
+            <div className="col-12 col-md-6">
+              <div className="sa-card p-4 h-100">
+                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                    <Building2 size={18} style={{ color: '#8B1216' }} />
+                    <span>Parent & Guardian Information</span>
+                  </h6>
+                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                </div>
+
+                <div className="d-flex flex-column gap-2.5 small">
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Parent / Guardian Name:</span>
+                    <span className="fw-bold text-sa-charcoal">{profile.parentName || 'Not provided'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Relationship:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.relation}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Parent Mobile (Locked):</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.parentPhone}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Parent Email:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.parentEmail || 'Not provided'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Parent Occupation:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.parentOccupation || 'Not provided'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -789,10 +735,10 @@ export default function StudentProfile() {
               <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
                 <div>
                   <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-                    Edit Student Profile
+                    Complete Student Profile
                   </h3>
                   <span className="small text-sa-muted">
-                    Update your contact details, residential address, parent phone, and student avatar
+                    Fill in your personal, academic, and parent details. Admin-entered fields remain read-only.
                   </span>
                 </div>
 
@@ -807,90 +753,80 @@ export default function StudentProfile() {
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-sa-primary px-3 py-1.5 rounded-2 small fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5"
+                    className="btn text-white px-4 py-1.5 rounded-2 small fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5"
+                    style={{ backgroundColor: '#8B1216' }}
                     disabled={saving}
                   >
                     {saving ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
                     ) : (
-                      <Save size={15} />
+                      <Save size={16} />
                     )}
-                    <span>Save Changes</span>
+                    <span>Save Profile</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Profile Photo Editor Card */}
+            {/* Read-Only Admin Section (Locked Banner) */}
+            <div
+              className="p-3.5 rounded-3 border"
+              style={{ backgroundColor: '#FDF0F0', borderColor: 'rgba(139, 18, 22, 0.2)' }}
+            >
+              <div className="d-flex align-items-center gap-2 mb-2" style={{ color: '#8B1216' }}>
+                <Lock size={18} />
+                <h6 className="fw-bold m-0 fs-6">Admin-Entered Fields (Read-Only)</h6>
+              </div>
+              <p className="text-muted small m-0 mb-3" style={{ fontSize: '0.82rem' }}>
+                The following identification and fee details were set by the Academy Admin at registration and cannot be modified by students.
+              </p>
+
+              <div className="row g-2 small">
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Student Name</span>
+                    <strong className="text-sa-charcoal">{formData.name}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Student Mobile</span>
+                    <strong className="text-sa-charcoal">{formData.phone}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Parent Mobile</span>
+                    <strong className="text-sa-charcoal">{formData.parentPhone}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Fee Status</span>
+                    <strong className="text-sa-primary">₹{formData.paidFees} / ₹{formData.totalFees}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Photo Upload */}
             <div className="sa-card p-4">
               <h6 className="fw-bold text-sa-charcoal mb-3 fs-6 d-flex align-items-center gap-2">
-                <Camera size={18} className="text-sa-primary" />
+                <Camera size={18} style={{ color: '#8B1216' }} />
                 <span>Profile Photo</span>
               </h6>
 
-              <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-4">
+              <div className="d-flex align-items-center gap-4">
                 <div
-                  className="position-relative flex-shrink-0 d-flex align-items-center justify-content-center"
-                  style={{ width: '106px', height: '106px' }}
+                  className="rounded-circle overflow-hidden shadow-sm flex-shrink-0"
+                  style={{ width: '84px', height: '84px', border: '3px solid #8B1216' }}
                 >
-                  <svg
-                    className="position-absolute top-0 start-0"
-                    width="106"
-                    height="106"
-                    viewBox="0 0 106 106"
-                    style={{ transform: 'rotate(-90deg)', pointerEvents: 'none' }}
-                  >
-                    <circle
-                      cx="53"
-                      cy="53"
-                      r="47"
-                      fill="none"
-                      stroke="#E2E8F0"
-                      strokeWidth="4"
-                    />
-                    <circle
-                      cx="53"
-                      cy="53"
-                      r="47"
-                      fill="none"
-                      stroke={completionPercentage === 100 ? '#10B981' : '#A91D22'}
-                      strokeWidth="4"
-                      strokeDasharray={2 * Math.PI * 47}
-                      strokeDashoffset={(2 * Math.PI * 47) * (1 - completionPercentage / 100)}
-                      strokeLinecap="round"
-                      style={{
-                        transition: 'stroke-dashoffset 0.8s ease-in-out'
-                      }}
-                    />
-                  </svg>
-                  <div
-                    className="rounded-circle overflow-hidden shadow-sm"
-                    style={{
-                      width: '84px',
-                      height: '84px',
-                      backgroundColor: '#FFFFFF',
-                      border: '2px solid #FFFFFF'
-                    }}
-                  >
-                    <img
-                      src={formData.avatar}
-                      alt="Avatar preview"
-                      className="w-100 h-100 rounded-circle"
-                      style={{
-                        objectFit: 'cover',
-                        display: 'block'
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="position-absolute bottom-0 end-0 btn btn-sm btn-sa-primary rounded-circle p-1.5 shadow-sm d-flex align-items-center justify-content-center"
-                    style={{ zIndex: 3 }}
-                    title="Change Photo"
-                  >
-                    <Upload size={13} />
-                  </button>
+                  <img
+                    src={formData.avatar}
+                    alt="Avatar preview"
+                    className="w-100 h-100"
+                    style={{ objectFit: 'cover' }}
+                  />
                 </div>
 
                 <div>
@@ -901,250 +837,382 @@ export default function StudentProfile() {
                     accept="image/*"
                     className="d-none"
                   />
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <button
-                      type="button"
-                      className="btn btn-sa-outline btn-sm px-3 py-1.5 rounded-2 d-inline-flex align-items-center gap-1.5 fw-medium"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload size={14} />
-                      <span>Upload New Photo</span>
-                    </button>
-                    {formData.avatar !== profile.avatar && (
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-sa-muted p-0 text-decoration-none"
-                        onClick={() => handleInputChange('avatar', profile.avatar)}
-                      >
-                        Reset Photo
-                      </button>
-                    )}
-                  </div>
-                  <span className="text-sa-muted small d-block" style={{ fontSize: '0.80rem' }}>
-                    Recommended: Square JPG, PNG or WebP under 2MB. A clear academic headshot works best.
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm px-3 py-1.5 rounded-2 d-inline-flex align-items-center gap-1.5 fw-medium mb-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload size={14} />
+                    <span>Upload New Photo</span>
+                  </button>
+                  <span className="text-muted small d-block" style={{ fontSize: '0.78rem' }}>
+                    Square PNG, JPG, or WebP up to 2MB.
                   </span>
-                  {errors.avatar && (
-                    <div className="text-danger small mt-1">{errors.avatar}</div>
-                  )}
                 </div>
               </div>
             </div>
 
-            {/* Editable Fields Card - 2 Column Form on Desktop */}
+            {/* Section 1: Student Personal Information */}
             <div className="sa-card p-4">
-              <h6 className="fw-bold text-sa-charcoal mb-4 fs-6 pb-2 border-bottom">
-                Personal & Contact Information
+              <h6 className="fw-bold text-sa-charcoal mb-3 fs-6 pb-2 border-bottom d-flex align-items-center gap-2">
+                <User size={18} style={{ color: '#8B1216' }} />
+                <span>1. Personal Information</span>
               </h6>
 
-              <div className="row g-3 g-md-4">
-                {/* Column 1: Personal & Student Contact */}
+              <div className="row g-3">
+                {/* Student Email */}
                 <div className="col-12 col-md-6">
-                  <div className="mb-3">
-                    <label htmlFor="student-name" className="form-label fw-semibold small text-sa-charcoal">
-                      Student Full Name <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-50 start-0 translate-middle-y ps-3 text-sa-muted pointer-events-none">
-                        <User size={17} />
-                      </div>
-                      <input
-                        id="student-name"
-                        type="text"
-                        className={`form-control ps-5 ${errors.name ? 'is-invalid' : ''}`}
-                        placeholder="e.g. Aarav Deshmukh"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                      />
-                    </div>
-                    {errors.name && <div className="invalid-feedback d-block small mt-1">{errors.name}</div>}
-                  </div>
-
-                  <div className="mb-3">
-                    <label htmlFor="student-phone" className="form-label fw-semibold small text-sa-charcoal">
-                      Student Mobile Phone <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-50 start-0 translate-middle-y ps-3 text-sa-muted pointer-events-none">
-                        <Phone size={17} />
-                      </div>
-                      <input
-                        id="student-phone"
-                        type="tel"
-                        className={`form-control ps-5 ${errors.phone ? 'is-invalid' : ''}`}
-                        placeholder="e.g. +91 98231 45670"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                      />
-                    </div>
-                    {errors.phone && <div className="invalid-feedback d-block small mt-1">{errors.phone}</div>}
-                    <div className="form-text text-sa-muted" style={{ fontSize: '0.76rem' }}>
-                      Primary contact number for student notifications.
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <label htmlFor="parent-name" className="form-label fw-semibold small text-sa-charcoal">
-                      Parent / Guardian Name <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-50 start-0 translate-middle-y ps-3 text-sa-muted pointer-events-none">
-                        <User size={17} />
-                      </div>
-                      <input
-                        id="parent-name"
-                        type="text"
-                        className={`form-control ps-5 ${errors.parentName ? 'is-invalid' : ''}`}
-                        placeholder="e.g. Sanjay Deshmukh"
-                        value={formData.parentName}
-                        onChange={(e) => handleInputChange('parentName', e.target.value)}
-                      />
-                    </div>
-                    {errors.parentName && <div className="invalid-feedback d-block small mt-1">{errors.parentName}</div>}
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Student Email Address
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Mail size={16} /></span>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      placeholder="student@example.com"
+                      className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                    />
+                    {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                   </div>
                 </div>
 
-                {/* Column 2: Email & Parent Alert Phone */}
+                {/* Date of Birth */}
+                <div className="col-12 col-md-3">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Date of Birth
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Calendar size={16} /></span>
+                    <input
+                      type="date"
+                      value={formData.dob}
+                      onChange={(e) => handleInputChange('dob', e.target.value)}
+                      className={`form-control ${errors.dob ? 'is-invalid' : ''}`}
+                    />
+                    {errors.dob && <div className="invalid-feedback">{errors.dob}</div>}
+                  </div>
+                </div>
+
+                {/* Gender */}
+                <div className="col-12 col-md-3">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Gender</label>
+                  <select
+                    className="form-select"
+                    value={formData.gender}
+                    onChange={(e) => handleInputChange('gender', e.target.value)}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Residential Address */}
                 <div className="col-12 col-md-6">
-                  <div className="mb-3">
-                    <label htmlFor="student-email" className="form-label fw-semibold small text-sa-charcoal">
-                      Student Email Address <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-50 start-0 translate-middle-y ps-3 text-sa-muted pointer-events-none">
-                        <Mail size={17} />
-                      </div>
-                      <input
-                        id="student-email"
-                        type="email"
-                        className={`form-control ps-5 ${errors.email ? 'is-invalid' : ''}`}
-                        placeholder="e.g. aarav.d@shubham.edu"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                      />
-                    </div>
-                    {errors.email && <div className="invalid-feedback d-block small mt-1">{errors.email}</div>}
-                  </div>
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Residential Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Street, building, area"
+                    className={`form-control ${errors.address ? 'is-invalid' : ''}`}
+                  />
+                  {errors.address && <div className="invalid-feedback">{errors.address}</div>}
+                </div>
 
-                  <div className="mb-3">
-                    <label htmlFor="parent-phone" className="form-label fw-semibold small text-sa-charcoal">
-                      Parent Alert Phone (RFID SMS) <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-50 start-0 translate-middle-y ps-3 text-sa-muted pointer-events-none">
-                        <Phone size={17} />
-                      </div>
-                      <input
-                        id="parent-phone"
-                        type="tel"
-                        className={`form-control ps-5 ${errors.parentPhone ? 'is-invalid' : ''}`}
-                        placeholder="e.g. +91 98231 45671"
-                        value={formData.parentPhone}
-                        onChange={(e) => handleInputChange('parentPhone', e.target.value)}
-                      />
-                    </div>
-                    {errors.parentPhone && <div className="invalid-feedback d-block small mt-1">{errors.parentPhone}</div>}
-                    <div className="form-text text-sa-muted" style={{ fontSize: '0.76rem' }}>
-                      Automated gate punch notifications are delivered to this number.
-                    </div>
-                  </div>
+                {/* City */}
+                <div className="col-12 col-sm-4 col-md-2">
+                  <label className="form-label fw-semibold small text-sa-charcoal">City</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="Kolhapur"
+                    className="form-control"
+                  />
+                </div>
 
-                  <div className="mb-3">
-                    <label htmlFor="student-address" className="form-label fw-semibold small text-sa-charcoal">
-                      Residential Address <span className="text-danger">*</span>
-                    </label>
-                    <div className="position-relative">
-                      <div className="position-absolute top-0 start-0 pt-2.5 ps-3 text-sa-muted pointer-events-none">
-                        <MapPin size={17} />
-                      </div>
-                      <textarea
-                        id="student-address"
-                        rows={2}
-                        className={`form-control ps-5 ${errors.address ? 'is-invalid' : ''}`}
-                        placeholder="Flat / House No, Street, Area, City & PIN code"
-                        value={formData.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        style={{ resize: 'none' }}
-                      />
-                    </div>
-                    {errors.address && <div className="invalid-feedback d-block small mt-1">{errors.address}</div>}
-                  </div>
+                {/* State */}
+                <div className="col-12 col-sm-4 col-md-2">
+                  <label className="form-label fw-semibold small text-sa-charcoal">State</label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                    placeholder="Maharashtra"
+                    className="form-control"
+                  />
+                </div>
+
+                {/* Pin Code */}
+                <div className="col-12 col-sm-4 col-md-2">
+                  <label className="form-label fw-semibold small text-sa-charcoal">PIN Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={formData.pincode}
+                    onChange={(e) => handleInputChange('pincode', e.target.value)}
+                    placeholder="416003"
+                    className="form-control"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Read-Only Academic Records Banner */}
-            <div className="sa-card p-4 bg-light bg-opacity-50">
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <h6 className="fw-bold text-sa-charcoal m-0 fs-6 d-flex align-items-center gap-2">
-                  <GraduationCap size={18} className="text-sa-muted" />
-                  <span>Academic Record Details</span>
-                </h6>
-                <span className="badge bg-secondary-subtle text-secondary border small">Read-Only</span>
-              </div>
+            {/* Section 2: Academic Details */}
+            <div className="sa-card p-4">
+              <h6 className="fw-bold text-sa-charcoal mb-3 fs-6 pb-2 border-bottom d-flex align-items-center gap-2">
+                <GraduationCap size={18} style={{ color: '#8B1216' }} />
+                <span>2. Academic & Course Information</span>
+              </h6>
 
               <div className="row g-3">
-                <div className="col-12 col-sm-6 col-md-4">
-                  <label className="form-label small text-sa-muted mb-1">Roll Number</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={profile.rollNumber}
-                    className="form-control form-control-sm bg-white"
-                  />
+                {/* Standard / Class */}
+                <div className="col-12 col-md-6">
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="form-label fw-semibold small text-sa-charcoal m-0">
+                      Enrolled Class / Standard
+                    </label>
+                    {profile.standard && profile.standard !== 'Pending Selection' && (
+                      <span className="badge bg-light text-muted border small" style={{ fontSize: '11px' }}>
+                        <Lock size={11} className="me-1 inline-block" /> Assigned by Admin
+                      </span>
+                    )}
+                  </div>
+                  {profile.standard && profile.standard !== 'Pending Selection' ? (
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        value={formData.standard || profile.standard}
+                        readOnly
+                        disabled
+                        className="form-control bg-light fw-bold text-sa-charcoal"
+                      />
+                      <span className="input-group-text bg-light text-muted">
+                        <Lock size={15} />
+                      </span>
+                    </div>
+                  ) : (
+                    <select
+                      className={`form-select ${errors.standard ? 'is-invalid' : ''}`}
+                      value={formData.standard}
+                      onChange={(e) => handleInputChange('standard', e.target.value)}
+                    >
+                      <option value="">-- Select Class --</option>
+                      <option value="11th Science">11th Science</option>
+                      <option value="12th Science">12th Science</option>
+                      <option value="11th Commerce">11th Commerce</option>
+                      <option value="12th Commerce">12th Commerce</option>
+                      <option value="Foundation (8th-10th)">Foundation (8th-10th)</option>
+                    </select>
+                  )}
+                  {errors.standard && <div className="invalid-feedback">{errors.standard}</div>}
                 </div>
 
-                <div className="col-12 col-sm-6 col-md-4">
-                  <label className="form-label small text-sa-muted mb-1">Enrolled Standard</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={profile.standard}
-                    className="form-control form-control-sm bg-white"
-                  />
+                {/* Study Batch */}
+                <div className="col-12 col-md-6">
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="form-label fw-semibold small text-sa-charcoal m-0">
+                      Study Batch
+                    </label>
+                    {profile.batch && profile.batch !== 'Pending Allocation' && (
+                      <span className="badge bg-light text-muted border small" style={{ fontSize: '11px' }}>
+                        <Lock size={11} className="me-1 inline-block" /> Assigned by Admin
+                      </span>
+                    )}
+                  </div>
+                  {profile.batch && profile.batch !== 'Pending Allocation' ? (
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        value={formData.batch || profile.batch}
+                        readOnly
+                        disabled
+                        className="form-control bg-light fw-bold text-sa-primary"
+                      />
+                      <span className="input-group-text bg-light text-muted">
+                        <Lock size={15} />
+                      </span>
+                    </div>
+                  ) : (
+                    <select
+                      className={`form-select ${errors.batch ? 'is-invalid' : ''}`}
+                      value={formData.batch}
+                      onChange={(e) => handleInputChange('batch', e.target.value)}
+                    >
+                      <option value="">-- Select Batch --</option>
+                      {batchesList.length > 0 ? (
+                        batchesList.map((b) => (
+                          <option key={b.id || b.name} value={b.name}>
+                            {b.name} ({b.standard || 'General'})
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="11th pcm tarabai park">11th PCM Tarabai Park</option>
+                          <option value="12th pcm tarabai park">12th PCM Tarabai Park</option>
+                          <option value="11th pcb main branch">11th PCB Main Branch</option>
+                          <option value="12th pcb main branch">12th PCB Main Branch</option>
+                        </>
+                      )}
+                    </select>
+                  )}
+                  {errors.batch && <div className="invalid-feedback">{errors.batch}</div>}
                 </div>
 
-                <div className="col-12 col-sm-6 col-md-4">
-                  <label className="form-label small text-sa-muted mb-1">Smart RFID Badge</label>
+                {/* Branch */}
+                <div className="col-12 col-md-4">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Branch Location</label>
+                  <select
+                    className="form-select"
+                    value={formData.branch}
+                    onChange={(e) => handleInputChange('branch', e.target.value)}
+                  >
+                    <option value="Tarabai Park">Tarabai Park Branch</option>
+                    <option value="Kolhapur Main Branch">Kolhapur Main Branch</option>
+                    <option value="Rajarampuri">Rajarampuri Branch</option>
+                  </select>
+                </div>
+
+                {/* Academic Year */}
+                <div className="col-12 col-md-4">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Academic Year</label>
+                  <select
+                    className="form-select"
+                    value={formData.academicYear}
+                    onChange={(e) => handleInputChange('academicYear', e.target.value)}
+                  >
+                    <option value="2025-2026">2025 - 2026</option>
+                    <option value="2024-2025">2024 - 2025</option>
+                  </select>
+                </div>
+
+                {/* Previous School */}
+                <div className="col-12 col-md-4">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Previous School / College</label>
                   <input
                     type="text"
-                    disabled
-                    value={profile.rfidCard}
-                    className="form-control form-control-sm bg-white text-sa-primary fw-semibold"
+                    value={formData.previousSchool}
+                    onChange={(e) => handleInputChange('previousSchool', e.target.value)}
+                    placeholder="e.g. St. Xavier High School"
+                    className="form-control"
                   />
                 </div>
-              </div>
-
-              <div className="mt-3 text-sa-muted small" style={{ fontSize: '0.78rem' }}>
-                Note: Standard, assigned batch, and RFID card registration are locked by academy administrators.
               </div>
             </div>
 
-            {/* Bottom Actions Bar */}
-            <div className="d-flex flex-column-reverse flex-sm-row justify-content-end align-items-stretch align-items-sm-center gap-2.5 pt-2 mb-4">
+            {/* Section 3: Parent & Guardian Details */}
+            <div className="sa-card p-4">
+              <h6 className="fw-bold text-sa-charcoal mb-3 fs-6 pb-2 border-bottom d-flex align-items-center gap-2">
+                <Building2 size={18} style={{ color: '#8B1216' }} />
+                <span>3. Parent & Guardian Information</span>
+              </h6>
+
+              <div className="row g-3">
+                {/* Parent Name */}
+                <div className="col-12 col-md-5">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Parent / Guardian Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.parentName}
+                    onChange={(e) => handleInputChange('parentName', e.target.value)}
+                    placeholder="e.g., Ajay Sharma"
+                    className={`form-control ${errors.parentName ? 'is-invalid' : ''}`}
+                  />
+                  {errors.parentName && <div className="invalid-feedback">{errors.parentName}</div>}
+                </div>
+
+                {/* Relation */}
+                <div className="col-12 col-md-3">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Relationship</label>
+                  <select
+                    className="form-select"
+                    value={formData.relation}
+                    onChange={(e) => handleInputChange('relation', e.target.value)}
+                  >
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Guardian">Guardian</option>
+                  </select>
+                </div>
+
+                {/* Parent Occupation */}
+                <div className="col-12 col-md-4">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Parent Occupation</label>
+                  <input
+                    type="text"
+                    value={formData.parentOccupation}
+                    onChange={(e) => handleInputChange('parentOccupation', e.target.value)}
+                    placeholder="e.g. Business / Engineer"
+                    className="form-control"
+                  />
+                </div>
+
+                {/* Parent Email */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold small text-sa-charcoal">Parent Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={formData.parentEmail}
+                    onChange={(e) => handleInputChange('parentEmail', e.target.value)}
+                    placeholder="parent@example.com"
+                    className="form-control"
+                  />
+                </div>
+
+                {/* Parent Mobile - Locked Note */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Parent Alert Phone (Locked)
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Lock size={16} /></span>
+                    <input
+                      type="text"
+                      value={formData.parentPhone}
+                      readOnly
+                      disabled
+                      className="form-control bg-light"
+                    />
+                  </div>
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Entered by admin for SMS gateway delivery.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Buttons at Bottom */}
+            <div className="d-flex align-items-center justify-content-end gap-3 pt-2">
               <button
                 type="button"
-                className="btn btn-light border px-4 py-2 rounded-2 fw-semibold text-sa-charcoal"
+                className="btn btn-light border px-4 py-2"
                 onClick={handleCancel}
                 disabled={saving}
               >
-                <X size={16} className="me-1.5" />
                 Cancel
               </button>
-
               <button
                 type="submit"
-                className="btn btn-sa-primary px-4 py-2 rounded-2 fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center gap-2"
+                className="btn text-white px-5 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+                style={{ backgroundColor: '#8B1216' }}
                 disabled={saving}
               >
                 {saving ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-                    <span>Saving Changes...</span>
+                    <span>Saving Profile...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={16} />
-                    <span>Save Changes</span>
+                    <Save size={18} />
+                    <span>Save Completed Profile</span>
                   </>
                 )}
               </button>

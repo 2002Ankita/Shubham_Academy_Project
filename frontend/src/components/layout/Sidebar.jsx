@@ -20,6 +20,7 @@ import {
   Bell,
   LogOut,
   ChevronRight,
+  ChevronDown,
   UserCheck2,
   Award,
   BookCheck,
@@ -215,8 +216,62 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     navigate('/login');
   };
 
+  const isFeePath = location.pathname.startsWith('/admin/fees');
+  const [openSubmenus, setOpenSubmenus] = React.useState(() => ({
+    'Fee Collection': isFeePath
+  }));
+
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/admin/fees')) {
+      setOpenSubmenus(prev => ({
+        ...prev,
+        'Fee Collection': true
+      }));
+    }
+  }, [location.pathname]);
+
+  const toggleSubmenu = (menuKey) => {
+    setOpenSubmenus(prev => ({
+      ...prev,
+      [menuKey]: !prev[menuKey]
+    }));
+  };
+
+  const isChildActive = (child) => {
+    if (child.exact) {
+      return location.pathname === child.path || location.pathname === child.path + '/';
+    }
+    if (child.path === '/admin/fees/receipts') {
+      return location.pathname === '/admin/fees/receipts' || location.pathname.startsWith('/admin/fees/receipt');
+    }
+    if (child.path === '/admin/fees/reminder-settings') {
+      return location.pathname.startsWith('/admin/fees/reminder-settings') || location.pathname.startsWith('/admin/fees/reminders/settings');
+    }
+    if (child.path === '/admin/fees/reminder-history') {
+      return location.pathname.startsWith('/admin/fees/reminder-history') || location.pathname.startsWith('/admin/fees/reminders/history');
+    }
+    return location.pathname.startsWith(child.path);
+  };
+
   const getNavLinks = () => {
     const role = user?.role || 'admin';
+
+    const feeSubmenuItem = {
+      label: 'Fee Collection',
+      icon: FeeRupeeIcon,
+      isSubmenu: true,
+      menuKey: 'Fee Collection',
+      path: '/admin/fees',
+      matchPrefixes: ['/admin/fees'],
+      children: [
+        { label: 'Fee Collection', path: '/admin/fees', exact: true },
+        { label: 'Fee Structure', path: '/admin/fees/structure' },
+        { label: 'Pending Fees', path: '/admin/fees/pending' },
+        { label: 'Fee Receipts', path: '/admin/fees/receipts' },
+        { label: 'Fee Reminder Settings', path: '/admin/fees/reminder-settings', isNew: true },
+        { label: 'Reminder History', path: '/admin/fees/reminder-history', isNew: true }
+      ]
+    };
 
     // ONLY Super Admin gets the 10 items matching reference design
     if (isSuperAdmin || role === 'super-admin') {
@@ -225,11 +280,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
+        feeSubmenuItem,
         { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
         { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Truck, matchPrefixes: ['/admin/notes/delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
+        { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
@@ -261,11 +317,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
+        feeSubmenuItem,
         { label: 'Notes & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
         { label: 'Notes Delivery', path: '/admin/notes/delivery', icon: Cloud, matchPrefixes: ['/admin/notes/delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
+        { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },
@@ -463,6 +520,127 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           >
             {navLinks.map((item) => {
               const Icon = item.icon;
+
+              if (item.isSubmenu) {
+                const isSubmenuOpen = !!openSubmenus[item.menuKey];
+                const active = location.pathname.startsWith('/admin/fees');
+
+                return (
+                  <div key={item.menuKey} className="d-flex flex-column" style={{ gap: '3px' }}>
+                    <div
+                      onClick={() => toggleSubmenu(item.menuKey)}
+                      role="button"
+                      className="d-flex align-items-center justify-content-between text-decoration-none transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: active
+                          ? (usesPearlNavigation ? 'rgba(255, 255, 255, 0.20)' : 'rgba(255, 255, 255, 0.16)')
+                          : 'transparent',
+                        border: active
+                          ? (usesPearlNavigation ? '1px solid rgba(255, 255, 255, 0.35)' : '1px solid rgba(255, 255, 255, 0.16)')
+                          : '1px solid transparent',
+                        color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
+                        fontWeight: active ? 600 : 500,
+                        fontSize: usesPearlNavigation ? '0.96rem' : '0.95rem',
+                        borderRadius: '12px',
+                        padding: usesPearlNavigation ? '11px 16px' : '10px 15px',
+                        backdropFilter: usesPearlNavigation ? 'blur(14px)' : 'none',
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.backgroundColor = usesPearlNavigation ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.09)';
+                          if (usesPearlNavigation) e.currentTarget.style.border = '1px solid rgba(255, 255, 255, 0.22)';
+                          e.currentTarget.style.color = '#FFFFFF';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          if (usesPearlNavigation) e.currentTarget.style.border = '1px solid transparent';
+                          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.92)';
+                        }
+                      }}
+                    >
+                      <div className="d-flex align-items-center" style={{ gap: usesPearlNavigation ? '16px' : '15px' }}>
+                        <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                        <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
+                      </div>
+                      <div className="text-white text-opacity-80 transition-all ps-1">
+                        {isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </div>
+                    </div>
+
+                    {/* Submenu child links */}
+                    {isSubmenuOpen && (
+                      <div
+                        className="d-flex flex-column transition-all ps-2 my-1"
+                        style={{
+                          borderLeft: '2px solid rgba(255, 255, 255, 0.25)',
+                          marginLeft: '22px',
+                          gap: '3px'
+                        }}
+                      >
+                        {item.children.map((child) => {
+                          const childActive = isChildActive(child);
+                          return (
+                            <NavLink
+                              key={child.path}
+                              to={child.path}
+                              onClick={onClose}
+                              className="d-flex align-items-center justify-content-between text-decoration-none transition-all py-1.5 px-2.5 rounded-2"
+                              style={{
+                                backgroundColor: childActive
+                                  ? 'rgba(255, 255, 255, 0.26)'
+                                  : 'transparent',
+                                border: childActive
+                                  ? '1px solid rgba(255, 255, 255, 0.38)'
+                                  : '1px solid transparent',
+                                color: childActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.88)',
+                                fontWeight: childActive ? 600 : 500,
+                                fontSize: '0.86rem',
+                                boxShadow: childActive ? '0 2px 8px rgba(0, 0, 0, 0.20)' : 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!childActive) {
+                                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                                  e.currentTarget.style.color = '#FFFFFF';
+                                  e.currentTarget.style.transform = 'translateX(2px)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!childActive) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.88)';
+                                  e.currentTarget.style.transform = 'translateX(0)';
+                                }
+                              }}
+                            >
+                              <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{child.label}</span>
+                              {child.isNew && (
+                                <span
+                                  style={{
+                                    fontSize: '0.62rem',
+                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                    color: '#FFFFFF',
+                                    padding: '1px 6px',
+                                    borderRadius: '999px',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.04em'
+                                  }}
+                                >
+                                  NEW
+                                </span>
+                              )}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const active = isItemActive(item);
 
               return (
@@ -519,6 +697,63 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           <div className="flex-grow-1 overflow-y-auto no-scrollbar px-2 py-2.5 d-flex flex-column gap-1">
             {navLinks.map((item) => {
               const Icon = item.icon;
+
+              if (item.isSubmenu) {
+                const isSubmenuOpen = !!openSubmenus[item.menuKey];
+                const active = location.pathname.startsWith('/admin/fees');
+
+                return (
+                  <div key={item.menuKey} className="d-flex flex-column gap-1">
+                    <div
+                      onClick={() => toggleSubmenu(item.menuKey)}
+                      role="button"
+                      className="d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: active ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                        color: active ? '#FFFFFF' : 'rgba(255,255,255,0.92)',
+                        fontWeight: active ? 600 : 500,
+                        fontSize: '0.84rem'
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-2.5">
+                        <Icon size={17} />
+                        <span>{item.label}</span>
+                      </div>
+                      {isSubmenuOpen ? <ChevronDown size={14} className="opacity-75" /> : <ChevronRight size={14} className="opacity-50" />}
+                    </div>
+
+                    {isSubmenuOpen && (
+                      <div className="d-flex flex-column gap-1 ps-3 ms-2 border-start border-white border-opacity-25 my-1">
+                        {item.children.map((child) => {
+                          const childActive = isChildActive(child);
+                          return (
+                            <NavLink
+                              key={child.path}
+                              to={child.path}
+                              onClick={onClose}
+                              className="d-flex align-items-center justify-content-between px-2 py-1 rounded text-white text-decoration-none small"
+                              style={{
+                                backgroundColor: childActive ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
+                                color: childActive ? '#FFFFFF' : 'rgba(255,255,255,0.85)',
+                                fontWeight: childActive ? 600 : 400,
+                                fontSize: '0.80rem'
+                              }}
+                            >
+                              <span>{child.label}</span>
+                              {child.isNew && (
+                                <span className="badge bg-success rounded-pill" style={{ fontSize: '0.6rem' }}>
+                                  NEW
+                                </span>
+                              )}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <NavLink
                   key={item.path}

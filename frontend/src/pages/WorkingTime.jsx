@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Modal from '../components/common/Modal';
 import attendanceService from '../services/attendanceService';
 import salaryService from '../services/salaryService';
+import teacherService from '../services/teacherService';
 import useAuth from '../hooks/useAuth';
 import {
   ArrowLeft,
@@ -23,26 +24,32 @@ import { downloadSalaryReceipt } from '../utils/salaryReceipt';
 
 export default function WorkingTime() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
   const [salaries, setSalaries] = useState([]);
   const [, setLoading] = useState(true);
+  const [teacherDetails, setTeacherDetails] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState('October 2026');
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const targetTeacherId = user?.id || 'TCH-001';
+  const targetTeacherId = id || user?.id || 'TCH-001';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [attData, salData] = await Promise.all([
+        const [attData, salData, teacherData] = await Promise.all([
           attendanceService.getWorkingTime(targetTeacherId).catch(() => []),
-          salaryService.getMySalaries().catch(() => [])
+          salaryService.getMySalaries().catch(() => []),
+          id ? teacherService.getById(id).catch(() => null) : Promise.resolve(null)
         ]);
         setRecords(attData || []);
         setSalaries(salData || []);
+        if (teacherData) {
+          setTeacherDetails(teacherData);
+        }
       } catch (err) {
         console.error('Error fetching working time data:', err);
       } finally {
@@ -50,7 +57,7 @@ export default function WorkingTime() {
       }
     };
     fetchData();
-  }, [targetTeacherId]);
+  }, [targetTeacherId, id]);
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -184,7 +191,13 @@ export default function WorkingTime() {
         <div className="d-flex align-items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/teacher/dashboard')}
+            onClick={() => {
+              if (user?.role === 'admin' || user?.role === 'super-admin') {
+                navigate('/admin/teachers/attendance');
+              } else {
+                navigate('/teacher/dashboard');
+              }
+            }}
             className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
             style={{
               width: '40px',
@@ -196,18 +209,20 @@ export default function WorkingTime() {
               padding: 0,
               cursor: 'pointer'
             }}
-            aria-label="Back to dashboard"
-            title="Back to dashboard"
+            aria-label="Back"
+            title="Back"
           >
             <ArrowLeft size={18} />
           </button>
 
           <div>
             <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-              Working Time
+              {teacherDetails ? `${teacherDetails.name}'s Working Time` : 'Working Time'}
             </h1>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Track your daily working hours, attendance and punch records
+              {teacherDetails
+                ? `Faculty ID: ${teacherDetails.employee_id} • Subject: ${teacherDetails.subject} • Daily punch & attendance records`
+                : 'Track your daily working hours, attendance and punch records'}
             </p>
           </div>
         </div>

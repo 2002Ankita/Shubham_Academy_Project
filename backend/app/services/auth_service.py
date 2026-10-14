@@ -20,15 +20,32 @@ async def create_user(user_in: UserCreate) -> User:
     return user
 
 async def authenticate(user_in: UserLogin) -> str:
-    user = await User.find_one(User.email == user_in.email)
+    clean_identifier = user_in.email.strip()
+    user = await User.find_one(User.email == clean_identifier)
+    
+    # If not found by email, search if this identifier is a student's mobile number
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        from app.models.student import Student
+        clean_mobile = "".join(filter(str.isdigit, clean_identifier))
+        student = await Student.find_one(Student.mobile_number == clean_identifier)
+        if not student and clean_mobile:
+            student = await Student.find_one(Student.mobile_number == clean_mobile)
+            
+        if student and student.user:
+            if isinstance(student.user, User):
+                user = student.user
+            else:
+                user = await User.get(student.user.ref.id)
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect email, mobile number, or password")
     if not verify_password(user_in.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(status_code=400, detail="Incorrect email, mobile number, or password")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     
     return create_access_token(subject=user.email)
+
 
 async def get_current_user(token: str) -> User:
     # Basic mockup, real implementation requires decoding JWT and fetching from DB

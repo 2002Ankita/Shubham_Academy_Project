@@ -157,7 +157,7 @@ export default function SignIn() {
             className="form-label mb-1.5 fw-semibold"
             style={{ fontSize: '0.78rem', color: '#1F2937' }}
           >
-            Email Address
+            Email Address or Student Mobile Number
           </label>
           <div className="position-relative">
             <span
@@ -168,23 +168,22 @@ export default function SignIn() {
             </span>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="aarav.d@shubham.edu"
+              placeholder="e.g. 9822011111 or student@shubham.edu"
               required
               className="form-control"
               style={{
                 paddingLeft: '38px',
                 height: '40px',
                 borderRadius: '8px',
-                border: '1px solid #E5E7EB',
-                fontSize: '0.86rem',
-                backgroundColor: '#FFFFFF'
+                fontSize: '0.86rem'
               }}
             />
           </div>
         </div>
+
 
         {/* Password Field with Eye Toggle */}
         <div className="text-start" style={{ marginBottom: '12px' }}>

@@ -307,28 +307,62 @@ export default function StudentList() {
                 </div>
               )
             },
-            { key: 'standard', title: 'Class / Stream' },
             {
-              key: 'rfidCard',
-              title: 'RFID Badge UID',
-              render: (val) => <span className="badge bg-light text-dark border">{val}</span>
+              key: 'batch',
+              title: 'Batch & Class',
+              render: (val, row) => (
+                <div>
+                  <span className="fw-semibold text-sa-charcoal d-block">
+                    {val && val !== 'Pending Allocation' ? val : <span className="text-muted fst-italic">Pending Batch</span>}
+                  </span>
+                  <span className="text-sa-muted small" style={{ fontSize: '0.75rem' }}>
+                    {row.standard && row.standard !== 'Pending Selection' ? row.standard : 'General Stream'}
+                  </span>
+                </div>
+              )
             },
             {
-              key: 'attendancePercent',
-              title: 'Attendance',
-              render: (val) => (
-                <span className={`fw-bold ${val >= 90 ? 'text-success' : val >= 75 ? 'text-warning' : 'text-danger'}`}>
-                  {val}%
-                </span>
+              key: 'profileCompleted',
+              title: 'Profile Status',
+              render: (val, row) => (
+                val ? (
+                  <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold">
+                    Complete ✓
+                  </span>
+                ) : (
+                  <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold" title="Student has not yet completed remaining profile">
+                    Pending Entry
+                  </span>
+                )
               )
             },
             {
               key: 'feesStatus',
-              title: 'Fee Status',
-              render: (val) => {
-                if (val === 'Paid') return <span className="badge-paid">Paid in Full</span>;
-                if (val === 'Pending') return <span className="badge-pending">Partially Paid</span>;
-                return <span className="badge-overdue">Overdue</span>;
+              title: 'Fee Status (Paid / Total)',
+              render: (val, row) => {
+                const total = Number(row.totalFees || 0);
+                const paid = Number(row.paidFees || 0);
+                const remaining = Number(row.remainingFees || Math.max(0, total - paid));
+                const isPaid = total > 0 && paid >= total;
+                return (
+                  <div>
+                    <span className="d-block fw-bold small text-sa-charcoal">
+                      ₹{paid.toLocaleString()} / ₹{total.toLocaleString()}
+                    </span>
+                    <span
+                      className={`badge px-2 py-0.5 rounded-pill small fw-semibold ${
+                        isPaid
+                          ? 'bg-success text-white'
+                          : paid > 0
+                          ? 'bg-warning text-dark'
+                          : 'bg-danger text-white'
+                      }`}
+                      style={{ fontSize: '0.70rem' }}
+                    >
+                      {isPaid ? 'Fully Paid' : `Due: ₹${remaining.toLocaleString()}`}
+                    </span>
+                  </div>
+                );
               }
             },
             {
