@@ -230,13 +230,51 @@ export const notificationService = {
     return newEntry;
   },
 
-  syncDiscountApprovals: (pendingList = []) => {
-    if (!pendingList || pendingList.length === 0) return;
-    const current = getCustomNotifications();
-    let hasChanges = false;
-    const updated = [...current];
+  pruneFinalizedDiscounts: (students = []) => {
+    try {
+      const current = getCustomNotifications();
+      if (!current || current.length === 0) return;
 
-    pendingList.forEach((s) => {
+      const finalizedIds = new Set(
+        (students || [])
+          .filter(s => s.discountStatus === 'APPROVED' || s.discountStatus === 'REJECTED')
+          .map(s => String(s.id))
+      );
+
+      // Remove any 'discount_approval' notification for finalized students
+      const updated = current.filter(n => {
+        if (n.type === 'discount_approval' && n.studentId && finalizedIds.has(String(n.studentId))) {
+          return false;
+        }
+        return true;
+      });
+
+      if (updated.length !== current.length) {
+        saveCustomNotifications(updated);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+        }
+      }
+    } catch (e) {
+      console.warn('Error pruning finalized discounts:', e);
+    }
+  },
+
+  syncDiscountApprovals: (pendingList = []) => {
+    const current = getCustomNotifications();
+    const pendingIds = (pendingList || []).map(s => String(s.id));
+
+    // Remove stale discount_approval notifications for students that are no longer pending
+    let updated = current.filter(n => {
+      if (n.type === 'discount_approval' && n.studentId) {
+        return pendingIds.includes(String(n.studentId));
+      }
+      return true;
+    });
+
+    let hasChanges = updated.length !== current.length;
+
+    (pendingList || []).forEach((s) => {
       const notifId = `NTF-DISC-${s.id}`;
       const exists = updated.some(n => n.id === notifId);
       if (!exists) {

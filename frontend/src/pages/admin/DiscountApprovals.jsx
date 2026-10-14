@@ -77,6 +77,13 @@ export default function DiscountApprovals() {
     try {
       const data = await studentService.getAll();
       setStudents(data || []);
+      try {
+        notificationService.pruneFinalizedDiscounts(data || []);
+        const pending = (data || []).filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
+        notificationService.syncDiscountApprovals(pending);
+      } catch (syncErr) {
+        console.warn('Sync notification error:', syncErr);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load student discount records');

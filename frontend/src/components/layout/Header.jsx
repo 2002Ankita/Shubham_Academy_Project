@@ -82,6 +82,20 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     };
   }, [isSuperAdmin]);
 
+  useEffect(() => {
+    if (isSuperAdmin) {
+      studentService.getAll().then((data) => {
+        if (Array.isArray(data)) {
+          notificationService.pruneFinalizedDiscounts(data);
+          const pending = data.filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
+          notificationService.syncDiscountApprovals(pending);
+        }
+      }).catch((e) => {
+        console.warn('Could not sync discount approvals in header:', e);
+      });
+    }
+  }, [isSuperAdmin]);
+
   const handleApproveDiscountFromHeader = async (e, notif) => {
     e.stopPropagation();
     if (!notif.studentId) return;
@@ -535,9 +549,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   }}
                 >
                   {notificationsList.map((item) => {
-                    const isDiscountNotif = item.type === 'discount_approval' || item.category === 'Discount & Fees';
+                    const isPendingDiscountApproval = item.type === 'discount_approval';
+                    const isDiscountDecision = item.type === 'discount_approved' || item.type === 'discount_declined';
 
-                    if (isDiscountNotif && isSuperAdmin) {
+                    // ONLY truly pending discount requests show Accept / Reject action buttons to Superadmin
+                    if (isPendingDiscountApproval && isSuperAdmin) {
                       return (
                         <div
                           key={item.id}
@@ -556,7 +572,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                                 className="badge rounded-pill fw-bold"
                                 style={{ backgroundColor: '#FEF08A', color: '#854D0E', fontSize: '0.68rem', padding: '0.25em 0.55em' }}
                               >
-                                Fee Concession
+                                Pending Concession
                               </span>
                               <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.82rem' }}>
                                 {item.studentName || item.title}
@@ -620,6 +636,63 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                               <span>Review</span>
                               <ChevronRight size={12} />
                             </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // For finalized decisions (Approved or Declined), render as informative status notification
+                    if (isDiscountDecision) {
+                      const isApproved = item.type === 'discount_approved';
+                      return (
+                        <div
+                          key={item.id}
+                          className="w-100 p-2.5 rounded-3 border d-flex flex-column gap-1.5"
+                          style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            backgroundColor: isApproved ? '#F0FDF4' : '#FEF2F2',
+                            borderColor: isApproved ? '#BBF7D0' : '#FECDD3',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                          }}
+                          onClick={() => handleNotificationClick(item)}
+                        >
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <div className="d-flex align-items-center gap-1.5 flex-grow-1 min-w-0">
+                              <span
+                                className="badge rounded-pill fw-bold"
+                                style={{
+                                  backgroundColor: isApproved ? '#DCFCE7' : '#FEE2E2',
+                                  color: isApproved ? '#166534' : '#991B1B',
+                                  fontSize: '0.68rem',
+                                  padding: '0.25em 0.55em'
+                                }}
+                              >
+                                {isApproved ? 'Concession Approved' : 'Concession Declined'}
+                              </span>
+                              <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.82rem' }}>
+                                {item.studentName || item.title}
+                              </span>
+                            </div>
+                            <span
+                              className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                color: '#64748B',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.68rem',
+                                padding: '0.25em 0.5em',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <Clock size={10} className="me-1 align-text-top flex-shrink-0" />
+                              <span>{item.time}</span>
+                            </span>
+                          </div>
+
+                          <div className="small text-secondary" style={{ fontSize: '0.75rem', lineHeight: 1.35 }}>
+                            {item.details || item.title}
                           </div>
                         </div>
                       );
@@ -709,18 +782,33 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
               {isSuperAdmin && (
                 <div className="pt-2 border-top mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNotifications(false);
-                      navigate('/super-admin/discounts?status=PENDING');
-                    }}
-                    className="btn btn-sm btn-warning text-dark w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5 py-1.5"
-                    style={{ fontSize: '0.78rem', borderRadius: '8px' }}
-                  >
-                    <Clock size={13} />
-                    <span>Display All Pending Discounts</span>
-                  </button>
+                  {notificationsList.some(n => n.type === 'discount_approval') ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate('/super-admin/discounts?status=PENDING');
+                      }}
+                      className="btn btn-sm btn-warning text-dark w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5 py-1.5"
+                      style={{ fontSize: '0.78rem', borderRadius: '8px' }}
+                    >
+                      <Clock size={13} />
+                      <span>Display All Pending Discounts ({notificationsList.filter(n => n.type === 'discount_approval').length})</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate('/super-admin/discounts');
+                      }}
+                      className="btn btn-sm btn-light border text-secondary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1.5 py-1.5"
+                      style={{ fontSize: '0.78rem', borderRadius: '8px' }}
+                    >
+                      <ShieldCheck size={14} style={{ color: '#8B1216' }} />
+                      <span>View Fee Concession Registry</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

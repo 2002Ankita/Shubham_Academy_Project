@@ -71,6 +71,7 @@ export default function SuperAdminDashboard() {
       setStudentsWithDiscounts(withDisc);
 
       // Sync any pending discounts into notifications for Superadmin
+      notificationService.pruneFinalizedDiscounts(data || []);
       const pendingList = withDisc.filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
       notificationService.syncDiscountApprovals(pendingList);
     } catch (err) {
