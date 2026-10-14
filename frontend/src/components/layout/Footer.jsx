@@ -10,7 +10,7 @@ export default function Footer() {
         boxShadow: '0 -1px 6px rgba(15, 23, 42, 0.02)',
         paddingTop: '6px',
         paddingBottom: '6px',
-        position: 'relative',
+        position: 'relative', // NOT position: fixed - flows naturally with page content
         zIndex: 10
       }}
     >
@@ -68,3 +68,4 @@ export default function Footer() {
     </footer>
   );
 }
+

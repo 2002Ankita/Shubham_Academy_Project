@@ -1207,20 +1207,6 @@ export default function SuperAdminDashboard() {
                 <ChevronRight size={14} className="flex-shrink-0" />
               </button>
             </div>
-
-            {/* Quick Directory Link */}
-            <div className="mt-3 pt-2.5 border-top d-flex align-items-center justify-content-between" style={{ fontSize: '0.74rem' }}>
-              <span className="text-sa-muted">
-                Need campus directory or support?
-              </span>
-              <button
-                onClick={() => navigate('/super-admin/contact')}
-                className="btn btn-link p-0 text-decoration-none fw-semibold"
-                style={{ fontSize: '0.74rem', color: 'var(--sa-primary-red)' }}
-              >
-                Directory &gt;
-              </button>
-            </div>
           </div>
         </div>
       </div>

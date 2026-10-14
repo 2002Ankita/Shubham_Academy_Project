@@ -309,7 +309,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       </div>
 
       {/* Right side: Date Selector, Notifications, Profile */}
-      <div className="d-flex align-items-center h-100" style={{ gap: '14px', paddingRight: '4px' }}>
+      <div className="d-flex align-items-center h-100 gap-2 gap-sm-3" style={{ paddingRight: '2px' }}>
         {/* Date Selector for Teacher Header */}
         {isTeacher && (
           <div className="position-relative teacher-date-picker">
@@ -732,12 +732,12 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
         {/* User Profile avatar & info */}
         <div
-          className="position-relative d-flex align-items-center"
+          className={`position-relative h-100 d-flex align-items-center sa-header-profile-wrapper ${isTeacher ? 'teacher-header-profile' : ''}`}
           ref={userMenuRef}
           style={{ width: 'auto' }}
         >
           <div
-            className="d-flex align-items-center justify-content-between px-2 py-1 rounded-3 cursor-pointer transition-all"
+            className="d-flex align-items-center justify-content-between px-2 px-sm-3 h-100 cursor-pointer w-100 gap-1.5 rounded-3 transition-all"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
               cursor: 'pointer',

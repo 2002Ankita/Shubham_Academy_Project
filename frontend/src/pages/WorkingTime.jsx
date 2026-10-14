@@ -4,36 +4,47 @@ import WorkingTimeSummary from '../components/working-time/WorkingTimeSummary';
 import WorkingTimeProgress from '../components/working-time/WorkingTimeProgress';
 import WorkingTimeTable from '../components/working-time/WorkingTimeTable';
 import attendanceService from '../services/attendanceService';
+import salaryService from '../services/salaryService';
+import teacherService from '../services/teacherService';
 import useAuth from '../hooks/useAuth';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function WorkingTime() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { id } = useParams();
+  const { user } = useAuth();
   const context = useOutletContext();
   const globalDateFilter = context?.globalDateFilter;
   const [records, setRecords] = useState([]);
+  const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [teacherDetails, setTeacherDetails] = useState(null);
 
   const targetTeacherId = id || user?.id || 'TCH-001';
-  const isAdminView = !!id;
-
-  const fetchRecords = async () => {
-    try {
-      const data = await attendanceService.getWorkingTime(targetTeacherId);
-      setRecords(data || []);
-    } catch (err) {
-      toast.error('Failed to load working time records');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchRecords();
-  }, [targetTeacherId]);
+    const fetchData = async () => {
+      try {
+        const [attData, salData, teacherData] = await Promise.all([
+          attendanceService.getWorkingTime(targetTeacherId).catch(() => []),
+          salaryService.getMySalaries().catch(() => []),
+          id ? teacherService.getById(id).catch(() => null) : Promise.resolve(null)
+        ]);
+        setRecords(attData || []);
+        setSalaries(salData || []);
+        if (teacherData) {
+          setTeacherDetails(teacherData);
+        }
+      } catch (err) {
+        console.error('Error fetching working time data:', err);
+        toast.error('Failed to load working time records');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [targetTeacherId, id]);
 
   const totalRequired = 160;
   let totalWorkedMinutes = 0;
@@ -113,7 +124,13 @@ export default function WorkingTime() {
         <div className="d-flex align-items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(isAdminView ? '/admin/teachers' : '/teacher/dashboard')}
+            onClick={() => {
+              if (user?.role === 'admin' || user?.role === 'super-admin' || user?.role === 'super_admin') {
+                navigate('/admin/teachers/attendance');
+              } else {
+                navigate('/teacher/dashboard');
+              }
+            }}
             className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
             style={{
               width: '40px',
@@ -125,18 +142,20 @@ export default function WorkingTime() {
               padding: 0,
               cursor: 'pointer'
             }}
-            aria-label={isAdminView ? "Back to Teachers" : "Back to Dashboard"}
-            title={isAdminView ? "Back to Teachers" : "Back to Dashboard"}
+            aria-label="Back"
+            title="Back"
           >
             <ArrowLeft size={18} />
           </button>
 
           <div>
             <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-              Working Time
+              {teacherDetails ? `${teacherDetails.name}'s Working Time` : 'Working Time'}
             </h1>
-            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
-              Track your daily working hours, attendance and punch records
+            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
+              {teacherDetails
+                ? `Faculty ID: ${teacherDetails.employee_id} • Subject: ${teacherDetails.subject} • Daily punch & attendance records`
+                : 'Track your daily working hours, attendance and punch records'}
             </p>
           </div>
         </div>

@@ -7,6 +7,7 @@ import batchService from '../../services/batchService';
 import { attendanceService } from '../../services/attendanceService';
 import salaryService from '../../services/salaryService';
 import { useAuth } from '../../hooks/useAuth';
+import { toast } from 'react-toastify';
 import {
   ResponsiveContainer,
   PieChart,
@@ -28,7 +29,8 @@ import {
   ChevronRight,
   Coins,
   BarChart2,
-  Tv
+  Tv,
+  Check
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
@@ -54,6 +56,52 @@ export default function TeacherDashboard() {
   const [scheduleRows, setScheduleRows] = useState([]);
   const [totalWorkingHours, setTotalWorkingHours] = useState(0);
   const [salaryDetails, setSalaryDetails] = useState({ pending: 0, status: 'N/A' });
+  const [todayAttendance, setTodayAttendance] = useState(null);
+  const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+
+  const loadAttendanceStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const records = await attendanceService.getWorkingTime(user.id);
+      const now = new Date();
+      const todayIso = now.toISOString().slice(0, 10);
+      const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const rec = records.find(r => r.date === todayIso || r.date === todayLocal);
+      setTodayAttendance(rec || null);
+
+      let totalHours = 0;
+      records.forEach(r => {
+        if (r.totalHours && r.totalHours !== '--') {
+          const match = r.totalHours.match(/(\d+)\s*h\s*(\d+)\s*m/i);
+          if (match) {
+            totalHours += parseInt(match[1], 10) + parseInt(match[2], 10) / 60;
+          }
+        }
+      });
+      setTotalWorkingHours(totalHours.toFixed(1));
+    } catch (e) {
+      console.error('Failed to fetch working time', e);
+    }
+  };
+
+  const handleQuickAttendance = async (action) => {
+    if (!user?.id) return;
+    setAttendanceActionLoading(true);
+    try {
+      if (action === 'check-in') {
+        await attendanceService.checkIn(user.id);
+        toast.success('Successfully checked in! Have a wonderful day.');
+      } else {
+        await attendanceService.checkOut(user.id);
+        toast.success('Successfully checked out! Shift recorded.');
+      }
+      await loadAttendanceStatus();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Attendance action failed');
+    } finally {
+      setAttendanceActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -66,22 +114,7 @@ export default function TeacherDashboard() {
         ]);
 
         if (user && user.id) {
-          try {
-            const records = await attendanceService.getWorkingTime(user.id);
-            let totalHours = 0;
-            records.forEach(r => {
-              if (r.totalHours && r.totalHours !== '--') {
-                const match = r.totalHours.match(/(\d+)\s*h\s*(\d+)\s*m/i);
-                if (match) {
-                  totalHours += parseInt(match[1], 10) + parseInt(match[2], 10) / 60;
-                }
-              }
-            });
-            setTotalWorkingHours(totalHours.toFixed(1));
-          } catch (e) {
-            console.error('Failed to fetch working time', e);
-          }
-
+          await loadAttendanceStatus();
           try {
             const salaries = await salaryService.getMySalaries();
             if (salaries && salaries.length > 0) {
@@ -332,6 +365,55 @@ export default function TeacherDashboard() {
             >
               <span>✨</span>
               <span>"Better Teachers • Brighter Futures"</span>
+            </div>
+
+            {/* Quick Check-in / Check-out status control */}
+            <div className="d-flex align-items-center gap-2 mt-3 pt-1 flex-wrap">
+              {!todayAttendance || todayAttendance.checkIn === '--' ? (
+                <button
+                  type="button"
+                  disabled={attendanceActionLoading}
+                  onClick={() => handleQuickAttendance('check-in')}
+                  className="btn btn-sm text-white d-inline-flex align-items-center gap-2 fw-semibold px-3 py-1.5 rounded-3 shadow-sm transition-all"
+                  style={{ backgroundColor: '#8B1216', fontSize: '13px' }}
+                >
+                  <Clock size={15} />
+                  <span>{attendanceActionLoading ? 'Checking in...' : 'Check In Today'}</span>
+                </button>
+              ) : todayAttendance.checkOut === '--' || todayAttendance.checkOut === 'In Progress' ? (
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <div
+                    className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill"
+                    style={{ backgroundColor: '#EAF6EF', border: '1px solid #BBF7D0', color: '#166534', fontSize: '12.5px' }}
+                  >
+                    <span
+                      className="rounded-circle"
+                      style={{ width: '8px', height: '8px', backgroundColor: '#16A34A', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.25)' }}
+                    />
+                    <span className="fw-semibold">Checked in at {todayAttendance.checkIn}</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={attendanceActionLoading}
+                    onClick={() => handleQuickAttendance('check-out')}
+                    className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 rounded-3"
+                    style={{ fontSize: '12.5px' }}
+                  >
+                    <Clock size={14} />
+                    <span>{attendanceActionLoading ? 'Checking out...' : 'Check Out Now'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill cursor-pointer"
+                  onClick={() => navigate('/teacher/attendance')}
+                  style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: '12.5px' }}
+                  title="View Attendance Register"
+                >
+                  <Check size={14} strokeWidth={2.5} />
+                  <span className="fw-semibold">Shift Completed: {todayAttendance.checkIn} - {todayAttendance.checkOut} ({todayAttendance.totalHours})</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">

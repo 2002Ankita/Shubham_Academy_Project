@@ -1,8 +1,7 @@
 import api from './api';
 
-// Removed MOCK_ATTENDANCE_LOGS
-
 export const attendanceService = {
+  // General Attendance Logs (e.g. RFID / Gate entries)
   getLogs: async (params = {}) => {
     try {
       const res = await api.get('/attendance', { params });
@@ -13,21 +12,13 @@ export const attendanceService = {
   },
 
   scanRfid: async (rfidCard, gate = 'Gate 1') => {
-    try {
-      const res = await api.post('/attendance/rfid-scan', { rfidCard, gate });
-      return res.data;
-    } catch (err) {
-      throw err;
-    }
+    const res = await api.post('/attendance/rfid-scan', { rfidCard, gate });
+    return res.data;
   },
 
   markManual: async (data) => {
-    try {
-      const res = await api.post('/attendance/manual', data);
-      return res.data;
-    } catch (err) {
-      throw err;
-    }
+    const res = await api.post('/attendance', data);
+    return res.data;
   },
 
   getReportSummary: async () => {
@@ -45,26 +36,30 @@ export const attendanceService = {
     }
   },
 
-  checkIn: async (teacherId) => {
+  // Teacher Check-in / Check-out actions
+  checkIn: async (teacherId, remarks = '') => {
     const payload = {
       teacher_id: teacherId,
       date: new Date().toISOString(),
-      status: 'Present'
+      status: 'Working',
+      remarks: remarks || undefined
     };
     const res = await api.post('/attendance/check-in', payload);
     return res.data;
   },
 
-  checkOut: async (teacherId) => {
+  checkOut: async (teacherId, remarks = '') => {
     const payload = {
       teacher_id: teacherId,
       date: new Date().toISOString(),
-      status: 'Present'
+      status: 'Present',
+      remarks: remarks || undefined
     };
     const res = await api.post('/attendance/check-out', payload);
     return res.data;
   },
 
+  // Teacher specific attendance logs (for Teacher portal and individual working time)
   getWorkingTime: async (teacherId) => {
     const res = await api.get(`/attendance/teacher/${teacherId}`);
     return res.data.map(r => {
@@ -78,19 +73,58 @@ export const attendanceService = {
         const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
         const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         totalHours = `${diffHrs}h ${diffMins}m`;
+      } else if (checkInDate && !checkOutDate) {
+        const diffMs = Date.now() - checkInDate.getTime();
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        totalHours = `${diffHrs}h ${diffMins}m`;
       }
+
+      const dateObj = new Date(ensureUtc(r.date) || Date.now());
+      const localDateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
       return {
         id: r.id,
-        date: new Date(ensureUtc(r.date)).toISOString().split('T')[0],
-        day: new Date(ensureUtc(r.date)).toLocaleDateString('en-US', { weekday: 'long' }),
+        date: localDateStr,
+        day: dateObj.toLocaleDateString('en-US', { weekday: 'long' }),
         checkIn: checkInDate ? checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-        checkOut: checkOutDate ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
+        checkOut: checkOutDate ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (checkInDate ? 'In Progress' : '--'),
         breakTime: '1h 00m',
         totalHours: r.total_hours || totalHours,
-        status: r.status
+        status: r.status,
+        remarks: r.remarks || ''
       };
     });
+  },
+
+  // Academy Admin: All Teachers attendance tracking ledger
+  getTeachersAttendance: async (params = {}) => {
+    const res = await api.get('/attendance/teachers', { params });
+    return res.data;
+  },
+
+  // Academy Admin: Real-time Teacher Attendance KPI Summary
+  getTeachersSummary: async (params = {}) => {
+    const res = await api.get('/attendance/teachers/summary', { params });
+    return res.data;
+  },
+
+  // Academy Admin: Manual check-in / check-out / punch entry
+  markTeacherManual: async (data) => {
+    const res = await api.post('/attendance/teachers/manual', data);
+    return res.data;
+  },
+
+  // Academy Admin: Update attendance record
+  updateAttendance: async (id, data) => {
+    const res = await api.put(`/attendance/${id}`, data);
+    return res.data;
+  },
+
+  // Academy Admin: Delete attendance record
+  deleteAttendance: async (id) => {
+    const res = await api.delete(`/attendance/${id}`);
+    return res.data;
   }
 };
 

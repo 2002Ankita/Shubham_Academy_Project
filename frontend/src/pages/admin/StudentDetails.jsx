@@ -157,9 +157,20 @@ export default function StudentDetails() {
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
               {student.name}
             </h3>
-            <span className="small text-sa-muted">
-              Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • RFID UID: {student.rfid_tag || student.rfidCard || 'N/A'} • Class: {student.standard}
-            </span>
+            <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
+              <span className="small text-sa-muted">
+                Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • RFID UID: {student.rfid_tag || student.rfidCard || 'N/A'} • Class: {student.standard || 'N/A'}
+              </span>
+              {student.profileCompleted ? (
+                <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-pill small">
+                  Profile Complete ✓
+                </span>
+              ) : (
+                <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-0.5 rounded-pill small">
+                  Pending Student Profile Entry
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="d-flex gap-2">
@@ -181,26 +192,42 @@ export default function StudentDetails() {
             <div className="d-flex flex-column gap-2 small">
               <div className="d-flex align-items-center gap-2 text-sa-muted">
                 <Mail size={16} className="text-sa-primary flex-shrink-0" />
-                <span className="text-truncate">{student.email}</span>
+                <span className="text-truncate">{student.email || 'Email pending student entry'}</span>
               </div>
               <div className="d-flex align-items-center gap-2 text-sa-muted">
                 <Phone size={16} className="text-sa-primary flex-shrink-0" />
-                <span>{student.phone}</span>
+                <span>{student.phone} <small className="text-muted">(Student Mobile)</small></span>
               </div>
               <div className="d-flex align-items-start gap-2 text-sa-muted">
                 <MapPin size={16} className="text-sa-primary flex-shrink-0 mt-1" />
                 <span>{student.address || 'Kolhapur, Maharashtra'}</span>
               </div>
+              {student.date_of_birth && (
+                <div className="d-flex align-items-center gap-2 text-sa-muted">
+                  <CalendarCheck size={16} className="text-sa-primary flex-shrink-0" />
+                  <span>DOB: {new Date(student.date_of_birth).toLocaleDateString()} ({student.gender || 'N/A'})</span>
+                </div>
+              )}
             </div>
 
             <hr className="my-3 opacity-25" />
 
             <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Parent Details (SMS Alert)</h6>
             <p className="small text-sa-muted mb-1">
-              <strong>Parent:</strong> {student.parent_name || student.parentName || 'Parent / Guardian'}
+              <strong>Parent Name:</strong> {student.parent_name || student.parentName || 'Pending student entry'}
             </p>
             <p className="small text-sa-muted mb-0">
-              <strong>Emergency / Alert:</strong> {student.parent_mobile || student.parentPhone || '+91 98220 00000'}
+              <strong>Emergency / Alert Phone:</strong> {student.parent_mobile || student.parentPhone || '+91 98220 00000'}
+            </p>
+
+            <hr className="my-3 opacity-25" />
+
+            <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Academic Enrollment</h6>
+            <p className="small text-sa-muted mb-1">
+              <strong>Class / Standard:</strong> {student.standard || 'Pending student selection'}
+            </p>
+            <p className="small text-sa-muted mb-0">
+              <strong>Batch:</strong> {student.batch || 'Pending allocation'}
             </p>
           </div>
         </div>
@@ -215,7 +242,7 @@ export default function StudentDetails() {
                   <CalendarCheck size={20} className="text-success" />
                 </div>
                 <h3 className="brand-font fw-bold text-sa-charcoal m-0 fs-3">
-                  {student.attendancePercent || 94.2}%
+                  {student.attendancePercent || 0}%
                 </h3>
                 <span className="small text-sa-muted">
                   Total RFID gate taps verified this term
@@ -232,9 +259,14 @@ export default function StudentDetails() {
                 <h3 className="brand-font fw-bold text-sa-charcoal m-0 fs-3">
                   ₹ {paidFees.toLocaleString()} / ₹ {totalFees.toLocaleString()}
                 </h3>
-                <span className="small text-sa-muted">
-                  Outstanding Due: <strong className={pendingFees > 0 ? 'text-danger' : 'text-success'}>₹ {pendingFees.toLocaleString()}</strong>
-                </span>
+                <div className="d-flex justify-content-between align-items-center mt-1 flex-wrap gap-1">
+                  <span className="small text-sa-muted">
+                    Outstanding Due: <strong className={pendingFees > 0 ? 'text-danger' : 'text-success'}>₹ {pendingFees.toLocaleString()}</strong>
+                  </span>
+                  <span className="small text-sa-muted">
+                    Status: <strong className="text-success">{student.feesStatus || (pendingFees <= 0 ? 'Paid' : 'Pending')}</strong>
+                  </span>
+                </div>
               </div>
             </div>
 

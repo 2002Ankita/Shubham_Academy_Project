@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
@@ -21,11 +23,16 @@ import {
 } from 'lucide-react';
 
 export default function Contact() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin');
+  const backTo = isAdmin ? '/admin/dashboard' : '/super-admin/dashboard';
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    department: 'Super Administrator Desk',
+    department: isAdmin ? 'Academy Administrator Desk' : 'Super Administrator Desk',
     priority: 'Normal',
     subject: '',
     message: ''
@@ -78,7 +85,7 @@ export default function Contact() {
     <div className="d-flex flex-column gap-4" style={{ maxWidth: '1120px' }}>
       {/* Page Title */}
       <div>
-        <BackButton to="/super-admin/dashboard" label="Back to Dashboard" />
+        <BackButton to={backTo} label="Back to Dashboard" />
         <div className="d-flex align-items-center gap-2">
           <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">Contact & Campus Directory</h3>
           <span

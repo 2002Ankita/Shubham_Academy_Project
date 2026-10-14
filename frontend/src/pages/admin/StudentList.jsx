@@ -435,6 +435,21 @@ export default function StudentList() {
                 render: (val) => <span className="badge bg-light text-dark border">{val}</span>
               },
               {
+                key: 'profileCompleted',
+                title: 'Profile Status',
+                render: (val, row) => (
+                  val ? (
+                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold">
+                      Complete ✓
+                    </span>
+                  ) : (
+                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold" title="Student has not yet completed remaining profile">
+                      Pending Entry
+                    </span>
+                  )
+                )
+              },
+              {
                 key: 'attendancePercent',
                 title: 'Attendance',
                 render: (val) => (

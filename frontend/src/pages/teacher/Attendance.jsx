@@ -33,13 +33,16 @@ export default function TeacherAttendance() {
     fetchTeacherRecords();
   }, [user?.id]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayRecord = teacherRecords.find(record => record.date === today);
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+  const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayRecord = teacherRecords.find(record => record.date === todayIso || record.date === todayLocal);
   const hasCheckedIn = Boolean(todayRecord && todayRecord.checkIn !== '--');
-  const hasCheckedOut = Boolean(todayRecord && todayRecord.checkOut !== '--');
+  const hasCheckedOut = Boolean(todayRecord && todayRecord.checkOut !== '--' && todayRecord.checkOut !== 'In Progress');
+  const isWorkingNow = hasCheckedIn && !hasCheckedOut;
   const recentTeacherRecords = [...teacherRecords]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 7);
+    .slice(0, 10);
 
   const handleTeacherAttendance = async (action) => {
     if (!user?.id) {
@@ -50,10 +53,10 @@ export default function TeacherAttendance() {
     try {
       if (action === 'check-in') {
         await attendanceService.checkIn(user.id);
-        toast.success('Successfully checked in!');
+        toast.success('Successfully checked in! Have a productive day.');
       } else {
         await attendanceService.checkOut(user.id);
-        toast.success('Successfully checked out!');
+        toast.success('Successfully checked out! Great work today.');
       }
       await fetchTeacherRecords();
     } catch (error) {
@@ -157,6 +160,47 @@ export default function TeacherAttendance() {
           </Button>
         </div>
       </div>
+
+      {/* Live Active Duty Status Banner */}
+      {isWorkingNow && (
+        <div
+          className="p-3 rounded-4 d-flex align-items-center justify-content-between flex-wrap gap-3"
+          style={{
+            backgroundColor: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            color: '#166534'
+          }}
+        >
+          <div className="d-flex align-items-center gap-2.5">
+            <span
+              className="rounded-circle"
+              style={{
+                width: '10px',
+                height: '10px',
+                backgroundColor: '#16A34A',
+                boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.25)'
+              }}
+            />
+            <div>
+              <span className="fw-bold" style={{ fontSize: '14px' }}>
+                Active Shift: You checked in today at {todayRecord.checkIn}
+              </span>
+              <span className="d-block text-success mt-0.5" style={{ fontSize: '12px' }}>
+                Your working session is currently recorded and visible to Academy Admin. Don't forget to Check Out when leaving.
+              </span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            loading={attendanceActionLoading}
+            onClick={() => handleTeacherAttendance('check-out')}
+            style={{ fontSize: '12.5px', padding: '6px 14px' }}
+          >
+            Check Out Now
+          </Button>
+        </div>
+      )}
 
       {/* 2. SUMMARY CARDS */}
       <div className="row g-3 align-items-stretch" style={{ margin: 0 }}>

@@ -58,7 +58,7 @@ export const feeService = {
       const data = await feeService.getAll();
       const found = data.find(f => f.receiptNo === receiptNo);
       if (!found) return { receiptNo };
-      
+
       const details = await api.get(`/fees/${found.studentId}`);
       found.totalFees = details.data.total_fees;
       found.originalFees = details.data.original_fees;
@@ -89,10 +89,10 @@ export const feeService = {
     };
     const res = await api.post('/fees', payload);
     const receiptNo = `REC-${res.data.id.substring(res.data.id.length - 6).toUpperCase()}`;
-    return { 
-      success: true, 
-      message: 'Fee payment collected successfully', 
-      receipt: { ...res.data, receiptNo } 
+    return {
+      success: true,
+      message: 'Fee payment collected successfully',
+      receipt: { ...res.data, receiptNo }
     };
   },
 
@@ -101,7 +101,7 @@ export const feeService = {
       // Calculate dynamically
       const pendingRes = await api.get('/fees/pending');
       const allRes = await api.get('/fees');
-      
+
       const pendingFeesArray = pendingRes.data;
       const allFeesArray = allRes.data;
 

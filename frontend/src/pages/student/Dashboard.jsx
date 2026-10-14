@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   AlertCircle,
   BookMarked,
+  ShieldAlert,
   Sparkles
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
@@ -315,9 +316,63 @@ export default function StudentDashboard() {
         </div>
       </div>
 
+      {/* Role-Based Profile Completion Alert Banner */}
+      {(!student?.profileCompleted || !student?.standard || student?.standard === 'Pending Selection') && (
+        <div
+          className="rounded-4 p-3.5 p-md-4 border shadow-xs"
+          style={{
+            background: 'linear-gradient(135deg, #FFF9F5 0%, #FFF3EC 100%)',
+            borderColor: '#FDBA74'
+          }}
+        >
+          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div className="d-flex align-items-start gap-3">
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
+                style={{ width: '42px', height: '42px', backgroundColor: '#FFEDD5', color: '#EA580C' }}
+              >
+                <ShieldAlert size={22} />
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                  <h5 className="fw-bold m-0 text-sa-charcoal" style={{ fontSize: '1.05rem' }}>
+                    Action Required: Complete Your Student Profile
+                  </h5>
+                  <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill small fw-semibold">
+                    Profile Incomplete
+                  </span>
+                </div>
+                <p className="text-muted small m-0 mb-2" style={{ maxWidth: '640px' }}>
+                  Your student admission was created by the Admin with your basic details and fees. Please complete your
+                  remaining personal, academic (standard & batch), and parent information from your profile.
+                </p>
+                <div className="d-flex align-items-center gap-3 text-muted small flex-wrap" style={{ fontSize: '0.78rem' }}>
+                  <span className="text-success fw-semibold">✓ Name & Contact (Set by Admin)</span>
+                  <span className="text-success fw-semibold">✓ Fee Structure (Set by Admin)</span>
+                  <span className="text-warning fw-semibold">• Personal & Academic Info (Pending)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center flex-shrink-0">
+              <button
+                type="button"
+                className="btn text-white fw-semibold d-inline-flex align-items-center gap-2 px-3.5 py-2 rounded-3 shadow-xs"
+                style={{ backgroundColor: '#8B1216' }}
+                onClick={() => navigate('/student/profile')}
+              >
+                <span>Complete Profile Now</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 2. TOP 4 KPI CARDS (Attendance, Upcoming Exams, Pending Fees, Overall Score) */}
       {/* ========================================================================= */}
+
       <div className="row g-3 g-xl-4">
         {/* KPI 1: Attendance */}
         <div className="col-12 col-sm-6 col-xl-3">
