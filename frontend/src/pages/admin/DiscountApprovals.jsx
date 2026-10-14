@@ -183,7 +183,10 @@ export default function DiscountApprovals() {
     } : s));
 
     try {
-      await studentService.approveDiscount(student.id);
+      await studentService.approveDiscount(student.id, {
+        approved_amount: origReq,
+        discount_amount: origReq
+      });
       try {
         notificationService.notifyDiscountDecision({
           studentId: student.id,

@@ -100,7 +100,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     e.stopPropagation();
     if (!notif.studentId) return;
     try {
-      await studentService.approveDiscount(notif.studentId);
+      const payload = {
+        approved_amount: Number(notif.discountAmount) || 0,
+        discount_amount: Number(notif.discountAmount) || 0
+      };
+      await studentService.approveDiscount(notif.studentId, payload);
       notificationService.markAsRead(notif.id);
       try {
         notificationService.notifyDiscountDecision({
@@ -111,6 +115,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           isApproved: true,
           approverName: user?.full_name || 'Shubham Sharma (Superadmin)'
         });
+        const fresh = await studentService.getAll();
+        notificationService.pruneFinalizedDiscounts(fresh);
+        const pending = (fresh || []).filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
+        notificationService.syncDiscountApprovals(pending);
       } catch (notifErr) {
         console.warn('Notification sync error:', notifErr);
       }
@@ -139,6 +147,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           rejectionReason: 'Declined via notification console',
           approverName: user?.full_name || 'Shubham Sharma (Superadmin)'
         });
+        const fresh = await studentService.getAll();
+        notificationService.pruneFinalizedDiscounts(fresh);
+        const pending = (fresh || []).filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
+        notificationService.syncDiscountApprovals(pending);
       } catch (notifErr) {
         console.warn('Notification sync error:', notifErr);
       }

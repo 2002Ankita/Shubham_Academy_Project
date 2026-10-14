@@ -69,9 +69,17 @@ class StudentAdminCreate(BaseModel):
     rfid_tag: Optional[str] = None
     superadmin_auth_code: Optional[str] = None
     original_fees: Optional[float] = None
+    originalFees: Optional[float] = None
     discount_amount: Optional[float] = None
+    discountAmount: Optional[float] = None
     discount_reason: Optional[str] = None
+    discountReason: Optional[str] = None
     discount_requested_amount: Optional[float] = None
+    discountRequestedAmount: Optional[float] = None
+    discount_recommended_by: Optional[str] = None
+    discountRecommendedBy: Optional[str] = None
+    discount_offered_by: Optional[str] = None
+    discountOfferedBy: Optional[str] = None
 
     class Config:
         extra = "allow"

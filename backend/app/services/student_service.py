@@ -102,9 +102,9 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     student_id = data.get("student_id") or data.get("rollNumber") or f"STU-{uuid.uuid4().hex[:6].upper()}"
 
     # Fees and Discount parsing
-    orig_fees = float(data.get("original_fees") or data.get("total_fees") or data.get("totalFees") or 0.0)
-    disc_amount = float(data.get("discount_amount") or 0.0)
-    disc_reason = data.get("discount_reason") or ("Scholarship Concession" if disc_amount > 0 else None)
+    orig_fees = float(data.get("original_fees") or data.get("originalFees") or data.get("total_fees") or data.get("totalFees") or 0.0)
+    disc_amount = float(data.get("discount_amount") or data.get("discountAmount") or data.get("discount_requested_amount") or data.get("discountRequestedAmount") or 0.0)
+    disc_reason = data.get("discount_reason") or data.get("discountReason") or ("Scholarship Concession" if disc_amount > 0 else None)
     
     disc_status = "NONE"
     disc_offered_by = None
@@ -117,7 +117,9 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         disc_offered_at = datetime.utcnow()
         recommender = (
             (data.get("discount_recommended_by") and str(data["discount_recommended_by"]).strip())
+            or (data.get("discountRecommendedBy") and str(data["discountRecommendedBy"]).strip())
             or (data.get("discount_offered_by") and str(data["discount_offered_by"]).strip())
+            or (data.get("discountOfferedBy") and str(data["discountOfferedBy"]).strip())
             or (data.get("discount_approved_by") and str(data["discount_approved_by"]).strip() and "PENDING" not in str(data["discount_approved_by"]).upper() and str(data["discount_approved_by"]).strip())
             or (current_user.full_name if current_user else "Miss Shilpa")
         )
@@ -568,15 +570,32 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    disc_amount = getattr(student, "discount_amount", 0.0)
+    disc_amount = float(getattr(student, "discount_amount", 0.0) or getattr(student, "discount_requested_amount", 0.0) or 0.0)
     if payload:
-        if "approved_amount" in payload and float(payload["approved_amount"]) >= 0:
+        if "approved_amount" in payload and payload["approved_amount"] is not None and float(payload["approved_amount"]) > 0:
             disc_amount = float(payload["approved_amount"])
-        elif "discount_amount" in payload and float(payload["discount_amount"]) >= 0:
+        elif "discount_amount" in payload and payload["discount_amount"] is not None and float(payload["discount_amount"]) > 0:
             disc_amount = float(payload["discount_amount"])
+        elif "discountAmount" in payload and payload["discountAmount"] is not None and float(payload["discountAmount"]) > 0:
+            disc_amount = float(payload["discountAmount"])
         elif "discount_percentage" in payload and float(payload["discount_percentage"]) > 0:
             orig = getattr(student, "original_fees", 0.0) or student.total_fees
             disc_amount = (orig * float(payload["discount_percentage"])) / 100.0
+
+    # Fallback to DiscountApproval record if disc_amount is still 0
+    if disc_amount <= 0:
+        approval_rec = await DiscountApproval.find(
+            DiscountApproval.student_id == str(student.id)
+        ).sort("-offered_at").first_or_none()
+        if approval_rec and (approval_rec.discount_amount or 0.0) > 0:
+            disc_amount = float(approval_rec.discount_amount)
+
+    # Fallback to difference between original_fees and total_fees if present
+    if disc_amount <= 0:
+        orig = float(getattr(student, "original_fees", 0.0) or 0.0)
+        tot = float(getattr(student, "total_fees", 0.0) or 0.0)
+        if orig > tot and (orig - tot) > 0:
+            disc_amount = orig - tot
 
     if disc_amount <= 0:
         raise HTTPException(status_code=400, detail="No active discount offer to approve")

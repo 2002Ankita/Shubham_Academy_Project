@@ -57,7 +57,12 @@ export default function StudentList() {
   const handleApproveDiscount = async (id, name) => {
     if (!window.confirm(`Are you sure you want to approve the discount for ${name} as Superadmin?`)) return;
     try {
-      await studentService.approveDiscount(id);
+      const studentObj = students.find(s => s.id === id);
+      const discAmt = studentObj?.discountRequestedAmount || studentObj?.discountAmount || 0;
+      await studentService.approveDiscount(id, {
+        approved_amount: Number(discAmt) || 0,
+        discount_amount: Number(discAmt) || 0
+      });
       toast.success(`Discount for ${name} successfully approved by Superadmin!`);
       fetchStudents();
     } catch (err) {

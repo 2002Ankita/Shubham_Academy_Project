@@ -74,7 +74,11 @@ export default function StudentDetails() {
   const handleApproveDiscount = async () => {
     try {
       setSubmittingDiscount(true);
-      await studentService.approveDiscount(student.id);
+      const discAmt = student.discountRequestedAmount || student.discountAmount || 0;
+      await studentService.approveDiscount(student.id, {
+        approved_amount: Number(discAmt) || 0,
+        discount_amount: Number(discAmt) || 0
+      });
       toast.success(`Discount approved successfully by Superadmin (${user?.name})!`);
       await loadDetails();
     } catch (err) {
