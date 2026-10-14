@@ -200,7 +200,7 @@ export const notificationService = {
     const now = new Date();
     const timeStr = notif.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateStr = notif.date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    
+
     const newEntry = {
       id: notif.id || `NTF-DYN-${Date.now()}`,
       title: notif.title || 'Notification Alert',
@@ -267,6 +267,58 @@ export const notificationService = {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
       }
+    }
+  },
+
+  notifyDiscountDecision: ({
+    studentId,
+    studentName = 'Student',
+    originalRequested = 0,
+    approvedAmount = 0,
+    isApproved = false,
+    rejectionReason = '',
+    approverName = 'Superadmin'
+  } = {}) => {
+    try {
+      const current = getCustomNotifications();
+      // Remove any pending discount approval request notification for this student
+      const pendingNotifId = `NTF-DISC-${studentId}`;
+      const filtered = current.filter(n => n.id !== pendingNotifId && n.studentId !== studentId);
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      const decisionNotif = {
+        id: `NTF-DECISION-${studentId}-${Date.now()}`,
+        title: isApproved
+          ? `✅ Fee Concession Approved: ${studentName}`
+          : `❌ Fee Concession Declined: ${studentName}`,
+        time: timeStr,
+        date: dateStr,
+        formattedDateTime: `${dateStr}, ${timeStr}`,
+        type: isApproved ? 'discount_approved' : 'discount_declined',
+        category: 'Discount & Fees',
+        priority: 'Normal',
+        author: approverName,
+        details: isApproved
+          ? `Super Admin (${approverName}) approved fee concession of ₹${Number(approvedAmount || 0).toLocaleString()} for ${studentName}. Ledger balance has been updated.`
+          : `Fee concession request of ₹${Number(originalRequested || 0).toLocaleString()} for ${studentName} was declined by ${approverName}. Reason: ${rejectionReason || 'Discount criteria not met'}. Full fees restored.`,
+        read: false,
+        forSuperAdminOnly: false,
+        studentId,
+        studentName
+      };
+
+      saveCustomNotifications([decisionNotif, ...filtered]);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: decisionNotif }));
+      }
+      return decisionNotif;
+    } catch (err) {
+      console.error('Error in notifyDiscountDecision:', err);
+      return null;
     }
   },
 

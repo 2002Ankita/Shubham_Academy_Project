@@ -742,7 +742,7 @@ export default function StudentDashboard() {
             type="button"
             className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold"
             style={{ fontSize: '0.80rem' }}
-            onClick={() => navigate('/student/notes-delivery')}
+            onClick={() => navigate('/student/books-delivery')}
           >
             <span>View Full Delivery Desk</span>
             <ArrowRight size={13} />

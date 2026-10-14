@@ -21,7 +21,7 @@ import inventoryService from '../../services/inventoryService';
 import notesService from '../../services/notesService';
 import { useAuth } from '../../hooks/useAuth';
 
-export default function StudentNotesDelivery() {
+export default function StudentBooksDelivery() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('books'); // 'books' or 'lectureNotes'
   const [loading, setLoading] = useState(true);

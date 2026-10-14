@@ -60,8 +60,7 @@ export default function AdminDashboard() {
   const [pendingFees, setPendingFees] = useState(0);
   const [recentAdmissions, setRecentAdmissions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
-  const [discountActionLoading, setDiscountActionLoading] = useState(false);
-  
+
   const [attendanceData, setAttendanceData] = useState([
     { day: 'Mon', present: 0, absent: 0 },
     { day: 'Tue', present: 0, absent: 0 },
@@ -90,7 +89,7 @@ export default function AdminDashboard() {
         const students = studentsRes.value || [];
         setTotalStudents(students.length);
         setAllStudents(students);
-        
+
         // Sort for recent admissions
         const sorted = [...students].reverse().slice(0, 5).map((s, idx) => ({
           id: s.id || idx + 1,
@@ -110,64 +109,64 @@ export default function AdminDashboard() {
 
       if (attendanceRes.status === 'fulfilled') {
         const logs = attendanceRes.value || [];
-          const present = logs.filter(l => l.status === 'Present').length;
-          setPresentToday(present > 0 ? present : logs.length);
-        }
-
-        if (summaryRes.status === 'fulfilled' && summaryRes.value?.weeklyData?.length > 0) {
-          setAttendanceData(summaryRes.value.weeklyData);
-        } else if (attendanceRes.status === 'fulfilled') {
-          const logs = attendanceRes.value || [];
-          const present = logs.filter(l => l.status === 'Present').length || logs.length || 0;
-          setAttendanceData([
-            { day: 'Mon', present: Math.max(0, present - 2), absent: 2 },
-            { day: 'Tue', present: Math.max(0, present - 1), absent: 1 },
-            { day: 'Wed', present: present, absent: 0 },
-            { day: 'Thu', present: Math.max(0, present - 3), absent: 3 },
-            { day: 'Fri', present: Math.max(0, present - 2), absent: 2 },
-            { day: 'Sat', present: Math.max(0, present - 4), absent: 4 },
-            { day: 'Sun', present: 0, absent: 0 },
-          ]);
-        }
-
-        if (feesRes.status === 'fulfilled') {
-          try {
-            const stats = await feeService.getFeeStats();
-            setMonthlyFees(stats.collected);
-            setPendingFees(stats.pending);
-          } catch {}
-        }
-
-        if (examsRes.status === 'fulfilled') {
-          const exams = examsRes.value || [];
-          const upcoming = exams.slice(0, 4).map(e => ({
-            day: new Date(e.date || Date.now()).getDate().toString().padStart(2, '0'),
-            month: new Date(e.date || Date.now()).toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
-            title: e.title,
-            class: e.classBatch || 'All',
-            countdown: 'Upcoming'
-          }));
-          setUpcomingExams(upcoming);
-        }
-
-        if (batchesRes.status === 'fulfilled') {
-          const batches = batchesRes.value || [];
-          const formatted = batches.slice(0, 4).map(b => ({
-            time: b.time || '10:00 AM',
-            subject: b.subject,
-            classBatch: b.name,
-            teacher: b.teacher_name || 'TBD',
-            status: 'Upcoming'
-          }));
-          setScheduleList(formatted);
-        }
-
-        if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
-          setInventoryItems(inventoryRes.value);
-        }
-      } catch (err) {
-        console.error('Error fetching admin dashboard data:', err);
+        const present = logs.filter(l => l.status === 'Present').length;
+        setPresentToday(present > 0 ? present : logs.length);
       }
+
+      if (summaryRes.status === 'fulfilled' && summaryRes.value?.weeklyData?.length > 0) {
+        setAttendanceData(summaryRes.value.weeklyData);
+      } else if (attendanceRes.status === 'fulfilled') {
+        const logs = attendanceRes.value || [];
+        const present = logs.filter(l => l.status === 'Present').length || logs.length || 0;
+        setAttendanceData([
+          { day: 'Mon', present: Math.max(0, present - 2), absent: 2 },
+          { day: 'Tue', present: Math.max(0, present - 1), absent: 1 },
+          { day: 'Wed', present: present, absent: 0 },
+          { day: 'Thu', present: Math.max(0, present - 3), absent: 3 },
+          { day: 'Fri', present: Math.max(0, present - 2), absent: 2 },
+          { day: 'Sat', present: Math.max(0, present - 4), absent: 4 },
+          { day: 'Sun', present: 0, absent: 0 },
+        ]);
+      }
+
+      if (feesRes.status === 'fulfilled') {
+        try {
+          const stats = await feeService.getFeeStats();
+          setMonthlyFees(stats.collected);
+          setPendingFees(stats.pending);
+        } catch { }
+      }
+
+      if (examsRes.status === 'fulfilled') {
+        const exams = examsRes.value || [];
+        const upcoming = exams.slice(0, 4).map(e => ({
+          day: new Date(e.date || Date.now()).getDate().toString().padStart(2, '0'),
+          month: new Date(e.date || Date.now()).toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+          title: e.title,
+          class: e.classBatch || 'All',
+          countdown: 'Upcoming'
+        }));
+        setUpcomingExams(upcoming);
+      }
+
+      if (batchesRes.status === 'fulfilled') {
+        const batches = batchesRes.value || [];
+        const formatted = batches.slice(0, 4).map(b => ({
+          time: b.time || '10:00 AM',
+          subject: b.subject,
+          classBatch: b.name,
+          teacher: b.teacher_name || 'TBD',
+          status: 'Upcoming'
+        }));
+        setScheduleList(formatted);
+      }
+
+      if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
+        setInventoryItems(inventoryRes.value);
+      }
+    } catch (err) {
+      console.error('Error fetching admin dashboard data:', err);
+    }
   };
 
   useEffect(() => {
@@ -177,38 +176,6 @@ export default function AdminDashboard() {
   const pendingDiscounts = allStudents.filter(
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
   );
-  const approvedDiscounts = allStudents.filter(
-    (s) => s.discountStatus === 'APPROVED' && Number(s.discountAmount) > 0
-  );
-
-  const handleApproveDiscount = async (studentId, studentName) => {
-    if (!window.confirm(`Approve discount for ${studentName} as Superadmin?`)) return;
-    setDiscountActionLoading(true);
-    try {
-      await studentService.approveDiscount(studentId);
-      toast.success(`Discount for ${studentName} successfully approved by Superadmin!`);
-      await fetchDashboardData();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to approve discount');
-    } finally {
-      setDiscountActionLoading(false);
-    }
-  };
-
-  const handleRejectDiscount = async (studentId, studentName) => {
-    const reason = window.prompt(`Enter rejection reason for ${studentName}'s discount:`, 'Discount criteria not met');
-    if (reason === null) return;
-    setDiscountActionLoading(true);
-    try {
-      await studentService.rejectDiscount(studentId, reason);
-      toast.info(`Discount for ${studentName} rejected.`);
-      await fetchDashboardData();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to reject discount');
-    } finally {
-      setDiscountActionLoading(false);
-    }
-  };
 
   const feeData = [
     { name: 'Collected', value: monthlyFees > 0 ? monthlyFees : 1, amount: `₹${monthlyFees.toLocaleString()}`, color: '#8B1216' },
@@ -259,8 +226,9 @@ export default function AdminDashboard() {
               </button>
 
               {pendingDiscounts.length > 0 && (
-                <a
-                  href="#discount-approvals-widget"
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/discounts?status=PENDING')}
                   className="btn d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-bold text-decoration-none shadow-sm transition-all"
                   style={{
                     backgroundColor: '#FEF3C7',
@@ -268,10 +236,11 @@ export default function AdminDashboard() {
                     color: '#B45309',
                     fontSize: '0.84rem'
                   }}
+                  title="View pending discount concessions"
                 >
                   <ShieldCheck size={16} />
                   <span>{pendingDiscounts.length} Discounts Pending Superadmin</span>
-                </a>
+                </button>
               )}
             </div>
           </div>
@@ -406,216 +375,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Student Discount Approvals & Fee Decisions Widget on Admin Dashboard */}
-      <div id="discount-approvals-widget" className="sa-card p-4 bg-white rounded-3 border shadow-sm">
-        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 pb-3 border-bottom">
-          <div className="d-flex align-items-center gap-2.5">
-            <div
-              className="rounded-circle d-inline-flex align-items-center justify-content-center text-white flex-shrink-0"
-              style={{ width: '38px', height: '38px', backgroundColor: '#8B1216' }}
-            >
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2">
-                <h5 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '1.08rem' }}>
-                  Student Discount Approvals & Fee Decisions
-                </h5>
-                {pendingDiscounts.length > 0 ? (
-                  <span className="badge bg-warning text-dark px-2.5 py-1 fw-bold rounded-pill">
-                    {pendingDiscounts.length} Pending Superadmin Approval
-                  </span>
-                ) : (
-                  <span className="badge bg-success-subtle text-success px-2.5 py-1 fw-bold rounded-pill">
-                    All Approvals Up to Date
-                  </span>
-                )}
-              </div>
-              <span className="text-muted small" style={{ fontSize: '0.82rem' }}>
-                Whenever a discount is offered at student onboarding, the system permanently displays who approved it. Final approval must be given by the Superadmin.
-              </span>
-            </div>
-          </div>
-
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/students/register')}
-              className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold text-white rounded-2 shadow-sm"
-              style={{ backgroundColor: '#8B1216', fontSize: '0.82rem' }}
-            >
-              <UserPlus size={15} /> Onboard Student & Decide Fees
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/students')}
-              className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-secondary fw-semibold rounded-2"
-              style={{ fontSize: '0.82rem' }}
-            >
-              <span>Student Directory</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/super-admin/dashboard')}
-              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold rounded-2"
-              style={{ fontSize: '0.82rem' }}
-              title="Connect with Super Admin Dashboard"
-            >
-              <ShieldCheck size={14} />
-              <span>Super Admin Dashboard</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Pending Approvals Table */}
-        {pendingDiscounts.length > 0 ? (
-          <div>
-            <div className="p-2.5 mb-3 rounded-2 border bg-warning-subtle border-warning d-flex align-items-center gap-2 small text-warning-emphasis">
-              <AlertTriangle size={18} className="text-warning flex-shrink-0" />
-              <span>
-                <strong>Action Required:</strong> The following student discount concessions were offered during onboarding and are awaiting final <strong>Superadmin</strong> approval.
-              </span>
-            </div>
-
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.86rem' }}>
-                <thead className="table-light">
-                  <tr className="text-secondary small">
-                    <th>Student Details</th>
-                    <th>Fee Decided Breakdown</th>
-                    <th>Concession Scheme</th>
-                    <th>Recommended By</th>
-                    <th>Current Status</th>
-                    <th className="text-end">Final Superadmin Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingDiscounts.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <div
-                          className="fw-bold text-sa-charcoal cursor-pointer hover-underline"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => navigate(`/admin/students/${s.id}`)}
-                        >
-                          {s.name}
-                        </div>
-                        <div className="text-muted small" style={{ fontSize: '0.74rem' }}>
-                          Roll: {s.rollNumber || 'Auto'} • {s.standard}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center gap-1.5">
-                          <span className="text-muted text-decoration-line-through small">
-                            ₹{Number(s.originalFees || (s.totalFees + s.discountAmount)).toLocaleString()}
-                          </span>
-                          <span className="fw-bold text-success">
-                            -₹{Number(s.discountAmount).toLocaleString()}
-                          </span>
-                          <span className="fw-bold" style={{ color: '#8B1216' }}>
-                            ➔ ₹{Number(s.totalFees).toLocaleString()}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge bg-light text-dark border">
-                          {s.discountReason || 'Concession'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="text-secondary fw-semibold small">
-                          {s.discountRecommendedBy || s.discountOfferedBy || 'Miss Shilpa'}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge bg-warning text-dark px-2.5 py-1 d-inline-flex align-items-center gap-1">
-                          <Clock size={12} /> Pending Superadmin Approval
-                        </span>
-                      </td>
-                      <td className="text-end">
-                        {isSuperAdmin ? (
-                          <div className="d-flex align-items-center justify-content-end gap-1.5">
-                            <button
-                              type="button"
-                              disabled={discountActionLoading}
-                              onClick={() => handleApproveDiscount(s.id, s.name)}
-                              className="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 py-1 fw-bold shadow-sm"
-                              style={{ fontSize: '0.78rem' }}
-                              title="Grant Final Approval as Superadmin"
-                            >
-                              <ShieldCheck size={14} /> Approve Discount
-                            </button>
-                            <button
-                              type="button"
-                              disabled={discountActionLoading}
-                              onClick={() => handleRejectDiscount(s.id, s.name)}
-                              className="btn btn-sm btn-outline-danger px-2.5 py-1 fw-semibold"
-                              style={{ fontSize: '0.78rem' }}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="small text-muted fst-italic">
-                            Must be approved by Superadmin
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div>
-            {approvedDiscounts.length > 0 ? (
-              <div>
-                <div className="small fw-semibold text-secondary mb-2.5">
-                  Recently Approved Student Concessions:
-                </div>
-                <div className="row g-2.5">
-                  {approvedDiscounts.slice(0, 4).map((s) => (
-                    <div key={s.id} className="col-12 col-md-6 col-xl-3">
-                      <div className="p-3 rounded-2 bg-light border h-100 d-flex flex-column justify-content-between">
-                        <div>
-                          <div className="d-flex justify-content-between align-items-start mb-1">
-                            <strong
-                              className="text-sa-charcoal small cursor-pointer"
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => navigate(`/admin/students/${s.id}`)}
-                            >
-                              {s.name}
-                            </strong>
-                            <span className="badge bg-success-subtle text-success small fw-bold">
-                              -₹{Number(s.discountAmount).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="text-muted small" style={{ fontSize: '0.74rem' }}>
-                            Class: {s.standard} • Net Fee: <strong>₹{Number(s.totalFees).toLocaleString()}</strong>
-                          </div>
-                        </div>
-                        <div
-                          className="mt-2 pt-2 border-top text-success fw-semibold small d-flex align-items-center gap-1"
-                          style={{ fontSize: '0.73rem' }}
-                        >
-                          <CheckCircle2 size={13} className="text-success flex-shrink-0" />
-                          <span>Approved by: {s.discountApprovedBy || 'Superadmin'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 rounded-2 bg-light text-muted small text-center fst-italic">
-                No discount concessions currently pending. When a discount is offered during student onboarding, it will appear here for Superadmin review.
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Row 2: Analytics & Schedule (3 Cards) */}
@@ -907,7 +666,7 @@ export default function AdminDashboard() {
                 </h2>
               </div>
               <button
-                onClick={() => navigate('/admin/notes/stock')}
+                onClick={() => navigate('/admin/books/stock')}
                 className="btn btn-link p-0 text-decoration-none fw-semibold"
                 style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
               >
@@ -988,7 +747,7 @@ export default function AdminDashboard() {
             <div className="mt-3 pt-2.5 border-top d-flex gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/admin/notes/stock')}
+                onClick={() => navigate('/admin/books/stock')}
                 className="btn btn-sm btn-outline-secondary w-50 d-flex align-items-center justify-content-center gap-1 rounded-2"
                 style={{ fontSize: '0.76rem', fontWeight: 600 }}
               >
@@ -997,7 +756,7 @@ export default function AdminDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/admin/notes/delivery')}
+                onClick={() => navigate('/admin/books/delivery')}
                 className="btn btn-sm text-white w-50 d-flex align-items-center justify-content-center gap-1 rounded-2 shadow-xs"
                 style={{ backgroundColor: '#8B1216', fontSize: '0.76rem', fontWeight: 600 }}
               >

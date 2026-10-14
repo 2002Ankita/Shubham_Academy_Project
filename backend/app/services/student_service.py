@@ -36,6 +36,7 @@ async def _format_student(student: Student) -> dict:
         "admission_date": student.admission_date,
         "original_fees": getattr(student, "original_fees", student.total_fees) or student.total_fees,
         "discount_amount": getattr(student, "discount_amount", 0.0) or 0.0,
+        "discount_requested_amount": getattr(student, "discount_requested_amount", getattr(student, "discount_amount", 0.0)) or getattr(student, "discount_amount", 0.0),
         "discount_reason": getattr(student, "discount_reason", None),
         "discount_status": getattr(student, "discount_status", "NONE") or "NONE",
         "discount_offered_by": getattr(student, "discount_offered_by", None),
@@ -141,6 +142,7 @@ async def create_student(student_in: StudentCreate, current_user: User = None) -
         existing_student.original_fees = orig_fees
         if disc_amount > 0:
             existing_student.discount_amount = disc_amount
+            existing_student.discount_requested_amount = disc_amount
             existing_student.discount_reason = disc_reason
             existing_student.discount_status = disc_status
             existing_student.discount_offered_by = disc_offered_by
@@ -377,7 +379,7 @@ async def offer_student_discount(id: str, offer_in: dict, current_user: User) ->
 
     return await _format_student(student)
 
-async def approve_student_discount(id: str, current_user: User) -> dict:
+async def approve_student_discount(id: str, current_user: User, payload: dict = None) -> dict:
     from fastapi import HTTPException
     # Strict role enforcement: Only Superadmin can approve discount
     if not is_superadmin_user(current_user):
@@ -391,11 +393,22 @@ async def approve_student_discount(id: str, current_user: User) -> dict:
         raise HTTPException(status_code=404, detail="Student not found")
 
     disc_amount = getattr(student, "discount_amount", 0.0)
+    # Check if Superadmin adjusted the discount amount or percentage
+    if payload:
+        if "approved_amount" in payload and float(payload["approved_amount"]) >= 0:
+            disc_amount = float(payload["approved_amount"])
+        elif "discount_amount" in payload and float(payload["discount_amount"]) >= 0:
+            disc_amount = float(payload["discount_amount"])
+        elif "discount_percentage" in payload and float(payload["discount_percentage"]) > 0:
+            orig = getattr(student, "original_fees", 0.0) or student.total_fees
+            disc_amount = (orig * float(payload["discount_percentage"])) / 100.0
+
     if disc_amount <= 0:
         raise HTTPException(status_code=400, detail="No active discount offer to approve")
 
     orig_fees = getattr(student, "original_fees", 0.0) or student.total_fees
     student.original_fees = orig_fees
+    student.discount_amount = disc_amount
     student.discount_status = "APPROVED"
     student.discount_approved_by = f"{current_user.full_name} (Superadmin)"
     student.discount_approved_at = datetime.utcnow()
@@ -410,6 +423,8 @@ async def approve_student_discount(id: str, current_user: User) -> dict:
     )
     if existing_approval:
         existing_approval.status = "APPROVED"
+        existing_approval.discount_amount = disc_amount
+        existing_approval.final_fees = max(0.0, orig_fees - disc_amount)
         existing_approval.approved_by = f"{current_user.full_name} (Superadmin)"
         existing_approval.approved_by_email = current_user.email
         existing_approval.approved_at = datetime.utcnow()
@@ -429,6 +444,7 @@ async def approve_student_discount(id: str, current_user: User) -> dict:
             standard=student.standard,
             original_fees=orig_fees,
             discount_amount=disc_amount,
+            discount_requested_amount=getattr(student, "discount_requested_amount", disc_amount) or disc_amount,
             final_fees=max(0.0, orig_fees - disc_amount),
             discount_reason=student.discount_reason or "Fee Concession",
             status="APPROVED",
@@ -469,6 +485,14 @@ async def reject_student_discount(id: str, reason: str, current_user: User) -> d
         existing_approval.status = "REJECTED"
         existing_approval.rejection_reason = reason or "Rejected by Superadmin"
         await existing_approval.save()
+    else:
+        latest_approval = await DiscountApproval.find(
+            DiscountApproval.student_id == str(student.id)
+        ).sort("-offered_at").first_or_none()
+        if latest_approval:
+            latest_approval.status = "REJECTED"
+            latest_approval.rejection_reason = reason or "Rejected by Superadmin"
+            await latest_approval.save()
 
     return await _format_student(student)
 

@@ -25,6 +25,7 @@ class Student(Document):
     # Student Discount & Approval Details
     original_fees: float = 0.0
     discount_amount: float = 0.0
+    discount_requested_amount: float = 0.0
     discount_reason: Optional[str] = None
     discount_status: str = "NONE"  # "NONE", "PENDING", "APPROVED", "REJECTED"
     discount_offered_by: Optional[str] = None

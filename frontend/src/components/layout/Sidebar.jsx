@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import studentService from '../../services/studentService';
 import {
   LayoutDashboard,
   Building2,
@@ -36,7 +37,9 @@ import {
   Calendar,
   Crown,
   LifeBuoy,
-  StickyNote
+  StickyNote,
+  BadgePercent,
+  ShieldCheck
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -156,7 +159,7 @@ const TeachersWritingIcon = ({ size = 21, className = '' }) => (
     className={className}
     style={{ minWidth: size, minHeight: size }}
   >
-    <path d="M10 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM3 19a7 7 0 0 1 11.2-5.6l-1.4 1.4A5.5 5.5 0 0 0 5 19H3zm15.1-4.8l2.1-2.1c.4-.4 1-.4 1.4 0l1.4 1.4c.4.4.4 1 0 1.4l-2.1 2.1-2.8-2.8zm-1.4 1.4l2.8 2.8-5.7 5.7H11v-2.8l5.7-5.7z"/>
+    <path d="M10 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM3 19a7 7 0 0 1 11.2-5.6l-1.4 1.4A5.5 5.5 0 0 0 5 19H3zm15.1-4.8l2.1-2.1c.4-.4 1-.4 1.4 0l1.4 1.4c.4.4.4 1 0 1.4l-2.1 2.1-2.8-2.8zm-1.4 1.4l2.8 2.8-5.7 5.7H11v-2.8l5.7-5.7z" />
   </svg>
 );
 
@@ -169,7 +172,7 @@ const NotificationsBellIcon = ({ size = 21, className = '' }) => (
     className={className}
     style={{ minWidth: size, minHeight: size }}
   >
-    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
   </svg>
 );
 
@@ -204,10 +207,35 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isSuperAdmin = propIsSuperAdmin ?? (user?.role === 'super-admin' || location.pathname.startsWith('/super-admin'));
-  const isStudent = propIsStudent ?? (user?.role === 'student' || location.pathname.startsWith('/student'));
-  const isTeacher = propIsTeacher ?? (user?.role === 'teacher' || location.pathname.startsWith('/teacher'));
-  const isAdmin = propIsAdmin ?? (!isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin')));
+  const [pendingDiscountsCount, setPendingDiscountsCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPendingDiscounts = async () => {
+      try {
+        const students = await studentService.getAll();
+        if (isMounted && students) {
+          const count = students.filter(s => s.discountStatus === 'PENDING').length;
+          setPendingDiscountsCount(count);
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    };
+    fetchPendingDiscounts();
+    const handleUpdate = () => fetchPendingDiscounts();
+    window.addEventListener('sa_notifications_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('sa_notifications_updated', handleUpdate);
+    };
+  }, []);
+
+  const roleStr = (user?.role || '').toLowerCase().replace('-', '_');
+  const isSuperAdmin = propIsSuperAdmin ?? (roleStr === 'super_admin' || roleStr.includes('super') || location.pathname.startsWith('/super-admin'));
+  const isStudent = propIsStudent ?? (roleStr === 'student' || location.pathname.startsWith('/student'));
+  const isTeacher = propIsTeacher ?? (roleStr === 'teacher' || location.pathname.startsWith('/teacher'));
+  const isAdmin = propIsAdmin ?? (!isSuperAdmin && !isStudent && !isTeacher && (roleStr === 'admin' || location.pathname.startsWith('/admin')));
   const usesPearlNavigation = isAdmin || isSuperAdmin || isStudent || isTeacher;
   const sidebarWidth = usesPearlNavigation ? '265px' : (width || 'var(--sa-sidebar-width)');
 
@@ -217,18 +245,19 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   };
 
   const getNavLinks = () => {
-    const role = user?.role || 'admin';
+    const role = (user?.role || 'admin').toLowerCase().replace('-', '_');
 
     // ONLY Super Admin gets the 10 items matching reference design
-    if (isSuperAdmin || role === 'super-admin') {
+    if (isSuperAdmin || role === 'super_admin') {
       return [
         { label: 'Dashboard', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fees', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Books & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
-        { label: 'Books Delivery', path: '/admin/notes/delivery', icon: Truck, matchPrefixes: ['/admin/notes/delivery'] },
+        { label: 'Discount Approvals', path: '/super-admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/super-admin/discounts', '/super-admin/discount-approvals'] },
+        { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
+        { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
@@ -266,8 +295,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
         { label: 'Fee Collection', path: '/admin/fees', icon: FeeRupeeIcon, matchPrefixes: ['/admin/fees'] },
-        { label: 'Books & Stock', path: '/admin/notes/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/notes/stock'] },
-        { label: 'Books Delivery', path: '/admin/notes/delivery', icon: Truck, matchPrefixes: ['/admin/notes/delivery'] },
+        { label: 'Discount Approvals', path: '/admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/admin/discounts', '/admin/discount-approvals'] },
+        { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
+        { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
@@ -286,7 +316,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Examinations', path: '/student/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/student/exams'] },
       { label: 'Results', path: '/student/results', icon: ReportsBarIcon, matchPrefixes: ['/student/results'] },
       { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
-      { label: 'Books Delivery', path: '/student/notes-delivery', icon: Truck, matchPrefixes: ['/student/notes-delivery'] },
+      { label: 'Books Delivery', path: '/student/books-delivery', icon: Truck, matchPrefixes: ['/student/books-delivery', '/student/books/delivery', '/student/notes-delivery', '/student/notes/delivery'] },
       { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
       { label: 'Contact', path: '/student/contact', icon: ContactPhoneIcon, matchPrefixes: ['/student/contact'] },
     ];
@@ -329,9 +359,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       )}
 
       <aside
-        className={`d-flex flex-column text-white transition-all ${
-          isOpen ? 'position-fixed top-0 start-0 h-100 shadow-lg' : 'd-none d-md-flex position-sticky top-0'
-        }`}
+        className={`d-flex flex-column text-white transition-all ${isOpen ? 'position-fixed top-0 start-0 h-100 shadow-lg' : 'd-none d-md-flex position-sticky top-0'
+          }`}
         style={{
           width: sidebarWidth,
           minWidth: sidebarWidth,
@@ -488,8 +517,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                     borderRadius: '12px',
                     boxShadow: active
                       ? (usesPearlNavigation
-                          ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
-                          : '0 4px 15px rgba(0, 0, 0, 0.18)')
+                        ? '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.14)'
+                        : '0 4px 15px rgba(0, 0, 0, 0.18)')
                       : 'none',
                     padding: usesPearlNavigation ? '11px 16px' : '10px 15px',
                     gap: usesPearlNavigation ? '16px' : '15px',
@@ -514,6 +543,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 >
                   <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
                   <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span
+                      className="badge rounded-pill bg-warning text-dark fw-bold ms-auto"
+                      style={{ fontSize: '0.70rem', padding: '0.22em 0.55em' }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
@@ -529,10 +566,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                   to={item.path}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${
-                      isActive
-                        ? 'bg-white text-sa-primary fw-bold shadow-sm'
-                        : 'hover-sidebar-item text-opacity-90'
+                    `d-flex align-items-center justify-content-between px-2.5 py-2 rounded-2 text-white text-decoration-none transition-all ${isActive
+                      ? 'bg-white text-sa-primary fw-bold shadow-sm'
+                      : 'hover-sidebar-item text-opacity-90'
                     }`
                   }
                   style={({ isActive }) => ({

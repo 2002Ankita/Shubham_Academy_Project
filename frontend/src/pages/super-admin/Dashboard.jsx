@@ -43,8 +43,11 @@ import {
   Layers,
   X,
   Bell,
-  ExternalLink
+  ExternalLink,
+  Edit3
 } from 'lucide-react';
+import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -78,66 +81,6 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     fetchDiscounts();
   }, []);
-
-  const handleApproveDiscount = async (studentId, studentName) => {
-    if (!window.confirm(`Confirm Superadmin approval for discount granted to ${studentName}?`)) return;
-    setDiscountLoading(true);
-    try {
-      await studentService.approveDiscount(studentId);
-      notificationService.addNotification({
-        id: `NTF-DISC-APP-${Date.now()}`,
-        title: `✅ Discount Approved: ${studentName}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        formattedDateTime: new Date().toLocaleString(),
-        type: 'fee',
-        category: 'Discount & Fees',
-        priority: 'Normal',
-        author: 'Shubham Sharma (Superadmin)',
-        details: `Superadmin approved the discount concession for ${studentName}. Net payable fee updated in ledger.`,
-        read: false,
-        forSuperAdminOnly: true
-      });
-      // Mark original approval request notification as read
-      notificationService.markAsRead(`NTF-DISC-${studentId}`);
-      toast.success(`Discount approved for ${studentName} by ${user?.name || 'Superadmin'}!`);
-      await fetchDiscounts();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to approve discount');
-    } finally {
-      setDiscountLoading(false);
-    }
-  };
-
-  const handleRejectDiscount = async (studentId, studentName) => {
-    const reason = window.prompt(`Reason for rejecting discount for ${studentName}:`, 'Concession criteria not met');
-    if (!reason) return;
-    setDiscountLoading(true);
-    try {
-      await studentService.rejectDiscount(studentId, reason);
-      notificationService.addNotification({
-        id: `NTF-DISC-REJ-${Date.now()}`,
-        title: `✕ Discount Rejected: ${studentName}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        formattedDateTime: new Date().toLocaleString(),
-        type: 'fee',
-        category: 'Discount & Fees',
-        priority: 'Normal',
-        author: 'Shubham Sharma (Superadmin)',
-        details: `Superadmin rejected the discount concession for ${studentName} (Reason: ${reason}). Total fee reverted to standard gross fee.`,
-        read: false,
-        forSuperAdminOnly: true
-      });
-      notificationService.markAsRead(`NTF-DISC-${studentId}`);
-      toast.info(`Discount rejected for ${studentName}`);
-      await fetchDiscounts();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to reject discount');
-    } finally {
-      setDiscountLoading(false);
-    }
-  };
 
   const pendingDiscountsList = studentsWithDiscounts.filter(
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
@@ -264,8 +207,8 @@ export default function SuperAdminDashboard() {
       acad?.status === 'Active'
         ? '#168554'
         : acad?.status === 'Pending'
-        ? '#D97706'
-        : '#DC2626';
+          ? '#D97706'
+          : '#DC2626';
 
     return (
       <g transform={`translate(${x},${y})`}>
@@ -284,20 +227,20 @@ export default function SuperAdminDashboard() {
         acad.status === 'Active'
           ? '#168554'
           : acad.status === 'Pending'
-          ? '#D97706'
-          : '#DC2626';
+            ? '#D97706'
+            : '#DC2626';
       const statusBg =
         acad.status === 'Active'
           ? '#EAF6EF'
           : acad.status === 'Pending'
-          ? '#FEF8EB'
-          : '#FDF0F0';
+            ? '#FEF8EB'
+            : '#FDF0F0';
       const statusBorder =
         acad.status === 'Active'
           ? '#A7F3D0'
           : acad.status === 'Pending'
-          ? '#FDE68A'
-          : '#FECACA';
+            ? '#FDE68A'
+            : '#FECACA';
 
       return (
         <div
@@ -396,44 +339,20 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
 
-            {/* Quick Actions: Student Onboarding, Discount Notification & Admin Dashboard Connection */}
+            {/* Executive Status Indicator */}
             <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-1">
-              <button
-                type="button"
-                onClick={() => navigate('/admin/dashboard')}
-                className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-semibold text-sa-charcoal bg-white border shadow-xs"
-                style={{ fontSize: '0.82rem' }}
-                title="Connect directly with Admin Dashboard"
+              <span
+                className="badge rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#8B1216',
+                  border: '1px solid rgba(139, 18, 22, 0.22)',
+                  fontSize: '0.78rem'
+                }}
               >
-                <Layers size={14} style={{ color: '#8B1216' }} />
-                <span>Open Admin Dashboard</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/admin/students/register')}
-                className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-semibold text-white shadow-xs"
-                style={{ backgroundColor: '#8B1216', fontSize: '0.82rem', border: 'none' }}
-              >
-                <UserPlus size={14} />
-                <span>Onboard Student & Decide Fees</span>
-              </button>
-
-              {pendingDiscountsList.length > 0 && (
-                <a
-                  href="#superadmin-discount-approvals"
-                  className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-bold text-decoration-none shadow-xs"
-                  style={{
-                    backgroundColor: '#FEF3C7',
-                    border: '1.5px solid #F59E0B',
-                    color: '#B45309',
-                    fontSize: '0.82rem'
-                  }}
-                >
-                  <Bell size={14} className="text-warning-emphasis" />
-                  <span>{pendingDiscountsList.length} Discount Notifications Awaiting Approval</span>
-                </a>
-              )}
+                <ShieldCheck size={14} style={{ color: '#8B1216' }} />
+                <span>Super Admin Executive Portal • Central Authority</span>
+              </span>
             </div>
           </div>
 
@@ -567,8 +486,10 @@ export default function SuperAdminDashboard() {
 
         {/* Pending Approvals */}
         <div
-          className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between"
-          onClick={() => navigate('/super-admin/academies')}
+          className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between cursor-pointer"
+          style={{ cursor: 'pointer' }}
+          onClick={() => navigate('/super-admin/discounts?status=PENDING')}
+          title="Display all pending discount concessions"
         >
           <div className="d-flex align-items-start justify-content-between">
             <div className="sa-stat-icon-wrapper sa-stat-icon-red">
@@ -583,403 +504,13 @@ export default function SuperAdminDashboard() {
               Pending Approvals
             </span>
             <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-              06
+              {String(pendingDiscountsList.length).padStart(2, '0')}
             </div>
-            <span className="fw-medium text-sa-muted" style={{ fontSize: '0.76rem' }}>
-              4 academy | 2 admin
+            <span className="fw-semibold text-danger" style={{ fontSize: '0.76rem' }}>
+              {pendingDiscountsList.length} concessions awaiting sign-off
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Live Discount Approval Notification & Admin Dashboard Connection Banner */}
-      {pendingDiscountsList.length > 0 && (
-        <div className="p-3.5 rounded-3 mb-3.5 border d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 shadow-xs" style={{ backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }}>
-          <div className="d-flex align-items-center gap-3">
-            <div className="rounded-circle d-flex align-items-center justify-content-center text-dark flex-shrink-0" style={{ width: '42px', height: '42px', backgroundColor: '#FDE047' }}>
-              <Bell size={22} className="text-dark" />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <span className="fw-bold text-dark" style={{ fontSize: '0.96rem' }}>
-                  🔔 Action Required: {pendingDiscountsList.length} Student Discount Concession{pendingDiscountsList.length > 1 ? 's' : ''} Awaiting Approval
-                </span>
-                <span className="badge bg-warning text-dark border border-warning px-2.5 py-0.5 rounded-pill fw-bold" style={{ fontSize: '0.70rem' }}>
-                  Live From Admin Desk
-                </span>
-              </div>
-              <div className="text-secondary small mt-0.5" style={{ fontSize: '0.82rem' }}>
-                Onboarding staff (e.g. <strong>{pendingDiscountsList[0]?.discountRecommendedBy || 'Miss Shilpa'}</strong>) submitted discount recommendations connected from the Admin Dashboard. Final approval authority is required from you before student ledgers are finalized.
-              </div>
-            </div>
-          </div>
-          <div className="d-flex align-items-center gap-2 flex-shrink-0">
-            <a
-              href="#superadmin-discount-approvals"
-              className="btn btn-sm btn-warning text-dark fw-bold px-3 py-1.5 rounded-2 d-inline-flex align-items-center gap-1 shadow-xs"
-              style={{ fontSize: '0.80rem' }}
-            >
-              <ShieldCheck size={14} /> Review & Approve Below
-            </a>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/dashboard')}
-              className="btn btn-sm btn-light border px-2.5 py-1.5 fw-semibold text-secondary rounded-2"
-              style={{ fontSize: '0.80rem' }}
-            >
-              <Layers size={13} className="me-1" /> Admin Dashboard
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Student Discount Approvals & Fee Decisions on Superadmin Dashboard */}
-      <div id="superadmin-discount-approvals" className="sa-card p-4 bg-white rounded-3 border shadow-sm">
-        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 pb-3 border-bottom">
-          <div className="d-flex align-items-center gap-2.5">
-            <div
-              className="rounded-circle d-inline-flex align-items-center justify-content-center text-white flex-shrink-0"
-              style={{ width: '42px', height: '42px', backgroundColor: '#8B1216' }}
-            >
-              <ShieldCheck size={22} />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <h4 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '1.20rem' }}>
-                  Student Discount Approvals & Fee Decisions
-                </h4>
-                {pendingDiscountsList.length > 0 ? (
-                  <span className="badge bg-warning text-dark px-2.5 py-1 fw-bold rounded-pill">
-                    {pendingDiscountsList.length} Awaiting Your Final Sign-Off
-                  </span>
-                ) : (
-                  <span className="badge bg-success-subtle text-success px-2.5 py-1 fw-bold rounded-pill">
-                    All Discount Decisions Approved
-                  </span>
-                )}
-                <span className="badge bg-light text-secondary border px-2 py-0.5 rounded-pill small" style={{ fontSize: '0.72rem' }}>
-                  🟢 Synced with Admin Dashboard
-                </span>
-              </div>
-              <span className="text-muted small" style={{ fontSize: '0.84rem' }}>
-                All student discount concessions require final approval from the Superadmin (Shubham Sharma). Connected live with the Admin Onboarding Desk.
-              </span>
-            </div>
-          </div>
-
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/dashboard')}
-              className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1 px-2.5 py-2 text-secondary fw-semibold rounded-2"
-              style={{ fontSize: '0.82rem' }}
-              title="Open Admin Dashboard"
-            >
-              <Layers size={14} style={{ color: '#8B1216' }} />
-              <span>Admin Dashboard</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/students/register')}
-              className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold text-white rounded-2 shadow-sm"
-              style={{ backgroundColor: '#8B1216', fontSize: '0.82rem' }}
-            >
-              <UserPlus size={15} /> Onboard Student & Decide Fees
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/students')}
-              className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 px-3 py-2 text-secondary fw-semibold rounded-2"
-              style={{ fontSize: '0.82rem' }}
-            >
-              <span>Student Directory</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 3 Metric Summary Cards */}
-        <div className="row g-3 mb-3.5">
-          <div className="col-12 col-md-4">
-            <div className="p-3 rounded-2 bg-light border d-flex align-items-center justify-content-between">
-              <div>
-                <span className="text-muted small d-block">Total Concessions Value</span>
-                <span className="fw-bold text-dark fs-5">₹{totalApprovedConcession.toLocaleString()}</span>
-              </div>
-              <div className="p-2 rounded-circle bg-success-subtle text-success">
-                <Tag size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="col-12 col-md-4">
-            <div className="p-3 rounded-2 bg-light border d-flex align-items-center justify-content-between">
-              <div>
-                <span className="text-muted small d-block">Approved by Superadmin</span>
-                <span className="fw-bold text-success fs-5">{approvedDiscountsList.length} Students</span>
-              </div>
-              <div className="p-2 rounded-circle bg-success-subtle text-success">
-                <ShieldCheck size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="col-12 col-md-4">
-            <div className="p-3 rounded-2 bg-light border d-flex align-items-center justify-content-between">
-              <div>
-                <span className="text-muted small d-block">Pending Superadmin Decision</span>
-                <span className="fw-bold text-warning fs-5">{pendingDiscountsList.length} Students</span>
-              </div>
-              <div className="p-2 rounded-circle bg-warning-subtle text-warning">
-                <Clock size={20} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Navigation Tabs */}
-        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
-          <div className="d-flex align-items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setDiscountTab('all')}
-              className={`btn btn-sm px-3 py-1 rounded-pill fw-semibold border ${
-                discountTab === 'all'
-                  ? 'btn-dark text-white'
-                  : 'btn-light text-secondary bg-white'
-              }`}
-              style={{ fontSize: '0.78rem' }}
-            >
-              All Student Concessions ({studentsWithDiscounts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiscountTab('pending')}
-              className={`btn btn-sm px-3 py-1 rounded-pill fw-semibold border ${
-                discountTab === 'pending'
-                  ? 'bg-warning text-dark border-warning'
-                  : 'bg-white text-secondary'
-              }`}
-              style={{ fontSize: '0.78rem' }}
-            >
-              Pending Approval ({pendingDiscountsList.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setDiscountTab('approved')}
-              className={`btn btn-sm px-3 py-1 rounded-pill fw-semibold border ${
-                discountTab === 'approved'
-                  ? 'bg-success text-white border-success'
-                  : 'bg-white text-secondary'
-              }`}
-              style={{ fontSize: '0.78rem' }}
-            >
-              Approved History ({approvedDiscountsList.length})
-            </button>
-          </div>
-
-          <span className="text-muted small" style={{ fontSize: '0.78rem' }}>
-            Showing {
-              discountTab === 'pending'
-                ? pendingDiscountsList.length
-                : discountTab === 'approved'
-                ? approvedDiscountsList.length
-                : studentsWithDiscounts.length
-            } records
-          </span>
-        </div>
-
-        {/* Table of Discounts with Who Approved It */}
-        {(
-          discountTab === 'pending'
-            ? pendingDiscountsList
-            : discountTab === 'approved'
-            ? approvedDiscountsList
-            : studentsWithDiscounts
-        ).length > 0 ? (
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.84rem' }}>
-              <thead className="table-light">
-                <tr>
-                  <th className="py-2.5">Student Details</th>
-                  <th className="py-2.5">Course / Batch</th>
-                  <th className="py-2.5">Original Fee</th>
-                  <th className="py-2.5">Discount Concession</th>
-                  <th className="py-2.5">Net Decided Fee</th>
-                  <th className="py-2.5">Recommended By</th>
-                  <th className="py-2.5">Who Approved It (Superadmin)</th>
-                  <th className="py-2.5">Status</th>
-                  <th className="py-2.5 text-end">Superadmin Authority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(
-                  discountTab === 'pending'
-                    ? pendingDiscountsList
-                    : discountTab === 'approved'
-                    ? approvedDiscountsList
-                    : studentsWithDiscounts
-                ).map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <div className="fw-bold text-sa-charcoal">{s.name}</div>
-                      <span className="text-muted small" style={{ fontSize: '0.72rem' }}>
-                        Roll: {s.rollNumber || 'N/A'} • {s.branch || 'Tarabai Park'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="badge bg-light text-dark border">
-                        {s.standard || 'Course'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-secondary fw-semibold">
-                        ₹{Number(s.originalFees || (s.totalFees + s.discountAmount)).toLocaleString()}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="fw-bold text-success">
-                        -₹{Number(s.discountAmount || 0).toLocaleString()}
-                      </div>
-                      <span className="badge bg-light text-muted border small" style={{ fontSize: '0.70rem' }}>
-                        {s.discountReason || 'Concession'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="fw-bold" style={{ color: '#8B1216', fontSize: '0.90rem' }}>
-                        ₹{Number(s.totalFees || 0).toLocaleString()}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="d-flex align-items-center gap-1.5">
-                        <div className="p-1 rounded bg-light border text-primary flex-shrink-0">
-                          <UserCheck size={14} />
-                        </div>
-                        <div>
-                          <strong className="text-dark d-block" style={{ fontSize: '0.82rem' }}>
-                            {s.discountRecommendedBy || s.discountOfferedBy || 'Miss Shilpa'}
-                          </strong>
-                          <span className="text-muted" style={{ fontSize: '0.70rem' }}>
-                            Staff Recommendation
-                          </span>
-                        </div>
-                      </div>
-                      {s.discountOfferedAt && (
-                        <span className="text-muted d-block mt-0.5" style={{ fontSize: '0.69rem' }}>
-                          {new Date(s.discountOfferedAt).toLocaleDateString()}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {s.discountStatus === 'APPROVED' ? (
-                        <div className="d-flex align-items-center gap-1.5 text-success">
-                          <CheckCircle2 size={16} className="text-success flex-shrink-0" />
-                          <div>
-                            <strong className="d-block text-success fw-bold" style={{ fontSize: '0.82rem' }}>
-                              {s.discountApprovedBy || 'Shubham Sharma (Superadmin)'}
-                            </strong>
-                            <span className="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5" style={{ fontSize: '0.68rem' }}>
-                              ✓ Approved by Superadmin
-                            </span>
-                          </div>
-                        </div>
-                      ) : s.discountStatus === 'PENDING' ? (
-                        <div>
-                          <span className="badge bg-warning-subtle text-warning-emphasis border border-warning d-inline-flex align-items-center gap-1 px-2.5 py-1">
-                            <Clock size={12} /> Awaiting Superadmin Decision
-                          </span>
-                          <span className="d-block text-muted mt-0.5" style={{ fontSize: '0.69rem' }}>
-                            Decision required below
-                          </span>
-                        </div>
-                      ) : s.discountStatus === 'REJECTED' ? (
-                        <div>
-                          <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5">
-                            ✕ Rejected by Superadmin
-                          </span>
-                          {s.discountRejectionReason && (
-                            <span className="d-block text-muted mt-0.5" style={{ fontSize: '0.69rem' }}>
-                              {s.discountRejectionReason}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {s.discountStatus === 'APPROVED' ? (
-                        <span className="badge bg-success text-white px-2.5 py-1 fw-semibold">
-                          Approved
-                        </span>
-                      ) : s.discountStatus === 'PENDING' ? (
-                        <span className="badge bg-warning text-dark px-2.5 py-1 fw-semibold">
-                          Pending
-                        </span>
-                      ) : s.discountStatus === 'REJECTED' ? (
-                        <span className="badge bg-danger text-white px-2.5 py-1 fw-semibold">
-                          Rejected
-                        </span>
-                      ) : (
-                        <span className="badge bg-secondary">None</span>
-                      )}
-                    </td>
-                    <td className="text-end">
-                      {s.discountStatus === 'PENDING' ? (
-                        <div className="d-flex align-items-center justify-content-end gap-1.5">
-                          <button
-                            type="button"
-                            disabled={discountLoading}
-                            onClick={() => handleApproveDiscount(s.id, s.name)}
-                            className="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-2.5 py-1 fw-bold shadow-xs"
-                            style={{ fontSize: '0.78rem' }}
-                            title="Approve Discount as Superadmin"
-                          >
-                            <ShieldCheck size={14} /> Approve Discount
-                          </button>
-                          <button
-                            type="button"
-                            disabled={discountLoading}
-                            onClick={() => handleRejectDiscount(s.id, s.name)}
-                            className="btn btn-sm btn-outline-danger px-2.5 py-1 fw-semibold"
-                            style={{ fontSize: '0.78rem' }}
-                            title="Reject Concession"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/admin/students/${s.id}`)}
-                          className="btn btn-sm btn-light border px-2 py-1 small text-secondary fw-semibold"
-                          style={{ fontSize: '0.76rem' }}
-                        >
-                          View Details
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2 bg-light text-center border">
-            <ShieldCheck size={36} className="text-muted opacity-50 mb-2" />
-            <h6 className="fw-semibold text-secondary mb-1">No Student Discount Records in this View</h6>
-            <p className="text-muted small m-0 mb-3">
-              When a discount is offered to a student during onboarding or fee collection, it will appear here for Superadmin review.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/students/register')}
-              className="btn btn-sm btn-danger px-3 py-1.5 fw-semibold"
-              style={{ backgroundColor: '#8B1216', border: 'none', fontSize: '0.82rem' }}
-            >
-              + Onboard Student & Decide Fees
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Row 2: Analytics - Academy Growth (Full Width, 12 Months) */}
@@ -1124,11 +655,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter('All')}
-                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${
-                        statusFilter === 'All'
+                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${statusFilter === 'All'
                           ? 'btn-dark text-white shadow-xs'
                           : 'btn-light text-sa-charcoal bg-white'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.70rem' }}
                     >
                       All ({statusCounts.All})
@@ -1136,11 +666,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter('Active')}
-                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${
-                        statusFilter === 'Active'
+                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${statusFilter === 'Active'
                           ? 'bg-success text-white border-success shadow-xs'
                           : 'bg-white text-success border-success-subtle'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.70rem' }}
                     >
                       ● Active ({statusCounts.Active})
@@ -1148,11 +677,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter('Pending')}
-                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${
-                        statusFilter === 'Pending'
+                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${statusFilter === 'Pending'
                           ? 'bg-warning text-dark border-warning shadow-xs'
                           : 'bg-white text-warning border-warning-subtle'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.70rem' }}
                     >
                       ● Pending ({statusCounts.Pending})
@@ -1160,11 +688,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter('Suspended')}
-                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${
-                        statusFilter === 'Suspended'
+                      className={`btn btn-sm py-0.5 px-2 rounded-pill fw-semibold border transition-all ${statusFilter === 'Suspended'
                           ? 'bg-danger text-white border-danger shadow-xs'
                           : 'bg-white text-danger border-danger-subtle'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.70rem' }}
                     >
                       ● Suspended ({statusCounts.Suspended})
@@ -1176,11 +703,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setSeparateGraphMode('separate')}
-                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${
-                        separateGraphMode === 'separate'
+                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${separateGraphMode === 'separate'
                           ? 'bg-white shadow-sm text-sa-primary'
                           : 'text-sa-muted'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.72rem' }}
                       title="3 Separate Dedicated Graphs"
                     >
@@ -1191,11 +717,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setSeparateGraphMode('grouped')}
-                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${
-                        separateGraphMode === 'grouped'
+                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${separateGraphMode === 'grouped'
                           ? 'bg-white shadow-sm text-sa-charcoal'
                           : 'text-sa-muted'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.72rem' }}
                       title="Grouped Comparison"
                     >
@@ -1206,11 +731,10 @@ export default function SuperAdminDashboard() {
                     <button
                       type="button"
                       onClick={() => setSeparateGraphMode('stacked')}
-                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${
-                        separateGraphMode === 'stacked'
+                      className={`btn btn-sm d-flex align-items-center gap-1 py-1 px-2 rounded-1 fw-semibold border-0 transition-all ${separateGraphMode === 'stacked'
                           ? 'bg-white shadow-sm text-sa-charcoal'
                           : 'text-sa-muted'
-                      }`}
+                        }`}
                       style={{ fontSize: '0.72rem' }}
                       title="Stacked Graph"
                     >

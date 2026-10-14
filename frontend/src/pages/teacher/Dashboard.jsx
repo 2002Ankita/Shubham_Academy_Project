@@ -772,9 +772,9 @@ export default function TeacherDashboard() {
               <ChevronRight size={15} style={{ color: '#8B1216' }} className="flex-shrink-0 ms-1" />
             </button>
 
-            {/* Action 4: Notes Stock & Handover */}
+            {/* Action 4: Books Stock & Handover */}
             <button
-              onClick={() => navigate('/teacher/notes-stock')}
+              onClick={() => navigate('/teacher/books-stock')}
               className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
               style={{
                 backgroundColor: '#F0FDF4',
@@ -791,7 +791,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="min-w-0">
                   <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#166534', lineHeight: 1.2 }}>
-                    Notes Stock & Handover
+                    Books Stock & Handover
                   </span>
                   <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
                     Track inventory & handouts

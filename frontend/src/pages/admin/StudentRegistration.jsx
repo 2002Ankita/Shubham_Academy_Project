@@ -236,9 +236,10 @@ export default function StudentRegistration() {
         course: formData.preferredCourse || formData.currentClass,
         standard: formData.currentClass,
         batch: formData.batch,
-        totalFees: formData.totalFees,
+        totalFees: (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0),
         originalFees: (Number(formData.tuitionFee) || 0) + (Number(formData.moduleFee) || 0) + (Number(formData.rfidFee) || 0),
         discountAmount: Number(formData.discountAmount) || 0,
+        discountRequestedAmount: Number(formData.discountAmount) || 0,
         discountReason: formData.discountReason || (Number(formData.discountAmount) > 0 ? (formData.scholarshipCode ? `Code: ${formData.scholarshipCode}` : 'Scholarship Concession') : ''),
         discountRecommendedBy: Number(formData.discountAmount) > 0 ? (formData.discountRecommendedBy?.trim() || 'Miss Shilpa') : '',
         discountOfferedBy: Number(formData.discountAmount) > 0 ? (formData.discountRecommendedBy?.trim() || 'Miss Shilpa') : '',
@@ -251,7 +252,7 @@ export default function StudentRegistration() {
       };
 
       const created = await studentService.create(payload);
-      
+
       // Dispatch real-time notification to Superadmin dashboard if discount was recommended
       if (Number(formData.discountAmount) > 0) {
         notificationService.addNotification({
@@ -371,9 +372,8 @@ export default function StudentRegistration() {
               <div className="d-flex align-items-center justify-content-between small">
                 <span className="text-muted" style={{ fontSize: '0.78rem' }}>Approval:</span>
                 <span
-                  className={`badge px-2 py-0.5 rounded-1 ${
-                    isSuperAdmin ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
-                  }`}
+                  className={`badge px-2 py-0.5 rounded-1 ${isSuperAdmin ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
+                    }`}
                   style={{ fontSize: '0.75rem' }}
                 >
                   {isSuperAdmin ? 'Pre-Approved by Superadmin' : 'Pending Superadmin Approval'}
@@ -467,9 +467,9 @@ export default function StudentRegistration() {
             }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="12" x2="16" y2="12"/>
-              <line x1="3" y1="18" x2="18" y2="18"/>
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="16" y2="12" />
+              <line x1="3" y1="18" x2="18" y2="18" />
             </svg>
           </span>
           <span>View All Students</span>
@@ -1082,13 +1082,13 @@ export default function StudentRegistration() {
                   <div className="col-12 col-md-6">
                     <div className="p-3.5 rounded-3 border bg-light">
                       <h6 className="fw-bold text-sa-charcoal mb-3" style={{ fontSize: '0.94rem' }}>Academic Year Fee Breakdown</h6>
-                      
+
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>Tuition & Laboratory Fee</span>
                         <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             name="tuitionFee"
                             value={formData.tuitionFee}
                             onChange={handleInputChange}
@@ -1097,13 +1097,13 @@ export default function StudentRegistration() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>Study Modules & Books</span>
                         <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             name="moduleFee"
                             value={formData.moduleFee}
                             onChange={handleInputChange}
@@ -1112,13 +1112,13 @@ export default function StudentRegistration() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="d-flex justify-content-between align-items-center py-2 border-bottom text-sa-charcoal small">
                         <span>RFID & Test Series</span>
                         <div className="d-flex align-items-center bg-white border rounded px-2 py-1" style={{ width: '110px' }}>
                           <span className="text-muted small me-1">₹</span>
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             name="rfidFee"
                             value={formData.rfidFee}
                             onChange={handleInputChange}
@@ -1141,8 +1141,8 @@ export default function StudentRegistration() {
                           </span>
                           <div className="d-flex align-items-center bg-white border border-success rounded px-2.5 py-1" style={{ width: '130px' }}>
                             <span className="text-success small me-1 fw-bold">-₹</span>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               name="discountAmount"
                               min="0"
                               value={formData.discountAmount}
@@ -1168,11 +1168,10 @@ export default function StudentRegistration() {
                               key={preset.label}
                               type="button"
                               onClick={() => setFormData(prev => ({ ...prev, discountAmount: preset.val }))}
-                              className={`btn btn-sm py-0 px-2 rounded-pill border ${
-                                Number(formData.discountAmount) === preset.val
+                              className={`btn btn-sm py-0 px-2 rounded-pill border ${Number(formData.discountAmount) === preset.val
                                   ? 'bg-success text-white border-success fw-bold'
                                   : 'bg-light text-secondary border-secondary-subtle'
-                              }`}
+                                }`}
                               style={{ fontSize: '0.69rem' }}
                             >
                               {preset.label}
@@ -1268,7 +1267,7 @@ export default function StudentRegistration() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="d-flex justify-content-between pt-3 fw-bold text-sa-charcoal align-items-center">
                         <div>
                           <span className="d-block" style={{ fontSize: '0.94rem' }}>Net Payable Fee</span>

@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar, ArrowRight, X, Clock, ChevronRight } from 'lucide-react';
+import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar, ArrowRight, X, Clock, ChevronRight, Check, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import notificationService from '../../services/notificationService';
+import studentService from '../../services/studentService';
+import { toast } from 'react-toastify';
 
 export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDateFilter }) {
   const { user, logout } = useAuth();
@@ -80,29 +82,78 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     };
   }, [isSuperAdmin]);
 
+  const handleApproveDiscountFromHeader = async (e, notif) => {
+    e.stopPropagation();
+    if (!notif.studentId) return;
+    try {
+      await studentService.approveDiscount(notif.studentId);
+      notificationService.markAsRead(notif.id);
+      try {
+        notificationService.notifyDiscountDecision({
+          studentId: notif.studentId,
+          studentName: notif.studentName || notif.title,
+          originalRequested: notif.discountAmount,
+          approvedAmount: notif.discountAmount,
+          isApproved: true,
+          approverName: user?.full_name || 'Shubham Sharma (Superadmin)'
+        });
+      } catch (notifErr) {
+        console.warn('Notification sync error:', notifErr);
+      }
+      toast.success(`Discount concession approved for ${notif.studentName || 'student'}!`);
+      const unreadNotifs = notificationService.getUnreadNotifications(isSuperAdmin);
+      setNotificationsList(unreadNotifs);
+      setUnreadCount(unreadNotifs.length);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || err.message || 'Failed to approve discount');
+    }
+  };
+
+  const handleRejectDiscountFromHeader = async (e, notif) => {
+    e.stopPropagation();
+    if (!notif.studentId) return;
+    try {
+      await studentService.rejectDiscount(notif.studentId, 'Declined via notification console');
+      notificationService.markAsRead(notif.id);
+      try {
+        notificationService.notifyDiscountDecision({
+          studentId: notif.studentId,
+          studentName: notif.studentName || notif.title,
+          originalRequested: notif.discountAmount,
+          approvedAmount: 0,
+          isApproved: false,
+          rejectionReason: 'Declined via notification console',
+          approverName: user?.full_name || 'Shubham Sharma (Superadmin)'
+        });
+      } catch (notifErr) {
+        console.warn('Notification sync error:', notifErr);
+      }
+      toast.info(`Discount request for ${notif.studentName || 'student'} was declined.`);
+      const unreadNotifs = notificationService.getUnreadNotifications(isSuperAdmin);
+      setNotificationsList(unreadNotifs);
+      setUnreadCount(unreadNotifs.length);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || err.message || 'Failed to decline discount');
+    }
+  };
+
   const handleNotificationClick = (notif) => {
     notificationService.markAsRead(notif.id);
     notificationService.setSelectedNotice(notif);
     setShowNotifications(false);
 
     if (notif.type === 'discount_approval' || notif.category === 'Discount & Fees') {
-      navigate('/super-admin/dashboard');
-      setTimeout(() => {
-        const el = document.getElementById('superadmin-discount-approvals');
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 150);
+      navigate('/super-admin/discounts?status=PENDING');
       return;
     }
 
     const targetRoute = isStudent
       ? '/student/announcements'
       : isTeacher
-      ? '/teacher/announcements'
-      : isSuperAdmin
-      ? '/super-admin/dashboard'
-      : '/admin/notices';
+        ? '/teacher/announcements'
+        : isSuperAdmin
+          ? '/super-admin/dashboard'
+          : '/admin/notices';
 
     navigate(targetRoute, { state: { selectedNotice: notif } });
   };
@@ -138,9 +189,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   const filteredRoutes = searchQuery.trim()
     ? activeSearchRoutes.filter(r =>
-        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
+      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
     : [];
 
   const handleSearchSubmit = (e) => {
@@ -213,10 +264,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                 isSuperAdmin
                   ? "Search academies, users, plans, payments..."
                   : isTeacher
-                  ? "Search students, classes, materials..."
-                  : isStudent
-                  ? "Search classes, materials, announcements..."
-                  : "Search students, fees, etc..."
+                    ? "Search students, classes, materials..."
+                    : isStudent
+                      ? "Search classes, materials, announcements..."
+                      : "Search students, fees, etc..."
               }
               value={searchQuery}
               onChange={(e) => {
@@ -229,33 +280,33 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
           </div>
         </form>
 
-          {/* Quick jump autocomplete dropdown */}
-          {showSearchResults && filteredRoutes.length > 0 && (
-            <div
-              className="position-absolute start-0 end-0 mt-1 bg-white border rounded-3 shadow-lg overflow-hidden"
-              style={{ zIndex: 1060 }}
-            >
-              <div className="px-3 py-1 bg-light border-bottom text-muted fw-semibold" style={{ fontSize: '0.72rem' }}>
-                QUICK NAVIGATION JUMP
-              </div>
-              {filteredRoutes.map((route, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className="dropdown-item px-3 py-2 text-start small border-bottom border-light d-flex align-items-center justify-content-between"
-                  onMouseDown={() => {
-                    navigate(route.path);
-                    setSearchQuery('');
-                    setShowSearchResults(false);
-                  }}
-                >
-                  <span className="fw-medium text-sa-charcoal">{route.title}</span>
-                  <span className="badge bg-light text-muted small">{route.keywords[0]}</span>
-                </button>
-              ))}
+        {/* Quick jump autocomplete dropdown */}
+        {showSearchResults && filteredRoutes.length > 0 && (
+          <div
+            className="position-absolute start-0 end-0 mt-1 bg-white border rounded-3 shadow-lg overflow-hidden"
+            style={{ zIndex: 1060 }}
+          >
+            <div className="px-3 py-1 bg-light border-bottom text-muted fw-semibold" style={{ fontSize: '0.72rem' }}>
+              QUICK NAVIGATION JUMP
             </div>
-          )}
-        </div>
+            {filteredRoutes.map((route, i) => (
+              <button
+                key={i}
+                type="button"
+                className="dropdown-item px-3 py-2 text-start small border-bottom border-light d-flex align-items-center justify-content-between"
+                onMouseDown={() => {
+                  navigate(route.path);
+                  setSearchQuery('');
+                  setShowSearchResults(false);
+                }}
+              >
+                <span className="fw-medium text-sa-charcoal">{route.title}</span>
+                <span className="badge bg-light text-muted small">{route.keywords[0]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Right side: Date Selector, Notifications, Profile */}
       <div className="d-flex align-items-center h-100" style={{ gap: '14px', paddingRight: '4px' }}>
@@ -330,9 +381,8 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                       if (setGlobalDateFilter) setGlobalDateFilter(item.value);
                       setShowDatePicker(false);
                     }}
-                    className={`dropdown-item px-2.5 py-1.5 rounded-2 text-start small d-flex align-items-center justify-content-between ${
-                      globalDateFilter === item.value ? 'bg-light text-danger fw-bold' : 'text-sa-charcoal'
-                    }`}
+                    className={`dropdown-item px-2.5 py-1.5 rounded-2 text-start small d-flex align-items-center justify-content-between ${globalDateFilter === item.value ? 'bg-light text-danger fw-bold' : 'text-sa-charcoal'
+                      }`}
                     style={{ fontSize: '12px' }}
                   >
                     <span>{item.label}</span>
@@ -484,84 +534,193 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                     paddingRight: '2px'
                   }}
                 >
-                  {notificationsList.map((item) => (
-                    <div
-                      key={item.id}
-                      className="w-100 p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2"
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        cursor: 'pointer',
-                        backgroundColor: '#FFFFFF',
-                        borderColor: '#E2E8F0',
-                        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FFF5F5';
-                        e.currentTarget.style.borderColor = '#FECDD3';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 18, 22, 0.08)';
-                        const arrow = e.currentTarget.querySelector('.notification-arrow');
-                        if (arrow) {
-                          arrow.style.transform = 'translateX(2px)';
-                          arrow.style.color = '#8B1216';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FFFFFF';
-                        e.currentTarget.style.borderColor = '#E2E8F0';
-                        e.currentTarget.style.transform = 'none';
-                        e.currentTarget.style.boxShadow = 'none';
-                        const arrow = e.currentTarget.querySelector('.notification-arrow');
-                        if (arrow) {
-                          arrow.style.transform = 'none';
-                          arrow.style.color = '#94a3b8';
-                        }
-                      }}
-                      onClick={() => handleNotificationClick(item)}
-                    >
-                      <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-2">
-                        <span
-                          className="rounded-circle bg-danger flex-shrink-0"
-                          style={{
-                            width: '6.5px',
-                            height: '6.5px',
-                            boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.15)'
-                          }}
-                        />
-                        <span
-                          className="fw-semibold text-sa-charcoal text-truncate d-block"
-                          style={{ fontSize: '0.81rem' }}
-                          title={item.title}
-                        >
-                          {item.title}
-                        </span>
-                      </div>
+                  {notificationsList.map((item) => {
+                    const isDiscountNotif = item.type === 'discount_approval' || item.category === 'Discount & Fees';
 
-                      <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
-                        <span
-                          className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                    if (isDiscountNotif && isSuperAdmin) {
+                      return (
+                        <div
+                          key={item.id}
+                          className="w-100 p-2.5 rounded-3 border d-flex flex-column gap-2"
                           style={{
-                            backgroundColor: '#F8FAFC',
-                            color: '#64748B',
-                            border: '1px solid #E2E8F0',
-                            fontSize: '0.70rem',
-                            padding: '0.3em 0.6em',
-                            whiteSpace: 'nowrap'
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            backgroundColor: '#FFFBEB',
+                            borderColor: '#FDE68A',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
                           }}
                         >
-                          <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
-                          <span>{item.time}</span>
-                        </span>
-                        <div
-                          className="notification-arrow d-flex align-items-center justify-content-center text-muted"
-                          style={{ width: '14px', height: '14px', transition: 'all 0.18s ease' }}
-                        >
-                          <ChevronRight size={14} />
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <div className="d-flex align-items-center gap-1.5 flex-grow-1 min-w-0">
+                              <span
+                                className="badge rounded-pill fw-bold"
+                                style={{ backgroundColor: '#FEF08A', color: '#854D0E', fontSize: '0.68rem', padding: '0.25em 0.55em' }}
+                              >
+                                Fee Concession
+                              </span>
+                              <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.82rem' }}>
+                                {item.studentName || item.title}
+                              </span>
+                            </div>
+                            <span
+                              className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                color: '#64748B',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.68rem',
+                                padding: '0.25em 0.5em',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <Clock size={10} className="me-1 align-text-top flex-shrink-0" />
+                              <span>{item.time}</span>
+                            </span>
+                          </div>
+
+                          <div className="small text-secondary" style={{ fontSize: '0.76rem', lineHeight: 1.35 }}>
+                            {item.discountAmount ? (
+                              <span>Concession of <strong>₹{Number(item.discountAmount).toLocaleString()}</strong> recommended by {item.author || item.recommendedBy || 'Admission Desk'}</span>
+                            ) : (
+                              <span>{item.details || item.title}</span>
+                            )}
+                          </div>
+
+                          <div className="d-flex align-items-center justify-content-between gap-1.5 pt-1 border-top border-warning-subtle">
+                            <div className="d-flex align-items-center gap-1.5">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-success py-0.5 px-2 fw-bold d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '0.72rem', borderRadius: '5px' }}
+                                onClick={(e) => handleApproveDiscountFromHeader(e, item)}
+                                title="Approve concession now"
+                              >
+                                <Check size={12} strokeWidth={3} /> Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger py-0.5 px-2 fw-semibold d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '0.72rem', borderRadius: '5px' }}
+                                onClick={(e) => handleRejectDiscountFromHeader(e, item)}
+                                title="Decline concession"
+                              >
+                                <X size={12} /> Reject
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="btn btn-link p-0 text-decoration-none fw-semibold text-warning-emphasis d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '0.72rem' }}
+                              onClick={() => {
+                                setShowNotifications(false);
+                                navigate('/super-admin/discounts?status=PENDING');
+                              }}
+                            >
+                              <span>Review</span>
+                              <ChevronRight size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="w-100 p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2"
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                          backgroundColor: '#FFFFFF',
+                          borderColor: '#E2E8F0',
+                          transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#FFF5F5';
+                          e.currentTarget.style.borderColor = '#FECDD3';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 18, 22, 0.08)';
+                          const arrow = e.currentTarget.querySelector('.notification-arrow');
+                          if (arrow) {
+                            arrow.style.transform = 'translateX(2px)';
+                            arrow.style.color = '#8B1216';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#FFFFFF';
+                          e.currentTarget.style.borderColor = '#E2E8F0';
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = 'none';
+                          const arrow = e.currentTarget.querySelector('.notification-arrow');
+                          if (arrow) {
+                            arrow.style.transform = 'none';
+                            arrow.style.color = '#94a3b8';
+                          }
+                        }}
+                        onClick={() => handleNotificationClick(item)}
+                      >
+                        <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-2">
+                          <span
+                            className="rounded-circle bg-danger flex-shrink-0"
+                            style={{
+                              width: '6.5px',
+                              height: '6.5px',
+                              boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.15)'
+                            }}
+                          />
+                          <span
+                            className="fw-semibold text-sa-charcoal text-truncate d-block"
+                            style={{ fontSize: '0.81rem' }}
+                            title={item.title}
+                          >
+                            {item.title}
+                          </span>
+                        </div>
+
+                        <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
+                          <span
+                            className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                            style={{
+                              backgroundColor: '#F8FAFC',
+                              color: '#64748B',
+                              border: '1px solid #E2E8F0',
+                              fontSize: '0.70rem',
+                              padding: '0.3em 0.6em',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
+                            <span>{item.time}</span>
+                          </span>
+                          <div
+                            className="notification-arrow d-flex align-items-center justify-content-center text-muted"
+                            style={{ width: '14px', height: '14px', transition: 'all 0.18s ease' }}
+                          >
+                            <ChevronRight size={14} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              )}
+
+              {isSuperAdmin && (
+                <div className="pt-2 border-top mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNotifications(false);
+                      navigate('/super-admin/discounts?status=PENDING');
+                    }}
+                    className="btn btn-sm btn-warning text-dark w-100 fw-bold d-flex align-items-center justify-content-center gap-1.5 py-1.5"
+                    style={{ fontSize: '0.78rem', borderRadius: '8px' }}
+                  >
+                    <Clock size={13} />
+                    <span>Display All Pending Discounts</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -604,10 +763,10 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                     (isStudent
                       ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
                       : isAdmin
-                      ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-                      : isTeacher
-                      ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
-                      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
+                        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+                        : isTeacher
+                          ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+                          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80')
                   }
                   alt="Avatar"
                   className="rounded-circle object-fit-cover border flex-shrink-0"

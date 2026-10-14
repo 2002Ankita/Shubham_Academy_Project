@@ -20,6 +20,7 @@ export const studentService = {
       attendancePercent: 0,
       originalFees: student.original_fees || student.total_fees || 0,
       discountAmount: student.discount_amount || 0,
+      discountRequestedAmount: student.discount_requested_amount || student.discount_amount || 0,
       discountReason: student.discount_reason || '',
       discountStatus: student.discount_status || 'NONE',
       discountOfferedBy: student.discount_offered_by || '',
@@ -46,6 +47,7 @@ export const studentService = {
       totalFees: student.total_fees || 0,
       originalFees: student.original_fees || student.total_fees || 0,
       discountAmount: student.discount_amount || 0,
+      discountRequestedAmount: student.discount_requested_amount || student.discount_amount || 0,
       discountReason: student.discount_reason || '',
       discountStatus: student.discount_status || 'NONE',
       discountOfferedBy: student.discount_offered_by || '',
@@ -96,7 +98,7 @@ export const studentService = {
     if (data.parentPhone) payload.parent_mobile = data.parentPhone;
     if (data.standard) payload.standard = data.standard;
     if (data.branch) payload.branch = data.branch;
-    
+
     const res = await api.put(`/students/${id}`, payload);
     return res.data;
   },
@@ -111,8 +113,8 @@ export const studentService = {
     return res.data;
   },
 
-  approveDiscount: async (id) => {
-    const res = await api.post(`/students/${id}/approve-discount`);
+  approveDiscount: async (id, payload = {}) => {
+    const res = await api.post(`/students/${id}/approve-discount`, payload);
     return res.data;
   },
 

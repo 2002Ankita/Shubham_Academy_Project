@@ -9,6 +9,7 @@ class DiscountApproval(Document):
     standard: str
     original_fees: float
     discount_amount: float
+    discount_requested_amount: float = 0.0
     final_fees: float
     discount_reason: str
     status: str = "PENDING"  # "PENDING", "APPROVED", "REJECTED"

@@ -28,7 +28,7 @@ import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
 
-export default function NotesStock() {
+export default function BooksStock() {
   const { user } = useAuth();
 
   // State
@@ -104,7 +104,7 @@ export default function NotesStock() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Failed to load notes stock data');
+      toast.error('Failed to load books stock data');
     } finally {
       setLoading(false);
     }
@@ -298,14 +298,14 @@ export default function NotesStock() {
         <div style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px' }}>
-              Notes Stock & Handover Tracking
+              Books Stock & Handover Tracking
             </h2>
             <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
               Inventory & Distribution
             </span>
           </div>
           <span className="small text-sa-muted mt-1 d-block" style={{ fontSize: '12.5px' }}>
-            Monitor physical stock levels, who handed over notes, and to which students materials were distributed
+            Monitor physical stock levels, who handed over books, and to which students materials were distributed
           </span>
         </div>
 
@@ -350,7 +350,7 @@ export default function NotesStock() {
             <div>
               <div className="d-flex align-items-center justify-content-between mb-1.5">
                 <span className="text-sa-muted small fw-bold text-uppercase tracking-wider" style={{ fontSize: '11px' }}>
-                  Available Stock of Notes
+                  Available Stock of Books
                 </span>
                 <div className="rounded-circle p-1.5 bg-primary-subtle text-primary">
                   <Package size={17} />
@@ -469,7 +469,7 @@ export default function NotesStock() {
               }}
             >
               <Package size={15} />
-              <span>Available Notes Stock</span>
+              <span>Available Books Stock</span>
               <span className={`badge rounded-pill ${activeTab === 'stock' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`} style={{ fontSize: '11px' }}>
                 {stock.length}
               </span>
@@ -503,7 +503,7 @@ export default function NotesStock() {
           </span>
         </div>
 
-        {/* Tab 1: Available Notes Stock */}
+        {/* Tab 1: Available Books Stock */}
         {activeTab === 'stock' && (
           <div className="d-flex flex-column gap-3">
             {/* Filter Bar with Matching Heights */}
@@ -559,11 +559,11 @@ export default function NotesStock() {
                 onClick={() => setAddStockModalOpen(true)}
               >
                 <Plus size={14} />
-                <span>New Notes Title</span>
+                <span>New Book Title</span>
               </button>
             </div>
 
-            {/* Notes Stock Table */}
+            {/* Books Stock Table */}
             <Table
               columns={[
                 {
@@ -578,7 +578,7 @@ export default function NotesStock() {
                 },
                 {
                   key: 'title',
-                  title: 'Notes Package',
+                  title: 'Book Package',
                   render: (val, row) => (
                     <div className="py-0.5">
                       <div className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '13.5px', lineHeight: 1.25 }}>
@@ -755,7 +755,7 @@ export default function NotesStock() {
                 },
                 {
                   key: 'bookTitle',
-                  title: 'Notes Package',
+                  title: 'Book Package',
                   minWidth: '220px',
                   render: (val, row) => (
                     <div>
@@ -884,11 +884,11 @@ export default function NotesStock() {
         )}
       </div>
 
-      {/* 4. Modal: Record Notes Handover to Student */}
+      {/* 4. Modal: Record Books Handover to Student */}
       <Modal
         isOpen={handoverModalOpen}
         onClose={() => setHandoverModalOpen(false)}
-        title="Distribute & Hand Over Notes to Student"
+        title="Distribute & Hand Over Books to Student"
       >
         <form onSubmit={handleHandoverSubmit} className="d-flex flex-column gap-3">
           <div>
@@ -1053,11 +1053,11 @@ export default function NotesStock() {
         </Modal>
       )}
 
-      {/* 6. Modal: Add New Note Module to Catalog */}
+      {/* 6. Modal: Add New Book Module to Catalog */}
       <Modal
         isOpen={addStockModalOpen}
         onClose={() => setAddStockModalOpen(false)}
-        title="Add New Study Notes Module"
+        title="Add New Study Book / Module"
       >
         <form onSubmit={handleAddNewBook} className="d-flex flex-column gap-3">
           <Input
@@ -1146,7 +1146,7 @@ export default function NotesStock() {
       <Modal
         isOpen={voucherModalOpen}
         onClose={() => setVoucherModalOpen(false)}
-        title="Official Notes Handover Voucher"
+        title="Official Books Handover Voucher"
       >
         {viewingVoucher && (
           <div className="d-flex flex-column gap-3">
@@ -1156,7 +1156,7 @@ export default function NotesStock() {
                   SHUBHAM ACADEMY
                 </h4>
                 <div className="small text-muted fw-bold">
-                  Official Physical Study Material & Notes Handover Voucher
+                  Official Physical Study Material & Books Handover Voucher
                 </div>
               </div>
 
@@ -1172,7 +1172,7 @@ export default function NotesStock() {
               <table className="table table-bordered my-3 small">
                 <tbody>
                   <tr>
-                    <th className="bg-light" style={{ width: '35%' }}>Notes Package Title</th>
+                    <th className="bg-light" style={{ width: '35%' }}>Book Package Title</th>
                     <td className="fw-bold text-sa-charcoal">{viewingVoucher.bookTitle}</td>
                   </tr>
                   <tr>

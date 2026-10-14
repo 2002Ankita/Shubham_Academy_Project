@@ -379,7 +379,7 @@ export default function TeacherNotes() {
         <div className="d-flex align-items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/teacher/notes-stock')}
+            onClick={() => navigate('/teacher/books-stock')}
             className="btn btn-outline-danger d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
             style={{
               fontSize: '13px',

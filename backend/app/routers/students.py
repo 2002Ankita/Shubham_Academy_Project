@@ -57,10 +57,10 @@ async def offer_discount_endpoint(id: str, payload: dict, token: str = Depends(o
     return await offer_student_discount(id, payload, current_user)
 
 @router.post("/{id}/approve-discount", response_model=StudentResponse)
-async def approve_discount_endpoint(id: str, token: str = Depends(oauth2_scheme)):
+async def approve_discount_endpoint(id: str, payload: dict = None, token: str = Depends(oauth2_scheme)):
     current_user = await get_current_user(token)
     from app.services.student_service import approve_student_discount
-    return await approve_student_discount(id, current_user)
+    return await approve_student_discount(id, current_user, payload)
 
 @router.post("/{id}/reject-discount", response_model=StudentResponse)
 async def reject_discount_endpoint(id: str, payload: dict = None, token: str = Depends(oauth2_scheme)):

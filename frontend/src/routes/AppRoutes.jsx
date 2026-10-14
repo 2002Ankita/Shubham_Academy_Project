@@ -25,6 +25,7 @@ import SuperAdminReports from '../pages/super-admin/Reports';
 import AuditLogs from '../pages/super-admin/AuditLogs';
 import SuperAdminSettings from '../pages/super-admin/Settings';
 import SuperAdminContact from '../pages/super-admin/Contact';
+import DiscountApprovals from '../pages/admin/DiscountApprovals';
 
 // Academy Admin Pages
 import AdminDashboard from '../pages/admin/Dashboard';
@@ -42,8 +43,8 @@ import FeeReceipt from '../pages/admin/FeeReceipt';
 import CreateExam from '../pages/admin/CreateExam';
 import MarksEntry from '../pages/admin/MarksEntry';
 import Results from '../pages/admin/Results';
-import NotesStock from '../pages/admin/NotesStock';
-import NotesDelivery from '../pages/admin/NotesDelivery';
+import BooksStock from '../pages/admin/BooksStock';
+import BooksDelivery from '../pages/admin/BooksDelivery';
 import Notices from '../pages/admin/Notices';
 import Notifications from '../pages/admin/Notifications';
 import AdminReports from '../pages/admin/Reports';
@@ -77,7 +78,7 @@ import StudentExaminations from '../pages/student/Examinations';
 import StudentResults from '../pages/student/Results';
 import StudentStudyMaterials from '../pages/student/StudyMaterials';
 import StudentNotes from '../pages/student/Notes';
-import StudentNotesDelivery from '../pages/student/NotesDelivery';
+import StudentBooksDelivery from '../pages/student/BooksDelivery';
 import StudentAnnouncements from '../pages/student/Announcements';
 import StudentProfile from '../pages/student/Profile';
 import StudentContact from '../pages/student/Contact';
@@ -128,6 +129,8 @@ export default function AppRoutes() {
         <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
         <Route path="/super-admin/profile" element={<SuperAdminSettings />} />
         <Route path="/super-admin/contact" element={<SuperAdminContact />} />
+        <Route path="/super-admin/discounts" element={<DiscountApprovals />} />
+        <Route path="/super-admin/discount-approvals" element={<DiscountApprovals />} />
       </Route>
 
       {/* Academy Admin & Super Admin Protected Routes */}
@@ -153,11 +156,17 @@ export default function AppRoutes() {
         <Route path="/admin/fees" element={<FeeCollection />} />
         <Route path="/admin/fees/pending" element={<PendingFees />} />
         <Route path="/admin/fees/receipt" element={<FeeReceipt />} />
+        <Route path="/admin/discounts" element={<DiscountApprovals />} />
+        <Route path="/admin/discount-approvals" element={<DiscountApprovals />} />
         <Route path="/admin/exams" element={<CreateExam />} />
         <Route path="/admin/marks/entry" element={<MarksEntry />} />
         <Route path="/admin/results" element={<Results />} />
-        <Route path="/admin/notes/stock" element={<NotesStock />} />
-        <Route path="/admin/notes/delivery" element={<NotesDelivery />} />
+        <Route path="/admin/books/stock" element={<BooksStock />} />
+        <Route path="/admin/books-stock" element={<BooksStock />} />
+        <Route path="/admin/notes/stock" element={<BooksStock />} />
+        <Route path="/admin/books/delivery" element={<BooksDelivery />} />
+        <Route path="/admin/books-delivery" element={<BooksDelivery />} />
+        <Route path="/admin/notes/delivery" element={<BooksDelivery />} />
         <Route path="/admin/notices" element={<Notices />} />
         <Route path="/admin/notifications" element={<Notifications />} />
         <Route path="/admin/reports" element={<AdminReports />} />
@@ -186,10 +195,14 @@ export default function AppRoutes() {
         <Route path="/teacher/marks" element={<TeacherEnterMarks />} />
         <Route path="/teacher/study-materials" element={<TeacherStudyMaterials />} />
         <Route path="/teacher/notes" element={<TeacherNotes />} />
-        <Route path="/teacher/notes-stock" element={<NotesStock />} />
-        <Route path="/teacher/notes/stock" element={<NotesStock />} />
-        <Route path="/teacher/notes-delivery" element={<NotesDelivery />} />
-        <Route path="/teacher/notes/delivery" element={<NotesDelivery />} />
+        <Route path="/teacher/books/stock" element={<BooksStock />} />
+        <Route path="/teacher/books-stock" element={<BooksStock />} />
+        <Route path="/teacher/notes/stock" element={<BooksStock />} />
+        <Route path="/teacher/notes-stock" element={<BooksStock />} />
+        <Route path="/teacher/books/delivery" element={<BooksDelivery />} />
+        <Route path="/teacher/books-delivery" element={<BooksDelivery />} />
+        <Route path="/teacher/notes-delivery" element={<BooksDelivery />} />
+        <Route path="/teacher/notes/delivery" element={<BooksDelivery />} />
         <Route path="/teacher/announcements" element={<TeacherAnnouncements />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
       </Route>
@@ -210,7 +223,9 @@ export default function AppRoutes() {
         <Route path="/student/results" element={<StudentResults />} />
         <Route path="/student/study-materials" element={<StudentStudyMaterials />} />
         <Route path="/student/notes" element={<StudentNotes />} />
-        <Route path="/student/notes-delivery" element={<StudentNotesDelivery />} />
+        <Route path="/student/books-delivery" element={<StudentBooksDelivery />} />
+        <Route path="/student/books/delivery" element={<StudentBooksDelivery />} />
+        <Route path="/student/notes-delivery" element={<StudentBooksDelivery />} />
         <Route path="/student/announcements" element={<StudentAnnouncements />} />
         <Route path="/student/profile" element={<StudentProfile />} />
         <Route path="/student/contact" element={<StudentContact />} />

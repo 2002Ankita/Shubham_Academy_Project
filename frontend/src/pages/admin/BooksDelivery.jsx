@@ -17,7 +17,8 @@ import {
   GraduationCap,
   Briefcase,
   Calendar,
-  Printer
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -42,7 +43,7 @@ const normalizeSubject = (subj, title = '') => {
   return subj ? subj.trim() : 'Maths';
 };
 
-export default function NotesDelivery() {
+export default function BooksDelivery() {
   const { user } = useAuth();
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
 

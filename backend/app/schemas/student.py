@@ -21,6 +21,7 @@ class StudentBase(BaseModel):
     admission_date: Optional[datetime] = None
     original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
+    discount_requested_amount: Optional[float] = 0.0
     discount_reason: Optional[str] = None
     discount_status: Optional[str] = "NONE"
     discount_offered_by: Optional[str] = None
