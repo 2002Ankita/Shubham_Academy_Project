@@ -3,14 +3,13 @@ from app.models.student import Student
 from app.models.user import User
 from app.schemas.inventory import (
     InventoryItemCreate,
-    InventoryItemRestock,
     InventoryItemUpdate,
     InventoryDeliveryCreate,
     InventoryDeliveryUpdate
 )
 from fastapi import HTTPException
 from bson import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 DEFAULT_BOOKS = [
@@ -27,20 +26,21 @@ DEFAULT_BOOKS = [
 ]
 
 async def ensure_default_books():
-    """Ensure that the core Theory, CET, and module books exist in inventory items."""
+    """Ensure that the 8 core Theory and CET books exist in inventory items."""
     try:
-        count = await InventoryItem.count()
-        if count == 0:
-            for book in DEFAULT_BOOKS:
+        existing_items = await InventoryItem.find_all().to_list()
+        existing_titles = {item.title.strip().lower() for item in existing_items}
+        
+        for book in DEFAULT_BOOKS:
+            if book["title"].strip().lower() not in existing_titles:
                 new_item = InventoryItem(**book)
                 await new_item.insert()
+                existing_titles.add(book["title"].strip().lower())
     except Exception as e:
         print(f"Error ensuring default books: {e}")
 
 async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
     item_dict = item_in.model_dump() if hasattr(item_in, "model_dump") else item_in.dict()
-    if not item_dict.get("total_stock"):
-        item_dict["total_stock"] = item_dict.get("in_stock", 0)
     item = InventoryItem(**item_dict)
     await item.insert()
     d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
@@ -75,19 +75,6 @@ async def adjust_inventory_stock(item_id: str, delta: int) -> dict:
     d["id"] = str(item.id)
     return d
 
-async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock) -> dict:
-    item = await InventoryItem.get(ObjectId(item_id))
-    if not item:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-    
-    qty = max(0, restock_in.quantity)
-    item.in_stock += qty
-    item.total_stock = (item.total_stock or 0) + qty
-    await item.save()
-    d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
-    d["id"] = str(item.id)
-    return d
-
 async def get_inventory_items() -> list[dict]:
     await ensure_default_books()
     items = await InventoryItem.find_all().to_list()
@@ -95,8 +82,6 @@ async def get_inventory_items() -> list[dict]:
     for item in items:
         d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
         d["id"] = str(item.id)
-        if not d.get("total_stock"):
-            d["total_stock"] = d.get("in_stock", 0)
         # Ensure category and subject exist for legacy records
         if not d.get("category"):
             d["category"] = "CET" if "cet" in (d.get("title") or "").lower() else "Theory"
@@ -119,7 +104,7 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
     student_obj = None
     if isinstance(delivery.student, Student):
         student_obj = delivery.student
-    elif getattr(delivery, 'student', None) and getattr(delivery.student, 'ref', None):
+    elif getattr(delivery, 'student', None):
         try:
             student_obj = await Student.get(delivery.student.ref.id)
             delivery.student = student_obj
@@ -130,26 +115,27 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
     roll_number = delivery.student_roll_no or ""
     if student_obj:
         if not roll_number:
-            roll_number = student_obj.student_id or ""
-        if not student_name and getattr(student_obj, "user", None):
-            try:
-                user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
-                if user_obj:
-                    student_name = user_obj.full_name
-            except Exception:
-                pass
+            roll_number = student_obj.student_id
+        if not student_name:
+            if getattr(student_obj, "user", None):
+                try:
+                    user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
+                    if user_obj:
+                        student_name = user_obj.full_name
+                except Exception:
+                    pass
 
     item_obj = None
     if isinstance(delivery.inventory_item, InventoryItem):
         item_obj = delivery.inventory_item
-    elif getattr(delivery, 'inventory_item', None) and getattr(delivery.inventory_item, 'ref', None):
+    elif getattr(delivery, 'inventory_item', None):
         try:
             item_obj = await InventoryItem.get(delivery.inventory_item.ref.id)
             delivery.inventory_item = item_obj
         except Exception:
             item_obj = None
 
-    book_title = delivery.book_title or (item_obj.title if item_obj else "Study Notes Package")
+    book_title = delivery.book_title or (item_obj.title if item_obj else "Study Material Book")
     
     category = delivery.category
     if not category:
@@ -175,42 +161,34 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
             else:
                 subject = "General"
 
-    handed_by = delivery.handed_over_by or delivery.verified_by or "Academic Staff"
-    handed_to = student_name or delivery.handed_over_to or "Student"
-    
+    handed_over_by = delivery.handed_over_by or delivery.verified_by or "--"
+
     date_str = "--"
     if delivery.date:
         date_str = delivery.date.strftime("%Y-%m-%d %H:%M")
-    elif delivery.status in ["Delivered", "Handed Over"]:
+    elif delivery.status == "Delivered":
         date_str = delivery.created_at.strftime("%Y-%m-%d %H:%M") if delivery.created_at else "--"
 
     return {
         "id": str(delivery.id),
-        "student_id": str(student_obj.id) if student_obj else (delivery.student_roll_no or ""),
-        "student_name": handed_to,
+        "student_id": str(student_obj.id) if student_obj else "",
+        "student_name": student_name or "Unknown Student",
         "roll_number": roll_number or "N/A",
         "book_title": book_title,
         "category": category,
         "subject": subject,
-        "item_id": str(item_obj.id) if item_obj else None,
-        "available_stock": item_obj.in_stock if item_obj else 0,
-        "quantity": getattr(delivery, 'quantity', 1) or 1,
-        "handed_over_by": handed_by,
-        "handed_over_to": handed_to,
-        "status": delivery.status or "Handed Over",
+        "status": delivery.status,
         "date": date_str,
-        "verified_by": delivery.verified_by or handed_by,
+        "handed_over_by": handed_over_by,
+        "verified_by": handed_over_by,
         "remarks": delivery.remarks or ""
     }
 
 async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: Optional[str] = None) -> dict:
-    student_obj = None
-    if delivery_in.student_id:
-        from app.services.student_service import resolve_student
-        try:
-            student_obj = await resolve_student(delivery_in.student_id)
-        except Exception:
-            student_obj = None
+    from app.services.student_service import resolve_student
+    student = await resolve_student(delivery_in.student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
 
     await ensure_default_books()
     
@@ -224,7 +202,9 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     category = delivery_in.category or "Theory"
     subject = delivery_in.subject or "Physics"
     
+    # If item not provided or not found, try to locate item by category and subject
     if not item:
+        # Match by category & subject
         matched_items = await InventoryItem.find(
             InventoryItem.category == category,
             InventoryItem.subject == subject
@@ -237,59 +217,44 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         book_title = item.title if item else f"{category} - {subject}"
 
     # Student name resolution
-    student_name = delivery_in.handed_over_to or ""
-    roll_no = delivery_in.student_roll_no or ""
+    student_name = ""
+    if getattr(student, "user", None):
+        try:
+            user_obj = student.user if isinstance(student.user, User) else await User.get(student.user.ref.id)
+            if user_obj:
+                student_name = user_obj.full_name
+        except Exception:
+            pass
 
-    if student_obj:
-        if not roll_no:
-            roll_no = student_obj.student_id or ""
-        if not student_name and getattr(student_obj, "user", None):
-            try:
-                user_obj = student_obj.user if isinstance(student_obj.user, User) else await User.get(student_obj.user.ref.id)
-                if user_obj:
-                    student_name = user_obj.full_name
-            except Exception:
-                pass
-
-    if not student_name:
-        student_name = "Student"
-
-    qty = max(1, delivery_in.quantity)
-    status = delivery_in.status or "Handed Over"
-    handed_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academic Staff"
-    handover_date = datetime.utcnow() if status in ["Handed Over", "Delivered"] else None
-
-    # Decrement available stock if handing over/delivered
-    if status in ["Handed Over", "Delivered"] and item and item.in_stock > 0:
-        item.in_stock = max(0, item.in_stock - qty)
-        await item.save()
+    status = delivery_in.status or "Delivered"
+    handed_over_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academy Staff"
+    handover_date = datetime.utcnow() if status == "Delivered" else None
 
     delivery = InventoryDelivery(
-        student=student_obj,
+        student=student,
         inventory_item=item,
         book_title=book_title,
         category=category,
         subject=subject,
-        quantity=qty,
-        handed_over_by=handed_by,
-        handed_over_to=student_name,
-        student_roll_no=roll_no,
-        standard=delivery_in.standard or (student_obj.standard if student_obj else (item.standard if item else None)),
         status=status,
         date=handover_date,
-        verified_by=handed_by,
+        handed_over_by=handed_over_by,
+        verified_by=handed_over_by,
+        handed_over_to=student_name,
+        student_roll_no=student.student_id,
         remarks=delivery_in.remarks
     )
     await delivery.insert()
 
+    # Decrement available stock if delivered
+    if status == "Delivered" and item and item.in_stock > 0:
+        item.in_stock -= 1
+        await item.save()
+
     return await _format_delivery(delivery)
 
 async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_user_name: Optional[str] = None) -> dict:
-    try:
-        delivery = await InventoryDelivery.get(ObjectId(id))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid delivery ID")
-
+    delivery = await InventoryDelivery.get(ObjectId(id))
     if not delivery:
         raise HTTPException(status_code=404, detail="Delivery record not found")
 
@@ -308,25 +273,26 @@ async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_u
         delivery.handed_over_by = current_user_name
         delivery.verified_by = current_user_name
 
-    # Handle status transition and stock adjustments
-    qty = getattr(delivery, 'quantity', 1) or 1
-    if new_status in ["Delivered", "Handed Over"] and old_status not in ["Delivered", "Handed Over"]:
+    # Check status transitions
+    if new_status == "Delivered" and old_status != "Delivered":
         delivery.date = datetime.utcnow()
+        # Decrement stock
         if getattr(delivery, "inventory_item", None):
             try:
                 item = await InventoryItem.get(delivery.inventory_item.ref.id)
                 if item and item.in_stock > 0:
-                    item.in_stock = max(0, item.in_stock - qty)
+                    item.in_stock -= 1
                     await item.save()
             except Exception:
                 pass
-    elif new_status not in ["Delivered", "Handed Over"] and old_status in ["Delivered", "Handed Over"]:
+    elif new_status != "Delivered" and old_status == "Delivered":
         delivery.date = None
+        # Restore stock
         if getattr(delivery, "inventory_item", None):
             try:
                 item = await InventoryItem.get(delivery.inventory_item.ref.id)
                 if item:
-                    item.in_stock += qty
+                    item.in_stock += 1
                     await item.save()
             except Exception:
                 pass
@@ -339,12 +305,12 @@ async def delete_delivery(id: str) -> dict:
     if not delivery:
         raise HTTPException(status_code=404, detail="Delivery record not found")
 
-    qty = getattr(delivery, 'quantity', 1) or 1
-    if delivery.status in ["Delivered", "Handed Over"] and getattr(delivery, "inventory_item", None):
+    # Restore stock if was delivered
+    if delivery.status == "Delivered" and getattr(delivery, "inventory_item", None):
         try:
             item = await InventoryItem.get(delivery.inventory_item.ref.id)
             if item:
-                item.in_stock += qty
+                item.in_stock += 1
                 await item.save()
         except Exception:
             pass
@@ -353,7 +319,6 @@ async def delete_delivery(id: str) -> dict:
     return {"message": "Delivery record removed successfully", "id": id}
 
 async def get_deliveries(student_id: Optional[str] = None) -> list[dict]:
-    await ensure_default_books()
     if student_id:
         from app.services.student_service import resolve_student
         student = await resolve_student(student_id)
@@ -362,6 +327,7 @@ async def get_deliveries(student_id: Optional[str] = None) -> list[dict]:
             return [await _format_delivery(d) for d in deliveries]
 
     deliveries = await InventoryDelivery.find_all().to_list()
+    # Sort latest first
     deliveries.sort(key=lambda d: d.created_at or datetime.min, reverse=True)
     return [await _format_delivery(d) for d in deliveries]
 
@@ -377,6 +343,7 @@ async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
 
     await ensure_default_books()
 
+    # Query deliveries for this student by object ID or student_id string
     deliveries = await InventoryDelivery.find({"student.$id": student.id}).to_list()
     if not deliveries and student.student_id:
         deliveries = await InventoryDelivery.find(InventoryDelivery.student_roll_no == student.student_id).to_list()
@@ -423,7 +390,8 @@ async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
             target_subj = "Maths"
 
         if target_subj and cat in status_matrix:
-            is_delivered = fd.get("status") in ["Delivered", "Handed Over"]
+            is_delivered = fd.get("status") == "Delivered"
+            # If already marked as delivered, prioritize delivered status
             current_status = status_matrix[cat][target_subj]
             if is_delivered or current_status["status"] == "Not Delivered":
                 status_matrix[cat][target_subj] = {

@@ -186,10 +186,6 @@ export default function AppRoutes() {
         <Route path="/teacher/marks" element={<TeacherEnterMarks />} />
         <Route path="/teacher/study-materials" element={<TeacherStudyMaterials />} />
         <Route path="/teacher/notes" element={<TeacherNotes />} />
-        <Route path="/teacher/notes-stock" element={<NotesStock />} />
-        <Route path="/teacher/notes/stock" element={<NotesStock />} />
-        <Route path="/teacher/notes-delivery" element={<NotesDelivery />} />
-        <Route path="/teacher/notes/delivery" element={<NotesDelivery />} />
         <Route path="/teacher/announcements" element={<TeacherAnnouncements />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
       </Route>

@@ -2,7 +2,7 @@ import React from 'react';
 import Loader from './Loader';
 
 export default function Table({
-  columns = [], // [{ key, title, render?: (val, row) => node, align?: 'left'|'center'|'right', width, minWidth, wrapHeader, headerStyle, cellStyle }]
+  columns = [], // [{ key, title, render?: (val, row) => node, align?: 'left'|'center'|'right' }]
   data = [],
   loading = false,
   emptyMessage = 'No records found',
@@ -11,27 +11,18 @@ export default function Table({
   return (
     <div className={`sa-table-wrapper ${className}`}>
       <div className="table-responsive">
-        <table className="sa-table table mb-0 align-middle">
+        <table className="sa-table table mb-0">
           <thead>
             <tr>
-              {columns.map((col, idx) => {
-                const headerStyle = {
-                  ...(col.width ? { width: col.width, minWidth: col.width } : {}),
-                  ...(col.minWidth ? { minWidth: col.minWidth } : {}),
-                  whiteSpace: col.wrapHeader ? 'normal' : 'nowrap',
-                  verticalAlign: 'middle',
-                  ...(col.headerStyle || {})
-                };
-                return (
-                  <th
-                    key={col.key || idx}
-                    className={`text-${col.align || 'start'} ${col.headerClassName || ''}`}
-                    style={headerStyle}
-                  >
-                    {col.title}
-                  </th>
-                );
-              })}
+              {columns.map((col, idx) => (
+                <th
+                  key={col.key || idx}
+                  className={`text-${col.align || 'start'}`}
+                  style={col.width ? { width: col.width } : {}}
+                >
+                  {col.title}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -52,23 +43,11 @@ export default function Table({
             ) : (
               data.map((row, rowIdx) => (
                 <tr key={row.id || rowIdx}>
-                  {columns.map((col, colIdx) => {
-                    const cellStyle = {
-                      ...(col.width ? { width: col.width, minWidth: col.width } : {}),
-                      ...(col.minWidth ? { minWidth: col.minWidth } : {}),
-                      verticalAlign: 'middle',
-                      ...(col.cellStyle || {})
-                    };
-                    return (
-                      <td
-                        key={col.key || colIdx}
-                        className={`text-${col.align || 'start'} ${col.cellClassName || ''}`}
-                        style={cellStyle}
-                      >
-                        {col.render ? col.render(row[col.key], row, rowIdx) : (row[col.key] ?? '--')}
-                      </td>
-                    );
-                  })}
+                  {columns.map((col, colIdx) => (
+                    <td key={col.key || colIdx} className={`text-${col.align || 'start'}`}>
+                      {col.render ? col.render(row[col.key], row, rowIdx) : (row[col.key] ?? '--')}
+                    </td>
+                  ))}
                 </tr>
               ))
             )}
