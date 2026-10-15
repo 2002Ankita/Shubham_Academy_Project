@@ -21,11 +21,13 @@ async def init_db():
     from app.models.reminders import ReminderSettings, ReminderHistory
     from app.models.discount import DiscountApproval
     from app.models.audit_log import NotificationAuditLog
+    from app.models.daily_activity import DailyActivity
+    from app.models.topic_duration import TopicDuration
     
     # We will add our models to the document_models list later as we create them
     await init_beanie(
         database=database, 
         document_models=[
-            User, Student, Teacher, Attendance, FeeStructure, FeePayment, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog
+            User, Student, Teacher, Attendance, FeeStructure, FeePayment, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration
         ]
     )

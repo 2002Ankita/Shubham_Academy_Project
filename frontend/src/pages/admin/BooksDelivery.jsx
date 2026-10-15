@@ -25,6 +25,7 @@ import inventoryService from '../../services/inventoryService';
 import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmContext';
 
 // Helper to get local ISO string for datetime-local input (YYYY-MM-DDTHH:mm)
 const getCurrentLocalDateTime = () => {
@@ -45,6 +46,7 @@ const normalizeSubject = (subj, title = '') => {
 
 export default function BooksDelivery() {
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
 
   const [deliveries, setDeliveries] = useState([]);
@@ -290,9 +292,16 @@ export default function BooksDelivery() {
 
   // Delete handover record
   const handleDeleteDelivery = async (id, recipientName) => {
-    if (!window.confirm(`Are you sure you want to delete the handover record for ${recipientName || 'this recipient'}?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Delete Handover Record',
+      message: `Are you sure you want to delete the handover record for ${recipientName || 'this recipient'}?`,
+      subtitle: 'This will remove the distribution record from inventory tracking.',
+      confirmText: 'Delete Record',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
+
     try {
       await inventoryService.deleteDelivery(id);
       toast.success('Handover record deleted successfully.');

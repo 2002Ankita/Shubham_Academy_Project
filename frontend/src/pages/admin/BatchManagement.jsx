@@ -7,8 +7,10 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import batchService from '../../services/batchService';
 import teacherService from '../../services/teacherService';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function BatchManagement() {
+  const { confirm } = useConfirm();
   const [batches, setBatches] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,16 @@ export default function BatchManagement() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this batch?')) {
+    const isConfirmed = await confirm({
+      title: 'Delete Class Batch',
+      message: 'Are you sure you want to delete this batch?',
+      subtitle: 'This will remove the batch allocation from your schedule.',
+      confirmText: 'Delete Batch',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       try {
         await batchService.deleteBatch(id);
         toast.success('Batch deleted');

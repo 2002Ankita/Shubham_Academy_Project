@@ -32,10 +32,12 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function TeacherNotes() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
   const fileInputRef = useRef(null);
 
   // Notes state
@@ -284,7 +286,16 @@ export default function TeacherNotes() {
       return;
     }
 
-    if (window.confirm(`Are you sure you want to delete note "${title}"?`)) {
+    const isConfirmed = await confirm({
+      title: 'Delete Class Note',
+      message: `Are you sure you want to delete note "${title}"?`,
+      subtitle: 'This will remove the note and its study material attachments.',
+      confirmText: 'Delete Note',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       try {
         await notesService.delete(id);
         toast.info(`Note "${title}" has been deleted.`);

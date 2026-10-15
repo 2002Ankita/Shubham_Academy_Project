@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   BookOpen,
@@ -8,18 +8,24 @@ import {
   Zap,
   Plus,
   Trash2,
+  Edit3,
   Calendar,
   Filter,
   Search,
   Printer,
   Layers,
-  FileText
+  ChevronRight,
+  Check
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
+import curriculumService from '../../services/curriculumService';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function DailyActivityReport() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { confirm } = useConfirm();
 
   // Storage key shared with Dashboard
   const STORAGE_KEY = 'sa_teacher_daily_activities';
@@ -38,6 +44,8 @@ export default function DailyActivityReport() {
         topicTaught: 'Wave Optics - Wavefronts & Huygens Principle Derivation',
         timeSlot: '08:30 AM - 10:00 AM',
         hours: 1.5,
+        periods: 2,
+        totalPlannedPeriods: 3,
         status: 'Completed',
         remarks: 'Derived reflection & refraction laws. Solved 4 numerical problems on slit interference. Homework assigned.'
       },
@@ -49,6 +57,8 @@ export default function DailyActivityReport() {
         topicTaught: 'Surface Tension by Capillary Rise Method - Hands-on Experiment',
         timeSlot: '10:30 AM - 12:30 PM',
         hours: 2.0,
+        periods: 2,
+        totalPlannedPeriods: 2,
         status: 'Completed',
         remarks: 'Checked student lab journals, calibrated traveling microscope apparatus for all 24 students.'
       },
@@ -60,6 +70,8 @@ export default function DailyActivityReport() {
         topicTaught: 'Electromagnetic Induction - Lenz\'s Law & Self-Inductance Numericals',
         timeSlot: '01:30 PM - 02:30 PM',
         hours: 1.0,
+        periods: 1,
+        totalPlannedPeriods: 4,
         status: 'Completed',
         remarks: 'Solved JEE / NEET PYQs on induced EMF with 18 attending students.'
       }
@@ -73,13 +85,29 @@ export default function DailyActivityReport() {
     } catch (_) {}
   }, [dailyActivities]);
 
+  // Sync with backend on component mount
+  useEffect(() => {
+    curriculumService.getDailyActivities().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(item => ({
+          ...item,
+          topicTaught: item.topic_taught || item.topicTaught,
+          timeSlot: item.time_slot || item.timeSlot,
+          totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods
+        }));
+        setDailyActivities(mapped);
+      }
+    });
+  }, []);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
 
-  // Modal State
+  // Modal State (Add & Edit)
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState(null);
   const [newActivity, setNewActivity] = useState({
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
@@ -87,9 +115,32 @@ export default function DailyActivityReport() {
     topicTaught: '',
     timeSlot: '03:00 PM - 04:00 PM',
     hours: '1.0',
+    periods: '1',
+    totalPlannedPeriods: '2',
     status: 'Completed',
     remarks: ''
   });
+
+  // Handle redirect from Topic Duration Matrix if topic was sent
+  useEffect(() => {
+    if (location.state?.prefillTopic) {
+      const topic = location.state.prefillTopic;
+      setEditingActivityId(null);
+      setNewActivity({
+        activity: 'Classroom Lecture & Theory',
+        subject: topic.subject || 'Physics',
+        batch: topic.batch || '12th Science Tarabai Park (Batch A)',
+        topicTaught: topic.topicTaught || '',
+        timeSlot: '03:00 PM - 04:00 PM',
+        hours: '1.0',
+        periods: topic.periods || '1',
+        totalPlannedPeriods: topic.totalPlannedPeriods || '2',
+        status: 'Completed',
+        remarks: topic.remarks || ''
+      });
+      setIsActivityModalOpen(true);
+    }
+  }, [location.state]);
 
   // Computed Metrics
   const totalTeachingHoursToday = dailyActivities
@@ -116,19 +167,8 @@ export default function DailyActivityReport() {
     return matchesSearch && matchesActivity && matchesBatch;
   });
 
-  const handleAddActivity = (e) => {
-    e.preventDefault();
-    if (!newActivity.topicTaught.trim()) {
-      toast.warning('Please enter the topic taught today.');
-      return;
-    }
-    const created = {
-      id: `ACT-${Date.now()}`,
-      ...newActivity,
-      hours: parseFloat(newActivity.hours) || 1.0
-    };
-    setDailyActivities(prev => [created, ...prev]);
-    setIsActivityModalOpen(false);
+  const handleOpenAddModal = () => {
+    setEditingActivityId(null);
     setNewActivity({
       activity: 'Classroom Lecture & Theory',
       subject: 'Physics',
@@ -136,15 +176,204 @@ export default function DailyActivityReport() {
       topicTaught: '',
       timeSlot: '03:00 PM - 04:00 PM',
       hours: '1.0',
+      periods: '1',
+      totalPlannedPeriods: '2',
       status: 'Completed',
       remarks: ''
     });
-    toast.success('Teaching activity & topic logged successfully!');
+    setIsActivityModalOpen(true);
   };
 
-  const handleDeleteActivity = (id) => {
-    setDailyActivities(prev => prev.filter(a => a.id !== id));
-    toast.info('Activity record removed.');
+  const handleOpenEditModal = (act) => {
+    setEditingActivityId(act.id);
+    setNewActivity({
+      activity: act.activity || 'Classroom Lecture & Theory',
+      subject: act.subject || 'Physics',
+      batch: act.batch || '12th Science Tarabai Park (Batch A)',
+      topicTaught: act.topicTaught || '',
+      timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
+      hours: String(act.hours || '1.0'),
+      periods: String(act.periods || '1'),
+      totalPlannedPeriods: String(act.totalPlannedPeriods || '2'),
+      status: act.status || 'Completed',
+      remarks: act.remarks || ''
+    });
+    setIsActivityModalOpen(true);
+  };
+
+  const handleSaveActivity = (e) => {
+    e.preventDefault();
+    if (!newActivity.topicTaught.trim()) {
+      toast.warning('Please enter the topic taught today.');
+      return;
+    }
+
+    const payload = {
+      ...newActivity,
+      hours: parseFloat(newActivity.hours) || 1.0,
+      periods: parseInt(newActivity.periods, 10) || 1,
+      totalPlannedPeriods: parseInt(newActivity.totalPlannedPeriods, 10) || 1
+    };
+
+    // Standardize subject name
+    let stdSubject = payload.subject.trim();
+    const lowerSubj = stdSubject.toLowerCase();
+    if (lowerSubj.includes('physic')) stdSubject = 'Physics';
+    else if (lowerSubj.includes('chem')) stdSubject = 'Chemistry';
+    else if (lowerSubj.includes('math')) stdSubject = 'Mathematics';
+    else if (lowerSubj.includes('bio')) stdSubject = 'Biology';
+
+    // Determine faculty name
+    let faculty = 'Prof. Shubham Shinde';
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (u.name) faculty = u.name;
+    } catch (_) {}
+    if (!faculty || faculty === 'Assigned Faculty') {
+      if (stdSubject === 'Physics') faculty = 'Prof. Shubham Shinde';
+      else if (stdSubject === 'Chemistry') faculty = 'Prof. Sunita Patil';
+      else if (stdSubject === 'Mathematics') faculty = 'Prof. Rajesh Sharma';
+      else if (stdSubject === 'Biology') faculty = 'Prof. Amit Sawant';
+    }
+
+    const todayDate = new Date().toISOString().split('T')[0];
+    const todayMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const stdGrade = payload.batch.includes('11th') ? 'Class 11th' : 'Class 12th';
+
+    if (editingActivityId) {
+      curriculumService.updateDailyActivity(editingActivityId, {
+        activity: payload.activity,
+        subject: stdSubject,
+        batch: payload.batch,
+        topic_taught: payload.topicTaught,
+        time_slot: payload.timeSlot,
+        hours: payload.hours,
+        periods: payload.periods,
+        total_planned_periods: payload.totalPlannedPeriods,
+        status: payload.status,
+        remarks: payload.remarks
+      });
+      setDailyActivities(prev =>
+        prev.map(item => (item.id === editingActivityId ? { ...item, ...payload, subject: stdSubject } : item))
+      );
+      toast.success('Teaching activity updated successfully!');
+    } else {
+      const created = {
+        id: `ACT-${Date.now()}`,
+        ...payload,
+        subject: stdSubject
+      };
+
+      // 1. Save daily activity in backend & local state
+      curriculumService.createDailyActivity({
+        activity: payload.activity,
+        subject: stdSubject,
+        batch: payload.batch,
+        topic_taught: payload.topicTaught,
+        time_slot: payload.timeSlot,
+        hours: payload.hours,
+        periods: payload.periods,
+        total_planned_periods: payload.totalPlannedPeriods,
+        status: payload.status,
+        remarks: payload.remarks
+      });
+      setDailyActivities(prev => [created, ...prev]);
+
+      // 2. Synchronize to Topic Duration Matrix (sa_teacher_topic_plans) -> ALWAYS 'In Progress'
+      try {
+        let topicPlans = [];
+        const savedPlans = localStorage.getItem('sa_teacher_topic_plans');
+        if (savedPlans) topicPlans = JSON.parse(savedPlans);
+
+        const matchIdx = topicPlans.findIndex(
+          t => (t.topicName || '').toLowerCase() === payload.topicTaught.trim().toLowerCase() &&
+               (t.batch || '').toLowerCase() === payload.batch.trim().toLowerCase()
+        );
+
+        if (matchIdx >= 0) {
+          const target = topicPlans[matchIdx];
+          const newDone = (parseInt(target.completedPeriods, 10) || 0) + payload.periods;
+          const req = parseInt(target.requiredPeriods, 10) || payload.totalPlannedPeriods || 3;
+          topicPlans[matchIdx] = {
+            ...target,
+            completedPeriods: newDone,
+            status: newDone >= req ? 'Completed' : 'In Progress',
+            startDate: target.startDate || todayDate
+          };
+        } else {
+          const chapterName = payload.topicTaught.includes('-')
+            ? payload.topicTaught.split('-')[0].trim()
+            : (payload.topicTaught.includes(':') ? payload.topicTaught.split(':')[0].trim() : 'Curriculum Module');
+
+          const newTopicPlan = {
+            id: `TOP-${Date.now()}`,
+            standard: stdGrade,
+            batch: payload.batch,
+            subject: stdSubject,
+            teacher: faculty,
+            chapter: chapterName,
+            topicName: payload.topicTaught.trim(),
+            startDate: todayDate,
+            endDate: null,
+            requiredPeriods: Math.max(payload.totalPlannedPeriods || 3, payload.periods || 1),
+            periodDurationMins: 45,
+            completedPeriods: payload.periods || 1,
+            status: 'In Progress', // Added to In Progress
+            academicYear: '2026-2027',
+            month: todayMonth,
+            remarks: payload.remarks || 'Initiated from Teacher Daily Activity Log'
+          };
+          topicPlans.unshift(newTopicPlan);
+
+          // Direct backend creation fallback
+          curriculumService.createTopicDuration({
+            topic_id: newTopicPlan.id,
+            standard: stdGrade,
+            batch: payload.batch,
+            subject: stdSubject,
+            teacher_name: faculty,
+            chapter: chapterName,
+            topic_name: payload.topicTaught.trim(),
+            start_date: todayDate,
+            end_date: null,
+            required_periods: newTopicPlan.requiredPeriods,
+            period_duration_mins: 45,
+            completed_periods: newTopicPlan.completedPeriods,
+            status: 'In Progress',
+            academic_year: '2026-2027',
+            month: todayMonth,
+            remarks: newTopicPlan.remarks
+          });
+        }
+        localStorage.setItem('sa_teacher_topic_plans', JSON.stringify(topicPlans));
+      } catch (err) {
+        console.warn('Local topic duration plan sync error:', err);
+      }
+
+      toast.success(
+        `Teaching activity logged & added to Topic Duration Matrix under "In Progress"!`
+      );
+    }
+
+    setIsActivityModalOpen(false);
+    setEditingActivityId(null);
+  };
+
+  const handleDeleteActivity = async (id) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Activity Record',
+      message: 'Are you sure you want to delete this activity log?',
+      subtitle: 'This will remove the activity from your daily report.',
+      confirmText: 'Delete Record',
+      cancelText: 'Keep Record',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
+      curriculumService.deleteDailyActivity(id);
+      setDailyActivities(prev => prev.filter(a => a.id !== id));
+      toast.info('Activity record removed.');
+    }
   };
 
   const handlePrint = () => {
@@ -228,7 +457,7 @@ export default function DailyActivityReport() {
 
           <button
             type="button"
-            onClick={() => setIsActivityModalOpen(true)}
+            onClick={handleOpenAddModal}
             className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
             style={{
               height: '38px',
@@ -395,6 +624,38 @@ export default function DailyActivityReport() {
         className="sa-card bg-white border rounded-4 p-4 shadow-xs d-flex flex-column gap-3"
         style={{ borderColor: '#E2E8F0' }}
       >
+        {/* Table Header with Redirect Button to Topic Duration & Period Allocation Matrix */}
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pb-2 border-bottom">
+          <div>
+            <h2 className="brand-font fw-bold m-0" style={{ fontSize: '18px', color: '#0F172A' }}>
+              Student Teaching & Classroom Activity Log
+            </h2>
+            <span className="text-sa-muted small" style={{ fontSize: '12px' }}>
+              Showing {filteredActivities.length} lecture activities logged for today
+            </span>
+          </div>
+
+          {/* Button to redirect to Topic Duration & Period Allocation Matrix Page */}
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/topic-duration')}
+            className="btn btn-sm btn-light border text-sa-maroon d-inline-flex align-items-center gap-2 fw-semibold shadow-xs"
+            style={{
+              borderColor: '#FBCFE8',
+              backgroundColor: '#FDF2F8',
+              fontSize: '12.5px',
+              borderRadius: '8px',
+              padding: '7px 14px',
+              cursor: 'pointer'
+            }}
+            title="Open Topic Duration & Period Allocation Matrix"
+          >
+            <Clock size={15} />
+            <span>Topic Duration & Period Allocation Matrix</span>
+            <ChevronRight size={15} />
+          </button>
+        </div>
+
         {/* Filter & Search Bar */}
         <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3 pb-3 border-bottom">
           <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: '380px' }}>
@@ -425,6 +686,8 @@ export default function DailyActivityReport() {
                 <option value="Practical Lab Session">Practical Lab</option>
                 <option value="Doubt Clearing Masterclass">Doubt Clearing</option>
                 <option value="Revision & Numericals Solving">Revision Session</option>
+                <option value="Test / Exam Evaluation & Analysis">Test Evaluation</option>
+                <option value="Study Notes & Assignment Discussion">Study Notes Discussion</option>
               </select>
             </div>
 
@@ -437,22 +700,23 @@ export default function DailyActivityReport() {
               <option value="All">All Batches</option>
               <option value="12th Science Tarabai Park (Batch A)">12th Science (Batch A)</option>
               <option value="11th Science PCM (Batch B)">11th Science (Batch B)</option>
+              <option value="12th Science PCB (Batch C)">12th Science (Batch C)</option>
             </select>
           </div>
         </div>
 
-        {/* Activities Table */}
+        {/* Activities Table with Edit & Delete Options */}
         <div className="table-responsive border rounded-3" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table className="table table-hover align-middle m-0" style={{ minWidth: '920px', fontSize: '13px' }}>
             <thead style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
               <tr style={{ height: '42px' }}>
                 <th style={{ width: '17%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Activity Type</th>
                 <th style={{ width: '17%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Class / Batch</th>
-                <th style={{ width: '32%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Topic Taught & Outcomes</th>
+                <th style={{ width: '31%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Topic Taught & Outcomes</th>
                 <th style={{ width: '13%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Time Slot</th>
                 <th style={{ width: '10%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Hours Spent</th>
                 <th style={{ width: '6%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Status</th>
-                <th style={{ width: '5%', padding: '10px 14px', fontWeight: 600, color: '#1E293B', textAlign: 'right' }}>Action</th>
+                <th style={{ width: '6%', padding: '10px 14px', fontWeight: 600, color: '#1E293B', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -503,15 +767,60 @@ export default function DailyActivityReport() {
                         ✓ {act.status}
                       </span>
                     </td>
+                    {/* Action Column with Matrix Redirect, Edit and Delete buttons */}
                     <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteActivity(act.id)}
-                        className="btn btn-sm btn-light border text-danger p-1.5 rounded"
-                        title="Delete this activity log"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="d-inline-flex align-items-center justify-content-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            let stdSubject = act.subject || 'Physics';
+                            const lower = stdSubject.toLowerCase();
+                            if (lower.includes('physic')) stdSubject = 'Physics';
+                            else if (lower.includes('chem')) stdSubject = 'Chemistry';
+                            else if (lower.includes('math')) stdSubject = 'Mathematics';
+                            else if (lower.includes('bio')) stdSubject = 'Biology';
+
+                            let faculty = act.teacher_name || (
+                              stdSubject === 'Physics' ? 'Prof. Shubham Shinde' :
+                              stdSubject === 'Chemistry' ? 'Prof. Sunita Patil' :
+                              stdSubject === 'Mathematics' ? 'Prof. Rajesh Sharma' :
+                              stdSubject === 'Biology' ? 'Prof. Amit Sawant' : 'Prof. Shubham Shinde'
+                            );
+
+                            navigate('/admin/topic-duration', {
+                              state: {
+                                prefillSubject: stdSubject,
+                                prefillTeacher: faculty,
+                                prefillBatch: act.batch,
+                                highlightTopic: act.topicTaught
+                              }
+                            });
+                          }}
+                          className="btn btn-sm btn-light border text-success rounded shadow-xs"
+                          title="View this topic in Academic Admin Topic Duration Matrix"
+                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <BookOpen size={14} style={{ color: '#8B1216' }} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(act)}
+                          className="btn btn-sm btn-light border text-primary rounded shadow-xs"
+                          title="Edit this activity log"
+                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteActivity(act.id)}
+                          className="btn btn-sm btn-light border text-danger rounded shadow-xs"
+                          title="Delete this activity log"
+                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -521,16 +830,21 @@ export default function DailyActivityReport() {
         </div>
       </div>
 
-      {/* 5. Log Activity Modal */}
+      {/* 5. Log / Edit Activity Modal */}
       <Modal
         isOpen={isActivityModalOpen}
-        onClose={() => setIsActivityModalOpen(false)}
-        title="Log Today's Teaching Activity & Topic"
+        onClose={() => {
+          setIsActivityModalOpen(false);
+          setEditingActivityId(null);
+        }}
+        title={editingActivityId ? "Edit Daily Activity & Topic Record" : "Log Today's Teaching Activity & Topic"}
         size="lg"
       >
-        <form onSubmit={handleAddActivity} className="d-flex flex-column gap-3">
+        <form onSubmit={handleSaveActivity} className="d-flex flex-column gap-3">
           <p className="text-sa-muted m-0" style={{ fontSize: '13px' }}>
-            Record the topic taught, class batch, and teaching duration for today's daily activity report.
+            {editingActivityId
+              ? "Update the activity details, topic duration, and teaching outcomes below."
+              : "Record the topic taught, class batch, and teaching duration for today's daily activity report."}
           </p>
 
           <div className="row g-3">
@@ -590,7 +904,36 @@ export default function DailyActivityReport() {
               />
             </div>
 
-            <div className="col-12 col-md-6">
+            <div className="col-12 col-md-4">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Periods Taken</label>
+              <input
+                type="number"
+                min="1"
+                max="8"
+                className="form-control form-control-sm"
+                value={newActivity.periods}
+                onChange={(e) => setNewActivity({ ...newActivity, periods: e.target.value })}
+                placeholder="e.g. 1 or 2 periods"
+                required
+              />
+              <span className="text-sa-muted" style={{ fontSize: '11px' }}>Number of lecture periods</span>
+            </div>
+
+            <div className="col-12 col-md-4">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Total Planned Periods</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                className="form-control form-control-sm"
+                value={newActivity.totalPlannedPeriods}
+                onChange={(e) => setNewActivity({ ...newActivity, totalPlannedPeriods: e.target.value })}
+                placeholder="e.g. 3 periods"
+              />
+              <span className="text-sa-muted" style={{ fontSize: '11px' }}>Total estimated periods</span>
+            </div>
+
+            <div className="col-12 col-md-4">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Hours Spent Teaching</label>
               <input
                 type="number"
@@ -602,6 +945,7 @@ export default function DailyActivityReport() {
                 onChange={(e) => setNewActivity({ ...newActivity, hours: e.target.value })}
                 required
               />
+              <span className="text-sa-muted" style={{ fontSize: '11px' }}>Total clock hours today</span>
             </div>
 
             <div className="col-12 col-md-6">
@@ -616,7 +960,7 @@ export default function DailyActivityReport() {
               </select>
             </div>
 
-            <div className="col-12">
+            <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Topic Taught / Syllabus Covered</label>
               <input
                 type="text"
@@ -643,7 +987,10 @@ export default function DailyActivityReport() {
           <div className="d-flex justify-content-end align-items-center gap-2 pt-2 border-top mt-2">
             <button
               type="button"
-              onClick={() => setIsActivityModalOpen(false)}
+              onClick={() => {
+                setIsActivityModalOpen(false);
+                setEditingActivityId(null);
+              }}
               className="btn btn-sm btn-light border px-3 py-1.5 fw-medium"
               style={{ borderRadius: '6px', fontSize: '12px' }}
             >
@@ -654,8 +1001,8 @@ export default function DailyActivityReport() {
               className="btn btn-sm text-white px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5"
               style={{ backgroundColor: '#8B1216', borderRadius: '6px', fontSize: '12px', border: 'none' }}
             >
-              <Plus size={14} />
-              <span>Save Activity Log</span>
+              <Check size={14} />
+              <span>{editingActivityId ? "Update Activity Log" : "Save Activity Log"}</span>
             </button>
           </div>
         </form>

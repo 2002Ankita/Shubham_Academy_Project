@@ -6,8 +6,10 @@ import examService from '../../services/examService';
 import teacherService from '../../services/teacherService';
 import { Calendar, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function CreateExam() {
+  const { confirm } = useConfirm();
   const [exams, setExams] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,16 @@ export default function CreateExam() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this exam?')) {
+    const isConfirmed = await confirm({
+      title: 'Cancel Exam Schedule',
+      message: 'Are you sure you want to delete this exam?',
+      subtitle: 'This will remove the exam schedule from the academic calendar.',
+      confirmText: 'Delete Exam',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       await examService.delete(id);
       toast.success('Exam schedule cancelled');
       fetchData();
