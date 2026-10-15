@@ -1,7 +1,7 @@
 import React from 'react';
-import { FileText, Eye, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { FileText, Eye, CheckCircle2, Clock, XCircle, Download } from 'lucide-react';
 
-export default function LeaveHistory({ requests, onViewDetails }) {
+export default function LeaveHistory({ requests, onViewDetails, onExport }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Approved':
@@ -61,6 +61,22 @@ export default function LeaveHistory({ requests, onViewDetails }) {
             </span>
           </div>
         </div>
+
+        {onExport && (
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              onClick={onExport}
+              disabled={requests.length === 0}
+              className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-2 shadow-xs"
+              style={{ fontSize: '0.8rem', fontWeight: 500 }}
+              title="Export leave requests to Excel"
+            >
+              <Download size={14} />
+              <span>Export Excel</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="table-responsive">

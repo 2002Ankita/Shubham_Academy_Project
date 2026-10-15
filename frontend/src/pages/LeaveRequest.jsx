@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import LeaveSummary from '../components/leave/LeaveSummary';
 import LeaveForm from '../components/leave/LeaveForm';
 import LeaveHistory from '../components/leave/LeaveHistory';
 import LeaveDetailsModal from '../components/leave/LeaveDetailsModal';
+import Button from '../components/common/Button';
 import leaveService from '../services/leaveService';
 import useAuth from '../hooks/useAuth';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function LeaveRequest() {
@@ -37,7 +39,7 @@ export default function LeaveRequest() {
         adminComment: r.admin_comment || ''
       }));
       setRequests(formatted);
-      
+
       // Recalculate balance based on approved leaves
       let taken = 0;
       let pending = 0;
@@ -45,7 +47,7 @@ export default function LeaveRequest() {
         if (r.status === 'Approved') taken += r.days;
         if (r.status === 'Pending') pending += 1;
       });
-      
+
       const total = 24;
       setBalance({
         total,
@@ -82,6 +84,62 @@ export default function LeaveRequest() {
       setSelectedRequest(null);
     } catch (err) {
       toast.error('Failed to cancel leave request.');
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const teacherName = user?.name || user?.full_name || 'Teacher';
+      const currentDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      const sheetData = [
+        ['SHUBHAM ACADEMY'],
+        ['FACULTY LEAVE REQUESTS REPORT'],
+        ['Teacher Name:', teacherName, 'Export Date:', currentDate],
+        ['Total Leaves:', balance.total, 'Leaves Taken:', balance.taken, 'Available Leaves:', balance.available],
+        [],
+        ['Request ID', 'Leave Type', 'From Date', 'To Date', 'Days', 'Reason', 'Status', 'Applied On', 'Admin Remarks']
+      ];
+
+      if (!requests || requests.length === 0) {
+        sheetData.push(['No leave requests found.', '', '', '', '', '', '', '', '']);
+      } else {
+        requests.forEach((req) => {
+          sheetData.push([
+            req.id || '--',
+            req.leaveType || '--',
+            req.fromDate || '--',
+            req.toDate || '--',
+            req.days || 0,
+            req.reason || '--',
+            req.status || 'Pending',
+            req.appliedDate || '--',
+            req.adminComment || '--'
+          ]);
+        });
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      ws['!cols'] = [
+        { wch: 18 }, // Request ID
+        { wch: 16 }, // Leave Type
+        { wch: 14 }, // From Date
+        { wch: 14 }, // To Date
+        { wch: 8 },  // Days
+        { wch: 32 }, // Reason
+        { wch: 14 }, // Status
+        { wch: 14 }, // Applied On
+        { wch: 26 }  // Admin Remarks
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Leave Requests');
+      const sanitizedName = teacherName.replace(/[^a-zA-Z0-9]/g, '_');
+      XLSX.writeFile(wb, `Leave_Requests_${sanitizedName}.xlsx`);
+      toast.success('Exported leave requests to Excel successfully!');
+    } catch (err) {
+      console.error('Failed to export leave requests to Excel:', err);
+      toast.error('Failed to export Excel file');
     }
   };
 
@@ -126,7 +184,11 @@ export default function LeaveRequest() {
       <LeaveForm onSubmitSuccess={handleApplySuccess} />
 
       {/* 4. Leave Request History */}
-      <LeaveHistory requests={requests} onViewDetails={setSelectedRequest} />
+      <LeaveHistory
+        requests={requests}
+        onViewDetails={setSelectedRequest}
+        onExport={handleExportExcel}
+      />
 
       {/* 5. View Details Modal */}
       {selectedRequest && (

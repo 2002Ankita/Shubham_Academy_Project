@@ -1,9 +1,61 @@
+from datetime import datetime
 from app.models.marks import Exam, Mark
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.schemas.marks import BulkMarkCreate, ExamCreate, MarkCreate
 from fastapi import HTTPException
 from bson import ObjectId
+
+def _calculate_duration(start_time: datetime, end_time: datetime) -> str:
+    diff_seconds = (end_time - start_time).total_seconds()
+    if diff_seconds <= 0:
+        return "1 Hour"
+    hours = int(diff_seconds // 3600)
+    mins = int((diff_seconds % 3600) // 60)
+    if mins == 0:
+        return f"{hours} {'Hour' if hours == 1 else 'Hours'}"
+    elif hours == 0:
+        return f"{mins} Mins"
+    else:
+        return f"{hours}h {mins}m"
+
+async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: datetime, end_time: datetime, current_exam_id: str = None):
+    room_clean = (room_no or "").strip()
+    if not room_clean:
+        return
+    all_exams = await Exam.find_all().to_list()
+    target_date = exam_date.date() if isinstance(exam_date, datetime) else None
+    target_start = start_time.time() if isinstance(start_time, datetime) else None
+    target_end = end_time.time() if isinstance(end_time, datetime) else None
+
+    for ex in all_exams:
+        if current_exam_id and str(ex.id) == current_exam_id:
+            continue
+        if getattr(ex, "status", "") == "Cancelled":
+            continue
+        ex_room = (getattr(ex, "room_no", "") or "").strip()
+        if ex_room.lower() != room_clean.lower():
+            continue
+        ex_date = ex.exam_date.date() if isinstance(ex.exam_date, datetime) else None
+        if ex_date != target_date:
+            continue
+        ex_start = ex.start_time.time() if isinstance(ex.start_time, datetime) else None
+        ex_end = ex.end_time.time() if isinstance(ex.end_time, datetime) else None
+
+        if ex_start and ex_end and target_start and target_end:
+            if target_start < ex_end and target_end > ex_start:
+                raise HTTPException(status_code=400, detail=f"{room_clean} is already booked during this time.")
+
+def _parse_dt(val):
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, str) and val:
+        clean_val = val.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(clean_val)
+        except Exception:
+            pass
+    return None
 
 async def _format_exam(exam: Exam) -> dict:
     teacher_obj = None
@@ -23,21 +75,40 @@ async def _format_exam(exam: Exam) -> dict:
         except Exception:
             pass
 
+    raw_status = getattr(exam, "status", "Scheduled")
+    computed_status = raw_status
+    if raw_status != "Cancelled" and exam.start_time and exam.end_time:
+        if exam.end_time.tzinfo is not None:
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+        else:
+            now = datetime.now()
+        if now > exam.end_time:
+            computed_status = "Completed"
+        elif now >= exam.start_time and now <= exam.end_time:
+            computed_status = "Ongoing"
+        else:
+            computed_status = "Scheduled"
+
     return {
         "id": str(exam.id),
         "exam_name": exam.exam_name,
+        "exam_type": getattr(exam, "exam_type", "Regular"),
         "standard": exam.standard,
+        "section": getattr(exam, "section", ""),
         "batch": exam.batch,
         "branch": exam.branch,
         "subject": exam.subject,
         "exam_date": exam.exam_date,
         "start_time": exam.start_time,
         "end_time": exam.end_time,
+        "duration": getattr(exam, "duration", "2 Hours"),
+        "room_no": getattr(exam, "room_no", "Room 101"),
         "max_marks": exam.max_marks,
         "passing_marks": exam.passing_marks,
         "teacher_id": str(exam.teacher.id) if exam.teacher else "",
         "teacher_name": teacher_name,
-        "status": getattr(exam, "status", "Scheduled")
+        "status": computed_status
     }
 
 async def _format_mark(mark: Mark) -> dict:
@@ -114,30 +185,49 @@ async def _format_mark(mark: Mark) -> dict:
         "max_marks": exam_obj.max_marks if exam_obj else 100,
         "marks_obtained": mark.marks_obtained,
         "remarks": mark.remarks,
+        "status": getattr(mark, "status", "Published") or "Published",
         "grade": grade,
         "pass_status": pass_status,
         "exam_date": exam_date_str,
         "teacher": teacher_name or "Faculty"
     }
 
-async def create_exam(exam_in: ExamCreate) -> dict:
+async def create_exam(exam_in: ExamCreate, user=None) -> dict:
     from app.services.teacher_service import resolve_teacher
-    teacher = await resolve_teacher(exam_in.teacher_id)
-        
+    teacher = None
+    if exam_in.teacher_id:
+        teacher = await resolve_teacher(exam_in.teacher_id)
+    if not teacher and user:
+        teacher = await resolve_teacher(str(user.id))
+    if not teacher:
+        teachers = await Teacher.find_all().to_list()
+        teacher = teachers[0] if teachers else None
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
-        
+
+    if exam_in.start_time >= exam_in.end_time:
+        raise HTTPException(status_code=400, detail="End time must be later than start time.")
+
+    room = (exam_in.room_no or "Room 101").strip()
+    await _check_room_conflict(room, exam_in.exam_date, exam_in.start_time, exam_in.end_time)
+
+    duration = exam_in.duration or _calculate_duration(exam_in.start_time, exam_in.end_time)
+
     exam = Exam(
         exam_name=exam_in.exam_name,
+        exam_type=exam_in.exam_type or "Regular",
         standard=exam_in.standard,
-        batch=exam_in.batch,
-        branch=exam_in.branch,
+        section=exam_in.section or "",
+        batch=exam_in.batch or exam_in.section or "General",
+        branch=exam_in.branch or "Tarabai Park",
         subject=exam_in.subject,
         exam_date=exam_in.exam_date,
         start_time=exam_in.start_time,
         end_time=exam_in.end_time,
+        duration=duration,
+        room_no=room,
         max_marks=exam_in.max_marks,
-        passing_marks=exam_in.passing_marks,
+        passing_marks=exam_in.passing_marks or 35.0,
         teacher=teacher,
         status="Scheduled"
     )
@@ -202,14 +292,31 @@ async def enter_marks(mark_in: MarkCreate) -> dict:
     if not student or not exam:
         raise HTTPException(status_code=404, detail="Student or Exam not found")
         
+    if mark_in.marks_obtained < 0:
+        raise HTTPException(status_code=400, detail="Marks cannot be negative")
     if mark_in.marks_obtained > exam.max_marks:
-        raise HTTPException(status_code=400, detail="Marks cannot exceed maximum marks")
+        raise HTTPException(status_code=400, detail=f"Marks cannot exceed maximum marks of {exam.max_marks}")
         
+    status_val = getattr(mark_in, "status", "Published") or "Published"
+
+    # Check for existing mark to prevent duplicate records and support editing drafts
+    existing_mark = await Mark.find_one(
+        Mark.student.id == student.id,
+        Mark.exam.id == exam.id
+    )
+    if existing_mark:
+        existing_mark.marks_obtained = mark_in.marks_obtained
+        existing_mark.remarks = mark_in.remarks or ""
+        existing_mark.status = status_val
+        await existing_mark.save()
+        return await _format_mark(existing_mark)
+
     mark = Mark(
         student=student,
         exam=exam,
         marks_obtained=mark_in.marks_obtained,
-        remarks=mark_in.remarks
+        remarks=mark_in.remarks or "",
+        status=status_val
     )
     await mark.insert()
     return await _format_mark(mark)
@@ -237,6 +344,11 @@ async def enter_bulk_marks(marks_in: BulkMarkCreate) -> list[dict]:
         if student.id in resolved_student_ids:
             raise HTTPException(status_code=400, detail="A student can only be included once per exam")
         resolved_student_ids.add(student.id)
+        if entry.marks_obtained < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Marks for student {entry.student_id} cannot be negative",
+            )
         if entry.marks_obtained > exam.max_marks:
             raise HTTPException(
                 status_code=400,
@@ -244,18 +356,28 @@ async def enter_bulk_marks(marks_in: BulkMarkCreate) -> list[dict]:
             )
         students_and_entries.append((student, entry))
 
+    status_to_set = getattr(marks_in, "status", "Published") or "Published"
     saved_marks = []
     for student, entry in students_and_entries:
         existing_marks = await Mark.find(
             Mark.student.id == student.id,
             Mark.exam.id == exam.id,
         ).to_list()
-        mark = existing_marks[0] if existing_marks else Mark(student=student, exam=exam)
-        mark.marks_obtained = entry.marks_obtained
-        mark.remarks = entry.remarks
+        entry_status = getattr(entry, "status", None) or status_to_set
         if existing_marks:
+            mark = existing_marks[0]
+            mark.marks_obtained = entry.marks_obtained
+            mark.remarks = entry.remarks or ""
+            mark.status = entry_status
             await mark.save()
         else:
+            mark = Mark(
+                student=student,
+                exam=exam,
+                marks_obtained=entry.marks_obtained,
+                remarks=entry.remarks or "",
+                status=entry_status
+            )
             await mark.insert()
         saved_marks.append(await _format_mark(mark))
 
@@ -269,7 +391,8 @@ async def get_student_results(student_id: str) -> list[dict]:
         raise HTTPException(status_code=404, detail="Student not found")
         
     marks = await Mark.find(Mark.student.id == student.id).to_list()
-    return [await _format_mark(m) for m in marks]
+    # Student portal should only view Published marks, not drafts
+    return [await _format_mark(m) for m in marks if getattr(m, "status", "Published") != "Draft"]
 
 async def get_all_marks() -> list[dict]:
     marks = await Mark.find_all().to_list()
@@ -282,24 +405,54 @@ async def delete_exam(id: str):
         exam = await Exam.get(ObjectId(id))
         if exam:
             await exam.delete()
+            return
     except InvalidId:
         pass
+    raise HTTPException(status_code=404, detail="Exam not found")
 
-async def update_exam(id: str, exam_in: dict) -> dict:
+async def update_exam(id: str, exam_in: dict, user=None) -> dict:
     from bson.errors import InvalidId
     from bson import ObjectId
     try:
         exam = await Exam.get(ObjectId(id))
-        if exam:
-            if "status" in exam_in:
-                exam.status = exam_in["status"]
-            if "exam_name" in exam_in:
-                exam.exam_name = exam_in["exam_name"]
-            await exam.save()
-            return await _format_exam(exam)
-    except InvalidId:
-        pass
-    raise Exception("Exam not found")
+    except (InvalidId, Exception):
+        exam = None
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    new_exam_date = _parse_dt(exam_in.get("exam_date")) if "exam_date" in exam_in else exam.exam_date
+    new_start_time = _parse_dt(exam_in.get("start_time")) if "start_time" in exam_in else exam.start_time
+    new_end_time = _parse_dt(exam_in.get("end_time")) if "end_time" in exam_in else exam.end_time
+    new_room = exam_in.get("room_no") if "room_no" in exam_in else getattr(exam, "room_no", "Room 101")
+
+    if new_start_time and new_end_time:
+        if new_start_time >= new_end_time:
+            raise HTTPException(status_code=400, detail="End time must be later than start time.")
+
+    if new_room and new_exam_date and new_start_time and new_end_time:
+        await _check_room_conflict(new_room, new_exam_date, new_start_time, new_end_time, current_exam_id=str(exam.id))
+
+    if "exam_name" in exam_in: exam.exam_name = exam_in["exam_name"]
+    if "exam_type" in exam_in: exam.exam_type = exam_in["exam_type"]
+    if "standard" in exam_in: exam.standard = exam_in["standard"]
+    if "section" in exam_in: exam.section = exam_in["section"]
+    if "batch" in exam_in: exam.batch = exam_in["batch"]
+    if "branch" in exam_in: exam.branch = exam_in["branch"]
+    if "subject" in exam_in: exam.subject = exam_in["subject"]
+    if new_exam_date: exam.exam_date = new_exam_date
+    if new_start_time: exam.start_time = new_start_time
+    if new_end_time: exam.end_time = new_end_time
+    if "duration" in exam_in:
+        exam.duration = exam_in["duration"]
+    elif new_start_time and new_end_time:
+        exam.duration = _calculate_duration(new_start_time, new_end_time)
+    if new_room: exam.room_no = new_room
+    if "max_marks" in exam_in: exam.max_marks = float(exam_in["max_marks"])
+    if "passing_marks" in exam_in: exam.passing_marks = float(exam_in["passing_marks"])
+    if "status" in exam_in: exam.status = exam_in["status"]
+
+    await exam.save()
+    return await _format_exam(exam)
 
 async def send_marks_notifications(user, req) -> dict:
     from app.services.notification_service import notification_service
@@ -319,13 +472,16 @@ async def send_marks_notifications(user, req) -> dict:
     exam_marks = [
         m for m in all_marks
         if (
-            (getattr(m.exam, "id", None) == exam.id) or
-            (getattr(getattr(m.exam, "ref", None), "id", None) == exam.id)
+            (
+                (getattr(m.exam, "id", None) == exam.id) or
+                (getattr(getattr(m.exam, "ref", None), "id", None) == exam.id)
+            )
+            and getattr(m, "status", "Published") != "Draft"
         )
     ]
 
     if not exam_marks:
-        raise HTTPException(status_code=400, detail="No marks recorded for this examination yet")
+        raise HTTPException(status_code=400, detail="No published marks recorded for this examination yet")
 
     results = []
     summary = {

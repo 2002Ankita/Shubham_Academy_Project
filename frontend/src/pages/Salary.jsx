@@ -8,11 +8,54 @@ import useAuth from '../hooks/useAuth';
 import { downloadSalaryReceipt } from '../utils/salaryReceipt';
 import { ArrowLeft } from 'lucide-react';
 
+// Helper to match months (e.g., "October 2026" with "Oct 2026")
+const matchesMonth = (m1, m2) => {
+  if (!m1 || !m2) return false;
+  const s1 = String(m1).trim().toLowerCase();
+  const s2 = String(m2).trim().toLowerCase();
+  if (s1 === s2) return true;
+  const p1 = s1.split(/\s+/);
+  const p2 = s2.split(/\s+/);
+  if (p1.length >= 2 && p2.length >= 2) {
+    const y1 = p1[p1.length - 1];
+    const y2 = p2[p2.length - 1];
+    if (y1 === y2) {
+      return p1[0].slice(0, 3) === p2[0].slice(0, 3);
+    }
+  }
+  return s1.includes(s2) || s2.includes(s1);
+};
+
 export default function Salary() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState('');
+
+  const currentMonthName = React.useMemo(() => {
+    return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, []);
+
+  // Compute available months list (from existing records + recent 12 months)
+  const availableMonths = React.useMemo(() => {
+    const list = [];
+    salaries.forEach(s => {
+      if (s.month && !list.some(m => matchesMonth(m, s.month))) {
+        list.push(s.month);
+      }
+    });
+
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mStr = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (!list.some(m => matchesMonth(m, mStr))) {
+        list.push(mStr);
+      }
+    }
+    return list;
+  }, [salaries]);
 
   useEffect(() => {
     const fetchMySalaries = async () => {
@@ -28,32 +71,50 @@ export default function Salary() {
     fetchMySalaries();
   }, []);
 
+  useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  // Get selected month's salary or default
+  const safeNum = (val) => Number(val) || 0;
+  const activeSalary = React.useMemo(() => {
+    if (!salaries.length) return null;
+    if (selectedMonth) {
+      const found = salaries.find(s => matchesMonth(s.month, selectedMonth));
+      if (found) return found;
+    }
+    return salaries[salaries.length - 1] || null;
+  }, [salaries, selectedMonth]);
+
   if (loading) {
-    return <div>Loading salary data...</div>;
+    return (
+      <div className="d-flex align-items-center justify-content-center p-5 text-muted" style={{ minHeight: '300px' }}>
+        <div className="spinner-border spinner-border-sm text-danger me-2" role="status" />
+        <span>Loading salary data...</span>
+      </div>
+    );
   }
 
-  // Get current month's salary (assuming latest one is current)
-  const currentSalary = salaries.length > 0 ? salaries[salaries.length - 1] : null;
-  const currentMonthName = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  const displayPeriod = selectedMonth || (activeSalary?.month) || currentMonthName;
 
-  const safeNum = (val) => Number(val) || 0;
-
-  const summary = currentSalary ? {
-    currentMonthSalary: `₹${safeNum(currentSalary.netPayable).toLocaleString()}`,
-    payPeriod: currentSalary.month || currentMonthName,
-    amountPaid: `₹${safeNum(currentSalary.amountPaid).toLocaleString()}`,
+  const summary = activeSalary ? {
+    currentMonthSalary: `₹${safeNum(activeSalary.netPayable).toLocaleString()}`,
+    payPeriod: displayPeriod,
+    amountPaid: `₹${safeNum(activeSalary.amountPaid).toLocaleString()}`,
     amountPaidSubtext: 'Total received this month',
-    amountPending: `₹${safeNum(currentSalary.amountPending).toLocaleString()}`,
+    amountPending: `₹${safeNum(activeSalary.amountPending).toLocaleString()}`,
     amountPendingSubtext: 'Remaining balance',
-    workingHours: currentSalary.workingHours ? `${currentSalary.workingHours} hrs` : '160 hrs',
-    workingHoursSubtext: currentSalary.workingHoursSubtext || 'Standard monthly quota',
-    hourlyRate: currentSalary.hourlyRate ? `₹${currentSalary.hourlyRate}` : '₹' + Math.round(safeNum(currentSalary.baseSalary) / 160).toString(),
-    hourlyRateSubtext: currentSalary.hourlyRateSubtext || 'Standard slab rate',
-    paymentStatus: currentSalary.status || 'N/A',
-    paymentStatusSubtext: currentSalary?.status === 'Disbursed' ? 'Fully paid' : currentSalary?.status === 'Partially Paid' ? 'Installment received' : currentSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
+    workingHours: activeSalary.workingHours ? `${activeSalary.workingHours} hrs` : '160 hrs',
+    workingHoursSubtext: activeSalary.workingHoursSubtext || 'Standard monthly quota',
+    hourlyRate: activeSalary.hourlyRate ? `₹${activeSalary.hourlyRate}` : '₹' + Math.round(safeNum(activeSalary.baseSalary) / 160).toString(),
+    hourlyRateSubtext: activeSalary.hourlyRateSubtext || 'Standard slab rate',
+    paymentStatus: activeSalary.status || 'N/A',
+    paymentStatusSubtext: activeSalary?.status === 'Disbursed' ? 'Fully paid' : activeSalary?.status === 'Partially Paid' ? 'Installment received' : activeSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
   } : {
     currentMonthSalary: '₹0',
-    payPeriod: currentMonthName,
+    payPeriod: displayPeriod,
     amountPaid: '₹0',
     amountPaidSubtext: '-',
     amountPending: '₹0',
@@ -66,20 +127,20 @@ export default function Salary() {
     paymentStatusSubtext: '-'
   };
 
-  const deductions = safeNum(currentSalary?.deductions);
+  const deductions = safeNum(activeSalary?.deductions);
   const pt = Math.min(200, deductions);
   
-  const breakdown = currentSalary ? {
-    basicSalary: safeNum(currentSalary.baseSalary),
+  const breakdown = activeSalary ? {
+    basicSalary: safeNum(activeSalary.baseSalary),
     workingHoursPay: 0,
     overtime: 0,
-    allowances: safeNum(currentSalary.allowances),
+    allowances: safeNum(activeSalary.allowances),
     deductions: deductions,
     pt: pt,
     otherDeductions: deductions - pt,
-    netSalary: safeNum(currentSalary.netPayable),
-    workingHours: Math.round(safeNum(currentSalary.workingHours || 160)),
-    payPeriod: currentSalary.month || currentMonthName
+    netSalary: safeNum(activeSalary.netPayable),
+    workingHours: Math.round(safeNum(activeSalary.workingHours || 160)),
+    payPeriod: displayPeriod
   } : {
     basicSalary: 0,
     workingHoursPay: 0,
@@ -90,7 +151,7 @@ export default function Salary() {
     otherDeductions: 0,
     netSalary: 0,
     workingHours: 0,
-    payPeriod: currentMonthName
+    payPeriod: displayPeriod
   };
 
   const history = salaries.map(s => ({
@@ -105,10 +166,13 @@ export default function Salary() {
     installments: s.installments || []
   })).reverse();
 
-  const handleDownloadReceipt = () => {
+  const handleDownloadReceipt = (monthToDownload) => {
+    const targetMonth = monthToDownload || selectedMonth || displayPeriod;
+    const targetRecord = salaries.find(s => matchesMonth(s.month, targetMonth)) || activeSalary;
+
     downloadSalaryReceipt({
-      month: currentSalary?.month || breakdown?.payPeriod,
-      record: currentSalary,
+      month: targetMonth,
+      record: targetRecord,
       user: user,
       breakdown: breakdown,
       summary: summary
@@ -155,6 +219,9 @@ export default function Salary() {
       {/* 3. Salary Breakdown Card */}
       <SalaryBreakdown
         breakdown={breakdown}
+        months={availableMonths}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
         onDownloadReceipt={handleDownloadReceipt}
       />
 

@@ -5,16 +5,20 @@ from typing import List, Optional
 
 class ExamCreate(BaseModel):
     exam_name: str
+    exam_type: Optional[str] = "Regular"
     standard: str
-    batch: str
-    branch: str
+    section: Optional[str] = ""
+    batch: Optional[str] = "General"
+    branch: Optional[str] = "Tarabai Park"
     subject: str
     exam_date: datetime
     start_time: datetime
     end_time: datetime
-    max_marks: float
-    passing_marks: float
-    teacher_id: str
+    duration: Optional[str] = "2 Hours"
+    room_no: Optional[str] = "Room 101"
+    max_marks: float = 100.0
+    passing_marks: Optional[float] = 35.0
+    teacher_id: Optional[str] = ""
 
 class ExamResponse(ExamCreate):
     id: str
@@ -26,20 +30,24 @@ class MarkCreate(BaseModel):
     exam_id: str
     marks_obtained: float
     remarks: Optional[str] = ""
+    status: Optional[str] = "Published"
 
 class BulkMarkEntry(BaseModel):
     student_id: str
     marks_obtained: float = Field(ge=0, allow_inf_nan=False)
     remarks: str = ""
+    status: Optional[str] = "Published"
 
 class BulkMarkCreate(BaseModel):
     exam_id: str
     entries: List[BulkMarkEntry] = Field(min_length=1)
+    status: Optional[str] = "Published"
 
 class MarkResponse(MarkCreate):
     id: str
     grade: str
     pass_status: bool
+    status: Optional[str] = "Published"
     student_name: Optional[str] = ""
     roll_number: Optional[str] = ""
     exam_name: Optional[str] = ""

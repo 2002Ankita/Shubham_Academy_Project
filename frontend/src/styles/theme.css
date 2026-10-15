@@ -1448,4 +1448,85 @@
     font-size: 1.55rem !important;
   }
 }
+
+/* Enter Marks Interactive Hover Effects */
+.btn-action-edit,
+.btn-action-view {
+  color: #8B1216 !important;
+  font-weight: 600;
+  font-size: 12.5px;
+  background-color: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+}
+
+.btn-action-edit:hover,
+.btn-action-view:hover {
+  background-color: #FDF0F0 !important;
+  border-color: #FCA5A5 !important;
+  color: #720E12 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(139, 18, 22, 0.1);
+}
+
+.btn-action-edit:active,
+.btn-action-view:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn-export-excel {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-export-excel:hover {
+  background-color: #FDF0F0 !important;
+  border-color: #8B1216 !important;
+  color: #8B1216 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 18, 22, 0.12);
+}
+
+.btn-export-excel:active {
+  transform: translateY(0);
+}
+
+.btn-save-draft {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-save-draft:hover:not(:disabled) {
+  background-color: #FDF0F0 !important;
+  border-color: #8B1216 !important;
+  color: #8B1216 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(139, 18, 22, 0.14);
+}
+
+.btn-save-draft:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-save-publish {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-save-publish:hover:not(:disabled) {
+  background-color: #700D11 !important;
+  border-color: #700D11 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(139, 18, 22, 0.3);
+}
+
+.btn-save-publish:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 
