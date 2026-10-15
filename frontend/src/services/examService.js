@@ -23,26 +23,89 @@ const formatTimeDisplay = (timeVal) => {
   return String(timeVal);
 };
 
-const extractTimeInput = (timeVal) => {
+export const normalizeDateStr = (dateVal) => {
+  if (!dateVal) return new Date().toISOString().split('T')[0];
+  if (typeof dateVal === 'string') {
+    const trimmed = dateVal.trim();
+    // DD-MM-YYYY or DD/MM/YYYY
+    const dmyMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, '0');
+      const month = dmyMatch[2].padStart(2, '0');
+      const year = dmyMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+    // YYYY-MM-DD
+    const ymdMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymdMatch) {
+      const year = ymdMatch[1];
+      const month = ymdMatch[2].padStart(2, '0');
+      const day = ymdMatch[3].padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+  try {
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  } catch (e) {}
+  return new Date().toISOString().split('T')[0];
+};
+
+export const normalizeTimeTo24h = (timeVal) => {
   if (!timeVal) return '10:00';
   if (typeof timeVal === 'string' && timeVal.includes('T')) {
     return timeVal.split('T')[1].substring(0, 5);
   }
-  if (typeof timeVal === 'string' && (timeVal.toUpperCase().includes('AM') || timeVal.toUpperCase().includes('PM'))) {
-    const parts = timeVal.trim().split(' ');
-    if (parts.length >= 2) {
-      const [h, m] = parts[0].split(':');
-      let hours = parseInt(h, 10);
-      const period = parts[1].toUpperCase();
-      if (period === 'PM' && hours < 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-      return `${String(hours).padStart(2, '0')}:${m || '00'}`;
+  if (typeof timeVal === 'string') {
+    const trimmed = timeVal.trim();
+    // 12-hour format e.g. "01:00 pm", "1:00PM", "10:30 AM"
+    const match12 = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?$/i);
+    if (match12) {
+      let hours = parseInt(match12[1], 10);
+      const mins = match12[2];
+      const ampm = match12[3] ? match12[3].toUpperCase() : null;
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      return `${String(hours).padStart(2, '0')}:${mins}`;
+    }
+    // Single hour e.g. "1 PM"
+    const matchHourOnly = trimmed.match(/^(\d{1,2})\s*(am|pm)$/i);
+    if (matchHourOnly) {
+      let hours = parseInt(matchHourOnly[1], 10);
+      const ampm = matchHourOnly[2].toUpperCase();
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      return `${String(hours).padStart(2, '0')}:00`;
+    }
+    // 24-hour e.g. "13:00", "9:30"
+    if (trimmed.includes(':')) {
+      const [h, m] = trimmed.split(':');
+      const hours = parseInt(h, 10);
+      if (!isNaN(hours)) {
+        return `${String(hours).padStart(2, '0')}:${(m || '00').substring(0, 2)}`;
+      }
     }
   }
-  if (typeof timeVal === 'string' && timeVal.includes(':')) {
-    return timeVal.substring(0, 5);
-  }
   return '10:00';
+};
+
+export const parseDurationToMinutes = (durStr) => {
+  if (!durStr) return 120;
+  if (typeof durStr === 'number') return Math.round(durStr * 60);
+  const str = String(durStr).toLowerCase().trim();
+  const minsMatch = str.match(/^(\d+)\s*(?:min|minute|m)/);
+  if (minsMatch) return parseInt(minsMatch[1], 10);
+  const hoursMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:hour|hr|h)?/);
+  if (hoursMatch) {
+    return Math.round(parseFloat(hoursMatch[1]) * 60);
+  }
+  return 120;
+};
+
+const extractTimeInput = (timeVal) => {
+  return normalizeTimeTo24h(timeVal);
 };
 
 export const examService = {
@@ -96,23 +159,50 @@ export const examService = {
   },
 
   create: async (data) => {
-    const dateStr = data.date || data.exam_date || new Date().toISOString().split('T')[0];
-    const startTimeRaw = data.startTime || data.start_time || '10:00';
-    const endTimeRaw = data.endTime || data.end_time || '12:00';
+    const rawDate = data.date || data.exam_date || data.examDate || new Date().toISOString().split('T')[0];
+    const dateStr = normalizeDateStr(rawDate);
 
-    const startH = startTimeRaw.length === 5 ? `${startTimeRaw}:00` : startTimeRaw;
-    const endH = endTimeRaw.length === 5 ? `${endTimeRaw}:00` : endTimeRaw;
+    const rawStartTime = data.startTime || data.start_time || data.startTimeInput || '10:00';
+    const start24 = normalizeTimeTo24h(rawStartTime);
 
-    const startIso = `${dateStr}T${startH}`;
-    const endIso = `${dateStr}T${endH}`;
+    let end24 = null;
+    const rawEndTime = data.endTime || data.end_time || data.endTimeInput;
+    if (rawEndTime) {
+      end24 = normalizeTimeTo24h(rawEndTime);
+      const [sH, sM] = start24.split(':').map(Number);
+      const [eH, eM] = end24.split(':').map(Number);
+      if (eH * 60 + eM <= sH * 60 + sM) {
+        end24 = null; // invalid/earlier end time, recalculate from duration
+      }
+    }
+
+    if (!end24) {
+      const durMins = parseDurationToMinutes(data.duration || '2 Hours');
+      const [sH, sM] = start24.split(':').map(Number);
+      const endTotalMins = sH * 60 + sM + durMins;
+      const endH = Math.floor(endTotalMins / 60) % 24;
+      const endM = endTotalMins % 60;
+      end24 = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    }
+
+    const startIso = `${dateStr}T${start24}:00`;
+    const endIso = `${dateStr}T${end24}:00`;
+
+    const standardStr = data.standard || data.examStandard || 'General';
+    let branchVal = data.branch || 'Tarabai Park';
+    if (standardStr.toLowerCase().includes('mangalvar')) {
+      branchVal = 'Mangalvar Peth';
+    } else if (standardStr.toLowerCase().includes('tarabai')) {
+      branchVal = 'Tarabai Park';
+    }
 
     const payload = {
       exam_name: data.examName || data.title || data.exam_name || 'New Examination',
       exam_type: data.examType || data.exam_type || 'Regular',
-      standard: data.standard || data.examStandard || 'General',
+      standard: standardStr,
       section: data.section || '',
       batch: data.batch || data.section || 'General',
-      branch: data.branch || 'Tarabai Park',
+      branch: branchVal,
       subject: data.subject || 'General',
       exam_date: startIso,
       start_time: startIso,
@@ -148,14 +238,24 @@ export const examService = {
     if (data.maxMarks !== undefined) payload.max_marks = Number(data.maxMarks);
     if (data.passingMarks !== undefined) payload.passing_marks = Number(data.passingMarks);
 
-    if (data.date || data.startTime || data.endTime) {
-      const dateStr = data.date || new Date().toISOString().split('T')[0];
-      const startH = (data.startTime || '10:00').length === 5 ? `${data.startTime || '10:00'}:00` : (data.startTime || '10:00');
-      const endH = (data.endTime || '12:00').length === 5 ? `${data.endTime || '12:00'}:00` : (data.endTime || '12:00');
+    if (data.date || data.startTime || data.endTime || data.start_time || data.end_time) {
+      const rawDate = data.date || data.exam_date || new Date().toISOString().split('T')[0];
+      const dateStr = normalizeDateStr(rawDate);
+      const start24 = normalizeTimeTo24h(data.startTime || data.start_time || '10:00');
+      let end24 = (data.endTime || data.end_time) ? normalizeTimeTo24h(data.endTime || data.end_time) : null;
 
-      payload.exam_date = `${dateStr}T${startH}`;
-      payload.start_time = `${dateStr}T${startH}`;
-      payload.end_time = `${dateStr}T${endH}`;
+      if (!end24) {
+        const durMins = parseDurationToMinutes(data.duration || '2 Hours');
+        const [sH, sM] = start24.split(':').map(Number);
+        const endTotalMins = sH * 60 + sM + durMins;
+        const endH = Math.floor(endTotalMins / 60) % 24;
+        const endM = endTotalMins % 60;
+        end24 = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      }
+
+      payload.exam_date = `${dateStr}T${start24}:00`;
+      payload.start_time = `${dateStr}T${start24}:00`;
+      payload.end_time = `${dateStr}T${end24}:00`;
     }
 
     const res = await api.put(`/exams/${id}`, payload);
