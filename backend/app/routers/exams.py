@@ -9,8 +9,8 @@ router = APIRouter(prefix="/exams", tags=["Exams"])
 
 @router.post("", response_model=ExamResponse)
 async def add_exam(exam_in: ExamCreate, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    return await create_exam(exam_in)
+    user = await get_current_user(token)
+    return await create_exam(exam_in, user)
 
 @router.get("", response_model=List[ExamResponse])
 async def list_exams(token: str = Depends(oauth2_scheme)):
@@ -78,19 +78,11 @@ async def list_exams(token: str = Depends(oauth2_scheme)):
 async def delete_exam_endpoint(id: str, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     from app.services.mark_service import delete_exam
-    from fastapi import HTTPException
-    try:
-        await delete_exam(id)
-        return {"message": "Exam deleted successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    await delete_exam(id)
+    return {"message": "Exam deleted successfully"}
 
 @router.put("/{id}", response_model=ExamResponse)
 async def update_exam_endpoint(id: str, exam_in: dict, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
+    user = await get_current_user(token)
     from app.services.mark_service import update_exam
-    from fastapi import HTTPException
-    try:
-        return await update_exam(id, exam_in)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    return await update_exam(id, exam_in, user)

@@ -1,10 +1,128 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft, Download, Calendar, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { attendanceService } from '../../services/attendanceService';
 import useAuth from '../../hooks/useAuth';
 import Button from '../../components/common/Button';
+
+// Date parsing helper to prevent timezone offset shifts
+const parseRecordDate = (dateStr) => {
+  if (!dateStr) return null;
+  const parts = String(dateStr).split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const getLocalDateString = (d = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateDisplay = (dateStr) => {
+  if (!dateStr) return '--';
+  const d = parseRecordDate(dateStr);
+  if (!d) return dateStr;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const getDayName = (record) => {
+  if (record.day) return record.day;
+  const d = parseRecordDate(record.date);
+  if (!d) return '--';
+  return d.toLocaleDateString('en-US', { weekday: 'long' });
+};
+
+// Monday–Sunday week range calculation
+const getWeekRange = (dateInput = new Date()) => {
+  const d = new Date(dateInput);
+  d.setHours(0, 0, 0, 0);
+  const dayIndex = (d.getDay() + 6) % 7; // Monday = 0, ..., Sunday = 6
+  const start = new Date(d);
+  start.setDate(d.getDate() - dayIndex);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
+const formatWeekLabel = (start, end) => {
+  const startDay = String(start.getDate()).padStart(2, '0');
+  const startMonth = start.toLocaleDateString('en-GB', { month: 'short' });
+  const startYear = start.getFullYear();
+
+  const endDay = String(end.getDate()).padStart(2, '0');
+  const endMonth = end.toLocaleDateString('en-GB', { month: 'short' });
+  const endYear = end.getFullYear();
+
+  if (startYear !== endYear) {
+    return `${startDay} ${startMonth} ${startYear} – ${endDay} ${endMonth} ${endYear}`;
+  }
+  if (startMonth !== endMonth) {
+    return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${endYear}`;
+  }
+  return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${endYear}`;
+};
+
+// Excel Export Utility
+const exportWeeklyAttendanceToExcel = (weekLabel, records, teacherName = 'Teacher') => {
+  try {
+    const sheetData = [
+      ['SHUBHAM ACADEMY'],
+      ['TEACHER WEEKLY ATTENDANCE REGISTER'],
+      ['Teacher Name:', teacherName, 'Week Period:', weekLabel],
+      ['Export Date:', new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })],
+      [],
+      ['Date', 'Day', 'Check In', 'Check Out', 'Hours', 'Status']
+    ];
+
+    if (!records || records.length === 0) {
+      sheetData.push(['No attendance recorded for this week.', '', '', '', '', '']);
+    } else {
+      records.forEach((r) => {
+        sheetData.push([
+          formatDateDisplay(r.date),
+          getDayName(r),
+          r.checkIn || '--',
+          r.checkOut || '--',
+          r.totalHours || '--',
+          r.status || 'Present'
+        ]);
+      });
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = [
+      { wch: 16 }, // Date
+      { wch: 14 }, // Day
+      { wch: 14 }, // Check In
+      { wch: 14 }, // Check Out
+      { wch: 14 }, // Hours
+      { wch: 16 }  // Status
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Weekly Attendance');
+    const safeLabel = weekLabel.replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, `Attendance_${safeLabel}.xlsx`);
+    toast.success(`Exported attendance for ${weekLabel}`);
+  } catch (err) {
+    console.error('Failed to export attendance to Excel:', err);
+    toast.error('Failed to export Excel file');
+  }
+};
 
 export default function TeacherAttendance() {
   const navigate = useNavigate();
@@ -12,6 +130,7 @@ export default function TeacherAttendance() {
   const [teacherRecords, setTeacherRecords] = useState([]);
   const [teacherRecordsLoading, setTeacherRecordsLoading] = useState(true);
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+  const [expandedWeekKeys, setExpandedWeekKeys] = useState([]);
 
   const fetchTeacherRecords = async () => {
     if (!user?.id) {
@@ -33,13 +152,79 @@ export default function TeacherAttendance() {
     fetchTeacherRecords();
   }, [user?.id]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayRecord = teacherRecords.find(record => record.date === today);
+  const todayDateStr = getLocalDateString();
+  const isoToday = new Date().toISOString().slice(0, 10);
+  const todayRecord = teacherRecords.find(record => record.date === todayDateStr || record.date === isoToday);
   const hasCheckedIn = Boolean(todayRecord && todayRecord.checkIn !== '--');
   const hasCheckedOut = Boolean(todayRecord && todayRecord.checkOut !== '--');
-  const recentTeacherRecords = [...teacherRecords]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 7);
+
+  // Compute Current Week Bounds dynamically
+  const currentWeek = useMemo(() => {
+    const range = getWeekRange(new Date());
+    return {
+      ...range,
+      label: formatWeekLabel(range.start, range.end),
+      key: getLocalDateString(range.start)
+    };
+  }, []);
+
+  // Deduplicate teacher records to avoid any duplicate entries
+  const deduplicatedRecords = useMemo(() => {
+    const map = new Map();
+    (teacherRecords || []).forEach(r => {
+      const key = r.id || `${r.date}_${r.checkIn}`;
+      if (!map.has(key)) {
+        map.set(key, r);
+      }
+    });
+    return Array.from(map.values());
+  }, [teacherRecords]);
+
+  // Filter records for the CURRENT active week only
+  const currentWeekRecords = useMemo(() => {
+    return deduplicatedRecords
+      .filter(record => {
+        const d = parseRecordDate(record.date);
+        return d && d >= currentWeek.start && d <= currentWeek.end;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [deduplicatedRecords, currentWeek]);
+
+  // Group historical records into COMPLETED past weeks (strictly before currentWeek.start)
+  const pastWeeks = useMemo(() => {
+    const groups = new Map();
+
+    deduplicatedRecords.forEach(record => {
+      const d = parseRecordDate(record.date);
+      if (d && d < currentWeek.start) {
+        const week = getWeekRange(d);
+        const weekKey = getLocalDateString(week.start);
+        if (!groups.has(weekKey)) {
+          groups.set(weekKey, {
+            key: weekKey,
+            start: week.start,
+            end: week.end,
+            label: formatWeekLabel(week.start, week.end),
+            records: []
+          });
+        }
+        groups.get(weekKey).records.push(record);
+      }
+    });
+
+    return Array.from(groups.values())
+      .map(w => ({
+        ...w,
+        records: w.records.sort((a, b) => a.date.localeCompare(b.date))
+      }))
+      .sort((a, b) => b.start.getTime() - a.start.getTime()); // Most recent past week first
+  }, [deduplicatedRecords, currentWeek]);
+
+  const toggleWeekExpansion = (weekKey) => {
+    setExpandedWeekKeys(prev => 
+      prev.includes(weekKey) ? prev.filter(k => k !== weekKey) : [...prev, weekKey]
+    );
+  };
 
   const handleTeacherAttendance = async (action) => {
     if (!user?.id) {
@@ -98,6 +283,43 @@ export default function TeacherAttendance() {
       iconColor: '#3B82F6'
     }
   ];
+
+  const renderStatusBadge = (status) => {
+    const s = (status || 'Present').toLowerCase();
+    if (s.includes('present') || s.includes('working')) {
+      return (
+        <span
+          className="badge border"
+          style={{ backgroundColor: '#EAF6EF', color: '#168554', borderColor: '#C4EAD4', fontSize: '12px' }}
+        >
+          {status || 'Present'}
+        </span>
+      );
+    }
+    if (s.includes('absent')) {
+      return (
+        <span
+          className="badge border"
+          style={{ backgroundColor: '#FDF0F0', color: '#A91D22', borderColor: '#F8D2D3', fontSize: '12px' }}
+        >
+          {status}
+        </span>
+      );
+    }
+    if (s.includes('leave')) {
+      return (
+        <span
+          className="badge border"
+          style={{ backgroundColor: '#EEF3FF', color: '#3B82F6', borderColor: '#D3E0FD', fontSize: '12px' }}
+        >
+          {status}
+        </span>
+      );
+    }
+    return <span className="badge bg-light text-sa-charcoal border" style={{ fontSize: '12px' }}>{status}</span>;
+  };
+
+  const teacherDisplayName = user?.name || user?.full_name || 'Teacher';
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '22px' }}>
@@ -201,51 +423,217 @@ export default function TeacherAttendance() {
         ))}
       </div>
 
-      {/* 3. MY ATTENDANCE SECTION */}
+      {/* 3. MY ATTENDANCE SECTION (CURRENT WEEK ONLY) */}
       <section
         className="sa-card bg-white border rounded-4 p-3 p-md-4"
         aria-labelledby="teacher-attendance-heading"
       >
-        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
           <div>
-            <h2 id="teacher-attendance-heading" className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
-              My Attendance
-            </h2>
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <h2 id="teacher-attendance-heading" className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+                My Attendance
+              </h2>
+              <span
+                className="badge border"
+                style={{
+                  backgroundColor: '#E8F3FF',
+                  color: '#2563EB',
+                  borderColor: '#BFDBFE',
+                  fontWeight: 600,
+                  fontSize: '12.5px',
+                  padding: '4px 10px',
+                  borderRadius: '6px'
+                }}
+              >
+                Week: {currentWeek.label}
+              </span>
+            </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Record and review your daily check-in and check-out
+              Current week attendance records ({currentWeek.label})
             </p>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              icon={Download}
+              onClick={() => exportWeeklyAttendanceToExcel(currentWeek.label, currentWeekRecords, teacherDisplayName)}
+              disabled={currentWeekRecords.length === 0}
+              title="Export current week to Excel"
+            >
+              Export Excel
+            </Button>
           </div>
         </div>
 
         <div className="table-responsive">
           <table className="table align-middle mb-0">
             <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Check In</th>
-                <th scope="col">Check Out</th>
-                <th scope="col">Hours</th>
-                <th scope="col">Status</th>
+              <tr className="table-light">
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Date</th>
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Day</th>
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Check In</th>
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Check Out</th>
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Hours</th>
+                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {teacherRecordsLoading ? (
-                <tr><td colSpan="5" className="text-center text-sa-muted py-4">Loading attendance records…</td></tr>
-              ) : recentTeacherRecords.length === 0 ? (
-                <tr><td colSpan="5" className="text-center text-sa-muted py-4">No attendance records yet.</td></tr>
-              ) : recentTeacherRecords.map(record => (
-                <tr key={record.id}>
-                  <td>{record.date}</td>
-                  <td>{record.checkIn}</td>
-                  <td>{record.checkOut}</td>
-                  <td>{record.totalHours}</td>
-                  <td><span className="badge bg-light text-sa-charcoal border">{record.status}</span></td>
+                <tr>
+                  <td colSpan="6" className="text-center text-sa-muted py-4">
+                    Loading attendance records…
+                  </td>
                 </tr>
-              ))}
+              ) : currentWeekRecords.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center text-sa-muted py-4">
+                    No attendance recorded for this week yet.
+                  </td>
+                </tr>
+              ) : (
+                currentWeekRecords.map(record => (
+                  <tr key={record.id || `${record.date}_${record.checkIn}`}>
+                    <td style={{ fontSize: '13px' }}>{formatDateDisplay(record.date)}</td>
+                    <td style={{ fontSize: '13px', fontWeight: 500 }}>{getDayName(record)}</td>
+                    <td style={{ fontSize: '13px' }}>{record.checkIn}</td>
+                    <td style={{ fontSize: '13px' }}>{record.checkOut}</td>
+                    <td style={{ fontSize: '13px' }}>{record.totalHours}</td>
+                    <td>{renderStatusBadge(record.status)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* 4. PAST RECORDS SECTION */}
+      <section
+        className="sa-card bg-white border rounded-4 p-3 p-md-4"
+        aria-labelledby="past-attendance-heading"
+      >
+        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 id="past-attendance-heading" className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+              Past Records
+            </h2>
+            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
+              Attendance history and reports from previous completed weeks
+            </p>
+          </div>
+        </div>
+
+        {teacherRecordsLoading ? (
+          <div className="text-center text-sa-muted py-4">Loading past records…</div>
+        ) : pastWeeks.length === 0 ? (
+          <div
+            className="text-center text-sa-muted py-4 border rounded-3 bg-light"
+            style={{ borderColor: '#E2E8F0', fontSize: '13.5px' }}
+          >
+            No past attendance records available.
+          </div>
+        ) : (
+          <div className="d-flex flex-column gap-3">
+            {pastWeeks.map((week) => {
+              const isExpanded = expandedWeekKeys.includes(week.key);
+              return (
+                <div
+                  key={week.key}
+                  className="border rounded-3 p-3 bg-white"
+                  style={{
+                    borderColor: '#E6EAF0',
+                    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.03)'
+                  }}
+                >
+                  <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
+                    <div className="d-flex align-items-center gap-3">
+                      <div
+                        className="d-flex align-items-center justify-content-center rounded-3 border"
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          backgroundColor: '#F8FAFC',
+                          borderColor: '#E2E8F0',
+                          color: '#475569',
+                          flexShrink: 0
+                        }}
+                      >
+                        <Calendar size={18} />
+                      </div>
+                      <div>
+                        <div className="fw-bold text-sa-charcoal" style={{ fontSize: '14px' }}>
+                          Week: {week.label}
+                        </div>
+                        <div className="text-sa-muted small">
+                          {week.records.length} {week.records.length === 1 ? 'day recorded' : 'days recorded'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        icon={isExpanded ? ChevronUp : Eye}
+                        onClick={() => toggleWeekExpansion(week.key)}
+                        title={isExpanded ? 'Hide week details' : 'View week details'}
+                      >
+                        {isExpanded ? 'Hide' : 'View'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        icon={Download}
+                        onClick={() => exportWeeklyAttendanceToExcel(week.label, week.records, teacherDisplayName)}
+                        title={`Export ${week.label} to Excel`}
+                      >
+                        Export Excel
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expandable Table for this specific past week */}
+                  {isExpanded && (
+                    <div className="table-responsive mt-3 pt-3 border-top">
+                      <table className="table align-middle mb-0">
+                        <thead>
+                          <tr className="table-light">
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Date</th>
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Day</th>
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Check In</th>
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Check Out</th>
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Hours</th>
+                            <th scope="col" style={{ fontSize: '12.5px', fontWeight: 600 }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {week.records.map((record) => (
+                            <tr key={record.id || `${record.date}_${record.checkIn}`}>
+                              <td style={{ fontSize: '13px' }}>{formatDateDisplay(record.date)}</td>
+                              <td style={{ fontSize: '13px', fontWeight: 500 }}>{getDayName(record)}</td>
+                              <td style={{ fontSize: '13px' }}>{record.checkIn}</td>
+                              <td style={{ fontSize: '13px' }}>{record.checkOut}</td>
+                              <td style={{ fontSize: '13px' }}>{record.totalHours}</td>
+                              <td>{renderStatusBadge(record.status)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+

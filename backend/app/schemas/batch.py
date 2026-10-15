@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 class BatchCreate(BaseModel):
     name: str
@@ -10,6 +10,10 @@ class BatchCreate(BaseModel):
     date: Optional[str] = None
     student_count: int = 0
     teacher_name: Optional[str] = None
+    batch_name: Optional[str] = None
+    class_code: Optional[str] = None
+    days: Optional[List[str]] = None
+    timetable: Optional[List[Dict[str, Any]]] = None
 
 class BatchResponse(BatchCreate):
     id: str

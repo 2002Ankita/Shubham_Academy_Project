@@ -1,5 +1,5 @@
 from beanie import Document
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 class Batch(Document):
     name: str
@@ -10,6 +10,10 @@ class Batch(Document):
     date: Optional[str] = None
     student_count: int = 0
     teacher_name: Optional[str] = None
+    batch_name: Optional[str] = None
+    class_code: Optional[str] = None
+    days: Optional[List[str]] = []
+    timetable: Optional[List[Dict[str, Any]]] = []
 
     class Settings:
         name = "batches"

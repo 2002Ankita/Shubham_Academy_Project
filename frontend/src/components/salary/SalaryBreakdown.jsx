@@ -2,9 +2,17 @@ import React from 'react';
 import { Download, IndianRupee } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-export default function SalaryBreakdown({ breakdown, onDownloadReceipt }) {
+export default function SalaryBreakdown({
+  breakdown,
+  onDownloadReceipt,
+  months = [],
+  selectedMonth,
+  onMonthChange
+}) {
+  const currentPayPeriod = selectedMonth || breakdown?.payPeriod || 'Current Month';
+
   const handleDownloadSlip = () => {
-    toast.info(`Downloading Salary Slip (${breakdown?.payPeriod || 'Current Month'})...`);
+    toast.info(`Downloading Salary Slip (${currentPayPeriod})...`);
     setTimeout(() => {
       toast.success('Payslip downloaded successfully!');
     }, 1000);
@@ -12,9 +20,9 @@ export default function SalaryBreakdown({ breakdown, onDownloadReceipt }) {
 
   const handleDownloadReceipt = () => {
     if (onDownloadReceipt) {
-      onDownloadReceipt();
+      onDownloadReceipt(selectedMonth);
     } else {
-      toast.info(`Downloading Salary Receipt (${breakdown?.payPeriod || 'Current Month'})...`);
+      toast.info(`Downloading Salary Receipt (${currentPayPeriod})...`);
       setTimeout(() => {
         toast.success('Salary receipt downloaded successfully!');
       }, 1000);
@@ -60,7 +68,7 @@ export default function SalaryBreakdown({ breakdown, onDownloadReceipt }) {
       `}</style>
 
       <div className="sa-card salary-breakdown-card">
-        {/* Header: Title, Subtitle, Download Payslip & Download Monthly Receipt Buttons */}
+        {/* Header: Title, Subtitle, Month Dropdown, Download Payslip & Download Monthly Receipt Buttons */}
         <div className="salary-breakdown-header">
           <div className="d-flex align-items-center gap-2 min-w-0">
             <IndianRupee size={17} className="text-danger flex-shrink-0" />
@@ -69,12 +77,41 @@ export default function SalaryBreakdown({ breakdown, onDownloadReceipt }) {
                 Salary Breakdown
               </h3>
               <p className="text-sa-muted m-0 mt-0.5 text-truncate" style={{ fontSize: '12px' }}>
-                Itemized pay components for current billing cycle
+                Itemized pay components for {currentPayPeriod}
               </p>
             </div>
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
+            {/* Months Dropdown List */}
+            {months && months.length > 0 && (
+              <div className="d-flex align-items-center">
+                <select
+                  value={selectedMonth || ''}
+                  onChange={(e) => onMonthChange && onMonthChange(e.target.value)}
+                  className="form-select form-select-sm"
+                  style={{
+                    height: '34px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    borderColor: '#CBD5E1',
+                    color: '#1E293B',
+                    fontWeight: 500,
+                    minWidth: '150px',
+                    backgroundColor: '#FFFFFF',
+                    cursor: 'pointer'
+                  }}
+                  aria-label="Select Billing Month"
+                >
+                  {months.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleDownloadSlip}

@@ -108,6 +108,7 @@ export const marksService = {
           obtainedMarks: mark.marks_obtained,
           percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
           grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+          status: mark.status || 'Published',
           remarks: mark.remarks || ''
         }));
       }
@@ -134,34 +135,35 @@ export const marksService = {
 
     const processMarks = (marksArray) => {
       return marksArray.map(mark => ({
-          id: mark.id,
-          studentId: mark.student_id || mark.studentId,
-          examId: mark.exam_id || mark.examId,
-          studentName: mark.student_name || mark.studentName || 'Student',
-          rollNumber: mark.roll_number || mark.rollNumber || 'N/A',
-          examName: mark.exam_name || mark.examName || `Exam ID: ${mark.exam_id}`,
-          examTitle: mark.exam_name || mark.examTitle || `Exam ID: ${mark.exam_id}`,
-          date: mark.exam_date || mark.date || '2026-03-15',
-          subject: mark.subject || 'N/A',
-          teacher: mark.teacher || 'Prof. Faculty',
-          maxMarks: mark.max_marks || mark.maxMarks || 100,
-          obtainedMarks: mark.marks_obtained || mark.obtainedMarks,
-          percentage: mark.percentage || (mark.marks_obtained ? ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1) : 0),
-          grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
-          remarks: mark.remarks || ''
-        })).filter(m => {
-          const subj = (m.subject || m.examName || '').toLowerCase();
-          let hasSubjectCheck = false;
-          let subjectMatched = false;
-          
-          if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
-          if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
-          if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
-          if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
-          
-          if (hasSubjectCheck && sStream) return subjectMatched;
-          return true;
-        });
+        id: mark.id,
+        studentId: mark.student_id || mark.studentId,
+        examId: mark.exam_id || mark.examId,
+        studentName: mark.student_name || mark.studentName || 'Student',
+        rollNumber: mark.roll_number || mark.rollNumber || 'N/A',
+        examName: mark.exam_name || mark.examName || `Exam ID: ${mark.exam_id}`,
+        examTitle: mark.exam_name || mark.examTitle || `Exam ID: ${mark.exam_id}`,
+        date: mark.exam_date || mark.date || '2026-03-15',
+        subject: mark.subject || 'N/A',
+        teacher: mark.teacher || 'Prof. Faculty',
+        maxMarks: mark.max_marks || mark.maxMarks || 100,
+        obtainedMarks: mark.marks_obtained || mark.obtainedMarks,
+        percentage: mark.percentage || (mark.marks_obtained ? ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1) : 0),
+        grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+        status: mark.status || 'Published',
+        remarks: mark.remarks || ''
+      })).filter(m => {
+        const subj = (m.subject || m.examName || '').toLowerCase();
+        let hasSubjectCheck = false;
+        let subjectMatched = false;
+
+        if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
+        if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
+        if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
+        if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
+
+        if (hasSubjectCheck && sStream) return subjectMatched;
+        return true;
+      });
     };
 
     try {
@@ -180,19 +182,22 @@ export const marksService = {
       student_id: data.studentId,
       exam_id: data.examId || data.exam_id,
       marks_obtained: Number(data.obtainedMarks),
-      remarks: data.remarks || ''
+      remarks: data.remarks || '',
+      status: data.status || 'Published'
     };
     const res = await api.post('/marks', payload);
     return { success: true, message: 'Marks submitted successfully', mark: res.data };
   },
 
-  submitBulkMarks: async (examId, entries) => {
+  submitBulkMarks: async (examId, entries, status = 'Published') => {
     const res = await api.post('/marks/bulk', {
       exam_id: examId,
+      status: status,
       entries: entries.map(entry => ({
         student_id: entry.studentId,
         marks_obtained: Number(entry.marksObtained),
-        remarks: entry.remarks || ''
+        remarks: entry.remarks || '',
+        status: entry.status || status
       }))
     });
     return res.data;
