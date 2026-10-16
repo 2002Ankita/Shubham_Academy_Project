@@ -51,6 +51,17 @@ class FeeStructureCreate(BaseModel):
 class FeeStructureResponse(FeeStructureCreate):
     id: str
 
+class FeeStructureUpdate(BaseModel):
+    standard: Optional[str] = None
+    batch: Optional[str] = None
+    branch: Optional[str] = None
+    academic_year: Optional[str] = None
+    total_fee: Optional[float] = None
+    installment_amount: Optional[float] = None
+    number_of_installments: Optional[int] = None
+    due_date: Optional[datetime] = None
+    late_fee: Optional[float] = None
+
 class PendingFeeResponse(BaseModel):
     student_id: str
     student_name: str
