@@ -128,6 +128,36 @@ export const feeService = {
         chartData: []
       };
     }
+  },
+
+  // Fee Structures API
+  getStructures: async (branch = null) => {
+    const params = {};
+    if (branch && branch !== 'ALL') {
+      params.branch = branch;
+    }
+    const res = await api.get('/fees/structures', { params });
+    return res.data;
+  },
+
+  createStructure: async (data) => {
+    const res = await api.post('/fees/structures', data);
+    return res.data;
+  },
+
+  updateStructure: async (id, data) => {
+    const res = await api.put(`/fees/structures/${id}`, data);
+    return res.data;
+  },
+
+  deleteStructure: async (id) => {
+    const res = await api.delete(`/fees/structures/${id}`);
+    return res.data;
+  },
+
+  seedCampusStructures: async () => {
+    const res = await api.post('/fees/structures/seed-defaults');
+    return res.data;
   }
 };
 

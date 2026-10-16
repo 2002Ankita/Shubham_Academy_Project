@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
@@ -22,9 +22,9 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
   const [feeStructures, setFeeStructures] = useState([]);
 
   useEffect(() => {
-    import('../../services/api').then(mod => {
-      mod.default.get('/fees/structures').then(res => {
-        setFeeStructures(res.data);
+    import('../../services/feeService').then(mod => {
+      mod.default.getStructures().then(data => {
+        if (Array.isArray(data)) setFeeStructures(data);
       }).catch(err => console.error(err));
     });
   }, []);
@@ -32,10 +32,10 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
   useEffect(() => {
     if (feeStructures.length > 0) {
       const match = feeStructures.find(s => 
-        s.standard === formData.standard && 
-        s.batch === formData.batch
+        (s.batch && s.batch.toLowerCase() === formData.batch?.toLowerCase()) ||
+        (s.standard === formData.standard && s.batch === formData.batch)
       );
-      if (match) {
+      if (match && match.total_fee > 0) {
         setFormData(prev => ({ ...prev, totalFees: match.total_fee }));
       }
     }

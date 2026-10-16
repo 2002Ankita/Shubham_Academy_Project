@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
+import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -28,9 +29,10 @@ export default function StudentRegistration() {
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(true);
+  const [feeStructures, setFeeStructures] = useState([]);
 
   // Admin Role-Based Form State:
-  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Standard, Batch, Fee Details (Total, Concession, Paid, Remaining)
+  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Standard, Batch, Branch, Fee Details (Total, Concession, Paid, Remaining)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -38,18 +40,25 @@ export default function StudentRegistration() {
     parentPhone: '',
     standard: '11th Science',
     batch: '',
-    originalFees: 45000,
+    branch: 'Tarabai Park',
+    originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
     discountRecommendedBy: 'Miss Shilpa (Counselor)',
-    totalFees: 45000,
+    totalFees: 55000,
     paidFees: 15000,
-    remainingFees: 30000,
+    remainingFees: 40000,
     password: 'password123',
     admissionDate: new Date().toISOString().split('T')[0]
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    feeService.getStructures().then((data) => {
+      if (Array.isArray(data)) setFeeStructures(data);
+    }).catch((err) => console.warn('Could not load fee structures:', err));
+  }, []);
 
   useEffect(() => {
     batchService.getBatches()
@@ -106,10 +115,41 @@ export default function StudentRegistration() {
   const handleBatchChange = (e) => {
     const selectedBatch = e.target.value;
     const found = batches.find((b) => b.name === selectedBatch);
+    const std = found?.standard || formData.standard || '11th Science';
+
+    // Auto-detect branch based on batch naming
+    let detectedBranch = formData.branch;
+    const bLower = (selectedBatch || '').toLowerCase();
+    if (bLower.includes('tarabai')) {
+      detectedBranch = 'Tarabai Park';
+    } else if (bLower.includes('mangal')) {
+      detectedBranch = 'Mangalwar Peth';
+    }
+
+    // Auto-lookup matching fee structure
+    let newOriginalFee = formData.originalFees;
+    if (feeStructures && feeStructures.length > 0) {
+      const match = feeStructures.find((s) =>
+        (s.batch && s.batch.toLowerCase() === selectedBatch.toLowerCase()) ||
+        (s.branch === detectedBranch && s.standard === std)
+      );
+      if (match && match.total_fee > 0) {
+        newOriginalFee = match.total_fee;
+      }
+    }
+
+    const disc = Number(formData.discountAmount) || 0;
+    const netTotal = Math.max(0, newOriginalFee - disc);
+    const paid = Number(formData.paidFees) || 0;
+
     setFormData((prev) => ({
       ...prev,
       batch: selectedBatch,
-      standard: found?.standard || prev.standard || '11th Science'
+      standard: std,
+      branch: detectedBranch,
+      originalFees: newOriginalFee,
+      totalFees: netTotal,
+      remainingFees: Math.max(0, netTotal - paid)
     }));
     if (errors.batch) {
       setErrors((prev) => ({ ...prev, batch: '' }));
@@ -197,6 +237,7 @@ export default function StudentRegistration() {
         parent_mobile: cleanParentMobile,
         standard: formData.standard || undefined,
         batch: formData.batch || undefined,
+        branch: formData.branch || (formData.batch?.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park'),
         totalFees: netFees,
         total_fees: netFees,
         original_fees: origFees,
