@@ -128,9 +128,11 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
             >
               <div>
                 <span className="fw-bold me-2">
-                  Student Concession: -₹{Number(formData.discountAmount).toLocaleString()}
+                  {formData.discountStatus === 'APPROVED'
+                    ? `✓ Approved Concession: -₹${Number(formData.discountAmount).toLocaleString()}`
+                    : `⏳ Concession Requested: ₹${Number(formData.discountAmount).toLocaleString()} (Pending Superadmin Approval)`}
                 </span>
-                <span className="text-muted">({formData.discountReason || 'Discount'})</span>
+                <span className="text-muted">({formData.discountReason || 'Discount Concession'})</span>
               </div>
               <div>
                 {formData.discountStatus === 'APPROVED' ? (
@@ -139,7 +141,7 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
                   </span>
                 ) : (
                   <span className="badge bg-warning text-dark">
-                    ⏳ Pending Superadmin Approval
+                    ⏳ Pending Superadmin Approval (Standard fee applies until approved)
                   </span>
                 )}
               </div>
@@ -149,12 +151,17 @@ export default function FeeForm({ students = [], onSubmit, loading }) {
 
         <div className="col-12 col-md-3">
           <Input
-            label="Total Course Fees (₹)"
+            label={formData.discountStatus === 'APPROVED' ? "Approved Course Fee (₹)" : "Total Course Fees (₹)"}
             name="totalFees"
             type="number"
             value={formData.totalFees}
             onChange={handleChange}
           />
+          {formData.discountStatus === 'APPROVED' && formData.originalFees > 0 && (
+            <span className="text-success small d-block mt-1" style={{ fontSize: '0.72rem' }}>
+              Original: ₹{Number(formData.originalFees).toLocaleString()} - ₹{Number(formData.discountAmount).toLocaleString()} Approved Concession
+            </span>
+          )}
         </div>
 
         <div className="col-12 col-md-3">

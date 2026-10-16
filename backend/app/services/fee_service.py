@@ -3,6 +3,7 @@ from app.models.student import Student
 from app.schemas.fees import FeePaymentCreate, FeeDetailsResponse, FeeStructureCreate, PendingFeeResponse
 from fastapi import HTTPException
 from bson import ObjectId
+from datetime import datetime
 
 async def _format_fee_payment(payment: FeePayment) -> dict:
     student_id_str = ""
@@ -38,6 +39,8 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
         "transaction_reference": payment.transaction_reference,
         "remarks": payment.remarks,
         "payment_date": payment.payment_date,
+        "original_fees": getattr(student_obj, "original_fees", 0.0) if student_obj else 0.0,
+        "total_fees": getattr(student_obj, "total_fees", 0.0) if student_obj else 0.0,
         "discount_amount": getattr(student_obj, "discount_amount", 0.0) if student_obj else 0.0,
         "discount_status": getattr(student_obj, "discount_status", "NONE") if student_obj else "NONE",
         "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None
@@ -76,7 +79,8 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
         amount_paid=payment_in.amount_paid,
         payment_method=payment_in.payment_method,
         transaction_reference=payment_in.transaction_reference,
-        remarks=payment_in.remarks
+        remarks=payment_in.remarks,
+        payment_date=datetime.utcnow()
     )
     await payment.insert()
     
@@ -95,11 +99,22 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
         )
         total_fees = structure.total_fee if structure else 0.0
         
-    payments = await FeePayment.find({"student.$id": student.id}).to_list()
+    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
     total_paid = sum(p.amount_paid for p in payments)
     
+    # Sync student record paid_fees and remaining_fees
+    student.paid_fees = total_paid
+    student.remaining_fees = max(0.0, total_fees - total_paid)
+    await student.save()
+
     res["total_fees"] = total_fees
-    res["pending_fees"] = total_fees - total_paid
+    res["pending_fees"] = max(0.0, total_fees - total_paid)
+    res["cumulative_paid"] = total_paid
+    res["current_pending_fees"] = max(0.0, total_fees - total_paid)
+    res["original_fees"] = getattr(student, "original_fees", 0.0) or total_fees
+    res["discount_amount"] = getattr(student, "discount_amount", 0.0) or 0.0
+    res["discount_status"] = getattr(student, "discount_status", "NONE") or "NONE"
+    res["discount_approved_by"] = getattr(student, "discount_approved_by", None)
     return res
 
 async def get_all_fee_payments() -> list[dict]:
@@ -110,34 +125,55 @@ async def get_all_fee_payments() -> list[dict]:
 
     payments = await FeePayment.find_all().to_list()
     
-    paid_map = {}
+    # Resolve student references
     for p in payments:
         if not isinstance(p.student, Student):
             student_obj = await Student.get(p.student.ref.id)
             p.student = student_obj
-        if p.student:
-            s_id = str(p.student.id)
-            paid_map[s_id] = paid_map.get(s_id, 0.0) + p.amount_paid
+
+    # Group payments by student ID
+    student_payments_map = {}
+    for p in payments:
+        s_id = str(p.student.id) if p.student else "unknown"
+        if s_id not in student_payments_map:
+            student_payments_map[s_id] = []
+        student_payments_map[s_id].append(p)
 
     res = []
-    for p in payments:
-        formatted = await _format_fee_payment(p)
-        total_fees = 0.0
-        pending_fees = 0.0
+    # For each student, sort payments chronologically and calculate running balance
+    for s_id, s_payments in student_payments_map.items():
+        # Sort payments chronologically by creation timestamp / payment_date
+        s_payments.sort(key=lambda p: (getattr(p.id, "generation_time", None) or p.payment_date or datetime.min, str(p.id)))
         
-        if p.student:
-            student_custom_fee = getattr(p.student, 'total_fees', 0.0)
+        student_obj = s_payments[0].student if s_payments else None
+        total_fees = 0.0
+        if student_obj:
+            student_custom_fee = getattr(student_obj, 'total_fees', 0.0)
             if student_custom_fee > 0:
                 total_fees = student_custom_fee
             else:
-                total_fees = struct_map.get((p.student.standard, p.student.batch, p.student.branch, p.student.academic_year), 0.0)
-            # The pending fee is the total minus total paid across all payments for this student
-            total_paid = paid_map.get(str(p.student.id), 0.0)
-            pending_fees = total_fees - total_paid
+                total_fees = struct_map.get((student_obj.standard, student_obj.batch, student_obj.branch, student_obj.academic_year), 0.0)
+        
+        total_student_paid = sum(p.amount_paid for p in s_payments)
+        current_overall_pending = max(0.0, total_fees - total_student_paid)
 
-        formatted["total_fees"] = total_fees
-        formatted["pending_fees"] = pending_fees
-        res.append(formatted)
+        running_paid = 0.0
+        for p in s_payments:
+            running_paid += p.amount_paid
+            pending_after_this_payment = max(0.0, total_fees - running_paid)
+
+            formatted = await _format_fee_payment(p)
+            if student_obj:
+                formatted["original_fees"] = getattr(student_obj, "original_fees", 0.0) or total_fees
+                formatted["discount_amount"] = getattr(student_obj, "discount_amount", 0.0) or 0.0
+                formatted["discount_status"] = getattr(student_obj, "discount_status", "NONE") or "NONE"
+                formatted["discount_approved_by"] = getattr(student_obj, "discount_approved_by", None)
+
+            formatted["total_fees"] = total_fees
+            formatted["pending_fees"] = pending_after_this_payment
+            formatted["cumulative_paid"] = running_paid
+            formatted["current_pending_fees"] = current_overall_pending
+            res.append(formatted)
         
     return res
 
@@ -149,7 +185,7 @@ async def get_fee_details(student_id: str) -> FeeDetailsResponse:
         raise HTTPException(status_code=404, detail="Student not found")
         
     # Get all payments
-    payments = await FeePayment.find({"student.$id": student.id}).to_list()
+    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
     total_paid = sum(p.amount_paid for p in payments)
     
     # Fetch real fee structure or use custom total_fees
@@ -165,7 +201,7 @@ async def get_fee_details(student_id: str) -> FeeDetailsResponse:
         )
         total_fees = structure.total_fee if structure else 0.0
         
-    pending_fees = total_fees - total_paid
+    pending_fees = max(0.0, total_fees - total_paid)
     
     return FeeDetailsResponse(
         student_id=str(student.id),
@@ -210,7 +246,7 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
             total_fees = struct_map.get((student.standard, student.batch, student.branch, student.academic_year), 0.0)
             
         amount_paid = paid_map.get(str(student.id), 0.0)
-        pending_fees = total_fees - amount_paid
+        pending_fees = max(0.0, total_fees - amount_paid)
         
         if pending_fees > 0:
             if not getattr(student, "user", None):

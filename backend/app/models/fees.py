@@ -16,10 +16,12 @@ class FeeStructure(Document):
     class Settings:
         name = "fee_structures"
 
+from pydantic import Field
+
 class FeePayment(Document):
     student: Link[Student]
     amount_paid: float
-    payment_date: datetime = datetime.utcnow()
+    payment_date: datetime = Field(default_factory=datetime.utcnow)
     payment_method: str
     transaction_reference: str
     remarks: str

@@ -64,10 +64,39 @@ export default function SuperAdminDashboard() {
 
   const fetchDiscounts = async () => {
     try {
-      const data = await studentService.getAll();
+      const [data, dbApprovals] = await Promise.all([
+        studentService.getAll().catch(() => []),
+        studentService.getDiscountApprovals('PENDING').catch(() => [])
+      ]);
+
       const withDisc = (data || []).filter(
         (s) => Number(s.discountAmount) > 0 || s.discountStatus === 'PENDING' || s.discountStatus === 'APPROVED' || s.discountStatus === 'REJECTED'
       );
+
+      // Merge any pending discount approval from database if not already in withDisc
+      if (Array.isArray(dbApprovals)) {
+        dbApprovals.forEach((a) => {
+          const sid = a.student_id || a.studentId;
+          const found = withDisc.find(s => String(s.id) === String(sid));
+          if (!found) {
+            withDisc.unshift({
+              id: sid,
+              name: a.student_name || 'Student',
+              rollNumber: a.roll_number || 'N/A',
+              standard: a.standard || 'General',
+              originalFees: Number(a.original_fees || 0),
+              discountAmount: Number(a.discount_amount || 0),
+              discountRequestedAmount: Number(a.discount_requested_amount || a.discount_amount || 0),
+              discountReason: a.discount_reason || 'Fee Concession',
+              discountStatus: a.status || 'PENDING',
+              discountOfferedBy: a.offered_by || 'Admin',
+              discountRecommendedBy: a.recommended_by || a.offered_by || 'Counselor',
+              discountOfferedAt: a.offered_at || null
+            });
+          }
+        });
+      }
+
       setStudentsWithDiscounts(withDisc);
 
       // Sync any pending discounts into notifications for Superadmin
@@ -81,6 +110,12 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     fetchDiscounts();
+    const interval = setInterval(fetchDiscounts, 8000);
+    window.addEventListener('focus', fetchDiscounts);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchDiscounts);
+    };
   }, []);
 
   const pendingDiscountsList = studentsWithDiscounts.filter(

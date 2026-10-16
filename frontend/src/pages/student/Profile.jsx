@@ -1048,15 +1048,23 @@ export default function StudentProfile() {
                       {batchesList.length > 0 ? (
                         batchesList.map((b) => (
                           <option key={b.id || b.name} value={b.name}>
-                            {b.name} ({b.standard || 'General'})
+                            {b.name}
                           </option>
                         ))
                       ) : (
                         <>
-                          <option value="11th pcm tarabai park">11th PCM Tarabai Park</option>
-                          <option value="12th pcm tarabai park">12th PCM Tarabai Park</option>
-                          <option value="11th pcb main branch">11th PCB Main Branch</option>
-                          <option value="12th pcb main branch">12th PCB Main Branch</option>
+                          <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                          <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                          <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                          <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                          <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                          <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                          <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                          <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                          <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                          <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                          <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                          <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
                         </>
                       )}
                     </select>

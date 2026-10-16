@@ -85,16 +85,23 @@ export default function FeeCollection() {
               render: (val, row) => (
                 <div>
                   <span className="fw-semibold d-block">₹ {val?.toLocaleString() || 0}</span>
-                  {row.discountAmount > 0 && (
+                  {row.discountAmount > 0 && row.discountStatus === 'APPROVED' && (
                     <div className="small mt-0.5" style={{ fontSize: '0.70rem' }}>
                       <span className="badge bg-success-subtle text-success">
-                        -₹{row.discountAmount.toLocaleString()} Disc
+                        -₹{row.discountAmount.toLocaleString()} Approved Concession
                       </span>
                       {row.discountApprovedBy && (
                         <span className="text-muted d-block" style={{ fontSize: '0.67rem' }}>
                           By: <strong>{row.discountApprovedBy}</strong>
                         </span>
                       )}
+                    </div>
+                  )}
+                  {row.discountAmount > 0 && row.discountStatus === 'PENDING' && (
+                    <div className="small mt-0.5" style={{ fontSize: '0.70rem' }}>
+                      <span className="badge bg-warning-subtle text-warning-emphasis">
+                        ⏳ ₹{row.discountAmount.toLocaleString()} Concession Pending
+                      </span>
                     </div>
                   )}
                 </div>

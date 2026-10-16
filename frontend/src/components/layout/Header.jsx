@@ -43,10 +43,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   const selectedOption = dateOptions.find(o => o.value === globalDateFilter) || dateOptions[0];
 
-  const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
-  const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
-  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
-  const isAdmin = user?.role === 'admin' || location.pathname.startsWith('/admin') || (!isStudent && !isTeacher && !isSuperAdmin);
+  const roleClean = (user?.role || '').toLowerCase().replace('-', '_').trim();
+  const isSuperAdmin = roleClean === 'super_admin' || roleClean.includes('super') || location.pathname.startsWith('/super-admin');
+  const isStudent = roleClean === 'student' || location.pathname.startsWith('/student');
+  const isTeacher = roleClean === 'teacher' || location.pathname.startsWith('/teacher');
+  const isAdmin = roleClean === 'admin' || location.pathname.startsWith('/admin') || (!isStudent && !isTeacher && !isSuperAdmin);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -83,17 +84,55 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      studentService.getAll().then((data) => {
+    if (!isSuperAdmin) return;
+
+    const syncApprovals = async () => {
+      try {
+        const [data, dbApprovals] = await Promise.all([
+          studentService.getAll().catch(() => []),
+          studentService.getDiscountApprovals('PENDING').catch(() => [])
+        ]);
+
         if (Array.isArray(data)) {
           notificationService.pruneFinalizedDiscounts(data);
-          const pending = data.filter(s => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0);
+          const pending = data.filter(
+            s => s.discountStatus === 'PENDING' && Number(s.discountAmount || s.discountRequestedAmount) > 0
+          );
+
+          if (Array.isArray(dbApprovals)) {
+            dbApprovals.forEach((a) => {
+              const sid = a.student_id || a.studentId;
+              if (sid && !pending.some(p => String(p.id) === String(sid))) {
+                pending.push({
+                  id: sid,
+                  name: a.student_name || 'Student',
+                  discountAmount: Number(a.discount_amount || 0),
+                  discountRequestedAmount: Number(a.discount_requested_amount || a.discount_amount || 0),
+                  discountReason: a.discount_reason || 'Fee Concession',
+                  discountStatus: 'PENDING',
+                  standard: a.standard || 'Course',
+                  discountRecommendedBy: a.recommended_by || a.offered_by || 'Counselor',
+                  discountOfferedBy: a.offered_by || 'Counselor'
+                });
+              }
+            });
+          }
+
           notificationService.syncDiscountApprovals(pending);
         }
-      }).catch((e) => {
+      } catch (e) {
         console.warn('Could not sync discount approvals in header:', e);
-      });
-    }
+      }
+    };
+
+    syncApprovals();
+    const interval = setInterval(syncApprovals, 10000);
+    window.addEventListener('focus', syncApprovals);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', syncApprovals);
+    };
   }, [isSuperAdmin]);
 
   const handleApproveDiscountFromHeader = async (e, notif) => {

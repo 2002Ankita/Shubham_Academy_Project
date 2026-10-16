@@ -20,7 +20,7 @@ export default function SignIn() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState('student');
   const [email, setEmail] = useState('aarav.d@shubham.edu');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('9876500001');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -35,7 +35,11 @@ export default function SignIn() {
   const handleRoleSelect = (role, defaultEmail) => {
     setSelectedRole(role);
     setEmail(defaultEmail);
-    setPassword('password123');
+    if (role === 'student') {
+      setPassword('9876500001');
+    } else {
+      setPassword('password123');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -229,6 +233,11 @@ export default function SignIn() {
               {showPassword ? <EyeOff size={16} color="#6B7280" /> : <Eye size={16} color="#9CA3AF" />}
             </button>
           </div>
+          {selectedRole === 'student' && (
+            <div className="mt-1.5" style={{ fontSize: '0.72rem', color: '#6B7280' }}>
+              <span>💡 Students can log in using their <strong>Mobile Number</strong> or Email, with their <strong>Mobile Number</strong> as Password.</span>
+            </div>
+          )}
         </div>
 
         {/* Remember Me & Forgot Password Row */}

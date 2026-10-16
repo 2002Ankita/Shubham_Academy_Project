@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
@@ -46,7 +46,13 @@ export default function StudentList() {
     setLoading(true);
     try {
       const data = await studentService.getAll();
-      setStudents(data);
+      const sorted = [...(data || [])].sort((a, b) => {
+        const dateA = a.admissionDate ? new Date(a.admissionDate).getTime() : 0;
+        const dateB = b.admissionDate ? new Date(b.admissionDate).getTime() : 0;
+        if (dateB !== dateA) return dateB - dateA;
+        return (b.id || '').localeCompare(a.id || '');
+      });
+      setStudents(sorted);
     } finally {
       setLoading(false);
     }
@@ -231,7 +237,7 @@ export default function StudentList() {
           rollNumber: normalizedRow['rollnumber'] || normalizedRow['studentid'] || '',
           name: normalizedRow['fullname'] || normalizedRow['studentname'] || normalizedRow['name'] || normalizedRow['firstname'] || Object.values(normalizedRow)[1] || '',
           email: normalizedRow['email'] || normalizedRow['emailid'] || '',
-          password: 'password123',
+          password: parsedPhone || undefined,
           phone: parsedPhone,
           parentPhone: parsedParent,
           standard: normalizedRow['classstandard'] || normalizedRow['class'] || normalizedRow['standard'] || 'General',
@@ -315,6 +321,17 @@ export default function StudentList() {
     (s.rfidCard || '').toLowerCase().includes(search.toLowerCase()) ||
     (s.standard || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const PAGE_SIZE = 10;
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  const paginatedDiscounts = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredDiscounts.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredDiscounts, currentPage]);
 
   return (
     <div className="d-flex flex-column gap-4">
@@ -550,7 +567,7 @@ export default function StudentList() {
                 )
               }
             ]}
-            data={filtered}
+            data={paginatedStudents}
             loading={loading}
           />
 
@@ -784,7 +801,7 @@ export default function StudentList() {
                   )
                 }
               ]}
-              data={filteredDiscounts}
+              data={paginatedDiscounts}
               loading={loading}
             />
 

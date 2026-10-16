@@ -94,16 +94,25 @@ export const studentService = {
   create: async (data) => {
     const totalFees = Number(data.totalFees ?? data.total_fees ?? 0);
     const paidFees = Number(data.paidFees ?? data.paid_fees ?? data.downPayment ?? 0);
-    const remainingFees = Math.max(0, totalFees - paidFees);
+    const remainingFees = Number(data.remainingFees ?? data.remaining_fees ?? Math.max(0, totalFees - paidFees));
 
     const cleanMobile = String(data.phone || data.mobile_number || data.mobileNumber || '').replace(/\D/g, '');
     const cleanParentMobile = String(data.parentPhone || data.parent_mobile || data.parentMobile || '').replace(/\D/g, '');
+
+    const discAmount = Number(
+      data.discount_amount ?? data.discountAmount ?? data.discount_requested_amount ?? data.discountRequestedAmount ?? 0
+    ) || 0;
+    const origFees = Number(
+      data.original_fees ?? data.originalFees ?? (totalFees + discAmount)
+    ) || totalFees;
+    const discReason = data.discount_reason || data.discountReason || (discAmount > 0 ? 'Scholarship / Merit Concession' : '');
+    const recommender = data.discount_recommended_by || data.discountRecommendedBy || data.discount_offered_by || data.discountOfferedBy || '';
 
     const payload = {
       student_id: data.rollNumber || data.student_id || undefined,
       full_name: (data.name || data.full_name || data.fullName || '').trim(),
       email: data.email?.trim() ? data.email.trim() : undefined,
-      password: data.password || 'password123',
+      password: data.password || cleanMobile || undefined,
       mobile_number: cleanMobile || data.phone || data.mobile_number,
       parent_mobile: cleanParentMobile || data.parentPhone || data.parent_mobile || undefined,
       total_fees: totalFees,
@@ -119,11 +128,12 @@ export const studentService = {
       academic_year: data.academic_year || '2025-2026',
       rfid_tag: data.rfidCard || data.rfid_tag || undefined,
       admission_date: data.admission_date || data.admissionDate || new Date().toISOString(),
-      original_fees: Number(data.originalFees) || totalFees,
-      discount_amount: Number(data.discountAmount) || 0,
-      discount_reason: data.discountReason || '',
-      discount_recommended_by: data.discountRecommendedBy || data.discount_recommended_by || data.discountOfferedBy || data.discount_offered_by || '',
-      discount_offered_by: data.discountRecommendedBy || data.discount_recommended_by || data.discountOfferedBy || data.discount_offered_by || '',
+      original_fees: origFees,
+      discount_amount: discAmount,
+      discount_requested_amount: discAmount,
+      discount_reason: discReason,
+      discount_recommended_by: recommender,
+      discount_offered_by: recommender,
       discount_approved_by: data.discountApprovedBy || data.discount_approved_by || '',
       superadmin_auth_code: data.superadminAuthCode || data.superadmin_auth_code || ''
     };

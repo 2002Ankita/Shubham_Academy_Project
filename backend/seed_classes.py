@@ -28,75 +28,158 @@ async def seed():
     await Batch.find_all().delete()
     print("Cleared existing batches")
     
-    # 2. Define the 3 assigned classes exactly as in reference screenshot
-    batch1 = Batch(
-        name="11th Science",
-        standard="11th Science",
-        subject="Physics",
-        batch_name="A",
-        class_code="11-A",
-        student_count=42,
-        room="Room 201",
-        time="09:00 AM – 10:00 AM",
-        teacher_name="Dr. Priya Kulkarni",
-        days=["Monday", "Wednesday", "Thursday"],
-        timetable=[
-            {"day": "Monday", "time": "09:00 AM – 10:00 AM", "room": "201", "class_code": "11-A", "subject": "Physics"},
-            {"day": "Wednesday", "time": "11:00 AM – 12:00 PM", "room": "201", "class_code": "11-A", "subject": "Mathematics"},
-            {"day": "Thursday", "time": "09:00 AM – 10:00 AM", "room": "201", "class_code": "11-A", "subject": "Physics"}
-        ]
-    )
-    await batch1.insert()
-    
-    batch2 = Batch(
-        name="12th Science",
-        standard="12th Science",
-        subject="Physics",
-        batch_name="B",
-        class_code="12-B",
-        student_count=38,
-        room="Room 305",
-        time="11:30 AM – 12:30 PM",
-        teacher_name="Dr. Priya Kulkarni",
-        days=["Monday", "Wednesday", "Thursday"],
-        timetable=[
-            {"day": "Monday", "time": "11:00 AM – 12:00 PM", "room": "305", "class_code": "12-B", "subject": "Physics"},
-            {"day": "Wednesday", "time": "09:00 AM – 10:00 AM", "room": "305", "class_code": "12-B", "subject": "Physics"},
-            {"day": "Thursday", "time": "10:00 AM – 11:00 AM", "room": "305", "class_code": "12-B", "subject": "Mathematics"},
-            {"day": "Tuesday", "time": "10:00 AM – 11:00 AM", "room": "201", "class_code": "12-A", "subject": "Mathematics"},
-            {"day": "Wednesday", "time": "12:00 PM – 01:00 PM", "room": "305", "class_code": "12-A", "subject": "Physics"},
-            {"day": "Friday", "time": "11:00 AM – 12:00 PM", "room": "201", "class_code": "12-A", "subject": "Mathematics"}
-        ]
-    )
-    await batch2.insert()
-    
-    batch3 = Batch(
-        name="11th Science",
-        standard="11th Science",
-        subject="Mathematics",
-        batch_name="B",
-        class_code="11-B",
-        student_count=40,
-        room="Room 202",
-        time="02:00 PM – 03:00 PM",
-        teacher_name="Dr. Priya Kulkarni",
-        days=["Tuesday", "Thursday", "Friday"],
-        timetable=[
-            {"day": "Tuesday", "time": "12:00 PM – 01:00 PM", "room": "202", "class_code": "11-B", "subject": "Maths"},
-            {"day": "Thursday", "time": "12:00 PM – 01:00 PM", "room": "202", "class_code": "11-B", "subject": "Physics"},
-            {"day": "Friday", "time": "10:00 AM – 11:00 AM", "room": "202", "class_code": "11-B", "subject": "Physics"}
-        ]
-    )
-    await batch3.insert()
-    
+    # 2. Define the 12 academy batches
+    new_batches = [
+        Batch(
+            name="11th pcm tarabai park",
+            standard="11th Science",
+            subject="Physics, Chemistry, Mathematics",
+            room="Room 101 (Tarabai Park)",
+            time="08:00 AM – 10:30 AM",
+            teacher_name="Dr. Priya Kulkarni",
+            batch_name="11-PCM-TP",
+            class_code="11-PCM-TP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="11th pcb tarabai park",
+            standard="11th Science",
+            subject="Physics, Chemistry, Biology",
+            room="Room 102 (Tarabai Park)",
+            time="10:30 AM – 01:00 PM",
+            teacher_name="Dr. Priya Kulkarni",
+            batch_name="11-PCB-TP",
+            class_code="11-PCB-TP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="11th pcmb tarabai park",
+            standard="11th Science",
+            subject="Physics, Chemistry, Maths, Biology",
+            room="Room 103 (Tarabai Park)",
+            time="01:30 PM – 04:30 PM",
+            teacher_name="Dr. Priya Kulkarni",
+            batch_name="11-PCMB-TP",
+            class_code="11-PCMB-TP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="12th pcm tarabai park",
+            standard="12th Science",
+            subject="Physics, Chemistry, Mathematics",
+            room="Room 201 (Tarabai Park)",
+            time="08:00 AM – 10:30 AM",
+            teacher_name="Prof. Rajesh Sharma",
+            batch_name="12-PCM-TP",
+            class_code="12-PCM-TP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        ),
+        Batch(
+            name="12th pcb tarabai park",
+            standard="12th Science",
+            subject="Physics, Chemistry, Biology",
+            room="Room 202 (Tarabai Park)",
+            time="10:30 AM – 01:00 PM",
+            teacher_name="Prof. Sunita Patil",
+            batch_name="12-PCB-TP",
+            class_code="12-PCB-TP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        ),
+        Batch(
+            name="12th pcmb tarabai park",
+            standard="12th Science",
+            subject="Physics, Chemistry, Maths, Biology",
+            room="Room 203 (Tarabai Park)",
+            time="01:30 PM – 04:30 PM",
+            teacher_name="Prof. Rajesh Sharma",
+            batch_name="12-PCMB-TP",
+            class_code="12-PCMB-TP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        ),
+        Batch(
+            name="11th pcm Mangalvar Peth",
+            standard="11th Science",
+            subject="Physics, Chemistry, Mathematics",
+            room="Hall 1 (Mangalvar Peth)",
+            time="08:00 AM – 10:30 AM",
+            teacher_name="Dr. Priya Kulkarni",
+            batch_name="11-PCM-MP",
+            class_code="11-PCM-MP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="11th pcb Mangalvar Peth",
+            standard="11th Science",
+            subject="Physics, Chemistry, Biology",
+            room="Hall 2 (Mangalvar Peth)",
+            time="10:30 AM – 01:00 PM",
+            teacher_name="Prof. Sunita Patil",
+            batch_name="11-PCB-MP",
+            class_code="11-PCB-MP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="11th pcmb Mangalvar Peth",
+            standard="11th Science",
+            subject="Physics, Chemistry, Maths, Biology",
+            room="Hall 3 (Mangalvar Peth)",
+            time="01:30 PM – 04:30 PM",
+            teacher_name="Prof. Rajesh Sharma",
+            batch_name="11-PCMB-MP",
+            class_code="11-PCMB-MP",
+            days=["Monday", "Wednesday", "Friday"]
+        ),
+        Batch(
+            name="12th pcm Mangalvar Peth",
+            standard="12th Science",
+            subject="Physics, Chemistry, Mathematics",
+            room="Hall 1 (Mangalvar Peth)",
+            time="08:00 AM – 10:30 AM",
+            teacher_name="Prof. Rajesh Sharma",
+            batch_name="12-PCM-MP",
+            class_code="12-PCM-MP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        ),
+        Batch(
+            name="12th pcb Mangalvar Peth",
+            standard="12th Science",
+            subject="Physics, Chemistry, Biology",
+            room="Hall 2 (Mangalvar Peth)",
+            time="10:30 AM – 01:00 PM",
+            teacher_name="Prof. Sunita Patil",
+            batch_name="12-PCB-MP",
+            class_code="12-PCB-MP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        ),
+        Batch(
+            name="12th pcmb Mangalvar Peth",
+            standard="12th Science",
+            subject="Physics, Chemistry, Maths, Biology",
+            room="Hall 3 (Mangalvar Peth)",
+            time="01:30 PM – 04:30 PM",
+            teacher_name="Dr. Priya Kulkarni",
+            batch_name="12-PCMB-MP",
+            class_code="12-PCMB-MP",
+            days=["Tuesday", "Thursday", "Saturday"]
+        )
+    ]
+    for b in new_batches:
+        await b.insert()
+
     # Update teacher assigned batches
     if priya_teacher:
-        priya_teacher.assigned_batches = ["11th Science - Batch A", "12th Science - Batch B", "11th Science - Batch B"]
+        priya_teacher.assigned_batches = [
+            "11th pcm tarabai park",
+            "11th pcb tarabai park",
+            "11th pcmb tarabai park",
+            "11th pcm Mangalvar Peth",
+            "12th pcmb Mangalvar Peth"
+        ]
         priya_teacher.subjects = ["Physics", "Mathematics"]
         await priya_teacher.save()
         print("Updated Dr. Priya Kulkarni assigned_batches")
         
-    # Check if student Aarav Deshmukh is linked to 11th Science Batch A
+    # Check if student Aarav Deshmukh is linked to 11th pcm tarabai park
     aarav_user = await User.find_one(User.email == "aarav.d@shubham.edu")
     if aarav_user:
         aarav_student = await Student.find_one({"user.$id": aarav_user.id})
@@ -111,17 +194,17 @@ async def seed():
                 parent_name="Sanjay Deshmukh",
                 parent_mobile="9876500002",
                 standard="11th Science",
-                batch="Batch A",
+                batch="11th pcm tarabai park",
                 branch="Tarabai Park",
                 academic_year="2026-2027"
             )
             await aarav_student.insert()
         else:
             aarav_student.standard = "11th Science"
-            aarav_student.batch = "Batch A"
+            aarav_student.batch = "11th pcm tarabai park"
             await aarav_student.save()
             
-    print("Seed complete! 3 Batches created for Dr. Priya Kulkarni.")
+    print("Seed complete! 12 Batches created.")
 
 if __name__ == "__main__":
     asyncio.run(seed())

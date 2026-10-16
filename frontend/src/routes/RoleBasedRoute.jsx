@@ -14,7 +14,9 @@ export default function RoleBasedRoute({ allowedRoles, children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const userRoleNormalized = (user?.role || '').toLowerCase().replace('_', '-');
+  const allowedNormalized = allowedRoles.map(r => r.toLowerCase().replace('_', '-'));
+  if (!allowedNormalized.includes(userRoleNormalized)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

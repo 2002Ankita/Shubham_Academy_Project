@@ -17,9 +17,12 @@ class FeePaymentResponse(FeePaymentCreate):
     roll_number: str
     total_fees: float
     pending_fees: float
+    original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
     discount_status: Optional[str] = "NONE"
     discount_approved_by: Optional[str] = None
+    cumulative_paid: Optional[float] = None
+    current_pending_fees: Optional[float] = None
 
 class FeeDetailsResponse(BaseModel):
     student_id: str

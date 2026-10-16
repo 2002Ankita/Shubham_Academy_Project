@@ -18,7 +18,9 @@ export const feeService = {
       discountStatus: fee.discount_status || 'NONE',
       discountApprovedBy: fee.discount_approved_by || '',
       amountPaid: fee.amount_paid,
-      pendingAmount: fee.pending_fees || 0,
+      pendingAmount: fee.pending_fees != null ? fee.pending_fees : 0,
+      cumulativePaid: fee.cumulative_paid != null ? fee.cumulative_paid : fee.amount_paid,
+      currentPendingFees: fee.current_pending_fees,
       paymentDate: fee.payment_date.split('T')[0],
       paymentMode: fee.payment_method,
       transactionId: fee.transaction_reference,
@@ -66,7 +68,10 @@ export const feeService = {
       found.discountReason = details.data.discount_reason;
       found.discountStatus = details.data.discount_status;
       found.discountApprovedBy = details.data.discount_approved_by;
-      found.pendingAmount = details.data.pending_fees;
+      found.currentPendingFees = details.data.pending_fees;
+      if (found.pendingAmount == null) {
+        found.pendingAmount = details.data.pending_fees;
+      }
       return found;
     } catch {
       return { receiptNo };
