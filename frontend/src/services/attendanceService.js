@@ -66,33 +66,54 @@ export const attendanceService = {
       const ensureUtc = (dt) => dt ? (dt.endsWith('Z') || dt.includes('+') ? dt : dt + 'Z') : null;
       const checkInDate = r.check_in_time ? new Date(ensureUtc(r.check_in_time)) : null;
       const checkOutDate = r.check_out_time ? new Date(ensureUtc(r.check_out_time)) : null;
-      
-      let totalHours = '--';
-      if (checkInDate && checkOutDate) {
-        const diffMs = checkOutDate - checkInDate;
-        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        totalHours = `${diffHrs}h ${diffMins}m`;
-      } else if (checkInDate && !checkOutDate) {
-        const diffMs = Date.now() - checkInDate.getTime();
-        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        totalHours = `${diffHrs}h ${diffMins}m`;
-      }
 
       const dateObj = new Date(ensureUtc(r.date) || Date.now());
       const localDateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+      const today = new Date();
+      const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const isPastDate = localDateStr < todayDateStr;
+      const isAutoClosed = Boolean((r.remarks && r.remarks.toLowerCase().includes('auto closed')) || (isPastDate && !r.check_out_time));
+
+      let totalHours = r.total_hours || '--';
+      if (checkInDate && checkOutDate) {
+        if (!r.total_hours) {
+          const diffMs = checkOutDate - checkInDate;
+          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          totalHours = `${diffHrs}h ${diffMins}m`;
+        }
+      } else if (checkInDate && !checkOutDate) {
+        if (isPastDate) {
+          totalHours = r.total_hours || '1h 00m';
+        } else {
+          const diffMs = Date.now() - checkInDate.getTime();
+          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          totalHours = `${diffHrs}h ${diffMins}m`;
+        }
+      }
+
+      let checkOutDisplay = '--';
+      if (checkOutDate) {
+        checkOutDisplay = checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else if (checkInDate) {
+        checkOutDisplay = isPastDate ? 'Auto Closed' : 'In Progress';
+      }
+
+      const statusDisplay = (isPastDate && (r.status === 'Working' || !r.status)) ? 'Present' : (r.status || 'Present');
 
       return {
         id: r.id,
         date: localDateStr,
         day: dateObj.toLocaleDateString('en-US', { weekday: 'long' }),
         checkIn: checkInDate ? checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--',
-        checkOut: checkOutDate ? checkOutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (checkInDate ? 'In Progress' : '--'),
+        checkOut: checkOutDisplay,
         breakTime: '1h 00m',
-        totalHours: r.total_hours || totalHours,
-        status: r.status,
-        remarks: r.remarks || ''
+        totalHours: totalHours,
+        status: statusDisplay,
+        remarks: r.remarks || '',
+        isAutoClosed: isAutoClosed
       };
     });
   },

@@ -5,6 +5,7 @@ from datetime import datetime
 class TopicDuration(Document):
     topic_id: Optional[str] = None
     standard: str = "Class 12th"
+    branch: Optional[str] = "Tarabai Park"
     batch: str
     subject: str
     teacher_name: str

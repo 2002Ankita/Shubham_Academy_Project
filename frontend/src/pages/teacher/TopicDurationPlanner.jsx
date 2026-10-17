@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,28 +14,121 @@ import {
   Printer,
   ChevronRight,
   Check,
-  CalendarDays
+  CalendarDays,
+  MapPin
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useAuth } from '../../hooks/useAuth';
+
+// Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
+const isTeacherMatch = (teacherA, teacherB, subject = '') => {
+  if (!teacherA || !teacherB) return false;
+  const cleanA = teacherA.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+  const cleanB = teacherB.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+
+  if (cleanA === cleanB) return true;
+  if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
+
+  const tokensA = cleanA.split(/\s+/).filter(t => t.length >= 3);
+  const tokensB = cleanB.split(/\s+/).filter(t => t.length >= 3);
+  for (const t of tokensA) {
+    if (tokensB.includes(t)) return true;
+  }
+
+  if (subject) {
+    const sub = subject.toLowerCase();
+    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni')) return sub.includes('phys');
+    if (cleanA.includes('sunita') || cleanA.includes('patil')) return sub.includes('chem');
+    if (cleanA.includes('rajesh') || cleanA.includes('sharma')) return sub.includes('math');
+    if (cleanA.includes('amit') || cleanA.includes('sawant')) return sub.includes('bio');
+  }
+
+  return false;
+};
 
 export default function TopicDurationPlanner() {
   const navigate = useNavigate();
   const { confirm } = useConfirm();
+  const { user } = useAuth();
 
   const STORAGE_TOPICS_KEY = 'sa_teacher_topic_plans';
+
+  // Deduplication helper to ensure duplicate topic records (same topic, batch, subject) merge into 1 record
+  const deduplicateTopics = (list) => {
+    if (!Array.isArray(list)) return [];
+    const map = new Map();
+
+    for (const item of list) {
+      if (!item) continue;
+      const topic = (item.topicName || item.topic_name || '').trim().toLowerCase();
+      const batch = (item.batch || '').trim().toLowerCase();
+      let subj = (item.subject || '').trim().toLowerCase();
+      if (subj.includes('physic')) subj = 'physics';
+      else if (subj.includes('chem')) subj = 'chemistry';
+      else if (subj.includes('math')) subj = 'mathematics';
+      else if (subj.includes('bio')) subj = 'biology';
+
+      const key = `${subj}__${batch}__${topic}`;
+
+      if (!map.has(key)) {
+        map.set(key, { ...item, duplicateIds: [item.id].filter(Boolean) });
+      } else {
+        const existing = map.get(key);
+        const existingCompleted = parseInt(existing.completedPeriods ?? existing.completed_periods, 10) || 0;
+        const itemCompleted = parseInt(item.completedPeriods ?? item.completed_periods, 10) || 0;
+        const existingReq = parseInt(existing.requiredPeriods ?? existing.required_periods, 10) || 0;
+        const itemReq = parseInt(item.requiredPeriods ?? item.required_periods, 10) || 0;
+
+        const mergedCompleted = Math.max(existingCompleted, itemCompleted);
+        const mergedReq = Math.max(existingReq, itemReq, 1);
+
+        const isExistingGeneric = !existing.chapter || existing.chapter === 'Curriculum Module' || existing.chapter === 'Curriculum Chapter';
+        const isItemGeneric = !item.chapter || item.chapter === 'Curriculum Module' || item.chapter === 'Curriculum Chapter';
+
+        let bestChapter = existing.chapter;
+        if (isExistingGeneric && !isItemGeneric) {
+          bestChapter = item.chapter;
+        }
+
+        let bestStatus = existing.status;
+        if (mergedCompleted >= mergedReq) {
+          bestStatus = 'Completed';
+        } else if (existing.status === 'Completed' || item.status === 'Completed') {
+          bestStatus = 'Completed';
+        } else if (existing.status === 'In Progress' || item.status === 'In Progress' || mergedCompleted > 0) {
+          bestStatus = 'In Progress';
+        }
+
+        map.set(key, {
+          ...existing,
+          branch: existing.branch || item.branch || 'Tarabai Park',
+          targetDate: existing.targetDate || existing.end_date || item.targetDate || item.end_date || '',
+          chapter: bestChapter || existing.chapter || item.chapter,
+          completedPeriods: mergedCompleted,
+          requiredPeriods: mergedReq,
+          status: bestStatus,
+          remarks: existing.remarks || item.remarks || '',
+          duplicateIds: Array.from(new Set([...(existing.duplicateIds || [existing.id]), item.id])).filter(Boolean)
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  };
 
   // Topic Plans State
   const [topicPlans, setTopicPlans] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_TOPICS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+      if (saved) return deduplicateTopics(JSON.parse(saved));
+    } catch (_) { }
     return [
       {
         id: 'TOPIC-01',
+        branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
         batch: '12th Science Tarabai Park (Batch A)',
         chapter: 'Chapter 7: Wave Optics',
@@ -43,11 +136,13 @@ export default function TopicDurationPlanner() {
         requiredPeriods: 3,
         periodDurationMins: 45,
         completedPeriods: 2,
+        targetDate: '2026-10-24',
         status: 'In Progress',
         remarks: '2 periods covered. 1 period numerical problem-solving remaining.'
       },
       {
         id: 'TOPIC-02',
+        branch: 'Tarabai Park',
         subject: 'Physics Laboratory',
         batch: '11th Science PCM (Batch B)',
         chapter: 'Practical Mechanics & Fluids',
@@ -55,11 +150,13 @@ export default function TopicDurationPlanner() {
         requiredPeriods: 2,
         periodDurationMins: 60,
         completedPeriods: 2,
+        targetDate: '2026-10-20',
         status: 'Completed',
         remarks: 'Completed hands-on apparatus handling and calculation verification.'
       },
       {
         id: 'TOPIC-03',
+        branch: 'Tarabai Park',
         subject: 'Applied Physics',
         batch: '12th Science Tarabai Park (Batch A)',
         chapter: 'Chapter 9: Electromagnetic Induction',
@@ -67,11 +164,13 @@ export default function TopicDurationPlanner() {
         requiredPeriods: 4,
         periodDurationMins: 45,
         completedPeriods: 1,
+        targetDate: '2026-10-28',
         status: 'In Progress',
         remarks: 'Need 3 more periods to cover Faraday experiments and JEE problem set.'
       },
       {
         id: 'TOPIC-04',
+        branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
         batch: '12th Science PCB (Batch C)',
         chapter: 'Chapter 11: Dual Nature of Radiation',
@@ -79,6 +178,7 @@ export default function TopicDurationPlanner() {
         requiredPeriods: 3,
         periodDurationMins: 45,
         completedPeriods: 0,
+        targetDate: '2026-11-02',
         status: 'Upcoming',
         remarks: 'Planned for upcoming week.'
       }
@@ -87,34 +187,44 @@ export default function TopicDurationPlanner() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(topicPlans));
-    } catch (_) {}
+      localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(deduplicateTopics(topicPlans)));
+    } catch (_) { }
   }, [topicPlans]);
 
-  // Sync with backend on component mount
-  useEffect(() => {
+  // Sync with backend on component mount and on realtime updates from admin
+  const fetchTopicPlans = () => {
     curriculumService.getTopicDurations().then(data => {
       if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map(item => ({
           ...item,
+          branch: item.branch || (item.batch && item.batch.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park'),
+          targetDate: item.end_date || item.target_date || item.targetDate || '',
           topicName: item.topic_name || item.topicName,
           requiredPeriods: item.required_periods || item.requiredPeriods,
           periodDurationMins: item.period_duration_mins || item.periodDurationMins,
           completedPeriods: item.completed_periods || item.completedPeriods
         }));
-        setTopicPlans(mapped);
+        setTopicPlans(deduplicateTopics(mapped));
       }
     });
+  };
+
+  useEffect(() => {
+    fetchTopicPlans();
+    window.addEventListener('sa_topic_plans_updated', fetchTopicPlans);
+    return () => window.removeEventListener('sa_topic_plans_updated', fetchTopicPlans);
   }, []);
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState('All');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
+    branch: 'Tarabai Park',
     subject: 'Physics (Class 12th)',
     batch: '12th Science Tarabai Park (Batch A)',
     chapter: '',
@@ -122,6 +232,7 @@ export default function TopicDurationPlanner() {
     requiredPeriods: '3',
     periodDurationMins: '45',
     completedPeriods: '0',
+    targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'In Progress',
     remarks: ''
   });
@@ -130,7 +241,7 @@ export default function TopicDurationPlanner() {
     try {
       const saved = localStorage.getItem('sa_teacher_daily_activities');
       if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    } catch (_) { }
     return [];
   });
 
@@ -161,14 +272,35 @@ export default function TopicDurationPlanner() {
     return Math.max(loggedPeriods, manualPeriods);
   };
 
+  // Filter plans strictly for current teacher if user is a teacher
+  const myTopicPlans = useMemo(() => {
+    const list = deduplicateTopics(topicPlans);
+    if (!user || user.role !== 'teacher') return list;
+
+    const teacherName = user.name || '';
+    return list.filter(item => {
+      const tName = item.teacher_name || item.teacherName || '';
+      if (tName && isTeacherMatch(teacherName, tName, item.subject)) return true;
+
+      const sub = (item.subject || '').toLowerCase();
+      const cleanUser = teacherName.toLowerCase();
+      if ((cleanUser.includes('priya') || cleanUser.includes('shubham') || cleanUser.includes('kulkarni')) && sub.includes('phys')) return true;
+      if ((cleanUser.includes('sunita') || cleanUser.includes('patil')) && sub.includes('chem')) return true;
+      if ((cleanUser.includes('rajesh') || cleanUser.includes('sharma')) && sub.includes('math')) return true;
+      if ((cleanUser.includes('amit') || cleanUser.includes('sawant')) && sub.includes('bio')) return true;
+
+      return false;
+    });
+  }, [topicPlans, user]);
+
   // Metrics
-  const totalPlannedTopics = topicPlans.length;
-  const totalRequiredPeriods = topicPlans.reduce((sum, t) => sum + (parseInt(t.requiredPeriods, 10) || 0), 0);
-  const totalCompletedPeriods = topicPlans.reduce((sum, t) => sum + getTopicCompletedPeriods(t), 0);
+  const totalPlannedTopics = myTopicPlans.length;
+  const totalRequiredPeriods = myTopicPlans.reduce((sum, t) => sum + (parseInt(t.requiredPeriods, 10) || 0), 0);
+  const totalCompletedPeriods = myTopicPlans.reduce((sum, t) => sum + getTopicCompletedPeriods(t), 0);
   const totalPendingPeriods = Math.max(totalRequiredPeriods - totalCompletedPeriods, 0);
 
   // Filtered List
-  const filteredTopics = topicPlans.filter(item => {
+  const filteredTopics = myTopicPlans.filter(item => {
     const matchesSearch = searchTerm === '' ||
       item.topicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.chapter && item.chapter.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -176,13 +308,15 @@ export default function TopicDurationPlanner() {
       item.batch.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+    const matchesBranch = branchFilter === 'All' || (item.branch || 'Tarabai Park') === branchFilter;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesBranch;
   });
 
   const handleOpenAdd = () => {
     setEditingId(null);
     setForm({
+      branch: 'Tarabai Park',
       subject: 'Physics (Class 12th)',
       batch: '12th Science Tarabai Park (Batch A)',
       chapter: '',
@@ -190,6 +324,7 @@ export default function TopicDurationPlanner() {
       requiredPeriods: '3',
       periodDurationMins: '45',
       completedPeriods: '0',
+      targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'In Progress',
       remarks: ''
     });
@@ -199,6 +334,7 @@ export default function TopicDurationPlanner() {
   const handleOpenEdit = (topic) => {
     setEditingId(topic.id);
     setForm({
+      branch: topic.branch || 'Tarabai Park',
       subject: topic.subject || 'Physics (Class 12th)',
       batch: topic.batch || '12th Science Tarabai Park (Batch A)',
       chapter: topic.chapter || '',
@@ -206,6 +342,7 @@ export default function TopicDurationPlanner() {
       requiredPeriods: String(topic.requiredPeriods || '3'),
       periodDurationMins: String(topic.periodDurationMins || '45'),
       completedPeriods: String(topic.completedPeriods || '0'),
+      targetDate: topic.targetDate || topic.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: topic.status || 'In Progress',
       remarks: topic.remarks || ''
     });
@@ -228,6 +365,7 @@ export default function TopicDurationPlanner() {
 
     if (editingId) {
       curriculumService.updateTopicDuration(editingId, {
+        branch: payload.branch,
         subject: payload.subject,
         batch: payload.batch,
         chapter: payload.chapter,
@@ -235,11 +373,13 @@ export default function TopicDurationPlanner() {
         required_periods: payload.requiredPeriods,
         period_duration_mins: payload.periodDurationMins,
         completed_periods: payload.completedPeriods,
+        end_date: payload.targetDate,
+        target_date: payload.targetDate,
         status: payload.status,
         remarks: payload.remarks
       });
       setTopicPlans(prev =>
-        prev.map(item => (item.id === editingId ? { ...item, ...payload } : item))
+        deduplicateTopics(prev.map(item => (item.id === editingId ? { ...item, ...payload } : item)))
       );
       toast.success('Topic duration plan updated!');
     } else {
@@ -249,6 +389,7 @@ export default function TopicDurationPlanner() {
       };
       curriculumService.createTopicDuration({
         topic_id: created.id,
+        branch: payload.branch,
         subject: payload.subject,
         batch: payload.batch,
         chapter: payload.chapter,
@@ -256,11 +397,13 @@ export default function TopicDurationPlanner() {
         required_periods: payload.requiredPeriods,
         period_duration_mins: payload.periodDurationMins,
         completed_periods: payload.completedPeriods,
+        end_date: payload.targetDate,
+        target_date: payload.targetDate,
         status: payload.status,
         remarks: payload.remarks,
-        teacher_name: 'Current Faculty'
+        teacher_name: user?.name || 'Dr. Priya Kulkarni'
       });
-      setTopicPlans(prev => [created, ...prev]);
+      setTopicPlans(prev => deduplicateTopics([created, ...prev]));
       toast.success('New topic & duration plan created!');
     }
 
@@ -268,7 +411,14 @@ export default function TopicDurationPlanner() {
     setEditingId(null);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (topicOrId) => {
+    const target = typeof topicOrId === 'object'
+      ? topicOrId
+      : topicPlans.find(t => t.id === topicOrId);
+    const idsToDelete = target?.duplicateIds && target.duplicateIds.length > 0
+      ? target.duplicateIds
+      : [typeof topicOrId === 'string' ? topicOrId : target?.id].filter(Boolean);
+
     const isConfirmed = await confirm({
       title: 'Delete Topic Plan',
       message: 'Are you sure you want to delete this topic plan?',
@@ -279,28 +429,10 @@ export default function TopicDurationPlanner() {
     });
 
     if (isConfirmed) {
-      curriculumService.deleteTopicDuration(id);
-      setTopicPlans(prev => prev.filter(t => t.id !== id));
+      idsToDelete.forEach(id => curriculumService.deleteTopicDuration(id));
+      setTopicPlans(prev => deduplicateTopics(prev.filter(t => !idsToDelete.includes(t.id))));
       toast.info('Topic plan removed.');
     }
-  };
-
-  // Redirect to Daily Activity Log with this topic prefilled
-  const handleLogActivity = (topic) => {
-    navigate('/teacher/daily-activity', {
-      state: {
-        prefillTopic: {
-          topicTaught: topic.topicName,
-          subject: topic.subject,
-          batch: topic.batch,
-          periods: '1',
-          totalPlannedPeriods: String(topic.requiredPeriods || '2'),
-          periodDurationMins: String(topic.periodDurationMins || '45'),
-          remarks: topic.remarks || ''
-        }
-      }
-    });
-    toast.info(`Redirecting to Daily Activity log for ${topic.topicName}`);
   };
 
   return (
@@ -338,7 +470,7 @@ export default function TopicDurationPlanner() {
               </span>
             </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Define how many periods each topic will take and track teaching completion
+              Define how many periods each topic will take, target completion dates, and track teaching progress
             </p>
           </div>
         </div>
@@ -502,8 +634,8 @@ export default function TopicDurationPlanner() {
         </div>
 
         {/* Filter and Search for Topics */}
-        <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3">
-          <div className="position-relative w-100" style={{ maxWidth: '380px' }}>
+        <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 flex-wrap">
+          <div className="position-relative w-100" style={{ maxWidth: '340px' }}>
             <Search size={15} className="position-absolute text-muted" style={{ top: '10px', left: '12px' }} />
             <input
               type="text"
@@ -515,36 +647,50 @@ export default function TopicDurationPlanner() {
             />
           </div>
 
-          <select
-            className="form-select form-select-sm"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '180px' }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-            <option value="Upcoming">Upcoming</option>
-          </select>
+          <div className="d-flex align-items-center gap-2">
+            <select
+              className="form-select form-select-sm"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
+            >
+              <option value="All">All Branches</option>
+              <option value="Tarabai Park">Tarabai Park</option>
+              <option value="Mangalwar Peth">Mangalwar Peth</option>
+            </select>
+
+            <select
+              className="form-select form-select-sm"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
+            >
+              <option value="All">All Statuses</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Upcoming">Upcoming</option>
+            </select>
+          </div>
         </div>
 
         {/* Matrix Table */}
-        <div className="table-responsive border rounded-3" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table className="table table-hover align-middle m-0" style={{ minWidth: '940px', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="table-responsive border rounded-3 overflow-hidden" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin', borderColor: '#FEE2E2', borderRadius: '12px' }}>
+          <table className="table table-hover align-middle m-0" style={{ minWidth: '1050px', fontSize: '13px' }}>
+            <thead style={{ backgroundColor: '#FFF5F5', borderBottom: '1.5px solid #FEE2E2' }}>
               <tr style={{ height: '42px' }}>
-                <th style={{ width: '28%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Chapter & Topic</th>
-                <th style={{ width: '18%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Subject / Batch</th>
-                <th style={{ width: '15%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Required Duration</th>
-                <th style={{ width: '17%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Pacing Progress</th>
-                <th style={{ width: '10%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Status</th>
-                <th style={{ width: '12%', padding: '10px 14px', fontWeight: 600, color: '#1E293B', textAlign: 'right' }}>Actions</th>
+                <th style={{ width: '12%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Branch</th>
+                <th style={{ width: '26%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chapter & Topic</th>
+                <th style={{ width: '18%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Subject / Batch</th>
+                <th style={{ width: '16%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Required Duration</th>
+                <th style={{ width: '14%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pacing Progress</th>
+                <th style={{ width: '10%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
+                <th style={{ width: '4%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredTopics.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
+                  <td colSpan={7} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
                     No topic duration plans found. Click <strong>Plan New Topic Duration</strong> to add one.
                   </td>
                 </tr>
@@ -556,9 +702,26 @@ export default function TopicDurationPlanner() {
                   const totalMins = required * (topic.periodDurationMins || 45);
                   const totalHours = (totalMins / 60).toFixed(1);
                   const dynamicStatus = completed >= required ? 'Completed' : (completed > 0 ? 'In Progress' : (topic.status || 'Upcoming'));
+                  const isMangalwar = (topic.branch || '').toLowerCase().includes('mangalwar');
 
                   return (
                     <tr key={topic.id} style={{ height: '58px', borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                        <span
+                          className="badge fw-semibold d-inline-flex align-items-center gap-1"
+                          style={{
+                            backgroundColor: isMangalwar ? '#F0FDFA' : '#FDF0F0',
+                            color: isMangalwar ? '#0D9488' : '#8B1216',
+                            border: isMangalwar ? '1px solid #99F6E4' : '1px solid #F5C2C4',
+                            fontSize: '11px',
+                            borderRadius: '6px',
+                            padding: '3px 8px'
+                          }}
+                        >
+                          <MapPin size={11} />
+                          <span>{isMangalwar ? 'Mangalwar Peth' : 'Tarabai Park'}</span>
+                        </span>
+                      </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div className="fw-bold text-sa-charcoal" style={{ fontSize: '13px' }}>
                           {topic.topicName}
@@ -586,16 +749,22 @@ export default function TopicDurationPlanner() {
                         <div className="fw-bold text-sa-charcoal" style={{ fontSize: '13px' }}>
                           {required} Period{required > 1 ? 's' : ''}
                         </div>
-                        <span className="text-sa-muted small" style={{ fontSize: '11.5px' }}>
+                        <span className="text-sa-muted small d-block" style={{ fontSize: '11px' }}>
                           ({totalHours} hrs • {topic.periodDurationMins || 45}m/period)
                         </span>
+                        {topic.targetDate && (
+                          <div className="d-flex align-items-center gap-1 text-sa-maroon fw-semibold mt-1" style={{ fontSize: '11px' }}>
+                            <Calendar size={11} />
+                            <span>Target: {topic.targetDate}</span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div className="d-flex align-items-center justify-content-between mb-1">
-                          <span className="small fw-semibold text-sa-charcoal" style={{ fontSize: '11.5px' }}>
+                          <span className="small fw-semibold text-sa-charcoal" style={{ fontSize: '11px' }}>
                             {completed} / {required} Periods
                           </span>
-                          <span className="small fw-bold text-sa-maroon" style={{ fontSize: '11.5px' }}>
+                          <span className="small fw-bold text-sa-maroon" style={{ fontSize: '11px' }}>
                             {percent}%
                           </span>
                         </div>
@@ -617,14 +786,14 @@ export default function TopicDurationPlanner() {
                               dynamicStatus === 'Completed'
                                 ? '#EAF6EF'
                                 : dynamicStatus === 'In Progress'
-                                ? '#FEF8EB'
-                                : '#F1F5F9',
+                                  ? '#FEF8EB'
+                                  : '#F1F5F9',
                             color:
                               dynamicStatus === 'Completed'
                                 ? '#168554'
                                 : dynamicStatus === 'In Progress'
-                                ? '#D97718'
-                                : '#475569',
+                                  ? '#D97718'
+                                  : '#475569',
                             border: '1px solid currentColor',
                             fontSize: '11px',
                             padding: '3px 8px'
@@ -646,7 +815,7 @@ export default function TopicDurationPlanner() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(topic.id)}
+                            onClick={() => handleDelete(topic)}
                             className="btn btn-sm btn-light border text-danger rounded shadow-xs"
                             title="Delete topic plan"
                             style={{ borderColor: '#CBD5E1', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
@@ -676,10 +845,42 @@ export default function TopicDurationPlanner() {
       >
         <form onSubmit={handleSave} className="d-flex flex-column gap-3">
           <p className="text-sa-muted m-0" style={{ fontSize: '13px' }}>
-            Set how many lecture periods and duration are needed to complete this syllabus topic.
+            Set how many lecture periods, branch, and target completion date are needed to complete this syllabus topic.
           </p>
 
           <div className="row g-3">
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
+              <select
+                className="form-select form-select-sm"
+                value={form.branch}
+                onChange={(e) => {
+                  const b = e.target.value;
+                  setForm({
+                    ...form,
+                    branch: b,
+                    batch: b === 'Mangalwar Peth'
+                      ? '12th Science Mangalwar Peth (Batch A)'
+                      : '12th Science Tarabai Park (Batch A)'
+                  });
+                }}
+              >
+                <option value="Tarabai Park">Tarabai Park Branch</option>
+                <option value="Mangalwar Peth">Mangalwar Peth Branch</option>
+              </select>
+            </div>
+
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Target Completion Date ("Complete By")</label>
+              <input
+                type="date"
+                required
+                className="form-control form-control-sm"
+                value={form.targetDate}
+                onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+              />
+            </div>
+
             <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Chapter / Unit</label>
               <input
@@ -725,8 +926,10 @@ export default function TopicDurationPlanner() {
                 required
               >
                 <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
+                <option value="12th Science Tarabai Park (Batch B)">12th Science Tarabai Park (Batch B)</option>
                 <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                <option value="12th Science PCB (Batch C)">12th Science PCB (Batch C)</option>
+                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
+                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
                 <option value="All Enrolled Batches">All Enrolled Batches</option>
               </select>
             </div>

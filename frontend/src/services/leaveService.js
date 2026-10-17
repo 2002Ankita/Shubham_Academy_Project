@@ -16,10 +16,21 @@ export const leaveService = {
     return res.data;
   },
 
+  getTeacherLeaveSummary: async (teacherId) => {
+    const res = await api.get(`/leave-requests/teacher/${teacherId}/summary`);
+    return res.data;
+  },
+
   updateLeaveStatus: async (requestId, status, adminComment) => {
     const res = await api.put(`/leave-requests/${requestId}/status`, null, {
       params: { status, admin_comment: adminComment }
     });
+    return res.data;
+  },
+
+  exportLeaveRequests: async (teacherId) => {
+    const url = teacherId ? `/leave-requests/teacher/${teacherId}/export` : '/leave-requests/export';
+    const res = await api.get(url, { responseType: 'blob' });
     return res.data;
   }
 };

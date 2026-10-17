@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft, Download, Calendar, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft, Download, Calendar, ChevronDown, ChevronUp, Eye, LogIn, LogOut, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { attendanceService } from '../../services/attendanceService';
 import useAuth from '../../hooks/useAuth';
@@ -222,7 +222,7 @@ export default function TeacherAttendance() {
   }, [deduplicatedRecords, currentWeek]);
 
   const toggleWeekExpansion = (weekKey) => {
-    setExpandedWeekKeys(prev => 
+    setExpandedWeekKeys(prev =>
       prev.includes(weekKey) ? prev.filter(k => k !== weekKey) : [...prev, weekKey]
     );
   };
@@ -285,23 +285,57 @@ export default function TeacherAttendance() {
     }
   ];
 
-  const renderStatusBadge = (status) => {
-    const s = (status || 'Present').toLowerCase();
-    if (s.includes('present') || s.includes('working')) {
+  const renderStatusBadge = (recordOrStatus) => {
+    const isObj = recordOrStatus && typeof recordOrStatus === 'object';
+    const status = isObj ? (recordOrStatus.status || 'Present') : (recordOrStatus || 'Present');
+    const isAuto = isObj && (recordOrStatus.isAutoClosed || (recordOrStatus.remarks && recordOrStatus.remarks.toLowerCase().includes('auto closed')));
+    const s = status.toLowerCase();
+
+    if (s.includes('working')) {
       return (
         <span
-          className="badge border"
-          style={{ backgroundColor: '#EAF6EF', color: '#168554', borderColor: '#C4EAD4', fontSize: '12px' }}
+          className="badge border d-inline-flex align-items-center gap-1.5"
+          style={{ backgroundColor: '#ECFDF5', color: '#047857', borderColor: '#A7F3D0', fontSize: '12px', padding: '5px 10px', borderRadius: '8px' }}
         >
-          {status || 'Present'}
+          <span className="rounded-circle" style={{ width: '6px', height: '6px', backgroundColor: '#10B981' }} />
+          Working
         </span>
+      );
+    }
+    if (s.includes('present')) {
+      return (
+        <div className="d-inline-flex flex-wrap align-items-center gap-1.5">
+          <span
+            className="badge border"
+            style={{ backgroundColor: '#EAF6EF', color: '#168554', borderColor: '#C4EAD4', fontSize: '12px', padding: '5px 10px', borderRadius: '8px' }}
+          >
+            Present
+          </span>
+          {isAuto && (
+            <span
+              className="badge border"
+              style={{
+                backgroundColor: '#EFF6FF',
+                color: '#1E40AF',
+                borderColor: '#DBEAFE',
+                fontSize: '11px',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontWeight: 600
+              }}
+              title="Automatically closed based on scheduled timetable lecture hours"
+            >
+              Auto Closed
+            </span>
+          )}
+        </div>
       );
     }
     if (s.includes('absent')) {
       return (
         <span
           className="badge border"
-          style={{ backgroundColor: '#FDF0F0', color: '#A91D22', borderColor: '#F8D2D3', fontSize: '12px' }}
+          style={{ backgroundColor: '#FDF0F0', color: '#A91D22', borderColor: '#F8D2D3', fontSize: '12px', padding: '5px 10px', borderRadius: '8px' }}
         >
           {status}
         </span>
@@ -311,13 +345,13 @@ export default function TeacherAttendance() {
       return (
         <span
           className="badge border"
-          style={{ backgroundColor: '#EEF3FF', color: '#3B82F6', borderColor: '#D3E0FD', fontSize: '12px' }}
+          style={{ backgroundColor: '#EEF3FF', color: '#3B82F6', borderColor: '#D3E0FD', fontSize: '12px', padding: '5px 10px', borderRadius: '8px' }}
         >
           {status}
         </span>
       );
     }
-    return <span className="badge bg-light text-sa-charcoal border" style={{ fontSize: '12px' }}>{status}</span>;
+    return <span className="badge bg-light text-sa-charcoal border" style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '8px' }}>{status}</span>;
   };
 
   const teacherDisplayName = user?.name || user?.full_name || 'Teacher';
@@ -358,26 +392,132 @@ export default function TeacherAttendance() {
         </div>
 
         {/* Right: Controls & Actions */}
-        <div className="d-flex align-items-center flex-wrap" style={{ gap: '12px' }}>
-          <Button
-            type="button"
-            variant="primary"
-            icon={Clock3}
-            loading={attendanceActionLoading}
-            disabled={attendanceActionLoading || hasCheckedIn || !user?.id}
-            onClick={() => handleTeacherAttendance('check-in')}
-          >
-            {hasCheckedIn ? `Checked in ${todayRecord.checkIn}` : 'Check In'}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            loading={attendanceActionLoading}
-            disabled={attendanceActionLoading || !hasCheckedIn || hasCheckedOut}
-            onClick={() => handleTeacherAttendance('check-out')}
-          >
-            {hasCheckedOut ? `Checked out ${todayRecord.checkOut}` : 'Check Out'}
-          </Button>
+        <div className="d-flex align-items-center flex-wrap gap-2.5">
+          {/* State 1: Shift Completed Today */}
+          {hasCheckedIn && hasCheckedOut ? (
+            <div
+              className="d-inline-flex align-items-center flex-wrap gap-2 px-3 py-2 bg-white border shadow-sm"
+              style={{
+                borderColor: '#E2E8F0',
+                borderRadius: '12px'
+              }}
+            >
+              <div className="d-flex align-items-center gap-1.5 text-success fw-semibold" style={{ fontSize: '13px' }}>
+                <CheckCircle2 size={16} />
+                <span>Shift Completed</span>
+              </div>
+              <span className="text-sa-muted" style={{ fontSize: '12px' }}>•</span>
+              <span className="text-sa-charcoal fw-medium" style={{ fontSize: '12.5px' }}>
+                In: <strong className="text-dark">{todayRecord?.checkIn}</strong>
+              </span>
+              <span className="text-sa-muted" style={{ fontSize: '12px' }}>•</span>
+              <span className="text-sa-charcoal fw-medium" style={{ fontSize: '12.5px' }}>
+                Out: <strong className="text-dark">{todayRecord?.checkOut}</strong>
+              </span>
+              <span
+                className="badge border ms-1"
+                style={{
+                  backgroundColor: '#EFF6FF',
+                  color: '#1D4ED8',
+                  borderColor: '#BFDBFE',
+                  fontSize: '11.5px',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontWeight: 600
+                }}
+              >
+                {todayRecord?.totalHours || '0h 0m'}
+              </span>
+            </div>
+          ) : isWorkingNow ? (
+            /* State 2: Active Working Shift (Checked in, pending checkout) */
+            <div className="d-flex align-items-center flex-wrap gap-2">
+              <div
+                className="d-inline-flex align-items-center gap-2 px-3 py-2 border"
+                style={{
+                  backgroundColor: '#ECFDF5',
+                  borderColor: '#A7F3D0',
+                  borderRadius: '12px',
+                  color: '#065F46',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                <span
+                  className="rounded-circle d-inline-block"
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    backgroundColor: '#10B981',
+                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.3)'
+                  }}
+                />
+                <span>Checked In: {todayRecord?.checkIn}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTeacherAttendance('check-out')}
+                disabled={attendanceActionLoading}
+                className="btn d-inline-flex align-items-center gap-2 px-3.5 py-2 text-white shadow-sm fw-semibold"
+                style={{
+                  background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(220, 38, 38, 0.4)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.3)'; }}
+              >
+                <LogOut size={16} />
+                <span>{attendanceActionLoading ? 'Processing...' : 'Check Out Now'}</span>
+              </button>
+            </div>
+          ) : (
+            /* State 3: Not Checked In Yet Today */
+            <div className="d-flex align-items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleTeacherAttendance('check-in')}
+                disabled={attendanceActionLoading || !user?.id}
+                className="btn d-inline-flex align-items-center gap-2 px-3.5 py-2 text-white shadow-sm fw-semibold"
+                style={{
+                  background: 'linear-gradient(135deg, #16A34A 0%, #15803D 100%)',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(22, 163, 74, 0.35)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.25)'; }}
+              >
+                <LogIn size={16} />
+                <span>{attendanceActionLoading ? 'Checking in...' : 'Check In'}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled
+                className="btn d-inline-flex align-items-center gap-2 px-3 py-2 text-muted fw-semibold border"
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderColor: '#E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  cursor: 'not-allowed',
+                  opacity: 0.65
+                }}
+                title="Please check in first"
+              >
+                <LogOut size={16} />
+                <span>Check Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -511,16 +651,16 @@ export default function TeacherAttendance() {
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table className="table align-middle mb-0">
-            <thead>
-              <tr className="table-light">
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Date</th>
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Day</th>
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Check In</th>
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Check Out</th>
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Hours</th>
-                <th scope="col" style={{ fontSize: '13px', fontWeight: 600 }}>Status</th>
+        <div className="table-responsive border rounded-3 overflow-hidden" style={{ borderColor: '#FEE2E2', borderRadius: '12px' }}>
+          <table className="table align-middle mb-0" style={{ minWidth: '650px' }}>
+            <thead style={{ backgroundColor: '#FFF5F5', borderBottom: '1.5px solid #FEE2E2' }}>
+              <tr style={{ height: '42px' }}>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Date</th>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Day</th>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Check In</th>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Check Out</th>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Hours</th>
+                <th scope="col" style={{ fontSize: '11.5px', fontWeight: 700, color: '#8B1216', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '10px 14px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -542,9 +682,29 @@ export default function TeacherAttendance() {
                     <td style={{ fontSize: '13px' }}>{formatDateDisplay(record.date)}</td>
                     <td style={{ fontSize: '13px', fontWeight: 500 }}>{getDayName(record)}</td>
                     <td style={{ fontSize: '13px' }}>{record.checkIn}</td>
-                    <td style={{ fontSize: '13px' }}>{record.checkOut}</td>
-                    <td style={{ fontSize: '13px' }}>{record.totalHours}</td>
-                    <td>{renderStatusBadge(record.status)}</td>
+                    <td style={{ fontSize: '13px' }}>
+                      <div className="d-flex flex-column">
+                        <span className={record.checkOut === 'In Progress' ? 'text-primary fw-semibold' : 'text-dark'}>
+                          {record.checkOut}
+                        </span>
+                        {record.isAutoClosed && (
+                          <span className="text-sa-muted" style={{ fontSize: '11px' }}>
+                            Auto Closed
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: '13px', fontWeight: 600 }}>
+                      <div className="d-flex flex-column">
+                        <span className="text-dark">{record.totalHours}</span>
+                        {record.isAutoClosed && (
+                          <span className="text-sa-muted fw-normal" style={{ fontSize: '11px' }}>
+                            Lecture Hours
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>{renderStatusBadge(record)}</td>
                   </tr>
                 ))
               )}
@@ -660,9 +820,29 @@ export default function TeacherAttendance() {
                               <td style={{ fontSize: '13px' }}>{formatDateDisplay(record.date)}</td>
                               <td style={{ fontSize: '13px', fontWeight: 500 }}>{getDayName(record)}</td>
                               <td style={{ fontSize: '13px' }}>{record.checkIn}</td>
-                              <td style={{ fontSize: '13px' }}>{record.checkOut}</td>
-                              <td style={{ fontSize: '13px' }}>{record.totalHours}</td>
-                              <td>{renderStatusBadge(record.status)}</td>
+                              <td style={{ fontSize: '13px' }}>
+                                <div className="d-flex flex-column">
+                                  <span className={record.checkOut === 'In Progress' ? 'text-primary fw-semibold' : 'text-dark'}>
+                                    {record.checkOut}
+                                  </span>
+                                  {record.isAutoClosed && (
+                                    <span className="text-sa-muted" style={{ fontSize: '11px' }}>
+                                      Auto Closed
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ fontSize: '13px', fontWeight: 600 }}>
+                                <div className="d-flex flex-column">
+                                  <span className="text-dark">{record.totalHours}</span>
+                                  {record.isAutoClosed && (
+                                    <span className="text-sa-muted fw-normal" style={{ fontSize: '11px' }}>
+                                      Lecture Hours
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td>{renderStatusBadge(record)}</td>
                             </tr>
                           ))}
                         </tbody>

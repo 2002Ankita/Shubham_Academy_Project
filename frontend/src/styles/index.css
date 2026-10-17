@@ -147,14 +147,14 @@ input[type="datetime-local"].is-invalid {
 }
 
 .sa-table thead th {
-  background-color: #faf8f5;
-  color: var(--sa-charcoal);
-  font-size: 0.8rem;
+  background-color: #FFF5F5;
+  color: #8B1216;
+  font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 1rem 1.25rem;
-  border-bottom: 1.5px solid var(--sa-border);
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1.5px solid #FEE2E2;
 }
 
 .sa-table tbody td {

@@ -6,6 +6,9 @@ class DailyActivity(Document):
     activity: str = "Classroom Lecture & Theory"
     subject: str
     batch: str
+    branch: Optional[str] = "Tarabai Park"
+    chapter: Optional[str] = None
+    target_date: Optional[str] = None
     standard: Optional[str] = "Class 12th"
     topic_taught: str
     time_slot: Optional[str] = "08:30 AM - 10:00 AM"
@@ -13,6 +16,7 @@ class DailyActivity(Document):
     periods: int = 1
     total_planned_periods: Optional[int] = 3
     status: str = "Completed"
+    frequency: Optional[str] = "Daily"
     remarks: Optional[str] = None
     teacher_name: Optional[str] = None
     teacher_id: Optional[str] = None
