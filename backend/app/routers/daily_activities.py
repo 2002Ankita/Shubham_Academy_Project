@@ -115,7 +115,7 @@ async def create_daily_activity(
                     {"subject": {"$regex": f"^{re.escape(raw_subj)}$", "$options": "i"}}
                 ],
                 "batch": {"$regex": f"^{re.escape(batch_name)}$", "$options": "i"},
-                "topic_name": {"$regex": re.escape(topic_title), "$options": "i"}
+                "topic_name": {"$regex": f"^{re.escape(topic_title)}$", "$options": "i"}
             })
 
             if existing_topic:
@@ -168,6 +168,63 @@ async def create_daily_activity(
     res_data = activity.dict(exclude={"id", "_id"})
     res_data["id"] = str(activity.id)
     return DailyActivityResponse(**res_data)
+
+@router.post("/bulk", response_model=List[DailyActivityResponse])
+async def create_bulk_daily_activities(
+    activities_in: List[DailyActivityCreate],
+    token: Optional[str] = Depends(oauth2_scheme_optional)
+):
+    """Bulk create daily classroom activities from Excel import and route to respective faculty"""
+    current_teacher = None
+    if token:
+        try:
+            user = await get_current_user(token)
+            current_teacher = user.full_name
+        except Exception:
+            pass
+
+    created_results = []
+    for activity_in in activities_in:
+        data = activity_in.dict()
+        raw_subj = (data.get("subject") or "Physics").strip()
+        lower_subj = raw_subj.lower()
+        if "physic" in lower_subj:
+            standard_subj = "Physics"
+        elif "chem" in lower_subj:
+            standard_subj = "Chemistry"
+        elif "math" in lower_subj:
+            standard_subj = "Mathematics"
+        elif "bio" in lower_subj:
+            standard_subj = "Biology"
+        else:
+            standard_subj = raw_subj
+
+        # Assign faculty if not explicitly specified
+        faculty_name = data.get("teacher_name") or current_teacher
+        if not faculty_name or faculty_name in ["Assigned Faculty", ""]:
+            if standard_subj == "Physics":
+                faculty_name = "Dr. Priya Kulkarni"
+            elif standard_subj == "Chemistry":
+                faculty_name = "Prof. Sunita Patil"
+            elif standard_subj == "Mathematics":
+                faculty_name = "Prof. Rajesh Sharma"
+            elif standard_subj == "Biology":
+                faculty_name = "Prof. Amit Sawant"
+            else:
+                faculty_name = "Dr. Priya Kulkarni"
+        data["teacher_name"] = faculty_name
+
+        if not data.get("activity_date"):
+            data["activity_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+
+        activity = DailyActivity(**data)
+        await activity.insert()
+
+        res_dict = activity.dict(exclude={"id", "_id"})
+        res_dict["id"] = str(activity.id)
+        created_results.append(DailyActivityResponse(**res_dict))
+
+    return created_results
 
 @router.get("/{id}", response_model=DailyActivityResponse)
 async def get_daily_activity(id: str, token: Optional[str] = Depends(oauth2_scheme_optional)):

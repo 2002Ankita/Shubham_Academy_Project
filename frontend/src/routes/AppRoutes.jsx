@@ -57,6 +57,7 @@ import LeaveApprovals from '../pages/admin/LeaveApprovals';
 import AdminProfile from '../pages/admin/Profile';
 import BatchManagement from '../pages/admin/BatchManagement';
 import AdminTopicDurationReport from '../pages/admin/TopicDurationReport';
+import ActivityTimetableManagement from '../pages/admin/ActivityTimetableManagement';
 
 // Teacher Pages
 import TeacherDashboard from '../pages/teacher/Dashboard';
@@ -150,6 +151,8 @@ export default function AppRoutes() {
       >
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/batches" element={<BatchManagement />} />
+        <Route path="/admin/activity-timetable" element={<ActivityTimetableManagement />} />
+        <Route path="/admin/daily-activities" element={<ActivityTimetableManagement />} />
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />

@@ -58,8 +58,60 @@ async def list_topic_durations(
         await seed_curriculum_database()
         topics = await TopicDuration.find(query).sort("start_date").to_list()
 
-    result = []
+    # Deduplicate topics by (subject, batch, topic_name) and purge duplicates from DB
+    seen_keys = {}
+    unique_topics = []
+    duplicates_to_delete = []
+
     for t in topics:
+        subj_norm = (t.subject or "").strip().lower()
+        if "physic" in subj_norm:
+            subj_norm = "physics"
+        elif "chem" in subj_norm:
+            subj_norm = "chemistry"
+        elif "math" in subj_norm:
+            subj_norm = "mathematics"
+        elif "bio" in subj_norm:
+            subj_norm = "biology"
+
+        key = (
+            subj_norm,
+            (t.batch or "").strip().lower(),
+            (t.topic_name or "").strip().lower()
+        )
+
+        if key in seen_keys:
+            existing = seen_keys[key]
+            # Merge stats into existing
+            existing.completed_periods = max(existing.completed_periods or 0, t.completed_periods or 0)
+            existing.required_periods = max(existing.required_periods or 0, t.required_periods or 0)
+            if existing.chapter in ["Curriculum Chapter", "Curriculum Module", None, ""] and t.chapter not in ["Curriculum Chapter", "Curriculum Module", None, ""]:
+                existing.chapter = t.chapter
+            if t.status == "Completed" or (existing.completed_periods >= existing.required_periods and existing.required_periods > 0):
+                existing.status = "Completed"
+            elif existing.status != "Completed" and (t.status == "In Progress" or (existing.completed_periods or 0) > 0):
+                existing.status = "In Progress"
+            duplicates_to_delete.append(t)
+        else:
+            seen_keys[key] = t
+            unique_topics.append(t)
+
+    # Purge duplicates from database asynchronously so they never return
+    for dup in duplicates_to_delete:
+        try:
+            await dup.delete()
+        except Exception:
+            pass
+
+    # Save any merged changes on kept items
+    for unique_t in seen_keys.values():
+        try:
+            await unique_t.save()
+        except Exception:
+            pass
+
+    result = []
+    for t in unique_topics:
         d = t.dict(exclude={"id", "_id"})
         d["id"] = str(t.id)
         result.append(TopicDurationResponse(**d))
@@ -149,7 +201,7 @@ async def create_topic_duration(
     topic_in: TopicDurationCreate,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
-    """Create a new topic duration plan"""
+    """Create a new topic duration plan or update existing if duplicate"""
     if token:
         try:
             await get_current_user(token)
@@ -157,6 +209,36 @@ async def create_topic_duration(
             pass
 
     data = topic_in.dict()
+    topic_name = (data.get("topic_name") or "").strip()
+    batch_name = (data.get("batch") or "").strip()
+    raw_subj = (data.get("subject") or "").strip()
+
+    # Deduplication check: check if already exists
+    import re
+    existing = await TopicDuration.find_one({
+        "subject": {"$regex": f"^{re.escape(raw_subj)}$", "$options": "i"},
+        "batch": {"$regex": f"^{re.escape(batch_name)}$", "$options": "i"},
+        "topic_name": {"$regex": f"^{re.escape(topic_name)}$", "$options": "i"}
+    })
+
+    if existing:
+        if data.get("completed_periods") is not None:
+            existing.completed_periods = max(existing.completed_periods or 0, data["completed_periods"])
+        if data.get("required_periods"):
+            existing.required_periods = max(existing.required_periods or 0, data["required_periods"])
+        if data.get("status"):
+            existing.status = data["status"]
+        if data.get("chapter") and data["chapter"] not in ["Curriculum Chapter", "Curriculum Module"]:
+            existing.chapter = data["chapter"]
+        if data.get("remarks"):
+            existing.remarks = data["remarks"]
+        existing.updated_at = datetime.utcnow()
+        await existing.save()
+
+        d = existing.dict(exclude={"id", "_id"})
+        d["id"] = str(existing.id)
+        return TopicDurationResponse(**d)
+
     if not data.get("topic_id"):
         data["topic_id"] = f"TOPIC-{int(datetime.utcnow().timestamp())}"
 
@@ -166,6 +248,59 @@ async def create_topic_duration(
     d = topic.dict(exclude={"id", "_id"})
     d["id"] = str(topic.id)
     return TopicDurationResponse(**d)
+
+@router.post("/bulk", response_model=List[TopicDurationResponse])
+async def create_bulk_topic_durations(
+    topics_in: List[TopicDurationCreate],
+    token: Optional[str] = Depends(oauth2_scheme_optional)
+):
+    """Bulk create topic duration curriculum plans from Excel import and route to respective faculty"""
+    current_teacher = None
+    if token:
+        try:
+            user = await get_current_user(token)
+            current_teacher = user.full_name
+        except Exception:
+            pass
+
+    faculty_by_subj = {
+        "physics": "Dr. Priya Kulkarni",
+        "chemistry": "Prof. Sunita Patil",
+        "mathematics": "Prof. Rajesh Sharma",
+        "math": "Prof. Rajesh Sharma",
+        "biology": "Prof. Amit Sawant"
+    }
+
+    created = []
+    for t_in in topics_in:
+        data = t_in.dict()
+        subj_raw = (data.get("subject") or "Physics").strip()
+        subj_lower = subj_raw.lower()
+
+        # Faculty assignment
+        f_name = data.get("teacher_name") or current_teacher
+        if not f_name or f_name in ["Assigned Faculty", ""]:
+            for k, v in faculty_by_subj.items():
+                if k in subj_lower:
+                    f_name = v
+                    break
+            if not f_name:
+                f_name = "Dr. Priya Kulkarni"
+        data["teacher_name"] = f_name
+
+        if not data.get("branch"):
+            data["branch"] = "Tarabai Park"
+
+        if not data.get("topic_id"):
+            data["topic_id"] = f"TOPIC-{int(datetime.utcnow().timestamp())}-{len(created)}"
+
+        topic = TopicDuration(**data)
+        await topic.insert()
+        res_d = topic.dict(exclude={"id", "_id"})
+        res_d["id"] = str(topic.id)
+        created.append(TopicDurationResponse(**res_d))
+
+    return created
 
 @router.get("/{id}", response_model=TopicDurationResponse)
 async def get_topic_duration(id: str, token: Optional[str] = Depends(oauth2_scheme_optional)):

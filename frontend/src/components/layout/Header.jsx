@@ -212,6 +212,16 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       return;
     }
 
+    if (notif.type === 'timetable_request' || notif.type === 'timetable_pending') {
+      navigate('/admin/activity-timetable?tab=weekly');
+      return;
+    }
+
+    if (notif.type === 'timetable_published' && isTeacher) {
+      navigate('/teacher/classes');
+      return;
+    }
+
     const targetRoute = isStudent
       ? '/student/announcements'
       : isTeacher
