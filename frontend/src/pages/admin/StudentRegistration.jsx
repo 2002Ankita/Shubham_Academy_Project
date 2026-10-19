@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import BackButton from '../../components/common/BackButton';
@@ -19,8 +19,24 @@ import {
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
+import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
+
+export const STANDARD_BATCHES = [
+  '11th pcm tarabai park',
+  '11th pcb tarabai park',
+  '11th pcmb tarabai park',
+  '12th pcm tarabai park',
+  '12th pcb tarabai park',
+  '12th pcmb tarabai park',
+  '11th pcm Mangalvar Peth',
+  '11th pcb Mangalvar Peth',
+  '11th pcmb Mangalvar Peth',
+  '12th pcm Mangalvar Peth',
+  '12th pcb Mangalvar Peth',
+  '12th pcmb Mangalvar Peth'
+];
 
 export default function StudentRegistration() {
   const navigate = useNavigate();
@@ -28,9 +44,10 @@ export default function StudentRegistration() {
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(true);
+  const [feeStructures, setFeeStructures] = useState([]);
 
   // Admin Role-Based Form State:
-  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Standard, Batch, Fee Details (Total, Concession, Paid, Remaining)
+  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Standard, Batch, Branch, Fee Details (Total, Concession, Paid, Remaining)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -38,30 +55,51 @@ export default function StudentRegistration() {
     parentPhone: '',
     standard: '11th Science',
     batch: '',
-    originalFees: 45000,
+    branch: 'Tarabai Park',
+    originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
     discountRecommendedBy: 'Miss Shilpa (Counselor)',
-    totalFees: 45000,
+    totalFees: 55000,
     paidFees: 15000,
-    remainingFees: 30000,
-    password: 'password123',
+    remainingFees: 40000,
+    password: '',
     admissionDate: new Date().toISOString().split('T')[0]
   });
 
   const [errors, setErrors] = useState({});
 
+  const batchList = useMemo(() => {
+    const list = [...STANDARD_BATCHES];
+    if (Array.isArray(batches)) {
+      batches.forEach((b) => {
+        if (b?.name && !list.some((item) => item.toLowerCase() === b.name.toLowerCase())) {
+          list.push(b.name);
+        }
+      });
+    }
+    return list;
+  }, [batches]);
+
+  useEffect(() => {
+    feeService.getStructures().then((data) => {
+      if (Array.isArray(data)) setFeeStructures(data);
+    }).catch((err) => console.warn('Could not load fee structures:', err));
+  }, []);
+
   useEffect(() => {
     batchService.getBatches()
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setBatches(data);
           // Auto-select first batch if none chosen
-          if (data.length > 0 && !formData.batch) {
+          if (!formData.batch) {
+            const firstBatch = data[0].name;
+            const is12th = firstBatch.toLowerCase().includes('12th');
             setFormData((prev) => ({
               ...prev,
-              batch: data[0].name,
-              standard: data[0].standard || prev.standard || '11th Science'
+              batch: firstBatch,
+              standard: data[0].standard || (is12th ? '12th Science' : '11th Science')
             }));
           }
         }
@@ -78,22 +116,22 @@ export default function StudentRegistration() {
     const { name, value } = e.target;
     let updated = { ...formData, [name]: value };
 
+    // When mobile number is typed, keep password synced to mobile number
+    if (name === 'mobileNumber') {
+      const clean = value.replace(/\D/g, '');
+      updated.password = clean;
+    }
+
     // Real-time calculation for Fees with Discount
     if (name === 'originalFees' || name === 'discountAmount' || name === 'totalFees' || name === 'paidFees') {
       const orig = Number(name === 'originalFees' ? value : updated.originalFees) || 0;
       const disc = Number(name === 'discountAmount' ? value : updated.discountAmount) || 0;
 
-      let netTotal;
-      if (name === 'totalFees') {
-        netTotal = Number(value) || 0;
-        updated.originalFees = netTotal + disc;
-      } else {
-        netTotal = Math.max(0, orig - disc);
-        updated.totalFees = netTotal;
-      }
-
+      // At registration time, the payable fee before discount approval is the gross course fee.
+      // Once approved, the discount is officially deducted.
+      updated.totalFees = orig;
       const paid = Number(name === 'paidFees' ? value : updated.paidFees) || 0;
-      updated.remainingFees = Math.max(0, netTotal - paid);
+      updated.remainingFees = Math.max(0, orig - paid);
     }
 
     setFormData(updated);
@@ -105,11 +143,50 @@ export default function StudentRegistration() {
 
   const handleBatchChange = (e) => {
     const selectedBatch = e.target.value;
-    const found = batches.find((b) => b.name === selectedBatch);
+    const found = batches.find((b) => (b.name || '').toLowerCase() === (selectedBatch || '').toLowerCase());
+    let std = found?.standard;
+    if (!std && selectedBatch) {
+      if (selectedBatch.toLowerCase().includes('11th')) {
+        std = '11th Science';
+      } else if (selectedBatch.toLowerCase().includes('12th')) {
+        std = '12th Science';
+      }
+    }
+    if (!std) std = formData.standard || '11th Science';
+
+    // Auto-detect branch based on batch naming
+    let detectedBranch = formData.branch;
+    const bLower = (selectedBatch || '').toLowerCase();
+    if (bLower.includes('tarabai')) {
+      detectedBranch = 'Tarabai Park';
+    } else if (bLower.includes('mangal')) {
+      detectedBranch = 'Mangalwar Peth';
+    }
+
+    // Auto-lookup matching fee structure
+    let newOriginalFee = formData.originalFees;
+    if (feeStructures && feeStructures.length > 0) {
+      const match = feeStructures.find((s) =>
+        (s.batch && s.batch.toLowerCase() === selectedBatch.toLowerCase()) ||
+        (s.branch === detectedBranch && s.standard === std)
+      );
+      if (match && match.total_fee > 0) {
+        newOriginalFee = match.total_fee;
+      }
+    }
+
+    const disc = Number(formData.discountAmount) || 0;
+    const netTotal = Math.max(0, newOriginalFee - disc);
+    const paid = Number(formData.paidFees) || 0;
+
     setFormData((prev) => ({
       ...prev,
       batch: selectedBatch,
-      standard: found?.standard || prev.standard || '11th Science'
+      standard: std,
+      branch: detectedBranch,
+      originalFees: newOriginalFee,
+      totalFees: netTotal,
+      remainingFees: Math.max(0, netTotal - paid)
     }));
     if (errors.batch) {
       setErrors((prev) => ({ ...prev, batch: '' }));
@@ -182,10 +259,11 @@ export default function StudentRegistration() {
       const cleanMobile = formData.mobileNumber.replace(/\D/g, '');
       const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
       const discAmount = Number(formData.discountAmount) || 0;
-      const origFees = Number(formData.originalFees || formData.totalFees) || 0;
-      const netFees = Math.max(0, origFees - discAmount);
+      const origFees = Number(formData.originalFees) || 0;
       const paidFees = Number(formData.paidFees) || 0;
-      const remainingFees = Math.max(0, netFees - paidFees);
+      // Before discount approval, the effective course fee is the original fees.
+      const effectiveTotalFees = origFees;
+      const remainingFees = Math.max(0, effectiveTotalFees - paidFees);
 
       const payload = {
         name: formData.fullName.trim(),
@@ -197,18 +275,25 @@ export default function StudentRegistration() {
         parent_mobile: cleanParentMobile,
         standard: formData.standard || undefined,
         batch: formData.batch || undefined,
-        totalFees: netFees,
-        total_fees: netFees,
+        branch: formData.branch || (formData.batch?.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park'),
+        totalFees: effectiveTotalFees,
+        total_fees: effectiveTotalFees,
         original_fees: origFees,
+        discountAmount: discAmount,
         discount_amount: discAmount,
+        discountRequestedAmount: discAmount,
         discount_requested_amount: discAmount,
+        discountReason: formData.discountReason || (discAmount > 0 ? 'Scholarship / Merit Concession' : ''),
         discount_reason: formData.discountReason || (discAmount > 0 ? 'Scholarship / Merit Concession' : ''),
+        discountRecommendedBy: discAmount > 0 ? (formData.discountRecommendedBy || 'Miss Shilpa (Counselor)') : '',
         discount_recommended_by: discAmount > 0 ? (formData.discountRecommendedBy || 'Miss Shilpa (Counselor)') : '',
+        discountOfferedBy: discAmount > 0 ? (formData.discountRecommendedBy || 'Miss Shilpa (Counselor)') : '',
         discount_offered_by: discAmount > 0 ? (formData.discountRecommendedBy || 'Miss Shilpa (Counselor)') : '',
         paidFees: paidFees,
         paid_fees: paidFees,
+        remainingFees: remainingFees,
         remaining_fees: remainingFees,
-        password: formData.password || 'password123',
+        password: formData.password || formData.mobileNumber?.replace(/\D/g, '') || undefined,
         admission_date: new Date(formData.admissionDate).toISOString()
       };
 
@@ -378,11 +463,16 @@ export default function StudentRegistration() {
                   </span>
                 </div>
 
-                {/* Student Email ID */}
+                {/* Student Email ID - Optional */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Student Email ID
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Student Email ID
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '0.70rem' }}>
+                      Optional
+                    </span>
+                  </div>
                   <div className="input-group">
                     <span className="input-group-text bg-light text-muted">
                       <Mail size={16} />
@@ -392,18 +482,18 @@ export default function StudentRegistration() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="e.g., rohan.sharma@example.com"
+                      placeholder="Optional — leave blank to use mobile login"
                       className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                       disabled={loading}
                     />
                     {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                   </div>
                   <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Optional. Auto-generated if left blank.
+                    Optional. Student can register and log in solely using their mobile number.
                   </span>
                 </div>
 
-                {/* Student Mobile Number */}
+                {/* Student Mobile Number - Required Unique ID & Password */}
                 <div className="col-12 col-md-6">
                   <label className="form-label small fw-semibold text-sa-charcoal">
                     Student Mobile Number <span className="text-danger">*</span>
@@ -425,7 +515,7 @@ export default function StudentRegistration() {
                     {errors.mobileNumber && <div className="invalid-feedback">{errors.mobileNumber}</div>}
                   </div>
                   <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Will serve as the student's primary portal login identifier.
+                    Unique Student Login ID and default portal Password.
                   </span>
                 </div>
 
@@ -519,21 +609,11 @@ export default function StudentRegistration() {
                       disabled={loading}
                     >
                       <option value="">-- Select Study Batch --</option>
-                      {batches.length > 0 ? (
-                        batches.map((b) => (
-                          <option key={b.id || b.name} value={b.name}>
-                            {b.name} ({b.standard || 'General'}{b.time ? ` • ${b.time}` : ''})
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="11th PCM Tarabai Park">11th PCM Tarabai Park</option>
-                          <option value="12th PCM Tarabai Park">12th PCM Tarabai Park</option>
-                          <option value="11th PCB Main Branch">11th PCB Main Branch</option>
-                          <option value="12th PCB Main Branch">12th PCB Main Branch</option>
-                          <option value="Foundation Integrated">Foundation Integrated</option>
-                        </>
-                      )}
+                      {batchList.map((batchName) => (
+                        <option key={batchName} value={batchName}>
+                          {batchName}
+                        </option>
+                      ))}
                     </select>
                     {errors.batch && <div className="invalid-feedback">{errors.batch}</div>}
                   </div>
@@ -715,13 +795,14 @@ export default function StudentRegistration() {
                   <div className="col-12">
                     <div
                       className="p-2.5 rounded-2 d-flex align-items-center gap-2 text-sa-charcoal small"
-                      style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
+                      style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}
                     >
-                      <ShieldCheck size={16} className="text-success flex-shrink-0" />
+                      <ShieldCheck size={18} className="text-warning-emphasis flex-shrink-0" />
                       <span>
-                        <strong>Concession Workflow:</strong> A concession request of ₹
-                        {Number(formData.discountAmount).toLocaleString()} will be automatically routed to the Super Admin's
-                        approval queue. The net fee payable is ₹{Number(formData.totalFees).toLocaleString()}.
+                        <strong>Concession Workflow:</strong> Concession request of ₹
+                        {Number(formData.discountAmount).toLocaleString()} is submitted for Superadmin approval. 
+                        The standard fee payable before approval is ₹{Number(formData.originalFees).toLocaleString()}. 
+                        Once approved by Superadmin, the approved fee will update to ₹{Math.max(0, Number(formData.originalFees) - Number(formData.discountAmount)).toLocaleString()}.
                       </span>
                     </div>
                   </div>
@@ -780,7 +861,7 @@ export default function StudentRegistration() {
                       totalFees: 45000,
                       paidFees: 15000,
                       remainingFees: 30000,
-                      password: 'password123',
+                      password: '',
                       admissionDate: new Date().toISOString().split('T')[0]
                     })
                   }
@@ -906,7 +987,7 @@ export default function StudentRegistration() {
               <div className="d-flex justify-content-between border-bottom pb-2">
                 <span className="text-muted">Default Password:</span>
                 <span className="badge bg-light text-dark font-monospace border">
-                  password123
+                  {formData.mobileNumber ? formData.mobileNumber.replace(/\D/g, '') : <span className="text-muted">Same as Mobile No.</span>}
                 </span>
               </div>
 

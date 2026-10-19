@@ -7,6 +7,7 @@ from app.models.user import User
 class Student(Document):
     user: Link[User]
     student_id: Annotated[str, Indexed(unique=True)]
+    full_name: Optional[str] = None
     mobile_number: Annotated[str, Indexed(unique=True)]
     parent_mobile: Optional[str] = None
     email: Optional[str] = None

@@ -45,7 +45,8 @@ export default function StudentDetails() {
   });
   const [submittingDiscount, setSubmittingDiscount] = useState(false);
 
-  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const roleStr = (user?.role || '').toLowerCase().replace('-', '_');
+  const isSuperAdmin = roleStr === 'super_admin' || roleStr.includes('super');
 
   const loadDetails = async () => {
     try {
@@ -79,7 +80,19 @@ export default function StudentDetails() {
         approved_amount: Number(discAmt) || 0,
         discount_amount: Number(discAmt) || 0
       });
-      toast.success(`Discount approved successfully by Superadmin (${user?.name})!`);
+      try {
+        notificationService.notifyDiscountDecision({
+          studentId: student.id,
+          studentName: student.name,
+          originalRequested: discAmt,
+          approvedAmount: discAmt,
+          isApproved: true,
+          approverName: user?.full_name || user?.name || 'Superadmin'
+        });
+      } catch (syncErr) {
+        console.warn('Sync notification error:', syncErr);
+      }
+      toast.success(`Discount approved successfully by Superadmin (${user?.name || user?.full_name || 'Superadmin'})!`);
       await loadDetails();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to approve discount');
@@ -94,6 +107,19 @@ export default function StudentDetails() {
     try {
       setSubmittingDiscount(true);
       await studentService.rejectDiscount(student.id, reason);
+      try {
+        notificationService.notifyDiscountDecision({
+          studentId: student.id,
+          studentName: student.name,
+          originalRequested: student.discountRequestedAmount || student.discountAmount || 0,
+          approvedAmount: 0,
+          isApproved: false,
+          rejectionReason: reason,
+          approverName: user?.full_name || user?.name || 'Superadmin'
+        });
+      } catch (syncErr) {
+        console.warn('Sync notification error:', syncErr);
+      }
       toast.info('Discount request has been rejected');
       await loadDetails();
     } catch (err) {
@@ -127,6 +153,21 @@ export default function StudentDetails() {
       if (isSuperAdmin) {
         toast.success(`Discount of ₹${amount.toLocaleString()} granted and approved by Superadmin!`);
       } else {
+        notificationService.addNotification({
+          id: `NTF-DISC-${student.id}`,
+          title: `🔔 Fee Concession Approval: ${student.name}`,
+          type: 'discount_approval',
+          category: 'Discount & Fees',
+          priority: 'High',
+          author: user?.full_name || user?.name || 'Admission Desk',
+          details: `${user?.full_name || user?.name || 'Staff'} recommended a concession of ₹${amount.toLocaleString()} for ${student.name}. Superadmin approval is required before student ledger updates.`,
+          read: false,
+          forSuperAdminOnly: true,
+          studentId: student.id,
+          studentName: student.name,
+          discountAmount: amount,
+          recommendedBy: user?.full_name || user?.name
+        });
         toast.info(`Discount of ₹${amount.toLocaleString()} submitted. Final approval must be given by the Superadmin.`);
       }
       setDiscountModalOpen(false);

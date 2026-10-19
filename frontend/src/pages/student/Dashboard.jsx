@@ -445,15 +445,29 @@ export default function StudentDashboard() {
               </div>
             </div>
             <div className="mt-2.5">
-              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                Pending Fees
-              </span>
+              <div className="d-flex align-items-center justify-content-between">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Pending Fees
+                </span>
+                {totalFeeAmount > 0 && (
+                  <span className="text-muted" style={{ fontSize: '0.70rem' }}>
+                    Fee: ₹{Number(totalFeeAmount).toLocaleString('en-IN')}
+                  </span>
+                )}
+              </div>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
                 ₹{Number(pendingFeeAmount).toLocaleString('en-IN')}
               </div>
-              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: Number(pendingFeeAmount) > 0 ? '#DC2626' : '#168554' }}>
-                {Number(pendingFeeAmount) > 0 ? '▲ Due by 10 Jun 2025' : '✓ No pending fees'}
-              </span>
+              <div className="d-flex align-items-center justify-content-between mt-1">
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: Number(pendingFeeAmount) > 0 ? '#DC2626' : '#168554' }}>
+                  {Number(pendingFeeAmount) > 0 ? '▲ Outstanding Due' : '✓ No pending fees'}
+                </span>
+                {feeDetails.discount_status === 'APPROVED' && Number(feeDetails.discount_amount) > 0 && (
+                  <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.67rem' }}>
+                    -₹{Number(feeDetails.discount_amount).toLocaleString()} Concession
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

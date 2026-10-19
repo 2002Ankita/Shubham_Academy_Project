@@ -93,14 +93,24 @@ export default function StudentFees() {
             : [];
 
           if (userPayments && userPayments.length > 0) {
-            const mapped = userPayments.map((p, idx) => ({
+            // Sort user payments chronologically (oldest to newest) to display clear installment progression
+            const sortedPayments = [...userPayments].sort((a, b) => {
+              const da = new Date(a.paymentDate).getTime() || 0;
+              const db = new Date(b.paymentDate).getTime() || 0;
+              if (da !== db) return da - db;
+              return (a.id || '').localeCompare(b.id || '');
+            });
+
+            const mapped = sortedPayments.map((p, idx) => ({
               id: p.id || `PAY-${idx}`,
               receiptNo: p.receiptNo || `REC-${Math.floor(100000 + Math.random() * 900000)}`,
               feeStructureName: p.feeHead || 'Standard Tuition Fee Structure',
               feeStructureYear: '2025 - 2026',
               totalFees: p.totalFees || 0,
               paidFees: p.amountPaid || 0,
-              pendingAmount: p.pendingAmount || 0,
+              pendingAmount: p.pendingAmount != null ? p.pendingAmount : 0,
+              cumulativePaid: p.cumulativePaid || p.amountPaid,
+              currentPendingFees: p.currentPendingFees,
               paymentDate: p.paymentDate || 'N/A',
               paymentMode: p.paymentMode || 'Online Bank Transfer',
               transactionId: p.transactionId || `TXN-SA-${idx + 100}`
@@ -220,17 +230,33 @@ export default function StudentFees() {
               </tr>
             </thead>
             <tbody>
+              ${details.discount_status === 'APPROVED' && Number(details.discount_amount) > 0 ? `
               <tr>
-                <td>Total Applicable Course & Tuition Fees</td>
-                <td style="text-align: right; font-weight: 600;">₹ ${(fee.totalFees || 0).toLocaleString()}</td>
+                <td style="color: #6B7280;">Original Gross Course Fees</td>
+                <td style="text-align: right; color: #6B7280;">₹ ${(Number(details.original_fees) || ((fee.totalFees || 0) + Number(details.discount_amount))).toLocaleString()}</td>
+              </tr>
+              <tr style="background-color: #F0FDF4; color: #166534;">
+                <td><strong>Approved Discount Concession</strong> (${details.discount_reason || 'Concession'} - Approved by ${details.discount_approved_by || 'Superadmin'})</td>
+                <td style="text-align: right; font-weight: bold;">-₹ ${Number(details.discount_amount).toLocaleString()}</td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td><strong>${details.discount_status === 'APPROVED' ? 'Approved Net Course Fees' : 'Total Course & Tuition Fees'}</strong></td>
+                <td style="text-align: right; font-weight: 700;">₹ ${(fee.totalFees || 0).toLocaleString()}</td>
               </tr>
               <tr class="highlight-row">
-                <td>Total Amount Paid & Cleared</td>
+                <td>Installment Amount Paid & Cleared</td>
                 <td style="text-align: right;">₹ ${(fee.paidFees || 0).toLocaleString()}</td>
               </tr>
+              ${fee.cumulativePaid && Number(fee.cumulativePaid) !== Number(fee.paidFees) ? `
+              <tr>
+                <td style="color: #4B5563;">Cumulative Total Paid to Date</td>
+                <td style="text-align: right; font-weight: 600; color: #166534;">₹ ${Number(fee.cumulativePaid).toLocaleString()}</td>
+              </tr>
+              ` : ''}
               <tr>
                 <td style="color: ${fee.pendingAmount > 0 ? '#DC2626' : '#16A34A'}; font-weight: bold;">
-                  Outstanding Pending Balance
+                  Outstanding Pending Balance After This Payment
                 </td>
                 <td style="text-align: right; font-weight: bold; color: ${fee.pendingAmount > 0 ? '#DC2626' : '#16A34A'};">
                   ₹ ${(fee.pendingAmount || 0).toLocaleString()}
@@ -343,11 +369,25 @@ export default function StudentFees() {
       <div className="row g-3">
         <div className="col-12 col-md-4">
           <div className="sa-card p-4">
-            <span className="small text-sa-muted fw-semibold">TOTAL APPLICABLE FEES</span>
+            <span className="small text-sa-muted fw-semibold">
+              {details.discount_status === 'APPROVED' ? 'APPROVED NET COURSE FEES' : 'TOTAL APPLICABLE FEES'}
+            </span>
             <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-3">
               ₹ {totalFeesCalculated.toLocaleString()}
             </h2>
-            <span className="small text-sa-muted">Total Course Fees</span>
+            <div className="small mt-1">
+              {details.discount_status === 'APPROVED' && Number(details.discount_amount) > 0 ? (
+                <span className="text-success fw-semibold" style={{ fontSize: '0.78rem' }}>
+                  ✓ ₹{Number(details.discount_amount).toLocaleString()} Concession Approved ({details.discount_approved_by || 'Superadmin'})
+                </span>
+              ) : details.discount_status === 'PENDING' && Number(details.discount_amount) > 0 ? (
+                <span className="text-warning-emphasis fw-semibold" style={{ fontSize: '0.78rem' }}>
+                  ⏳ Concession of ₹{Number(details.discount_amount).toLocaleString()} Pending Approval
+                </span>
+              ) : (
+                <span className="small text-sa-muted">Total Course Fees</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -411,12 +451,24 @@ export default function StudentFees() {
             },
             {
               key: 'totalFees',
-              title: 'Total Fees',
-              width: '130px',
-              render: (val) => (
-                <span className="fw-bold text-sa-charcoal text-nowrap" style={{ whiteSpace: 'nowrap' }}>
-                  ₹ {Number(val || 0).toLocaleString()}
-                </span>
+              title: 'Course Fee',
+              width: '160px',
+              render: (val, row) => (
+                <div>
+                  <span className="fw-bold text-sa-charcoal text-nowrap" style={{ whiteSpace: 'nowrap' }}>
+                    ₹ {Number(val || 0).toLocaleString()}
+                  </span>
+                  {details.discount_status === 'APPROVED' && Number(details.discount_amount) > 0 && (
+                    <span className="badge bg-success-subtle text-success d-block mt-0.5" style={{ fontSize: '0.67rem' }}>
+                      -₹{Number(details.discount_amount).toLocaleString()} Approved Disc
+                    </span>
+                  )}
+                  {details.discount_status === 'PENDING' && Number(details.discount_amount) > 0 && (
+                    <span className="badge bg-warning-subtle text-warning-emphasis d-block mt-0.5" style={{ fontSize: '0.67rem' }}>
+                      ⏳ ₹{Number(details.discount_amount).toLocaleString()} Disc Pending
+                    </span>
+                  )}
+                </div>
               )
             },
             {

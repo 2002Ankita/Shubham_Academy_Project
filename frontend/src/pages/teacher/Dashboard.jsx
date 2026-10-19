@@ -6,8 +6,36 @@ import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
 import { attendanceService } from '../../services/attendanceService';
 import salaryService from '../../services/salaryService';
+import curriculumService from '../../services/curriculumService';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
+
+// Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
+const isTeacherMatch = (teacherA, teacherB, subject = '') => {
+  if (!teacherA || !teacherB) return false;
+  const cleanA = teacherA.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+  const cleanB = teacherB.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+
+  if (cleanA === cleanB) return true;
+  if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
+
+  const tokensA = cleanA.split(/\s+/).filter(t => t.length >= 3);
+  const tokensB = cleanB.split(/\s+/).filter(t => t.length >= 3);
+  for (const t of tokensA) {
+    if (tokensB.includes(t)) return true;
+  }
+
+  if (subject) {
+    const sub = subject.toLowerCase();
+    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni')) return sub.includes('phys');
+    if (cleanA.includes('sunita') || cleanA.includes('patil')) return sub.includes('chem');
+    if (cleanA.includes('rajesh') || cleanA.includes('sharma')) return sub.includes('math');
+    if (cleanA.includes('amit') || cleanA.includes('sawant')) return sub.includes('bio');
+  }
+
+  return false;
+};
+
 import {
   ResponsiveContainer,
   PieChart,
@@ -106,11 +134,12 @@ export default function TeacherDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [studentsRes, examsRes, noticesRes, batchesRes] = await Promise.allSettled([
+        const [studentsRes, examsRes, noticesRes, batchesRes, activitiesRes] = await Promise.allSettled([
           studentService.getAll(),
           examService.getAll(),
           noticeService.getAll(),
-          batchService.getBatches()
+          batchService.getBatches(),
+          curriculumService.getDailyActivities().catch(() => [])
         ]);
 
         if (user && user.id) {
@@ -134,6 +163,26 @@ export default function TeacherDashboard() {
         if (studentsRes.status === 'fulfilled') {
           const students = studentsRes.value || [];
           setTotalStudents(students.length);
+        }
+
+        // Daily Activities for this teacher
+        if (activitiesRes.status === 'fulfilled') {
+          const allActs = activitiesRes.value || [];
+          if (Array.isArray(allActs) && allActs.length > 0) {
+            const teacherName = user?.name || '';
+            const myActs = allActs.filter(item => {
+              const itemTeacher = item.teacher_name || item.teacherName || '';
+              if (itemTeacher && isTeacherMatch(teacherName, itemTeacher, item.subject)) return true;
+              const sub = (item.subject || '').toLowerCase();
+              const tName = teacherName.toLowerCase();
+              if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni')) && sub.includes('phys')) return true;
+              if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
+              if ((tName.includes('rajesh') || tName.includes('sharma')) && sub.includes('math')) return true;
+              if ((tName.includes('amit') || tName.includes('sawant')) && sub.includes('bio')) return true;
+              return false;
+            });
+            setDailyActivitiesCount(myActs.length);
+          }
         }
 
         let examsList = [];
@@ -188,12 +237,13 @@ export default function TeacherDashboard() {
           const batches = batchesRes.value || [];
           let filteredBatches = batches;
           if (user && user.role === 'teacher' && user.name) {
-            const firstName = user.name.split(' ')[0].toLowerCase();
-            filteredBatches = batches.filter(b =>
-              b.teacher_name &&
-              (b.teacher_name.toLowerCase().includes(firstName) ||
-                user.name.toLowerCase().includes(b.teacher_name.toLowerCase()))
-            );
+            filteredBatches = batches.filter(b => {
+              if (b.teacher_name && isTeacherMatch(user.name, b.teacher_name, b.subject)) return true;
+              if (Array.isArray(b.timetable)) {
+                return b.timetable.some(s => isTeacherMatch(user.name, s.teacher_name || b.teacher_name, s.subject || b.subject));
+              }
+              return false;
+            });
           }
           const formattedRows = filteredBatches.map(b => ({
             time: b.time || 'TBD',
@@ -228,7 +278,15 @@ export default function TeacherDashboard() {
       }
     };
     fetchDashboardData();
-  }, []);
+
+    const handleUpdate = () => fetchDashboardData();
+    window.addEventListener('sa_daily_activities_updated', handleUpdate);
+    window.addEventListener('sa_timetable_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sa_daily_activities_updated', handleUpdate);
+      window.removeEventListener('sa_timetable_updated', handleUpdate);
+    };
+  }, [user]);
 
   // Interactive pending tasks state
   const [tasks, setTasks] = useState([

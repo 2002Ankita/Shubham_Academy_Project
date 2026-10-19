@@ -17,9 +17,12 @@ class FeePaymentResponse(FeePaymentCreate):
     roll_number: str
     total_fees: float
     pending_fees: float
+    original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
     discount_status: Optional[str] = "NONE"
     discount_approved_by: Optional[str] = None
+    cumulative_paid: Optional[float] = None
+    current_pending_fees: Optional[float] = None
 
 class FeeDetailsResponse(BaseModel):
     student_id: str
@@ -47,6 +50,17 @@ class FeeStructureCreate(BaseModel):
 
 class FeeStructureResponse(FeeStructureCreate):
     id: str
+
+class FeeStructureUpdate(BaseModel):
+    standard: Optional[str] = None
+    batch: Optional[str] = None
+    branch: Optional[str] = None
+    academic_year: Optional[str] = None
+    total_fee: Optional[float] = None
+    installment_amount: Optional[float] = None
+    number_of_installments: Optional[int] = None
+    due_date: Optional[datetime] = None
+    late_fee: Optional[float] = None
 
 class PendingFeeResponse(BaseModel):
     student_id: str

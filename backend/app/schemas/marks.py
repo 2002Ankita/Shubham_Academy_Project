@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from pydantic import Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import List, Optional
 
@@ -19,6 +18,36 @@ class ExamCreate(BaseModel):
     max_marks: float = 100.0
     passing_marks: Optional[float] = 35.0
     teacher_id: Optional[str] = ""
+
+    @field_validator("exam_date", "start_time", "end_time", mode="before")
+    @classmethod
+    def parse_datetime_flexible(cls, v):
+        if isinstance(v, datetime):
+            return v
+        if not v:
+            return datetime.now()
+        s = str(v).strip()
+        try:
+            return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except Exception:
+            pass
+        for fmt in (
+            "%Y-%m-%dT%I:%M %p", "%Y-%m-%dT%I:%M%p",
+            "%Y-%m-%d %I:%M %p", "%Y-%m-%d %I:%M%p",
+            "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+            "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"
+        ):
+            try:
+                return datetime.strptime(s, fmt)
+            except Exception:
+                pass
+        try:
+            from dateutil import parser
+            return parser.parse(s)
+        except Exception:
+            pass
+        raise ValueError(f"Invalid datetime format: {v}")
 
 class ExamResponse(ExamCreate):
     id: str

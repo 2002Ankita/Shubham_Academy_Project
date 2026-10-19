@@ -101,40 +101,43 @@ export default function FeeReceipt() {
                 <td>{receipt.feeHead || 'Tuition & Academic Facilities Fee'}</td>
                 <td className="text-end fw-semibold">₹ {receipt.amountPaid?.toLocaleString()}</td>
               </tr>
-              {Number(receipt.discountAmount) > 0 && (
+              {Number(receipt.discountAmount) > 0 && receipt.discountStatus === 'APPROVED' && (
                 <>
                   <tr>
                     <td className="text-muted">Original Gross Course Fees</td>
                     <td className="text-end text-muted">
-                      ₹ {(receipt.originalFees || (receipt.totalFees + receipt.discountAmount))?.toLocaleString()}
+                      ₹ {(Number(receipt.originalFees) || (Number(receipt.totalFees) + Number(receipt.discountAmount)))?.toLocaleString()}
                     </td>
                   </tr>
                   <tr className="table-light">
                     <td>
                       <div className="fw-semibold text-success">
-                        Discount Concession ({receipt.discountReason || 'Approved Concession'})
+                        Approved Discount Concession ({receipt.discountReason || 'Approved Concession'})
                       </div>
                       <div className="small mt-0.5" style={{ fontSize: '0.80rem' }}>
-                        {receipt.discountStatus === 'APPROVED' ? (
-                          <span className="text-success fw-semibold">
-                            ✓ Approved by: <strong>{receipt.discountApprovedBy || 'Superadmin'}</strong>
-                          </span>
-                        ) : (
-                          <span className="text-warning-emphasis">
-                            ⏳ Status: Pending Superadmin Approval
-                          </span>
-                        )}
+                        <span className="text-success fw-semibold">
+                          ✓ Approved by: <strong>{receipt.discountApprovedBy || 'Superadmin'}</strong>
+                        </span>
                       </div>
                     </td>
                     <td className="text-end fw-bold text-success">
-                      -₹ {receipt.discountAmount?.toLocaleString()}
+                      -₹ {Number(receipt.discountAmount)?.toLocaleString()}
                     </td>
                   </tr>
                 </>
               )}
+              {Number(receipt.discountAmount) > 0 && receipt.discountStatus === 'PENDING' && (
+                <tr className="table-warning bg-warning bg-opacity-10">
+                  <td colSpan="2" className="small text-warning-emphasis">
+                    ⏳ Concession request of ₹{Number(receipt.discountAmount).toLocaleString()} is pending Superadmin approval. Official standard fee applies until approved.
+                  </td>
+                </tr>
+              )}
               <tr>
-                <td className="text-muted">Total Net Course Fees</td>
-                <td className="text-end text-muted fw-semibold">₹ {receipt.totalFees?.toLocaleString()}</td>
+                <td className="text-muted fw-bold">
+                  {receipt.discountStatus === 'APPROVED' ? 'Approved Net Course Fees' : 'Total Course Fees'}
+                </td>
+                <td className="text-end fw-bold fs-6">₹ {Number(receipt.totalFees)?.toLocaleString()}</td>
               </tr>
               <tr>
                 <td className="fw-bold">Total Amount Received (Paid)</td>

@@ -159,7 +159,7 @@ async def get_teacher_for_user(user: User) -> dict | None:
 
 async def resolve_teacher(id_str: str) -> Teacher:
     from bson.errors import InvalidId
-    from bson import ObjectId
+    from bson import ObjectId, DBRef
     teacher = None
     try:
         teacher = await Teacher.get(ObjectId(id_str))
@@ -168,11 +168,51 @@ async def resolve_teacher(id_str: str) -> Teacher:
     if not teacher:
         try:
             user_obj_id = ObjectId(id_str)
-            teacher = await Teacher.find_one({"user.$id": user_obj_id})
+            teacher = await Teacher.find_one(Teacher.user.id == user_obj_id)
+            if not teacher:
+                teacher = await Teacher.find_one({"user": DBRef("users", user_obj_id)})
+            if not teacher:
+                teacher = await Teacher.find_one({
+                    "$or": [
+                        {"user.$id": user_obj_id},
+                        {"user.id": user_obj_id},
+                        {"user": user_obj_id}
+                    ]
+                })
         except InvalidId:
             pass
     if not teacher:
         teacher = await Teacher.find_one(Teacher.employee_id == id_str)
+
+    # If still not found, check if id_str represents an authenticated User with teacher role
+    if not teacher:
+        try:
+            user_doc = None
+            try:
+                user_doc = await User.get(ObjectId(id_str))
+            except Exception:
+                pass
+            if not user_doc:
+                user_doc = await User.find_one(User.email == id_str)
+            if user_doc and (user_doc.role or "").lower() == "teacher":
+                teacher = await Teacher.find_one(Teacher.user.id == user_doc.id)
+                if not teacher:
+                    teacher = await Teacher.find_one({"user": DBRef("users", user_doc.id)})
+                if not teacher:
+                    import uuid
+                    teacher = Teacher(
+                        user=user_doc,
+                        employee_id=f"TCH-{uuid.uuid4().hex[:6].upper()}",
+                        mobile_number="",
+                        subjects=["General"],
+                        assigned_batches=[],
+                        hourly_rate=650.0,
+                        status="Active"
+                    )
+                    await teacher.insert()
+        except Exception:
+            pass
+
     return teacher
 
 async def get_teacher_by_id(id: str) -> dict:

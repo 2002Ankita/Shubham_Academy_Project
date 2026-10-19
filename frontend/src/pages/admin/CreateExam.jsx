@@ -13,6 +13,7 @@ export default function CreateExam() {
   const [exams, setExams] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
 
@@ -25,6 +26,8 @@ export default function CreateExam() {
       ]);
       setExams(eList);
       setTeachers(tList);
+    } catch (err) {
+      console.error('Failed to load examinations data:', err);
     } finally {
       setLoading(false);
     }
@@ -35,10 +38,22 @@ export default function CreateExam() {
   }, []);
 
   const handleCreate = async (formData) => {
-    await examService.create(formData);
-    toast.success('Examination scheduled successfully!');
-    setShowCreateForm(false);
-    fetchData();
+    setCreateLoading(true);
+    try {
+      await examService.create(formData);
+      toast.success('Examination scheduled successfully!');
+      setShowCreateForm(false);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to schedule examination:', err);
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : (Array.isArray(detail) ? detail.map(d => d.msg || d).join(', ') : 'Failed to schedule examination');
+      toast.error(message);
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -52,18 +67,26 @@ export default function CreateExam() {
     });
 
     if (isConfirmed) {
-      await examService.delete(id);
-      toast.success('Exam schedule cancelled');
-      fetchData();
+      try {
+        await examService.delete(id);
+        toast.success('Exam schedule cancelled');
+        fetchData();
+      } catch (err) {
+        toast.error(err.response?.data?.detail || 'Failed to cancel exam');
+      }
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    await examService.update(editingExam.id, { status: editingExam.status });
-    toast.success('Exam updated successfully');
-    setEditingExam(null);
-    fetchData();
+    try {
+      await examService.update(editingExam.id, { status: editingExam.status });
+      toast.success('Exam updated successfully');
+      setEditingExam(null);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update exam');
+    }
   };
 
   return (
@@ -90,6 +113,7 @@ export default function CreateExam() {
         <ExamForm
           teachers={teachers}
           onSubmit={handleCreate}
+          loading={createLoading}
           onCancel={() => setShowCreateForm(false)}
         />
       )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -10,22 +10,66 @@ import {
   Trash2,
   Edit3,
   Calendar,
+  CalendarDays,
+  MapPin,
   Filter,
   Search,
   Printer,
   Layers,
   ChevronRight,
-  Check
+  Check,
+  FileSpreadsheet,
+  Download,
+  Upload
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useAuth } from '../../hooks/useAuth';
+
+// Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
+const isTeacherMatch = (teacherA, teacherB, subject = '') => {
+  if (!teacherA || !teacherB) return false;
+  const cleanA = teacherA.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+  const cleanB = teacherB.toLowerCase().replace(/^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*/i, '').trim();
+
+  if (cleanA === cleanB) return true;
+  if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
+
+  const tokensA = cleanA.split(/\s+/).filter(t => t.length >= 3);
+  const tokensB = cleanB.split(/\s+/).filter(t => t.length >= 3);
+  for (const t of tokensA) {
+    if (tokensB.includes(t)) return true;
+  }
+
+  if (subject) {
+    const sub = subject.toLowerCase();
+    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni')) return sub.includes('phys');
+    if (cleanA.includes('sunita') || cleanA.includes('patil')) return sub.includes('chem');
+    if (cleanA.includes('rajesh') || cleanA.includes('sharma')) return sub.includes('math');
+    if (cleanA.includes('amit') || cleanA.includes('sawant')) return sub.includes('bio');
+  }
+
+  return false;
+};
+
+// Helper to format Class / Batch without repeating the branch name
+const formatClassBatch = (batchStr = '') => {
+  if (!batchStr) return 'General Class';
+  return batchStr
+    .replace(/Tarabai\s*Park/gi, '')
+    .replace(/Mangalwar\s*Peth/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 export default function DailyActivityReport() {
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm } = useConfirm();
+  const { user } = useAuth();
 
   // Storage key shared with Dashboard
   const STORAGE_KEY = 'sa_teacher_daily_activities';
@@ -38,40 +82,49 @@ export default function DailyActivityReport() {
     return [
       {
         id: 'ACT-01',
+        branch: 'Tarabai Park',
         activity: 'Classroom Lecture & Theory',
         subject: 'Physics (Class 12th)',
         batch: '12th Science Tarabai Park (Batch A)',
+        chapter: 'Chapter 7: Wave Optics',
         topicTaught: 'Wave Optics - Wavefronts & Huygens Principle Derivation',
         timeSlot: '08:30 AM - 10:00 AM',
         hours: 1.5,
         periods: 2,
         totalPlannedPeriods: 3,
+        targetDate: '2026-10-24',
         status: 'Completed',
         remarks: 'Derived reflection & refraction laws. Solved 4 numerical problems on slit interference. Homework assigned.'
       },
       {
         id: 'ACT-02',
+        branch: 'Tarabai Park',
         activity: 'Practical Lab Session',
         subject: 'Physics Laboratory',
         batch: '11th Science PCM (Batch B)',
+        chapter: 'Practical Mechanics & Fluids',
         topicTaught: 'Surface Tension by Capillary Rise Method - Hands-on Experiment',
         timeSlot: '10:30 AM - 12:30 PM',
         hours: 2.0,
         periods: 2,
         totalPlannedPeriods: 2,
+        targetDate: '2026-10-20',
         status: 'Completed',
         remarks: 'Checked student lab journals, calibrated traveling microscope apparatus for all 24 students.'
       },
       {
         id: 'ACT-03',
+        branch: 'Tarabai Park',
         activity: 'Doubt Clearing Masterclass',
         subject: 'Applied Physics',
         batch: '12th Science Tarabai Park (Batch A)',
+        chapter: 'Chapter 9: Electromagnetic Induction',
         topicTaught: 'Electromagnetic Induction - Lenz\'s Law & Self-Inductance Numericals',
         timeSlot: '01:30 PM - 02:30 PM',
         hours: 1.0,
         periods: 1,
         totalPlannedPeriods: 4,
+        targetDate: '2026-10-28',
         status: 'Completed',
         remarks: 'Solved JEE / NEET PYQs on induced EMF with 18 attending students.'
       }
@@ -85,23 +138,41 @@ export default function DailyActivityReport() {
     } catch (_) {}
   }, [dailyActivities]);
 
-  // Sync with backend on component mount
+  // Sync with backend on component mount and on realtime updates from admin
   useEffect(() => {
-    curriculumService.getDailyActivities().then(data => {
-      if (Array.isArray(data) && data.length > 0) {
-        const mapped = data.map(item => ({
-          ...item,
-          topicTaught: item.topic_taught || item.topicTaught,
-          timeSlot: item.time_slot || item.timeSlot,
-          totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods
-        }));
-        setDailyActivities(mapped);
-      }
-    });
+    const fetchActivities = () => {
+      curriculumService.getDailyActivities().then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map(item => {
+            const rawBatch = (item.batch || '').toLowerCase();
+            const rawBranch = (item.branch || '').toLowerCase();
+            const branch = (rawBatch.includes('mangalwar') || rawBranch.includes('mangalwar'))
+              ? 'Mangalwar Peth'
+              : (rawBatch.includes('tarabai') || rawBranch.includes('tarabai') ? 'Tarabai Park' : (item.branch || 'Tarabai Park'));
+
+            return {
+              ...item,
+              branch,
+              chapter: item.chapter || (item.topic_taught && item.topic_taught.includes('-') ? item.topic_taught.split('-')[0].trim() : (item.topic_taught && item.topic_taught.includes(':') ? item.topic_taught.split(':')[0].trim() : 'Curriculum Module')),
+              targetDate: item.target_date || item.targetDate || item.activity_date || '',
+              topicTaught: item.topic_taught || item.topicTaught,
+              timeSlot: item.time_slot || item.timeSlot,
+              totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods
+            };
+          });
+          setDailyActivities(mapped);
+        }
+      });
+    };
+
+    fetchActivities();
+    window.addEventListener('sa_daily_activities_updated', fetchActivities);
+    return () => window.removeEventListener('sa_daily_activities_updated', fetchActivities);
   }, []);
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState('All');
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
 
@@ -109,17 +180,244 @@ export default function DailyActivityReport() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [newActivity, setNewActivity] = useState({
+    branch: 'Tarabai Park',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
     batch: '12th Science Tarabai Park (Batch A)',
+    chapter: '',
     topicTaught: '',
     timeSlot: '03:00 PM - 04:00 PM',
     hours: '1.0',
     periods: '1',
     totalPlannedPeriods: '2',
+    targetDate: new Date().toISOString().split('T')[0],
     status: 'Completed',
     remarks: ''
   });
+
+  // Excel Import States & Ref
+  const excelInputRef = useRef(null);
+  const [isExcelPreviewModalOpen, setIsExcelPreviewModalOpen] = useState(false);
+  const [excelParsedData, setExcelParsedData] = useState([]);
+
+  const handleTriggerExcelUpload = () => {
+    if (excelInputRef.current) {
+      excelInputRef.current.value = '';
+      excelInputRef.current.click();
+    }
+  };
+
+  const handleExcelFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const binaryString = evt.target.result;
+        const workbook = XLSX.read(binaryString, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rawData = XLSX.utils.sheet_to_json(sheet);
+
+        if (!rawData || rawData.length === 0) {
+          toast.warning('The uploaded Excel file has no records.');
+          return;
+        }
+
+        const parsedActivities = rawData.map((row) => {
+          const norm = {};
+          for (const k in row) {
+            const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            norm[cleanKey] = row[k];
+          }
+
+          const topic = String(norm['topictaught'] || norm['topic'] || norm['topicname'] || norm['syllabus'] || norm['topics'] || '').trim();
+          const subject = String(norm['subject'] || norm['sub'] || norm['subjectname'] || 'Physics').trim();
+          const batch = String(norm['classbatch'] || norm['batch'] || norm['class'] || norm['division'] || '12th Science Tarabai Park (Batch A)').trim();
+          let branch = String(norm['branch'] || norm['branchname'] || norm['location'] || '').trim();
+          if (!branch) {
+            branch = batch.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park';
+          }
+          const chapter = String(norm['chapter'] || norm['unit'] || norm['chaptername'] || '').trim();
+          const targetDate = String(norm['targetcompletiondate'] || norm['targetdate'] || norm['completeby'] || norm['deadline'] || '').trim();
+          const activity = String(norm['activitytype'] || norm['activity'] || norm['type'] || 'Classroom Lecture & Theory').trim();
+          const timeSlot = String(norm['timeslot'] || norm['time'] || norm['slot'] || '03:00 PM - 04:00 PM').trim();
+          const hours = String(norm['hours'] || norm['teachinghours'] || norm['hrs'] || '1.0');
+          const periods = String(norm['periodstaken'] || norm['periods'] || norm['period'] || '1');
+          const totalPlannedPeriods = String(norm['totalplannedperiods'] || norm['plannedperiods'] || norm['totalperiods'] || '2');
+          const status = String(norm['status'] || 'Completed').trim();
+          const remarks = String(norm['remarks'] || norm['remark'] || norm['notes'] || norm['outcomes'] || '').trim();
+
+          return {
+            branch,
+            activity,
+            subject,
+            batch,
+            chapter,
+            targetDate: targetDate || new Date().toISOString().split('T')[0],
+            topicTaught: topic,
+            timeSlot,
+            hours,
+            periods,
+            totalPlannedPeriods,
+            status,
+            remarks
+          };
+        }).filter(item => item.topicTaught.length > 0 || item.subject.length > 0);
+
+        if (parsedActivities.length === 0) {
+          toast.warning('No valid activities found in the Excel file. Please ensure there is a "Topic Taught" or "Topic" column.');
+          return;
+        }
+
+        if (parsedActivities.length === 1) {
+          // Exactly 1 row: automatically populate the Log Activity modal and open it!
+          setNewActivity(parsedActivities[0]);
+          setEditingActivityId(null);
+          setIsActivityModalOpen(true);
+          toast.success(`Activity "${parsedActivities[0].topicTaught || 'Session'}" auto-filled from Excel! Review and click Save.`);
+        } else {
+          // Multiple rows: show review preview modal for bulk import or selecting
+          setExcelParsedData(parsedActivities);
+          setIsExcelPreviewModalOpen(true);
+          toast.info(`Found ${parsedActivities.length} activities in Excel.`);
+        }
+      } catch (err) {
+        console.error('Failed to parse Excel file:', err);
+        toast.error('Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.');
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleExportExcel = () => {
+    const listToExport = filteredActivities && filteredActivities.length > 0 ? filteredActivities : (myActivities || dailyActivities);
+
+    if (!listToExport || listToExport.length === 0) {
+      toast.warning('No activity records available to export.');
+      return;
+    }
+
+    const exportRows = listToExport.map((item, idx) => ({
+      "Sr No": idx + 1,
+      "Branch": item.branch || 'Tarabai Park',
+      "Activity Type": item.activity || '',
+      "Subject": item.subject || '',
+      "Class / Batch": item.batch || '',
+      "Chapter": item.chapter || '',
+      "Topic Taught": item.topicTaught || '',
+      "Target Completion Date": item.targetDate || '',
+      "Time Slot": item.timeSlot || '',
+      "Hours Spent": item.hours || 1.0,
+      "Periods Taken": item.periods || 1,
+      "Total Planned Periods": item.totalPlannedPeriods || 1,
+      "Status": item.status || 'Completed',
+      "Remarks / Outcomes": item.remarks || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Activities");
+
+    const todayDate = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Teacher_Daily_Activities_${todayDate}.xlsx`);
+    toast.success(`Exported ${exportRows.length} daily activities to Excel!`);
+  };
+
+  const handleDownloadSampleExcel = () => {
+    const sampleData = [
+      {
+        "Branch": "Tarabai Park",
+        "Activity Type": "Classroom Lecture & Theory",
+        "Subject": "Physics",
+        "Class / Batch": "12th Science Tarabai Park (Batch A)",
+        "Chapter": "Chapter 7: Wave Optics",
+        "Topic Taught": "Wave Optics - Wavefronts & Huygens Principle",
+        "Target Completion Date": "2026-10-24",
+        "Time Slot": "08:30 AM - 10:00 AM",
+        "Hours": 1.5,
+        "Periods Taken": 2,
+        "Total Planned Periods": 3,
+        "Status": "Completed",
+        "Remarks": "Derived reflection and refraction laws. Assigned homework problems."
+      },
+      {
+        "Branch": "Mangalwar Peth",
+        "Activity Type": "Practical Lab Session",
+        "Subject": "Physics Laboratory",
+        "Class / Batch": "11th Science Mangalwar Peth (Batch A)",
+        "Chapter": "Practical Mechanics & Fluids",
+        "Topic Taught": "Surface Tension - Capillary Rise Experiment",
+        "Target Completion Date": "2026-10-25",
+        "Time Slot": "10:30 AM - 12:30 PM",
+        "Hours": 2.0,
+        "Periods Taken": 2,
+        "Total Planned Periods": 2,
+        "Status": "Completed",
+        "Remarks": "Hands-on apparatus handling and verification completed with students."
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Activities");
+    XLSX.writeFile(workbook, "Teacher_Daily_Activity_Template.xlsx");
+    toast.info("Sample Excel template downloaded.");
+  };
+
+  const handleBulkImportActivities = async (activitiesToImport) => {
+    if (!activitiesToImport || activitiesToImport.length === 0) return;
+
+    let savedList = [];
+    for (let i = 0; i < activitiesToImport.length; i++) {
+      const item = activitiesToImport[i];
+      let stdSubject = (item.subject || 'Physics').trim();
+      const lowerSubj = stdSubject.toLowerCase();
+      if (lowerSubj.includes('physic')) stdSubject = 'Physics';
+      else if (lowerSubj.includes('chem')) stdSubject = 'Chemistry';
+      else if (lowerSubj.includes('math')) stdSubject = 'Mathematics';
+      else if (lowerSubj.includes('bio')) stdSubject = 'Biology';
+
+      const payload = {
+        branch: item.branch || (item.batch?.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park'),
+        activity: item.activity || 'Classroom Lecture & Theory',
+        subject: stdSubject,
+        batch: item.batch || '12th Science Tarabai Park (Batch A)',
+        chapter: item.chapter || '',
+        target_date: item.targetDate || new Date().toISOString().split('T')[0],
+        topic_taught: item.topicTaught,
+        time_slot: item.timeSlot || '09:00 AM - 10:30 AM',
+        hours: parseFloat(item.hours) || 1.0,
+        periods: parseInt(item.periods, 10) || 1,
+        total_planned_periods: parseInt(item.totalPlannedPeriods, 10) || 2,
+        status: item.status || 'Completed',
+        remarks: item.remarks || ''
+      };
+
+      const created = {
+        id: `ACT-${Date.now()}-${i}`,
+        ...payload,
+        targetDate: payload.target_date,
+        topicTaught: payload.topic_taught,
+        timeSlot: payload.time_slot,
+        totalPlannedPeriods: payload.total_planned_periods
+      };
+
+      try {
+        await curriculumService.createDailyActivity(payload);
+      } catch (e) {
+        console.warn('Backend save activity failed:', e);
+      }
+      savedList.push(created);
+    }
+
+    setDailyActivities(prev => [...savedList, ...prev]);
+    setIsExcelPreviewModalOpen(false);
+    setExcelParsedData([]);
+    toast.success(`Successfully imported and logged ${savedList.length} activities from Excel!`);
+  };
 
   // Handle redirect from Topic Duration Matrix if topic was sent
   useEffect(() => {
@@ -127,14 +425,17 @@ export default function DailyActivityReport() {
       const topic = location.state.prefillTopic;
       setEditingActivityId(null);
       setNewActivity({
+        branch: topic.branch || 'Tarabai Park',
         activity: 'Classroom Lecture & Theory',
         subject: topic.subject || 'Physics',
         batch: topic.batch || '12th Science Tarabai Park (Batch A)',
-        topicTaught: topic.topicTaught || '',
+        chapter: topic.chapter || '',
+        topicTaught: topic.topicTaught || topic.topicName || '',
         timeSlot: '03:00 PM - 04:00 PM',
         hours: '1.0',
         periods: topic.periods || '1',
-        totalPlannedPeriods: topic.totalPlannedPeriods || '2',
+        totalPlannedPeriods: topic.totalPlannedPeriods || topic.requiredPeriods || '2',
+        targetDate: topic.targetDate || topic.endDate || new Date().toISOString().split('T')[0],
         status: 'Completed',
         remarks: topic.remarks || ''
       });
@@ -142,42 +443,71 @@ export default function DailyActivityReport() {
     }
   }, [location.state]);
 
-  // Computed Metrics
-  const totalTeachingHoursToday = dailyActivities
+  // Filter activities strictly for the logged-in teacher (if role is teacher)
+  const myActivities = useMemo(() => {
+    if (!user || user.role !== 'teacher') {
+      return dailyActivities;
+    }
+    const currentTeacherName = user.name || '';
+    return dailyActivities.filter(item => {
+      const itemTeacher = item.teacher_name || item.teacherName || '';
+      if (itemTeacher && isTeacherMatch(currentTeacherName, itemTeacher, item.subject)) {
+        return true;
+      }
+      // If item doesn't have teacher name set, match by subject
+      const sub = (item.subject || '').toLowerCase();
+      const tName = currentTeacherName.toLowerCase();
+      if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni')) && sub.includes('phys')) return true;
+      if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
+      if ((tName.includes('rajesh') || tName.includes('sharma')) && sub.includes('math')) return true;
+      if ((tName.includes('amit') || tName.includes('sawant')) && sub.includes('bio')) return true;
+
+      return false;
+    });
+  }, [dailyActivities, user]);
+
+  // Computed Metrics based on teacher's own activities
+  const totalTeachingHoursToday = myActivities
     .reduce((sum, act) => sum + (parseFloat(act.hours) || 0), 0)
     .toFixed(1);
 
-  const completedActivitiesCount = dailyActivities.filter(a => a.status === 'Completed').length;
-  const uniqueTopicsTaughtCount = dailyActivities.filter(a => a.topicTaught && a.topicTaught.trim().length > 0).length;
-  const uniqueBatchesCount = new Set(dailyActivities.map(a => a.batch)).size;
+  const completedActivitiesCount = myActivities.filter(a => a.status === 'Completed').length;
+  const uniqueTopicsTaughtCount = myActivities.filter(a => a.topicTaught && a.topicTaught.trim().length > 0).length;
+  const uniqueBatchesCount = new Set(myActivities.map(a => a.batch)).size;
 
   const targetHours = 6.0;
   const progressPercent = Math.min(Math.round((parseFloat(totalTeachingHoursToday) / targetHours) * 100), 100);
 
   // Filtered Activities
-  const filteredActivities = dailyActivities.filter(item => {
+  const filteredActivities = myActivities.filter(item => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === '' ||
-      item.topicTaught.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.batch.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.topicTaught && item.topicTaught.toLowerCase().includes(q)) ||
+      (item.chapter && item.chapter.toLowerCase().includes(q)) ||
+      (item.subject && item.subject.toLowerCase().includes(q)) ||
+      (item.batch && item.batch.toLowerCase().includes(q));
 
+    const matchesBranch = selectedBranchFilter === 'All' || item.branch === selectedBranchFilter;
     const matchesActivity = selectedActivityFilter === 'All' || item.activity === selectedActivityFilter;
     const matchesBatch = selectedBatchFilter === 'All' || item.batch === selectedBatchFilter;
 
-    return matchesSearch && matchesActivity && matchesBatch;
+    return matchesSearch && matchesBranch && matchesActivity && matchesBatch;
   });
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
     setNewActivity({
+      branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
       subject: 'Physics',
       batch: '12th Science Tarabai Park (Batch A)',
+      chapter: '',
       topicTaught: '',
       timeSlot: '03:00 PM - 04:00 PM',
       hours: '1.0',
       periods: '1',
       totalPlannedPeriods: '2',
+      targetDate: new Date().toISOString().split('T')[0],
       status: 'Completed',
       remarks: ''
     });
@@ -187,14 +517,17 @@ export default function DailyActivityReport() {
   const handleOpenEditModal = (act) => {
     setEditingActivityId(act.id);
     setNewActivity({
+      branch: act.branch || 'Tarabai Park',
       activity: act.activity || 'Classroom Lecture & Theory',
       subject: act.subject || 'Physics',
       batch: act.batch || '12th Science Tarabai Park (Batch A)',
+      chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
       timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
       hours: String(act.hours || '1.0'),
       periods: String(act.periods || '1'),
       totalPlannedPeriods: String(act.totalPlannedPeriods || '2'),
+      targetDate: act.targetDate || new Date().toISOString().split('T')[0],
       status: act.status || 'Completed',
       remarks: act.remarks || ''
     });
@@ -242,9 +575,12 @@ export default function DailyActivityReport() {
 
     if (editingActivityId) {
       curriculumService.updateDailyActivity(editingActivityId, {
+        branch: payload.branch,
         activity: payload.activity,
         subject: stdSubject,
         batch: payload.batch,
+        chapter: payload.chapter,
+        target_date: payload.targetDate,
         topic_taught: payload.topicTaught,
         time_slot: payload.timeSlot,
         hours: payload.hours,
@@ -266,9 +602,12 @@ export default function DailyActivityReport() {
 
       // 1. Save daily activity in backend & local state
       curriculumService.createDailyActivity({
+        branch: payload.branch,
         activity: payload.activity,
         subject: stdSubject,
         batch: payload.batch,
+        chapter: payload.chapter,
+        target_date: payload.targetDate,
         topic_taught: payload.topicTaught,
         time_slot: payload.timeSlot,
         hours: payload.hours,
@@ -303,7 +642,7 @@ export default function DailyActivityReport() {
         } else {
           const chapterName = payload.topicTaught.includes('-')
             ? payload.topicTaught.split('-')[0].trim()
-            : (payload.topicTaught.includes(':') ? payload.topicTaught.split(':')[0].trim() : 'Curriculum Module');
+            : (payload.topicTaught.includes(':') ? payload.topicTaught.split(':')[0].trim() : 'Curriculum Chapter');
 
           const newTopicPlan = {
             id: `TOP-${Date.now()}`,
@@ -324,28 +663,17 @@ export default function DailyActivityReport() {
             remarks: payload.remarks || 'Initiated from Teacher Daily Activity Log'
           };
           topicPlans.unshift(newTopicPlan);
-
-          // Direct backend creation fallback
-          curriculumService.createTopicDuration({
-            topic_id: newTopicPlan.id,
-            standard: stdGrade,
-            batch: payload.batch,
-            subject: stdSubject,
-            teacher_name: faculty,
-            chapter: chapterName,
-            topic_name: payload.topicTaught.trim(),
-            start_date: todayDate,
-            end_date: null,
-            required_periods: newTopicPlan.requiredPeriods,
-            period_duration_mins: 45,
-            completed_periods: newTopicPlan.completedPeriods,
-            status: 'In Progress',
-            academic_year: '2026-2027',
-            month: todayMonth,
-            remarks: newTopicPlan.remarks
-          });
         }
-        localStorage.setItem('sa_teacher_topic_plans', JSON.stringify(topicPlans));
+
+        // Deduplicate local storage topic plans
+        const uniqueTopicMap = new Map();
+        for (const tp of topicPlans) {
+          const k = `${(tp.subject || '').trim().toLowerCase()}__${(tp.batch || '').trim().toLowerCase()}__${(tp.topicName || tp.topic_name || '').trim().toLowerCase()}`;
+          if (!uniqueTopicMap.has(k)) {
+            uniqueTopicMap.set(k, tp);
+          }
+        }
+        localStorage.setItem('sa_teacher_topic_plans', JSON.stringify(Array.from(uniqueTopicMap.values())));
       } catch (err) {
         console.warn('Local topic duration plan sync error:', err);
       }
@@ -438,7 +766,7 @@ export default function DailyActivityReport() {
 
           <button
             type="button"
-            onClick={handlePrint}
+            onClick={handleExportExcel}
             className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
             style={{
               height: '38px',
@@ -447,12 +775,13 @@ export default function DailyActivityReport() {
               padding: '0 14px',
               backgroundColor: '#FFFFFF',
               borderColor: '#CBD5E1',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
             }}
-            title="Print or export daily activity log"
+            title="Export daily activities to Excel (.xlsx)"
           >
-            <Printer size={15} style={{ color: '#64748B' }} />
-            <span>Print Report</span>
+            <Download size={15} style={{ color: '#2563EB' }} />
+            <span>Export Excel</span>
           </button>
 
           <button
@@ -677,6 +1006,19 @@ export default function DailyActivityReport() {
               <Filter size={14} className="text-muted" />
               <select
                 className="form-select form-select-sm"
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
+              >
+                <option value="All">All Branches</option>
+                <option value="Tarabai Park">Tarabai Park</option>
+                <option value="Mangalwar Peth">Mangalwar Peth</option>
+              </select>
+            </div>
+
+            <div className="d-flex align-items-center gap-1.5">
+              <select
+                className="form-select form-select-sm"
                 value={selectedActivityFilter}
                 onChange={(e) => setSelectedActivityFilter(e.target.value)}
                 style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '180px' }}
@@ -698,7 +1040,8 @@ export default function DailyActivityReport() {
               style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '190px' }}
             >
               <option value="All">All Batches</option>
-              <option value="12th Science Tarabai Park (Batch A)">12th Science (Batch A)</option>
+              <option value="12th Science Tarabai Park (Batch A)">12th Science (Tarabai Park)</option>
+              <option value="12th Science Mangalwar Peth (Batch A)">12th Science (Mangalwar Peth)</option>
               <option value="11th Science PCM (Batch B)">11th Science (Batch B)</option>
               <option value="12th Science PCB (Batch C)">12th Science (Batch C)</option>
             </select>
@@ -706,124 +1049,126 @@ export default function DailyActivityReport() {
         </div>
 
         {/* Activities Table with Edit & Delete Options */}
-        <div className="table-responsive border rounded-3" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table className="table table-hover align-middle m-0" style={{ minWidth: '920px', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+        <div className="table-responsive border rounded-3 overflow-hidden" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin', borderColor: '#FEE2E2', borderRadius: '12px' }}>
+          <table className="table table-hover align-middle m-0" style={{ minWidth: '1050px', fontSize: '13px' }}>
+            <thead style={{ backgroundColor: '#FFF5F5', borderBottom: '1.5px solid #FEE2E2' }}>
               <tr style={{ height: '42px' }}>
-                <th style={{ width: '17%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Activity Type</th>
-                <th style={{ width: '17%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Class / Batch</th>
-                <th style={{ width: '31%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Topic Taught & Outcomes</th>
-                <th style={{ width: '13%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Time Slot</th>
-                <th style={{ width: '10%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Hours Spent</th>
-                <th style={{ width: '6%', padding: '10px 14px', fontWeight: 600, color: '#1E293B' }}>Status</th>
-                <th style={{ width: '6%', padding: '10px 14px', fontWeight: 600, color: '#1E293B', textAlign: 'right' }}>Action</th>
+                {selectedBranchFilter === 'All' && (
+                  <th style={{ width: '11%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Branch</th>
+                )}
+                <th style={{ width: '16%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Activity Type & Subject</th>
+                <th style={{ width: '16%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Class / Batch</th>
+                <th style={{ width: '27%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chapter & Topic Taught</th>
+                <th style={{ width: '14%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Duration & Time</th>
+                <th style={{ width: '10%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
+                <th style={{ width: '6%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
+                  <td colSpan={selectedBranchFilter === 'All' ? 7 : 6} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
                     No daily activities found matching your filters.
                   </td>
                 </tr>
               ) : (
-                filteredActivities.map((act) => (
-                  <tr key={act.id} style={{ height: '58px', borderBottom: '1px solid #F1F5F9' }}>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '13px' }}>
-                        {act.activity}
-                      </div>
-                      <span className="text-sa-muted small" style={{ fontSize: '11px' }}>
-                        {act.subject}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span className="badge bg-light text-secondary border fw-medium px-2 py-1" style={{ fontSize: '11.5px' }}>
-                        {act.batch}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div className="fw-bold text-sa-charcoal" style={{ fontSize: '13px' }}>
-                        {act.topicTaught}
-                      </div>
-                      {act.remarks && (
-                        <div className="text-sa-muted" style={{ fontSize: '11.5px', marginTop: '3px' }}>
-                          {act.remarks}
-                        </div>
+                filteredActivities.map((act) => {
+                  const isMangalwar = (act.branch || '').toLowerCase().includes('mangalwar') || (act.batch || '').toLowerCase().includes('mangalwar');
+
+                  return (
+                    <tr key={act.id} style={{ height: '58px', borderBottom: '1px solid #F1F5F9' }}>
+                      {selectedBranchFilter === 'All' && (
+                        <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                          <span
+                            className="badge fw-semibold d-inline-flex align-items-center gap-1"
+                            style={{
+                              backgroundColor: isMangalwar ? '#F0FDFA' : '#FDF0F0',
+                              color: isMangalwar ? '#0D9488' : '#8B1216',
+                              border: isMangalwar ? '1px solid #99F6E4' : '1px solid #F5C2C4',
+                              fontSize: '11px',
+                              borderRadius: '6px',
+                              padding: '3px 8px'
+                            }}
+                          >
+                            <MapPin size={11} />
+                            <span>{isMangalwar ? 'Mangalwar Peth' : 'Tarabai Park'}</span>
+                          </span>
+                        </td>
                       )}
-                    </td>
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      <span className="text-sa-charcoal fw-medium" style={{ fontSize: '12.5px' }}>
-                        {act.timeSlot}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      <span className="fw-bold px-2 py-1 rounded" style={{ backgroundColor: '#FDF0F0', color: '#8B1216', fontSize: '13px' }}>
-                        {act.hours} hrs
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      <span className="badge rounded-pill" style={{ backgroundColor: '#EAF6EF', color: '#168554', border: '1px solid #C6E7D2', fontSize: '11px', padding: '4px 10px' }}>
-                        ✓ {act.status}
-                      </span>
-                    </td>
-                    {/* Action Column with Matrix Redirect, Edit and Delete buttons */}
-                    <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div className="d-inline-flex align-items-center justify-content-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            let stdSubject = act.subject || 'Physics';
-                            const lower = stdSubject.toLowerCase();
-                            if (lower.includes('physic')) stdSubject = 'Physics';
-                            else if (lower.includes('chem')) stdSubject = 'Chemistry';
-                            else if (lower.includes('math')) stdSubject = 'Mathematics';
-                            else if (lower.includes('bio')) stdSubject = 'Biology';
-
-                            let faculty = act.teacher_name || (
-                              stdSubject === 'Physics' ? 'Prof. Shubham Shinde' :
-                              stdSubject === 'Chemistry' ? 'Prof. Sunita Patil' :
-                              stdSubject === 'Mathematics' ? 'Prof. Rajesh Sharma' :
-                              stdSubject === 'Biology' ? 'Prof. Amit Sawant' : 'Prof. Shubham Shinde'
-                            );
-
-                            navigate('/admin/topic-duration', {
-                              state: {
-                                prefillSubject: stdSubject,
-                                prefillTeacher: faculty,
-                                prefillBatch: act.batch,
-                                highlightTopic: act.topicTaught
-                              }
-                            });
-                          }}
-                          className="btn btn-sm btn-light border text-success rounded shadow-xs"
-                          title="View this topic in Academic Admin Topic Duration Matrix"
-                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <BookOpen size={14} style={{ color: '#8B1216' }} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(act)}
-                          className="btn btn-sm btn-light border text-primary rounded shadow-xs"
-                          title="Edit this activity log"
-                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteActivity(act.id)}
-                          className="btn btn-sm btn-light border text-danger rounded shadow-xs"
-                          title="Delete this activity log"
-                          style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      <td style={{ padding: '10px 14px' }}>
+                        <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '13px' }}>
+                          {act.activity}
+                        </div>
+                        <span className="text-sa-muted small" style={{ fontSize: '11px' }}>
+                          {act.subject}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span className="badge bg-light text-secondary border fw-medium px-2 py-1" style={{ fontSize: '11.5px' }}>
+                          {formatClassBatch(act.batch)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div className="fw-bold text-sa-charcoal" style={{ fontSize: '13px' }}>
+                          {act.topicTaught}
+                        </div>
+                        {act.chapter && (
+                          <div className="text-sa-muted small d-flex align-items-center gap-1 mt-0.5" style={{ fontSize: '11px' }}>
+                            <BookOpen size={11} className="text-secondary" />
+                            <span>{act.chapter}</span>
+                          </div>
+                        )}
+                        {act.targetDate && (
+                          <div className="d-flex align-items-center gap-1 text-sa-maroon fw-semibold mt-1" style={{ fontSize: '11px' }}>
+                            <Calendar size={11} />
+                            <span>Complete By: {act.targetDate}</span>
+                          </div>
+                        )}
+                        {act.remarks && (
+                          <div className="text-sa-muted fst-italic mt-1" style={{ fontSize: '11px' }}>
+                            {act.remarks}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                        <div className="fw-bold text-sa-charcoal" style={{ fontSize: '12.5px' }}>
+                          {act.periods || 1} / {act.totalPlannedPeriods || 2} periods
+                        </div>
+                        <div className="text-sa-muted small mt-0.5" style={{ fontSize: '11px' }}>
+                          {act.hours} hrs • {act.timeSlot}
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                        <span className="badge rounded-pill" style={{ backgroundColor: '#EAF6EF', color: '#168554', border: '1px solid #C6E7D2', fontSize: '11px', padding: '4px 10px' }}>
+                          ✓ {act.status}
+                        </span>
+                      </td>
+                      {/* Action Column with Edit and Delete buttons */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div className="d-inline-flex align-items-center justify-content-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(act)}
+                            className="btn btn-sm btn-light border text-primary rounded shadow-xs"
+                            title="Edit this activity log"
+                            style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteActivity(act.id)}
+                            className="btn btn-sm btn-light border text-danger rounded shadow-xs"
+                            title="Delete this activity log"
+                            style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -841,13 +1186,40 @@ export default function DailyActivityReport() {
         size="lg"
       >
         <form onSubmit={handleSaveActivity} className="d-flex flex-column gap-3">
-          <p className="text-sa-muted m-0" style={{ fontSize: '13px' }}>
-            {editingActivityId
-              ? "Update the activity details, topic duration, and teaching outcomes below."
-              : "Record the topic taught, class batch, and teaching duration for today's daily activity report."}
-          </p>
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <p className="text-sa-muted m-0" style={{ fontSize: '13px' }}>
+              {editingActivityId
+                ? "Update the activity details, topic duration, and teaching outcomes below."
+                : "Record the topic taught, class batch, and teaching duration for today's daily activity report."}
+            </p>
+            {!editingActivityId && (
+              <button
+                type="button"
+                onClick={handleTriggerExcelUpload}
+                className="btn btn-sm btn-light border text-success d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{ fontSize: '12px', padding: '5px 12px', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', cursor: 'pointer' }}
+                title="Select an Excel file to automatically populate all fields below"
+              >
+                <FileSpreadsheet size={14} />
+                <span>Auto-fill from Excel</span>
+              </button>
+            )}
+          </div>
 
           <div className="row g-3">
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
+              <select
+                className="form-select form-select-sm"
+                value={newActivity.branch}
+                onChange={(e) => setNewActivity({ ...newActivity, branch: e.target.value })}
+                required
+              >
+                <option value="Tarabai Park">Tarabai Park Branch</option>
+                <option value="Mangalwar Peth">Mangalwar Peth Branch</option>
+              </select>
+            </div>
+
             <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Activity Type</label>
               <select
@@ -886,10 +1258,34 @@ export default function DailyActivityReport() {
                 required
               >
                 <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
+                <option value="11th Science Tarabai Park (Batch A)">11th Science Tarabai Park (Batch A)</option>
+                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
+                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
                 <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
                 <option value="12th Science PCB (Batch C)">12th Science PCB (Batch C)</option>
                 <option value="All Enrolled Batches">All Enrolled Batches</option>
               </select>
+            </div>
+
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Chapter / Unit</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                value={newActivity.chapter}
+                onChange={(e) => setNewActivity({ ...newActivity, chapter: e.target.value })}
+                placeholder="e.g. Chapter 7: Wave Optics"
+              />
+            </div>
+
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Target Completion Date ("Complete By")</label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={newActivity.targetDate}
+                onChange={(e) => setNewActivity({ ...newActivity, targetDate: e.target.value })}
+              />
             </div>
 
             <div className="col-12 col-md-6">

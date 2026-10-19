@@ -4,6 +4,7 @@ from typing import Optional, List
 class TopicDurationBase(BaseModel):
     topic_id: Optional[str] = None
     standard: str = "Class 12th"
+    branch: Optional[str] = "Tarabai Park"
     batch: str
     subject: str
     teacher_name: str
@@ -25,6 +26,7 @@ class TopicDurationCreate(TopicDurationBase):
 class TopicDurationUpdate(BaseModel):
     topic_id: Optional[str] = None
     standard: Optional[str] = None
+    branch: Optional[str] = None
     batch: Optional[str] = None
     subject: Optional[str] = None
     teacher_name: Optional[str] = None

@@ -6,14 +6,14 @@ class DiscountApproval(Document):
     student_id: str
     student_name: str
     roll_number: str
-    standard: str
-    original_fees: float
-    discount_amount: float
+    standard: Optional[str] = "General"
+    original_fees: float = 0.0
+    discount_amount: float = 0.0
     discount_requested_amount: float = 0.0
-    final_fees: float
-    discount_reason: str
+    final_fees: float = 0.0
+    discount_reason: Optional[str] = "Fee Concession"
     status: str = "PENDING"  # "PENDING", "APPROVED", "REJECTED"
-    offered_by: str
+    offered_by: Optional[str] = "Admin"
     recommended_by: Optional[str] = None
     offered_by_email: Optional[str] = None
     offered_at: datetime = datetime.utcnow()

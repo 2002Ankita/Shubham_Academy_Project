@@ -189,10 +189,13 @@ function saveReadIds(ids) {
 
 function getCombinedNotifications(isSuperAdmin = false) {
   const customItems = getCustomNotifications();
+  const filteredCustom = isSuperAdmin
+    ? customItems
+    : customItems.filter(n => !n.forSuperAdminOnly);
   const defaultItems = isSuperAdmin
     ? DEFAULT_NOTIFICATIONS
     : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
-  return [...customItems, ...defaultItems];
+  return [...filteredCustom, ...defaultItems];
 }
 
 export const notificationService = {
@@ -444,7 +447,7 @@ export const notificationService = {
   },
 
   // Backwards compatibility for other potential consumers
-  getAll: async () => {
+  getAll: async (isSuperAdmin = false) => {
     try {
       const res = await api.get('/notifications');
       if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
@@ -453,7 +456,7 @@ export const notificationService = {
     } catch {
       // fallback to mock
     }
-    return notificationService.getNotifications(false);
+    return notificationService.getNotifications(isSuperAdmin);
   }
 };
 

@@ -3,13 +3,41 @@ import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const match = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const ampm = match[3] ? match[3].toUpperCase() : null;
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return h * 60 + m;
+};
+
+const minutesToTimeDisplay = (totalMins) => {
+  let h = Math.floor(totalMins / 60) % 24;
+  const m = totalMins % 60;
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const displayH = h % 12 || 12;
+  return `${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+const parseDurationToMinutes = (durStr) => {
+  if (!durStr) return 180;
+  const match = String(durStr).match(/(\d+(?:\.\d+)?)/);
+  if (!match) return 180;
+  return Math.round(parseFloat(match[1]) * 60);
+};
+
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
   const [formData, setFormData] = useState({
     title: 'Mid-Term Assessment 2026',
     standard: '',
     subject: 'Physics',
-    date: '2026-10-15',
-    startTime: '10:00 AM',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '10:00 am',
+    endTime: '01:00 pm',
     duration: '3 Hours',
     maxMarks: 100,
     passingMarks: 35,
@@ -24,7 +52,30 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
   }, [teachers]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+
+      if (name === 'startTime' || name === 'duration') {
+        const sMins = parseTimeToMinutes(name === 'startTime' ? value : prev.startTime);
+        const dMins = parseDurationToMinutes(name === 'duration' ? value : prev.duration);
+        if (sMins !== null && dMins > 0) {
+          next.endTime = minutesToTimeDisplay(sMins + dMins);
+        }
+      } else if (name === 'endTime') {
+        const sMins = parseTimeToMinutes(prev.startTime);
+        const eMins = parseTimeToMinutes(value);
+        if (sMins !== null && eMins !== null && eMins > sMins) {
+          const diffMins = eMins - sMins;
+          const h = Math.floor(diffMins / 60);
+          const m = diffMins % 60;
+          if (m === 0) next.duration = `${h} ${h === 1 ? 'Hour' : 'Hours'}`;
+          else next.duration = `${h}h ${m}m`;
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleSubmit = (e) => {
@@ -97,7 +148,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-3">
           <Input
             label="Exam Date"
             name="date"
@@ -108,18 +159,29 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-3">
           <Input
             label="Start Time"
             name="startTime"
             value={formData.startTime}
             onChange={handleChange}
-            placeholder="e.g. 10:00 AM"
+            placeholder="e.g. 10:00 AM or 01:00 pm"
             required
           />
         </div>
 
-        <div className="col-12 col-md-4">
+        <div className="col-12 col-md-3">
+          <Input
+            label="End Time"
+            name="endTime"
+            value={formData.endTime}
+            onChange={handleChange}
+            placeholder="e.g. 01:00 PM or 04:00 pm"
+            required
+          />
+        </div>
+
+        <div className="col-12 col-md-3">
           <Input
             label="Duration"
             name="duration"
@@ -154,7 +216,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
 
       <div className="d-flex align-items-center justify-content-end gap-2 mt-4 pt-3 border-top">
         {onCancel && (
-          <Button variant="light" onClick={onCancel}>
+          <Button variant="light" type="button" onClick={onCancel}>
             Cancel
           </Button>
         )}

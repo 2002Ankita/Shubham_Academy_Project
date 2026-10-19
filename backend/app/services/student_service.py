@@ -1,7 +1,7 @@
 from app.models.student import Student
 from app.models.user import User
 from app.models.fees import FeePayment
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from bson import ObjectId
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError
@@ -21,16 +21,26 @@ async def _format_student(student: Student) -> dict:
         student.user = user_obj
 
     # Calculate actual paid fees from FeePayment entries or stored field
-    payments = await FeePayment.find({"student.$id": student.id}).to_list()
+    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
     actual_paid = sum(p.amount_paid for p in payments) if payments else float(getattr(student, "paid_fees", 0.0) or 0.0)
     total_fees = float(getattr(student, "total_fees", 0.0) or 0.0)
     remaining_fees = max(0.0, total_fees - actual_paid)
 
+    student_name = getattr(student, "full_name", None) or (user_obj.full_name if user_obj else None) or ""
+    student_email = getattr(student, "email", None) or (user_obj.email if user_obj else None) or ""
+
+    if user_obj and student_name and user_obj.full_name != student_name:
+        user_obj.full_name = student_name
+        try:
+            await user_obj.save()
+        except Exception:
+            pass
+
     return {
         "id": str(student.id),
         "student_id": student.student_id,
-        "full_name": user_obj.full_name if user_obj else "",
-        "email": user_obj.email if user_obj else "",
+        "full_name": student_name,
+        "email": student_email,
         "mobile_number": getattr(student, "mobile_number", "") or "",
         "parent_mobile": getattr(student, "parent_mobile", "") or "",
         "date_of_birth": student.date_of_birth,
@@ -82,9 +92,9 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     else:
         data = vars(student_in)
 
-    full_name = (data.get("full_name") or data.get("name") or "").strip()
-    raw_mobile = str(data.get("mobile_number") or data.get("phone") or "").strip()
-    raw_parent_mobile = str(data.get("parent_mobile") or data.get("parentPhone") or "").strip()
+    full_name = (data.get("full_name") or data.get("name") or data.get("fullName") or "").strip()
+    raw_mobile = str(data.get("mobile_number") or data.get("phone") or data.get("mobileNumber") or "").strip()
+    raw_parent_mobile = str(data.get("parent_mobile") or data.get("parentPhone") or data.get("parentMobile") or "").strip()
 
     if not full_name:
         raise HTTPException(status_code=400, detail="Student full name is required")
@@ -130,17 +140,29 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     else:
         final_total_fees = orig_fees
 
-    total_fees = float(data.get("total_fees") or data.get("totalFees") or final_total_fees)
+    # At registration time, if discount is requested (PENDING), only the approved fee
+    # should be applied. While pending approval, the payable course fee is the original course fee.
+    if disc_status == "APPROVED":
+        total_fees = max(0.0, orig_fees - disc_amount)
+    else:
+        total_fees = orig_fees
+
     paid_fees = float(data.get("paid_fees") or data.get("paidFees") or data.get("downPayment") or 0.0)
     remaining_fees = max(0.0, total_fees - paid_fees)
 
-    # Email handling
+    # Email handling - optional for student; auto-generate internal mailbox if omitted
     email = data.get("email")
     if not email or not str(email).strip():
         email = f"stu_{clean_mobile[-10:]}@shubham.edu"
     email = str(email).strip().lower()
 
-    password = data.get("password") or "password123"
+    # Password handling - default is student's mobile number so every student has unique ID & password
+    mobile_pass_digits = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
+    raw_pass = data.get("password")
+    if not raw_pass or str(raw_pass).strip() == "password123":
+        password = mobile_pass_digits
+    else:
+        password = str(raw_pass).strip()
 
     # UPSERT LOGIC
     existing_user = await User.find_one(User.email == email)
@@ -153,10 +175,29 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         existing_student = existing_mobile
 
     if existing_student:
+        linked_user = None
         if existing_user:
-            existing_user.full_name = full_name
-            await existing_user.save()
+            linked_user = existing_user
+        elif existing_student.user:
+            if isinstance(existing_student.user, User):
+                linked_user = existing_student.user
+            else:
+                try:
+                    linked_user = await User.get(existing_student.user.ref.id)
+                except Exception:
+                    pass
 
+        if linked_user:
+            linked_user.full_name = full_name
+            if email:
+                linked_user.email = email
+            # If the user's password was the generic password123, update to their unique mobile number
+            if verify_password("password123", linked_user.hashed_password):
+                linked_user.hashed_password = get_password_hash(mobile_pass_digits)
+            await linked_user.save()
+            existing_student.user = linked_user
+
+        existing_student.full_name = full_name
         existing_student.mobile_number = clean_mobile
         existing_student.parent_mobile = clean_parent_mobile
         existing_student.email = email
@@ -184,6 +225,37 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             existing_student.discount_offered_by = disc_offered_by
             existing_student.discount_recommended_by = disc_recommended_by
             existing_student.discount_offered_at = disc_offered_at
+
+            # Ensure DiscountApproval record is also created or updated for existing student
+            appr_rec = await DiscountApproval.find_one(
+                DiscountApproval.student_id == str(existing_student.id),
+                DiscountApproval.status == "PENDING"
+            )
+            if not appr_rec:
+                appr_rec = DiscountApproval(
+                    student_id=str(existing_student.id),
+                    student_name=full_name,
+                    roll_number=existing_student.student_id,
+                    standard=existing_student.standard or "11th Science",
+                    original_fees=orig_fees,
+                    discount_amount=disc_amount,
+                    discount_requested_amount=disc_amount,
+                    final_fees=max(0.0, orig_fees - disc_amount),
+                    discount_reason=disc_reason or "Fee Concession",
+                    status=disc_status,
+                    offered_by=disc_offered_by or "Admin",
+                    recommended_by=disc_recommended_by or disc_offered_by or "Miss Shilpa",
+                    offered_by_email=current_user.email if current_user else None,
+                    offered_at=disc_offered_at or datetime.utcnow()
+                )
+                await appr_rec.insert()
+            else:
+                appr_rec.discount_amount = disc_amount
+                appr_rec.discount_requested_amount = disc_amount
+                appr_rec.original_fees = orig_fees
+                appr_rec.final_fees = max(0.0, orig_fees - disc_amount)
+                appr_rec.discount_reason = disc_reason or "Fee Concession"
+                await appr_rec.save()
 
         await existing_student.save()
         return await _format_student(existing_student)
@@ -214,6 +286,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     student = Student(
         user=user,
         student_id=student_id,
+        full_name=full_name,
         mobile_number=clean_mobile,
         parent_mobile=clean_parent_mobile,
         email=email,
@@ -252,11 +325,12 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     if disc_amount > 0:
         approval_record = DiscountApproval(
             student_id=str(student.id),
-            student_name=user.full_name,
+            student_name=user.full_name or full_name,
             roll_number=student.student_id,
-            standard=student.standard,
+            standard=student.standard or "General",
             original_fees=orig_fees,
             discount_amount=disc_amount,
+            discount_requested_amount=disc_amount,
             final_fees=max(0.0, orig_fees - disc_amount),
             discount_reason=disc_reason or "Fee Concession",
             status=disc_status,
@@ -467,7 +541,7 @@ async def delete_student(id: str):
         await student.user.delete()
 
     # Also clean up any fee payments
-    payments = await FeePayment.find({"student.$id": student.id}).to_list()
+    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
     for p in payments:
         await p.delete()
 
@@ -537,12 +611,14 @@ async def offer_student_discount(id: str, offer_in: dict, current_user: User) ->
         user_obj = await User.get(student.user.ref.id)
         if user_obj:
             student_name = user_obj.full_name
+    if not student_name:
+        student_name = getattr(student, "full_name", None) or "Student"
 
     approval = DiscountApproval(
         student_id=str(student.id),
         student_name=student_name,
         roll_number=student.student_id,
-        standard=student.standard,
+        standard=student.standard or "General",
         original_fees=orig_fees,
         discount_amount=disc_amount,
         final_fees=max(0.0, orig_fees - disc_amount),
@@ -608,6 +684,7 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
     student.discount_approved_at = datetime.utcnow()
     student.discount_rejection_reason = None
     student.total_fees = max(0.0, orig_fees - disc_amount)
+    student.remaining_fees = max(0.0, student.total_fees - (student.paid_fees or 0.0))
     await student.save()
 
     # Update or create DiscountApproval record
@@ -631,11 +708,13 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
             u_obj = await User.get(student.user.ref.id)
             if u_obj:
                 student_name = u_obj.full_name
+        if not student_name:
+            student_name = getattr(student, "full_name", None) or "Student"
         approval = DiscountApproval(
             student_id=str(student.id),
             student_name=student_name,
             roll_number=student.student_id,
-            standard=student.standard,
+            standard=student.standard or "General",
             original_fees=orig_fees,
             discount_amount=disc_amount,
             discount_requested_amount=getattr(student, "discount_requested_amount", disc_amount) or disc_amount,
@@ -667,6 +746,7 @@ async def reject_student_discount(id: str, reason: str, current_user: User) -> d
     student.discount_rejection_reason = reason or "Rejected by Superadmin"
     if getattr(student, "original_fees", 0.0) > 0:
         student.total_fees = student.original_fees
+    student.remaining_fees = max(0.0, student.total_fees - (student.paid_fees or 0.0))
     await student.save()
 
     existing_approval = await DiscountApproval.find_one(

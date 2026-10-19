@@ -34,11 +34,27 @@ export default function LeaveRequest() {
         toDate: r.to_date ? String(r.to_date).split('T')[0] : '',
         days: r.number_of_days || 0,
         reason: r.reason || '',
-        appliedDate: r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
+        appliedDate: r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
         status: r.status || 'Pending',
         adminComment: r.admin_comment || ''
       }));
       setRequests(formatted);
+
+      // Try fetching official summary from backend
+      try {
+        const summary = await leaveService.getTeacherLeaveSummary(user.id);
+        if (summary) {
+          setBalance({
+            total: summary.total || 24,
+            taken: summary.taken || 0,
+            pending: summary.pending || 0,
+            available: summary.available || (24 - (summary.taken || 0))
+          });
+          return;
+        }
+      } catch (sumErr) {
+        // Fallback to local computation
+      }
 
       // Recalculate balance based on approved leaves
       let taken = 0;
@@ -87,11 +103,38 @@ export default function LeaveRequest() {
     }
   };
 
-  const handleExportExcel = () => {
-    try {
-      const teacherName = user?.name || user?.full_name || 'Teacher';
-      const currentDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const handleExportExcel = async () => {
+    const teacherName = user?.name || user?.full_name || 'Teacher';
+    const sanitizedName = teacherName.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `Leave_Requests_${sanitizedName}.xlsx`;
 
+    try {
+      // 1. Attempt to download executive Excel report directly from backend API
+      if (user?.id) {
+        try {
+          const blobData = await leaveService.exportLeaveRequests(user.id);
+          if (blobData) {
+            const blob = new Blob([blobData], {
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+            toast.success('Exported leave requests to Excel from backend successfully!');
+            return;
+          }
+        } catch (backendErr) {
+          console.warn('Backend Excel export failed or offline, using fallback client generator:', backendErr);
+        }
+      }
+
+      // 2. Client-side fallback if backend export is unavailable
+      const currentDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const sheetData = [
         ['SHUBHAM ACADEMY'],
         ['FACULTY LEAVE REQUESTS REPORT'],
@@ -134,8 +177,7 @@ export default function LeaveRequest() {
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Leave Requests');
-      const sanitizedName = teacherName.replace(/[^a-zA-Z0-9]/g, '_');
-      XLSX.writeFile(wb, `Leave_Requests_${sanitizedName}.xlsx`);
+      XLSX.writeFile(wb, filename);
       toast.success('Exported leave requests to Excel successfully!');
     } catch (err) {
       console.error('Failed to export leave requests to Excel:', err);

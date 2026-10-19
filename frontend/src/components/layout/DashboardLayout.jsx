@@ -12,10 +12,11 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [globalDateFilter, setGlobalDateFilter] = useState(new Date().toISOString().split('T')[0]);
 
-  const isStudent = user?.role === 'student' || location.pathname.startsWith('/student');
-  const isSuperAdmin = user?.role === 'super-admin' || location.pathname.startsWith('/super-admin');
-  const isTeacher = user?.role === 'teacher' || location.pathname.startsWith('/teacher');
-  const isAdmin = !isSuperAdmin && !isStudent && !isTeacher && (user?.role === 'admin' || location.pathname.startsWith('/admin'));
+  const roleStr = (user?.role || '').toLowerCase().replace('-', '_');
+  const isSuperAdmin = roleStr === 'super_admin' || roleStr.includes('super') || location.pathname.startsWith('/super-admin');
+  const isStudent = roleStr === 'student' || location.pathname.startsWith('/student');
+  const isTeacher = roleStr === 'teacher' || location.pathname.startsWith('/teacher');
+  const isAdmin = !isSuperAdmin && !isStudent && !isTeacher && (roleStr === 'admin' || location.pathname.startsWith('/admin'));
   const isPearlGlass = isSuperAdmin || isAdmin || isStudent || isTeacher;
   const sidebarWidth = (isAdmin || isSuperAdmin || isStudent || isTeacher) ? '265px' : 'var(--sa-sidebar-width)';
 

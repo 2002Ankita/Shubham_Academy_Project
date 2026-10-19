@@ -46,22 +46,25 @@ class StudentBase(BaseModel):
         extra = "allow"
 
 class StudentCreate(StudentBase):
-    password: Optional[str] = "password123"
+    password: Optional[str] = None
     superadmin_auth_code: Optional[str] = None
 
 class StudentAdminCreate(BaseModel):
     full_name: Optional[str] = None
+    fullName: Optional[str] = None
     name: Optional[str] = None
     mobile_number: Optional[str] = None
+    mobileNumber: Optional[str] = None
     phone: Optional[str] = None
     parent_mobile: Optional[str] = None
+    parentMobile: Optional[str] = None
     parentPhone: Optional[str] = None
     total_fees: Optional[float] = 0.0
     totalFees: Optional[float] = 0.0
     paid_fees: Optional[float] = 0.0
     paidFees: Optional[float] = 0.0
     remaining_fees: Optional[float] = None
-    password: Optional[str] = "password123"
+    password: Optional[str] = None
     email: Optional[str] = None
     batch: Optional[str] = None
     standard: Optional[str] = None

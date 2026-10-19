@@ -45,6 +45,41 @@ export const curriculumService = {
     }
   },
 
+  // Bulk create daily activities from Excel import
+  bulkCreateDailyActivities: async (activitiesList) => {
+    try {
+      const res = await api.post('/daily-activities/bulk', activitiesList);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
+          const updated = [...res.data, ...saved];
+          localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend bulk daily-activities failed, fallback to sequential or local:', err);
+    }
+
+    const createdList = [];
+    for (let i = 0; i < activitiesList.length; i++) {
+      const item = activitiesList[i];
+      try {
+        const res = await api.post('/daily-activities', item);
+        createdList.push(res.data);
+      } catch (_) {
+        const localItem = { id: `ACT-${Date.now()}-${i}`, ...item, created_at: new Date().toISOString() };
+        createdList.push(localItem);
+      }
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
+      const updated = [...createdList, ...saved];
+      localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+    } catch (_) {}
+    return createdList;
+  },
+
   // Update a daily activity
   updateDailyActivity: async (id, data) => {
     try {
@@ -134,6 +169,41 @@ export const curriculumService = {
       } catch (_) {}
       return localItem;
     }
+  },
+
+  // Bulk create topic duration curriculum plans from Excel import
+  bulkCreateTopicDurations: async (topicsList) => {
+    try {
+      const res = await api.post('/topic-durations/bulk', topicsList);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
+          const updated = [...res.data, ...saved];
+          localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend bulk topic-durations failed, using sequential or local fallback:', err);
+    }
+
+    const createdList = [];
+    for (let i = 0; i < topicsList.length; i++) {
+      const item = topicsList[i];
+      try {
+        const res = await api.post('/topic-durations', item);
+        createdList.push(res.data);
+      } catch (_) {
+        const localItem = { id: `TOPIC-${Date.now()}-${i}`, ...item };
+        createdList.push(localItem);
+      }
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
+      const updated = [...createdList, ...saved];
+      localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
+    } catch (_) {}
+    return createdList;
   },
 
   // Update a topic duration plan

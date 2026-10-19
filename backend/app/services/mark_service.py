@@ -36,15 +36,25 @@ async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: da
         ex_room = (getattr(ex, "room_no", "") or "").strip()
         if ex_room.lower() != room_clean.lower():
             continue
-        ex_date = ex.exam_date.date() if isinstance(ex.exam_date, datetime) else None
+
+        raw_ex_date = _parse_dt(ex.exam_date)
+        raw_ex_start = _parse_dt(ex.start_time)
+        raw_ex_end = _parse_dt(ex.end_time)
+
+        ex_date = raw_ex_date.date() if isinstance(raw_ex_date, datetime) else None
         if ex_date != target_date:
             continue
-        ex_start = ex.start_time.time() if isinstance(ex.start_time, datetime) else None
-        ex_end = ex.end_time.time() if isinstance(ex.end_time, datetime) else None
+
+        ex_start = raw_ex_start.time() if isinstance(raw_ex_start, datetime) else None
+        ex_end = raw_ex_end.time() if isinstance(raw_ex_end, datetime) else None
+
+        # Ignore invalid/zero-duration dummy records
+        if ex_start and ex_end and ex_start == ex_end:
+            continue
 
         if ex_start and ex_end and target_start and target_end:
             if target_start < ex_end and target_end > ex_start:
-                raise HTTPException(status_code=400, detail=f"{room_clean} is already booked during this time.")
+                raise HTTPException(status_code=400, detail=f"{room_clean} is already booked on this date ({ex_start.strftime('%I:%M %p')} - {ex_end.strftime('%I:%M %p')}).")
 
 def _parse_dt(val):
     if isinstance(val, datetime):
@@ -222,7 +232,18 @@ async def create_exam(exam_in: ExamCreate, user=None) -> dict:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
     if exam_in.start_time >= exam_in.end_time:
-        raise HTTPException(status_code=400, detail="End time must be later than start time.")
+        from datetime import timedelta
+        import re
+        diff_hours = 2.0
+        if exam_in.duration:
+            m = re.search(r"(\d+(?:\.\d+)?)", exam_in.duration)
+            if m:
+                diff_hours = float(m.group(1))
+        computed_end = exam_in.start_time + timedelta(hours=diff_hours)
+        if computed_end > exam_in.start_time:
+            exam_in.end_time = computed_end
+        else:
+            raise HTTPException(status_code=400, detail="End time must be later than start time.")
 
     room = (exam_in.room_no or "Room 101").strip()
     await _check_room_conflict(room, exam_in.exam_date, exam_in.start_time, exam_in.end_time)

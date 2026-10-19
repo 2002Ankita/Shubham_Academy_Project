@@ -4,11 +4,13 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.user import User
 from app.models.leave_request import LeaveRequest
+from app.models.batch import Batch
 from fastapi import HTTPException
 from beanie import PydanticObjectId
 from bson import ObjectId
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
+import re
 
 def _get_teacher_mongo_query(teacher_id_obj: ObjectId) -> Dict[str, Any]:
     return {
@@ -18,6 +20,115 @@ def _get_teacher_mongo_query(teacher_id_obj: ObjectId) -> Dict[str, Any]:
             {"teacher": teacher_id_obj}
         ]
     }
+
+def parse_time_slot_duration(time_str: str) -> int:
+    """Parse time slot string like '09:00 AM – 10:00 AM' and return duration in minutes."""
+    if not time_str:
+        return 60
+    clean = re.sub(r'[–—]', '-', str(time_str)).strip()
+    parts = clean.split('-')
+    if len(parts) != 2:
+        return 60
+    def to_minutes(t_s: str) -> int:
+        m = re.search(r'(\d+):(\d+)\s*(AM|PM)?', t_s.strip(), re.I)
+        if not m:
+            return 0
+        h, mn, mer = int(m.group(1)), int(m.group(2)), (m.group(3) or '').upper()
+        if mer == 'PM' and h < 12:
+            h += 12
+        if mer == 'AM' and h == 12:
+            h = 0
+        return h * 60 + mn
+    diff = to_minutes(parts[1]) - to_minutes(parts[0])
+    return diff if diff > 0 else 60
+
+async def get_teacher_scheduled_lecture_minutes(teacher: Optional[Teacher], weekday_name: str) -> int:
+    """Calculate the teacher's scheduled timetable lecture hours in minutes for a given weekday."""
+    if not teacher:
+        return 60
+    tid_str = str(teacher.id)
+    t_name = ''
+    if isinstance(teacher.user, User):
+        t_name = teacher.user.full_name
+    elif teacher.user:
+        try:
+            u = await User.get(teacher.user.ref.id)
+            if u:
+                t_name = u.full_name
+        except Exception:
+            pass
+
+    batches = await Batch.find_all().to_list()
+    total_mins = 0
+    seen_slots = set()
+
+    for b in batches:
+        is_my_batch = False
+        if b.teacher:
+            if hasattr(b.teacher, 'id') and str(b.teacher.id) == tid_str:
+                is_my_batch = True
+            elif hasattr(b.teacher, 'ref') and str(b.teacher.ref.id) == tid_str:
+                is_my_batch = True
+        elif b.teacher_name and t_name and (t_name.lower() in b.teacher_name.lower() or b.teacher_name.lower() in t_name.lower()):
+            is_my_batch = True
+
+        if is_my_batch and b.timetable:
+            for s in b.timetable:
+                day = s.get('day', '')
+                if day.lower() == weekday_name.lower():
+                    slot_t = s.get('time', '')
+                    slot_key = f"{day.lower()}_{slot_t}_{s.get('subject', '')}_{s.get('class_code', '')}"
+                    if slot_key not in seen_slots:
+                        seen_slots.add(slot_key)
+                        total_mins += parse_time_slot_duration(slot_t)
+        elif is_my_batch and b.days and any(d.lower() == weekday_name.lower() for d in b.days) and not b.timetable:
+            total_mins += parse_time_slot_duration(b.time)
+
+    return total_mins if total_mins > 0 else 60
+
+async def auto_close_forgotten_checkouts(teacher: Optional[Teacher] = None):
+    """
+    Auto-close teacher attendance records where the teacher forgot to check out.
+    If the record date is prior to today, automatically set the check-out time
+    and total hours based strictly on their scheduled timetable lecture hours.
+    """
+    try:
+        now = datetime.utcnow()
+        conditions = [
+            {"check_in_time": {"$ne": None}},
+            {"check_out_time": None}
+        ]
+        if teacher:
+            conditions.append(_get_teacher_mongo_query(teacher.id))
+
+        unclosed_records = await Attendance.find({"$and": conditions} if len(conditions) > 1 else conditions[0]).to_list()
+        for r in unclosed_records:
+            rec_date = r.date or r.check_in_time
+            is_past_day = rec_date.date() < now.date()
+            is_overdue = (now - r.check_in_time).total_seconds() > 57600
+            if is_past_day or is_overdue:
+                rec_teacher = teacher
+                if not rec_teacher and r.teacher:
+                    tid = r.teacher.ref.id if hasattr(r.teacher, 'ref') else getattr(r.teacher, 'id', None)
+                    if tid:
+                        rec_teacher = await Teacher.get(tid)
+                
+                weekday_name = rec_date.strftime('%A')
+                scheduled_mins = await get_teacher_scheduled_lecture_minutes(rec_teacher, weekday_name)
+                
+                hrs = scheduled_mins // 60
+                mins = scheduled_mins % 60
+                formatted_hours = f"{hrs}h {mins:02d}m"
+
+                r.check_out_time = r.check_in_time + timedelta(minutes=scheduled_mins)
+                r.total_hours = formatted_hours
+                r.status = "Present"
+                remark_note = f"Auto Closed (Lecture Hours: {formatted_hours})"
+                r.remarks = f"{r.remarks} | {remark_note}" if r.remarks else remark_note
+                await r.save()
+    except Exception:
+        pass
+
 
 async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
     from app.services.student_service import resolve_student
@@ -151,6 +262,10 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
     teacher = await resolve_teacher(teacher_id)
     if not teacher:
         return []
+
+    # Automatically close any past forgotten checkouts based on scheduled lecture timetable
+    await auto_close_forgotten_checkouts(teacher=teacher)
+
     records = await Attendance.find(
         _get_teacher_mongo_query(teacher.id)
     ).sort("-date", "-check_in_time").to_list()
@@ -174,6 +289,9 @@ async def get_all_teachers_attendance(
     end_date: Optional[str] = None
 ) -> list[dict]:
     from app.services.teacher_service import resolve_teacher
+
+    # Automatically close any past forgotten checkouts based on scheduled lecture timetable
+    await auto_close_forgotten_checkouts()
 
     # Preload all teachers with their linked user profiles for high performance
     teachers = await Teacher.find_all().to_list()
@@ -262,10 +380,14 @@ async def get_all_teachers_attendance(
             mins, _ = divmod(rem, 60)
             hours_str = f"{int(hrs)}h {int(mins)}m"
         elif not hours_str and r.check_in_time and not r.check_out_time:
-            diff = datetime.utcnow() - r.check_in_time
-            hrs, rem = divmod(diff.total_seconds(), 3600)
-            mins, _ = divmod(rem, 60)
-            hours_str = f"{int(hrs)}h {int(mins)}m"
+            rec_date = r.date or r.check_in_time
+            if rec_date.date() == datetime.utcnow().date():
+                diff = datetime.utcnow() - r.check_in_time
+                hrs, rem = divmod(diff.total_seconds(), 3600)
+                mins, _ = divmod(rem, 60)
+                hours_str = f"{int(hrs)}h {int(mins)}m"
+            else:
+                hours_str = "1h 00m"
 
         res.append({
             "id": str(r.id),
@@ -286,6 +408,7 @@ async def get_all_teachers_attendance(
     return res
 
 async def get_teachers_attendance_summary(date_str: Optional[str] = None) -> dict:
+    await auto_close_forgotten_checkouts()
     target_date = datetime.utcnow()
     if date_str:
         try:
