@@ -222,33 +222,38 @@ export default function FeeReminderHistory() {
   return (
     <div className="d-flex flex-column gap-4 pb-5">
       {/* Page Header */}
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-        <div>
-          <BackButton to="/admin/fees" label="Back to Fee Management" />
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-            Fee Reminder Delivery Logs & History
-          </h3>
-          <span className="small text-sa-muted">
-            Audit trail of automated WhatsApp & SMS reminders, delivery confirmations, and dispatch timestamps
-          </span>
-        </div>
+      <div>
+        <BackButton to="/admin/fees" label="Back to Fee Management" />
+        <div className="d-flex flex-column flex-md-row align-items-md-start justify-content-between gap-3">
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+              Fee Reminder Delivery Logs & History
+            </h3>
+            <span className="small text-sa-muted">
+              Audit trail of automated WhatsApp & SMS reminders, delivery confirmations, and dispatch timestamps
+            </span>
+          </div>
 
-        <div className="d-flex align-items-center gap-2">
-          <Button
-            variant="outline"
-            icon={Sliders}
-            onClick={() => navigate('/admin/fees/reminder-settings')}
+          <div
+            className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0"
+            style={{ marginTop: '-2px' }}
           >
-            Reminder Settings
-          </Button>
-          <Button
-            variant="primary"
-            icon={Play}
-            onClick={handleRunScheduler}
-            loading={runningScheduler}
-          >
-            Run Scheduler Now
-          </Button>
+            <Button
+              variant="outline"
+              icon={Sliders}
+              onClick={() => navigate('/admin/fees/reminder-settings')}
+            >
+              Reminder Settings
+            </Button>
+            <Button
+              variant="primary"
+              icon={Play}
+              onClick={handleRunScheduler}
+              loading={runningScheduler}
+            >
+              Run Scheduler Now
+            </Button>
+          </div>
         </div>
       </div>
 

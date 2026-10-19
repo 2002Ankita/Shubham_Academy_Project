@@ -174,12 +174,28 @@ async def _format_mark(mark: Mark) -> dict:
             except Exception:
                 pass
 
+    student_id_val = ""
+    if student_obj:
+        student_id_val = str(student_obj.id)
+    elif getattr(getattr(mark, 'student', None), 'ref', None):
+        student_id_val = str(mark.student.ref.id)
+    elif getattr(mark, 'student', None) and hasattr(mark.student, 'id'):
+        student_id_val = str(mark.student.id)
+
+    exam_id_val = ""
+    if exam_obj:
+        exam_id_val = str(exam_obj.id)
+    elif getattr(getattr(mark, 'exam', None), 'ref', None):
+        exam_id_val = str(mark.exam.ref.id)
+    elif getattr(mark, 'exam', None) and hasattr(mark.exam, 'id'):
+        exam_id_val = str(mark.exam.id)
+
     return {
         "id": str(mark.id),
-        "student_id": str(mark.student.id) if mark.student else "",
+        "student_id": student_id_val,
         "student_name": student_name,
         "roll_number": roll_number,
-        "exam_id": str(mark.exam.id) if mark.exam else "",
+        "exam_id": exam_id_val,
         "exam_name": exam_obj.exam_name if exam_obj else "",
         "subject": exam_obj.subject if exam_obj else "",
         "max_marks": exam_obj.max_marks if exam_obj else 100,
@@ -521,11 +537,22 @@ async def send_marks_notifications(user, req) -> dict:
             student_name = getattr(student_obj, "student_id", "Student")
 
         parent_name = getattr(student_obj, "parent_name", "") or "Parent"
-        parent_mobile = getattr(student_obj, "parent_mobile", "") or ""
+        parent_mobile = getattr(student_obj, "parent_mobile", "") or getattr(student_obj, "mobile_number", "") or ""
         masked_mobile = notification_service.mask_phone(parent_mobile)
 
         max_marks = exam.max_marks if exam.max_marks > 0 else 100
         percentage = (mark.marks_obtained / max_marks) * 100
+
+        grade = "F"
+        if percentage >= 90: grade = "A+"
+        elif percentage >= 80: grade = "A"
+        elif percentage >= 70: grade = "B"
+        elif percentage >= 60: grade = "C"
+        elif percentage >= 50: grade = "D"
+        else: grade = "F"
+
+        roll_number = getattr(student_obj, "student_id", "") or ""
+        remarks_val = getattr(mark, "remarks", "") or ""
 
         msg = notification_service.build_marks_message(
             student_name=student_name,
@@ -533,7 +560,10 @@ async def send_marks_notifications(user, req) -> dict:
             max_marks=max_marks,
             subject=req.subject or exam.subject,
             exam_name=exam.exam_name,
-            percentage=percentage
+            percentage=percentage,
+            roll_number=roll_number,
+            grade=grade,
+            remarks=remarks_val
         )
 
         if req.channel == "whatsapp":

@@ -22,11 +22,14 @@ class ReminderSettingsResponse(BaseModel):
 class ReminderHistoryResponse(BaseModel):
     id: str
     idempotency_key: str
-    student_id: str
+    student_id: Optional[str] = ""
     amount_outstanding: float
     delivery_status: str
     scheduled_time: datetime
     provider_response: Optional[str]
 
 class ManualReminderRequest(BaseModel):
-    student_id: str
+    student_id: Optional[str] = None
+    parent_mobile: Optional[str] = None
+    channel: Optional[str] = "WhatsApp"
+    custom_message: Optional[str] = None

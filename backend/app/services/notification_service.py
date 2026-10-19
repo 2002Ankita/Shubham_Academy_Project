@@ -27,15 +27,31 @@ class NotificationProviderService:
         return "****"
 
     @staticmethod
-    def build_marks_message(student_name: str, marks_obtained: float, max_marks: float, subject: str, exam_name: str, percentage: float) -> str:
+    def build_marks_message(
+        student_name: str,
+        marks_obtained: float,
+        max_marks: float,
+        subject: str,
+        exam_name: str,
+        percentage: float,
+        roll_number: str = "",
+        grade: str = "",
+        remarks: str = ""
+    ) -> str:
         marks_str = f"{int(marks_obtained) if marks_obtained.is_integer() else marks_obtained}"
         max_str = f"{int(max_marks) if max_marks.is_integer() else max_marks}"
-        pct_str = f"{percentage:.1f}%"
+        pct_val = int(percentage) if float(percentage).is_integer() else round(float(percentage), 1)
+        pct_str = f"{pct_val}%"
+        roll_part = f" (Roll No: {roll_number})" if roll_number else ""
+        grade_line = f"\nGrade: {grade}" if grade else ""
+        remarks_line = f"\nRemarks: {remarks}" if remarks else ""
         
         return (
             f"Dear Parent/Guardian,\n\n"
-            f"Your ward {student_name} has received {marks_str}/{max_str} in {subject} for {exam_name}.\n\n"
-            f"Percentage: {pct_str}\n\n"
+            f"Your ward {student_name}{roll_part} has received {marks_str}/{max_str} in {subject} for {exam_name}.\n\n"
+            f"Percentage: {pct_str}"
+            f"{grade_line}"
+            f"{remarks_line}\n\n"
             f"Regards,\n"
             f"Shubham Academy"
         )
@@ -81,7 +97,7 @@ class NotificationProviderService:
         if len(digits) < 10:
             return {"success": False, "status": "failed", "message": "Invalid phone number format"}
 
-        # If provider credentials are not configured, do not falsely claim delivery
+        # If provider credentials are not configured, return unconfigured so fake sent count is never shown
         if not self.whatsapp_api_key or not self.whatsapp_api_url:
             return {
                 "success": False,
@@ -116,7 +132,7 @@ class NotificationProviderService:
         if len(digits) < 10:
             return {"success": False, "status": "failed", "message": "Invalid phone number format"}
 
-        # If provider credentials are not configured, do not falsely claim delivery
+        # If provider credentials are not configured, return unconfigured so fake sent count is never shown
         if not self.sms_api_key or not self.sms_api_url:
             return {
                 "success": False,

@@ -175,6 +175,7 @@ export default function AppRoutes() {
         <Route path="/admin/exams" element={<CreateExam />} />
         <Route path="/admin/marks/entry" element={<MarksEntry />} />
         <Route path="/admin/results" element={<Results />} />
+        <Route path="/admin/notes" element={<TeacherNotes />} />
         <Route path="/admin/books/stock" element={<BooksStock />} />
         <Route path="/admin/books-stock" element={<BooksStock />} />
         <Route path="/admin/notes/stock" element={<BooksStock />} />

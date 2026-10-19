@@ -44,7 +44,12 @@ async def list_history(student_id: Optional[str] = None, skip: int = 0, limit: i
 @router.post("/manual")
 async def manual_trigger(request: ManualReminderRequest, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    history = await trigger_manual_reminder(request.student_id)
+    history = await trigger_manual_reminder(
+        student_id=request.student_id,
+        parent_mobile=request.parent_mobile,
+        channel=request.channel or "WhatsApp",
+        custom_message=request.custom_message
+    )
     return {"message": "Manual reminder triggered successfully", "status": history.delivery_status}
 
 @router.post("/run-scheduler-now")

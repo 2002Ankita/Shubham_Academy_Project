@@ -40,9 +40,20 @@ export const reminderService = {
     }
   },
 
-  triggerManual: async (studentId) => {
+  triggerManual: async (params) => {
     try {
-      const res = await api.post('/reminders/manual', { student_id: studentId });
+      let payload = {};
+      if (typeof params === 'object' && params !== null) {
+        payload = {
+          student_id: params.studentId || params.student_id || null,
+          parent_mobile: params.parentMobile || params.parent_mobile || null,
+          channel: params.channel || 'WhatsApp',
+          custom_message: params.message || params.custom_message || null
+        };
+      } else {
+        payload = { student_id: params };
+      }
+      const res = await api.post('/reminders/manual', payload);
       return res.data;
     } catch (error) {
       console.error('Error triggering manual reminder:', error);

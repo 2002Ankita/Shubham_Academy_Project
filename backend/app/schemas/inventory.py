@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -7,13 +7,20 @@ class InventoryItemCreate(BaseModel):
     category: Optional[str] = "Theory"  # "Theory" or "CET"
     subject: Optional[str] = "Physics"  # "Physics", "Chemistry", "Biology", "Maths"
     standard: Optional[str] = "11th & 12th Science"
-    in_stock: int = 50
-    total_stock: Optional[int] = None
-    reorder_level: int = 15
-    unit_cost: float = 350.0
+    in_stock: int = Field(default=50, ge=0)
+    total_stock: Optional[int] = Field(default=None, ge=0)
+    reorder_level: int = Field(default=15, ge=0)
+    unit_cost: float = Field(default=350.0, ge=0.0)
 
 class InventoryItemRestock(BaseModel):
-    quantity: int
+    quantity: int = Field(..., gt=0)
+    remarks: Optional[str] = None
+
+class InventorySummaryResponse(BaseModel):
+    total_available_stock: int
+    total_disbursed_copies: int
+    active_titles_count: int
+    low_stock_count: int
 
 class InventoryItemUpdate(BaseModel):
     title: Optional[str] = None
@@ -45,7 +52,7 @@ class InventoryDeliveryCreate(BaseModel):
     category: Optional[str] = "Theory"
     subject: Optional[str] = "Physics"
     book_title: Optional[str] = None
-    quantity: int = 1
+    quantity: int = Field(default=1, gt=0)
     date: Optional[datetime] = None
     handed_over_by: Optional[str] = None
     handed_over_to: Optional[str] = None

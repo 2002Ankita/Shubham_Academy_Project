@@ -36,8 +36,21 @@ export const inventoryService = {
     return res.data;
   },
 
-  restockItem: async (id, quantity) => {
-    const res = await api.post(`/inventory/items/${id}/restock`, { quantity: Number(quantity) });
+  restockItem: async (id, quantity, remarks = null) => {
+    const res = await api.post(`/inventory/items/${id}/restock`, { 
+      quantity: Number(quantity),
+      remarks: remarks || undefined 
+    });
+    return res.data;
+  },
+
+  getSummary: async () => {
+    const res = await api.get('/inventory/summary');
+    return res.data;
+  },
+
+  getLowStockItems: async () => {
+    const res = await api.get('/inventory/low-stock');
     return res.data;
   },
 

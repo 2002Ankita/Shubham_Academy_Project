@@ -15,11 +15,25 @@ export default function TeacherDirectory() {
     const fetchTeachers = async () => {
       setLoading(true);
       try {
-        const data = await teacherService.getAll();
-        setTeachers(data);
+        let data = await teacherService.getAll();
+        let list = Array.isArray(data) ? data : (data ? [data] : []);
+        if (list.length === 0) {
+          try {
+            const me = await teacherService.getMe();
+            if (me) list = [me];
+          } catch {
+            // fallback if /me not available
+          }
+        }
+        setTeachers(list);
       } catch (error) {
         console.error('Failed to fetch teachers:', error);
-        setTeachers([]);
+        try {
+          const me = await teacherService.getMe();
+          setTeachers(me ? [me] : []);
+        } catch {
+          setTeachers([]);
+        }
       } finally {
         setLoading(false);
       }

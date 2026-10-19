@@ -17,11 +17,11 @@ class TeacherResponse(BaseModel):
     id: str
     employee_id: str
     full_name: str
-    email: EmailStr
+    email: Optional[str] = ""
     mobile_number: Optional[str] = ""
     subjects: List[str] = []
     assigned_batches: List[str] = []
     hourly_rate: float = 0.0
-    joining_date: datetime
-    status: str
+    joining_date: Optional[datetime] = None
+    status: Optional[str] = "Active"
 

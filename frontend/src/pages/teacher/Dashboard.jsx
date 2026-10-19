@@ -366,55 +366,6 @@ export default function TeacherDashboard() {
               <span>✨</span>
               <span>"Better Teachers • Brighter Futures"</span>
             </div>
-
-            {/* Quick Check-in / Check-out status control */}
-            <div className="d-flex align-items-center gap-2 mt-3 pt-1 flex-wrap">
-              {!todayAttendance || todayAttendance.checkIn === '--' ? (
-                <button
-                  type="button"
-                  disabled={attendanceActionLoading}
-                  onClick={() => handleQuickAttendance('check-in')}
-                  className="btn btn-sm text-white d-inline-flex align-items-center gap-2 fw-semibold px-3 py-1.5 rounded-3 shadow-sm transition-all"
-                  style={{ backgroundColor: '#8B1216', fontSize: '13px' }}
-                >
-                  <Clock size={15} />
-                  <span>{attendanceActionLoading ? 'Checking in...' : 'Check In Today'}</span>
-                </button>
-              ) : todayAttendance.checkOut === '--' || todayAttendance.checkOut === 'In Progress' ? (
-                <div className="d-flex align-items-center gap-2 flex-wrap">
-                  <div
-                    className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill"
-                    style={{ backgroundColor: '#EAF6EF', border: '1px solid #BBF7D0', color: '#166534', fontSize: '12.5px' }}
-                  >
-                    <span
-                      className="rounded-circle"
-                      style={{ width: '8px', height: '8px', backgroundColor: '#16A34A', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.25)' }}
-                    />
-                    <span className="fw-semibold">Checked in at {todayAttendance.checkIn}</span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={attendanceActionLoading}
-                    onClick={() => handleQuickAttendance('check-out')}
-                    className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 rounded-3"
-                    style={{ fontSize: '12.5px' }}
-                  >
-                    <Clock size={14} />
-                    <span>{attendanceActionLoading ? 'Checking out...' : 'Check Out Now'}</span>
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill cursor-pointer"
-                  onClick={() => navigate('/teacher/attendance')}
-                  style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: '12.5px' }}
-                  title="View Attendance Register"
-                >
-                  <Check size={14} strokeWidth={2.5} />
-                  <span className="fw-semibold">Shift Completed: {todayAttendance.checkIn} - {todayAttendance.checkOut} ({todayAttendance.totalHours})</span>
-                </div>
-              )}
-            </div>
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">
             <img
@@ -591,39 +542,39 @@ export default function TeacherDashboard() {
           </div>
         ) : (
           <div className="table-responsive flex-grow-1">
-            <table className="table table-borderless table-sm m-0 align-middle w-100" style={{ tableLayout: 'fixed' }}>
+            <table className="table table-borderless table-sm m-0 align-middle w-100" style={{ tableLayout: 'fixed', minWidth: '820px' }}>
               <thead>
                 <tr className="text-muted border-bottom" style={{ fontSize: '11px', height: '28px' }}>
-                  <th className="fw-semibold ps-2 py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Time</th>
-                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '32%', letterSpacing: '0.02em' }}>Subject</th>
-                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '20%', letterSpacing: '0.02em' }}>Batch</th>
-                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Room</th>
-                  <th className="fw-semibold py-1 text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Status</th>
-                  <th className="fw-semibold pe-2 py-1 text-end text-uppercase" style={{ width: '12%', letterSpacing: '0.02em' }}>Action</th>
+                  <th className="fw-semibold ps-2 pe-3 py-1 text-uppercase" style={{ width: '20%', minWidth: '165px', letterSpacing: '0.02em' }}>Time</th>
+                  <th className="fw-semibold px-2 py-1 text-uppercase" style={{ width: '26%', letterSpacing: '0.02em' }}>Subject</th>
+                  <th className="fw-semibold px-2 py-1 text-uppercase" style={{ width: '18%', letterSpacing: '0.02em' }}>Batch</th>
+                  <th className="fw-semibold px-2 py-1 text-uppercase" style={{ width: '11%', letterSpacing: '0.02em' }}>Room</th>
+                  <th className="fw-semibold px-2 py-1 text-uppercase" style={{ width: '11%', letterSpacing: '0.02em' }}>Status</th>
+                  <th className="fw-semibold pe-2 ps-2 py-1 text-end text-uppercase" style={{ width: '14%', letterSpacing: '0.02em' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {scheduleRows.map((row, idx) => (
                   <tr key={idx} className="border-bottom border-light" style={{ height: '38px' }}>
-                    <td className="fw-semibold text-sa-charcoal ps-2 py-1.5" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    <td className="fw-semibold text-sa-charcoal ps-2 pe-3 py-1.5" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
                       {row.time}
                     </td>
-                    <td className="py-1.5" style={{ overflow: 'hidden' }}>
+                    <td className="px-2 py-1.5" style={{ overflow: 'hidden' }}>
                       <div className="fw-semibold text-sa-charcoal text-truncate" title={row.subject} style={{ fontSize: '12.5px' }}>
                         {row.subject}
                       </div>
                     </td>
-                    <td className="py-1.5" style={{ overflow: 'hidden' }}>
+                    <td className="px-2 py-1.5" style={{ overflow: 'hidden' }}>
                       <div className="text-sa-muted text-truncate" title={row.classBatch} style={{ fontSize: '12px' }}>
                         {row.classBatch}
                       </div>
                     </td>
-                    <td className="py-1.5">
+                    <td className="px-2 py-1.5">
                       <span className="badge bg-light text-muted border fw-normal text-truncate d-inline-block" style={{ fontSize: '10.5px', padding: '3px 8px', maxWidth: '100%' }}>
                         {row.room}
                       </span>
                     </td>
-                    <td className="py-1.5">
+                    <td className="px-2 py-1.5">
                       {row.status === 'Completed' ? (
                         <span className="badge rounded-pill fw-medium" style={{ backgroundColor: '#EAF6EF', color: '#168554', fontSize: '10.5px', padding: '3px 8px' }}>
                           Completed
@@ -638,7 +589,7 @@ export default function TeacherDashboard() {
                         </span>
                       )}
                     </td>
-                    <td className="pe-2 py-1.5 text-end">
+                    <td className="pe-2 ps-2 py-1.5 text-end">
                       {row.actionType === 'start' ? (
                         <button
                           onClick={() => navigate(row.path)}

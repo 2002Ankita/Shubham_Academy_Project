@@ -23,12 +23,14 @@ export default function SendMarksModal({
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
+  const [manualSentMap, setManualSentMap] = useState({});
 
   React.useEffect(() => {
     if (isOpen) {
       setSelectedBatch(batch || 'All Batches');
       setSelectedSubject(subject || 'All Subjects');
       setSendResult(null);
+      setManualSentMap({});
     }
   }, [isOpen, batch, subject]);
 
@@ -52,18 +54,29 @@ export default function SendMarksModal({
   // Compute roster of students for this exam with their marks & parent details
   const roster = useMemo(() => {
     if (!exam) return [];
-    
+
     // Find all marks for this exam
-    let examMarks = marks.filter(m => m.examId === exam.id || m.exam_id === exam.id);
+    let examMarks = marks.filter(m =>
+      m.examId === exam.id ||
+      m.exam_id === exam.id ||
+      (m.examTitle && (m.examTitle === exam.title || m.examTitle === exam.exam_name)) ||
+      (m.examName && (m.examName === exam.title || m.examName === exam.exam_name))
+    );
 
     if (selectedSubject && selectedSubject !== 'All Subjects') {
       examMarks = examMarks.filter(m => (m.subject || exam.subject || '').toLowerCase() === selectedSubject.toLowerCase());
     }
-    
+
     const list = examMarks.map(m => {
-      const student = students.find(s => s.id === m.studentId || s.student_id === m.studentId || s.id === m.student_id) || {};
-      const parentMobile = student.parentPhone || student.parent_mobile || '';
-      const maskedMobile = parentMobile.length >= 4 
+      const student = students.find(s =>
+        (s.id && (s.id === m.studentId || s.id === m.student_id)) ||
+        (s._id && (s._id === m.studentId || s._id === m.student_id)) ||
+        (s.student_id && (s.student_id === m.studentId || s.student_id === m.rollNumber)) ||
+        (s.rollNumber && (s.rollNumber === m.rollNumber || s.rollNumber === m.studentId)) ||
+        (s.name && m.studentName && s.name.trim().toLowerCase() === m.studentName.trim().toLowerCase())
+      ) || {};
+      const parentMobile = student.parentPhone || student.parent_mobile || student.phone || student.mobile_number || '';
+      const maskedMobile = parentMobile.length >= 4
         ? `${'*'.repeat(Math.max(parentMobile.length - 4, 0))}${parentMobile.slice(-4)}`
         : (parentMobile ? '****' : null);
 
@@ -117,7 +130,7 @@ export default function SendMarksModal({
   };
 
   const toggleSelectStudent = (id) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -163,12 +176,9 @@ export default function SendMarksModal({
       }
 
       if (summary.sent > 0) {
-        toast.success(`Successfully dispatched ${summary.sent} marks notifications and sent teacher SMS alert!`);
+        toast.success(`Marks notifications delivered successfully for ${summary.sent} student(s) to parents!`);
       } else if (summary.unconfigured > 0) {
-        toast.info(
-          `Notification request processed for ${summary.unconfigured} student(s) and teacher copy queued. Note: Backend ${channel.toUpperCase()} provider requires API key configuration.`,
-          { autoClose: 6000 }
-        );
+        toast.error(`0 messages sent: WhatsApp / SMS API is not configured in backend .env. Use the green 💬 icon to send directly via WhatsApp.`);
       } else if (summary.missing_phone > 0 && summary.total === summary.missing_phone) {
         toast.warning('Parent mobile numbers are missing for the selected students.');
       } else {
@@ -186,6 +196,14 @@ export default function SendMarksModal({
       return (
         <span className="badge rounded-pill" style={{ backgroundColor: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A', fontSize: '11px' }}>
           <PhoneOff size={11} className="me-1" /> No Mobile
+        </span>
+      );
+    }
+
+    if (manualSentMap[studentId]) {
+      return (
+        <span className="badge rounded-pill" style={{ backgroundColor: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', fontSize: '11px' }}>
+          <CheckCircle2 size={11} className="me-1" /> Sent (WhatsApp Web)
         </span>
       );
     }
@@ -212,8 +230,8 @@ export default function SendMarksModal({
     }
     if (item.status === 'unconfigured') {
       return (
-        <span className="badge rounded-pill" style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', fontSize: '11px' }} title={item.message}>
-          <AlertCircle size={11} className="me-1" /> Needs Provider
+        <span className="badge rounded-pill" style={{ backgroundColor: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA', fontSize: '11px' }} title="API Not Configured in backend - Message not sent">
+          <XCircle size={11} className="me-1" /> Not Sent
         </span>
       );
     }
@@ -330,45 +348,70 @@ export default function SendMarksModal({
           </div>
         </div>
 
-        {/* Results summary bar if dispatched */}
-        {sendResult && (
-          <div className="d-flex flex-column gap-2">
-            <div
-              className="p-2.5 px-3 rounded-2 border d-flex flex-wrap align-items-center justify-content-between gap-2"
-              style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', fontSize: '12.5px' }}
-            >
-              <div className="d-flex align-items-center gap-3">
-                <span className="fw-bold text-success">
-                  <CheckCircle2 size={16} className="me-1 inline" /> Summary:
-                </span>
-                <span>Total: <strong>{sendResult.summary?.total || 0}</strong></span>
-                <span className="text-success">Sent: <strong>{sendResult.summary?.sent || 0}</strong></span>
-                <span className="text-primary">Provider Setup Required: <strong>{sendResult.summary?.unconfigured || 0}</strong></span>
-                <span className="text-danger">Failed: <strong>{sendResult.summary?.failed || 0}</strong></span>
-                <span className="text-warning">No Mobile: <strong>{sendResult.summary?.missing_phone || 0}</strong></span>
-              </div>
-            </div>
+        {/* Real-time results summary bar */}
+        {(sendResult || Object.keys(manualSentMap).length > 0) && (() => {
+          const apiSent = sendResult?.summary?.sent || 0;
+          const manualSentCount = Object.keys(manualSentMap).filter(id => {
+            const apiItem = (sendResult?.results || []).find(r => r.student_id === id);
+            return !apiItem || apiItem.status !== 'sent';
+          }).length;
+          const totalRealSent = apiSent + manualSentCount;
+          const unconfigured = sendResult?.summary?.unconfigured || 0;
+          const failed = sendResult?.summary?.failed || 0;
+          const missingPhone = sendResult?.summary?.missing_phone || 0;
+          const totalProcessed = sendResult?.summary?.total || Object.keys(manualSentMap).length;
+          const notSent = Math.max(0, totalProcessed - totalRealSent - missingPhone);
 
-            {sendResult.teacher_notification && (
+          return (
+            <div className="d-flex flex-column gap-2">
               <div
-                className="p-2.5 px-3 rounded-2 border d-flex align-items-center justify-content-between flex-wrap gap-2"
-                style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', fontSize: '12px' }}
+                className="p-2.5 px-3 rounded-2 border d-flex flex-wrap align-items-center justify-content-between gap-2"
+                style={{
+                  backgroundColor: totalRealSent > 0 ? '#F0FDF4' : '#FEF2F2',
+                  borderColor: totalRealSent > 0 ? '#BBF7D0' : '#FECACA',
+                  fontSize: '12.5px'
+                }}
               >
-                <div className="d-flex align-items-center gap-2">
-                  <span className="badge rounded-pill" style={{ backgroundColor: '#8B1216', color: '#FFFFFF', fontSize: '10.5px' }}>
-                    Teacher SMS Alert
+                <div className="d-flex align-items-center gap-3">
+                  <span className={`fw-bold ${totalRealSent > 0 ? 'text-success' : 'text-danger'}`}>
+                    {totalRealSent > 0 ? <CheckCircle2 size={16} className="me-1 inline" /> : <XCircle size={16} className="me-1 inline" />} Real-Time Summary:
                   </span>
-                  <span className="text-sa-charcoal">
-                    Notification alert copy routed to teacher mobile: <strong>{sendResult.teacher_notification.masked_mobile || 'Registered Mobile'}</strong>
+                  <span>Total: <strong>{totalProcessed}</strong></span>
+                  <span className="text-success">Sent: <strong>{totalRealSent}</strong></span>
+                  <span className="text-danger">Not Sent: <strong>{notSent}</strong></span>
+                  {missingPhone > 0 && (
+                    <span className="text-warning">No Mobile: <strong>{missingPhone}</strong></span>
+                  )}
+                </div>
+              </div>
+
+              {unconfigured > 0 && totalRealSent === 0 && (
+                <div className="px-1" style={{ fontSize: '11.5px', color: '#B91C1C' }}>
+                  ℹ️ <strong>Backend WhatsApp/SMS API is not configured (.env)</strong> — automated messages were not sent. Click the green 💬 icon next to each student to send directly on WhatsApp.
+                </div>
+              )}
+
+              {sendResult?.teacher_notification && (
+                <div
+                  className="p-2.5 px-3 rounded-2 border d-flex align-items-center justify-content-between flex-wrap gap-2"
+                  style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', fontSize: '12px' }}
+                >
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="badge rounded-pill" style={{ backgroundColor: '#8B1216', color: '#FFFFFF', fontSize: '10.5px' }}>
+                      Teacher SMS Alert
+                    </span>
+                    <span className="text-sa-charcoal">
+                      Notification alert copy routed to teacher mobile: <strong>{sendResult.teacher_notification.masked_mobile || 'Registered Mobile'}</strong>
+                    </span>
+                  </div>
+                  <span className="badge bg-white text-secondary border px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
+                    {sendResult.teacher_notification.status === 'sent' ? 'Delivered' : 'Alert Triggered'}
                   </span>
                 </div>
-                <span className="badge bg-white text-secondary border px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
-                  {sendResult.teacher_notification.status === 'sent' ? 'Delivered' : 'Alert Triggered'}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        })()}
 
         {/* Students Roster Table */}
         <div className="table-responsive border rounded-3" style={{ maxHeight: '280px', overflowY: 'auto', overflowX: 'auto' }}>
@@ -437,7 +480,28 @@ export default function SendMarksModal({
                         )}
                       </td>
                       <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                        {getStatusBadge(row.studentId, row.hasPhone)}
+                        <div className="d-flex align-items-center justify-content-end gap-1.5">
+                          {getStatusBadge(row.studentId, row.hasPhone)}
+                          {row.hasPhone && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-success p-1 d-inline-flex align-items-center rounded-2"
+                              title="Send directly on WhatsApp"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const cleanDigits = String(row.parentMobile).replace(/\D/g, '');
+                                const phoneWithCountry = cleanDigits.length === 10 ? `91${cleanDigits}` : cleanDigits;
+                                const remarksText = 'Outstanding performance in test';
+                                const msg = `Dear ${row.parentName || 'Parent/Guardian'},\n\nYour ward ${row.studentName} (Roll No: ${row.rollNumber || 'N/A'}) has received ${row.obtainedMarks}/${row.maxMarks} in ${selectedSubject !== 'All Subjects' ? selectedSubject : (exam?.subject || 'Subject')} for ${exam?.title || exam?.exam_name || 'Annual Assessment 2024'}.\n\nPercentage: ${row.percentage}%\nGrade: ${row.grade || 'Pass'}\nRemarks: ${remarksText}\n\nRegards,\nShubham Academy`;
+                                window.open(`https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+                                setManualSentMap(prev => ({ ...prev, [row.studentId]: true }));
+                                toast.info(`Opened WhatsApp for ${row.studentName}. Send the message directly in WhatsApp.`);
+                              }}
+                            >
+                              <MessageSquare size={13} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -458,9 +522,11 @@ export default function SendMarksModal({
           <div className="p-2.5 rounded bg-white border font-monospace text-secondary" style={{ fontSize: '12px', whiteSpace: 'pre-line' }}>
             {`Dear Parent/Guardian,
 
-Your ward [Student Name] has received [Marks]/[Maximum Marks] in ${subject || exam?.subject || '[Subject]'} for ${exam?.title || exam?.exam_name || '[Exam]'}.
+Your ward [Student Name] (Roll No: [Roll Number]) has received [Marks]/[Maximum Marks] in ${subject || exam?.subject || '[Subject]'} for ${exam?.title || exam?.exam_name || '[Exam]'}.
 
 Percentage: [Percentage]%
+Grade: [Grade]
+Remarks: [Faculty Remarks]
 
 Regards,
 Shubham Academy`}

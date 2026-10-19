@@ -6,6 +6,11 @@ from app.core.database import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    try:
+        from app.services.inventory_service import ensure_default_books
+        await ensure_default_books()
+    except Exception:
+        pass
     from app.core.scheduler import start_scheduler, shutdown_scheduler
     start_scheduler()
     yield

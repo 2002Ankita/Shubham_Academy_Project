@@ -6,6 +6,7 @@ import marksService from '../../services/marksService';
 import studentService from '../../services/studentService';
 import examService from '../../services/examService';
 import batchService from '../../services/batchService';
+import notificationService from '../../services/notificationService';
 import SendMarksModal from '../../components/modals/SendMarksModal';
 import {
   ArrowLeft,
@@ -50,6 +51,8 @@ export default function EnterMarks() {
   // Modal & post-save direct prompt
   const [sendMarksModalOpen, setSendMarksModalOpen] = useState(false);
   const [postSaveNotice, setPostSaveNotice] = useState(null);
+  const [activeModalExam, setActiveModalExam] = useState(null);
+  const [isSendingDirect, setIsSendingDirect] = useState(false);
 
   const marksTableRef = useRef(null);
   const formRef = useRef(null);
@@ -174,9 +177,36 @@ export default function EnterMarks() {
       } else {
         toast.success(`Marks saved successfully!`);
         const foundExam = exams.find(e => e.id === formData.examId);
+        const foundStudent = students.find(s => s.id === formData.studentId || s.student_id === formData.studentId) || formData.student;
+
+        const parentPhone = formData.parentPhone || foundStudent?.parentPhone || foundStudent?.parent_mobile || foundStudent?.phone || foundStudent?.mobile_number || '';
+        const parentName = formData.parentName || foundStudent?.parentName || foundStudent?.parent_name || 'Parent/Guardian';
+        const maskedPhone = parentPhone.length >= 4
+          ? `${'*'.repeat(Math.max(parentPhone.length - 4, 0))}${parentPhone.slice(-4)}`
+          : (parentPhone || 'Not available');
+
+        const pct = formData.percentage !== undefined && formData.percentage !== null
+          ? formData.percentage
+          : (formData.maxMarks ? Math.round((Number(formData.obtainedMarks) / Number(formData.maxMarks)) * 100) : 0);
+
         setPostSaveNotice({
-          exam: foundExam || { id: formData.examId, title: formData.examTitle },
-          count: 1
+          type: 'single',
+          student: foundStudent,
+          studentId: formData.studentId,
+          studentName: formData.studentName || foundStudent?.name || 'Student',
+          rollNumber: formData.rollNumber || foundStudent?.rollNumber || foundStudent?.student_id || 'N/A',
+          parentPhone: parentPhone,
+          parentName: parentName,
+          maskedPhone: maskedPhone,
+          exam: foundExam || { id: formData.examId, title: formData.examTitle, exam_name: formData.examTitle },
+          examId: formData.examId,
+          examTitle: formData.examTitle || foundExam?.exam_name || foundExam?.title || 'Examination',
+          subject: formData.subject || foundExam?.subject || 'Subject',
+          maxMarks: Number(formData.maxMarks || 100),
+          obtainedMarks: Number(formData.obtainedMarks || 0),
+          percentage: pct,
+          grade: formData.grade || (pct >= 40 ? 'Pass' : 'Fail'),
+          remarks: formData.remarks || ''
         });
       }
       setEditingMark(null);
@@ -193,8 +223,11 @@ export default function EnterMarks() {
       await marksService.submitBulkMarks(examId, entries, 'Published');
       toast.success(`Marks saved successfully for ${entries.length} student${entries.length === 1 ? '' : 's'}!`);
       const foundExam = exams.find(e => e.id === examId);
+      const examObj = foundExam || { id: examId };
+      setActiveModalExam(examObj);
       setPostSaveNotice({
-        exam: foundExam || { id: examId },
+        type: 'bulk',
+        exam: examObj,
         count: entries.length
       });
       await fetchData();
@@ -205,6 +238,107 @@ export default function EnterMarks() {
     }
   };
 
+  const handleDirectSendMarksToParent = async (notice) => {
+    if (!notice) return;
+
+    if (notice.type === 'bulk') {
+      setActiveModalExam(notice.exam);
+      setSendMarksModalOpen(true);
+      setPostSaveNotice(null);
+      return;
+    }
+
+    const parentPhone = notice.parentPhone || notice.student?.parentPhone || notice.student?.parent_mobile || notice.student?.phone || notice.student?.mobile_number;
+    const cleanDigits = String(parentPhone || '').replace(/\D/g, '');
+
+    if (!cleanDigits || cleanDigits.length < 10) {
+      toast.warning(`Parent phone number is not available for ${notice.studentName}. Please update it in the student's profile.`);
+      return;
+    }
+
+    const phoneWithCountry = cleanDigits.length === 10 ? `91${cleanDigits}` : cleanDigits;
+    const pctStr = String(notice.percentage || '').includes('%') ? notice.percentage : `${notice.percentage}%`;
+    const message = `Dear Parent/Guardian,\n\nYour ward ${notice.studentName} (Roll No: ${notice.rollNumber || 'N/A'}) has received ${notice.obtainedMarks}/${notice.maxMarks} in ${notice.subject} for ${notice.examTitle}.\n\nPercentage: ${pctStr}\nGrade: ${notice.grade || 'Pass'}${notice.remarks ? `\nRemarks: ${notice.remarks}` : ''}\n\nRegards,\nShubham Academy`;
+
+    setIsSendingDirect(true);
+    try {
+      // 1. Dispatch through backend API to record audit logs & backend notifications
+      try {
+        await marksService.sendMarksNotifications({
+          exam_id: notice.examId || notice.exam?.id,
+          batch: notice.student?.batch || notice.exam?.batch || '',
+          subject: notice.subject || notice.exam?.subject || '',
+          channel: 'whatsapp',
+          student_ids: [notice.studentId || notice.student?.id]
+        });
+      } catch (backendErr) {
+        console.warn('Backend marks notification dispatch notice:', backendErr);
+      }
+
+      // 2. Directly open WhatsApp with parent's phone number & pre-filled marks text
+      const waUrl = `https://api.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+      // 3. Register teacher notification
+      try {
+        notificationService.addNotification({
+          title: `Marks Sent: ${notice.studentName}`,
+          type: 'exam',
+          category: 'Examinations & WhatsApp Alerts',
+          priority: 'Normal',
+          author: 'Direct Parent Dispatch',
+          details: `Marks for ${notice.studentName} (${notice.subject}: ${notice.obtainedMarks}/${notice.maxMarks}, ${pctStr}) were dispatched directly to parent mobile (${notice.maskedPhone || cleanDigits.slice(-4)}).`
+        });
+      } catch (e) {
+        console.error('Failed to log teacher notification:', e);
+      }
+
+      toast.success(`Marks sent directly to ${notice.studentName}'s parent (${notice.maskedPhone || cleanDigits.slice(-4)}) via WhatsApp!`);
+      setPostSaveNotice(null);
+    } catch (err) {
+      toast.error('Failed to send marks to parent. Please try again.');
+    } finally {
+      setIsSendingDirect(false);
+    }
+  };
+
+  const handleSendRowMarkToParent = async (row) => {
+    const student = students.find(s =>
+      s.id === row.studentId ||
+      s.student_id === row.studentId ||
+      s.student_id === row.rollNumber ||
+      s.rollNumber === row.rollNumber ||
+      (s.name && row.studentName && s.name.trim().toLowerCase() === row.studentName.trim().toLowerCase())
+    );
+
+    const parentPhone = student?.parentPhone || student?.parent_mobile || student?.phone || student?.mobile_number;
+    const parentName = student?.parentName || student?.parent_name || 'Parent/Guardian';
+    const maskedPhone = parentPhone && parentPhone.length >= 4
+      ? `${'*'.repeat(Math.max(parentPhone.length - 4, 0))}${parentPhone.slice(-4)}`
+      : (parentPhone || 'Not available');
+
+    const noticeData = {
+      type: 'single',
+      student: student,
+      studentId: row.studentId || student?.id,
+      studentName: row.studentName || student?.name || 'Student',
+      rollNumber: row.rollNumber || student?.rollNumber || student?.student_id || 'N/A',
+      parentPhone: parentPhone,
+      parentName: parentName,
+      maskedPhone: maskedPhone,
+      examId: row.examId,
+      examTitle: row.examTitle || row.examName || 'Examination',
+      subject: row.subject || 'Subject',
+      maxMarks: Number(row.maxMarks || 100),
+      obtainedMarks: Number(row.obtainedMarks !== undefined ? row.obtainedMarks : row.marks_obtained || 0),
+      percentage: row.percentage || (row.maxMarks ? Math.round(((row.obtainedMarks || 0) / row.maxMarks) * 100) : 0),
+      grade: row.grade || 'Pass',
+      remarks: row.remarks || ''
+    };
+
+    await handleDirectSendMarksToParent(noticeData);
+  };
+
   const handleViewPastRecords = () => {
     marksTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     toast.info('Showing recent marks records.');
@@ -212,15 +346,18 @@ export default function EnterMarks() {
 
   // Determine which exam to use when opening Send Marks Modal
   const currentActiveExam = useMemo(() => {
-    if (examFilter !== 'All Examinations') {
-      const found = exams.find(e => (e.title || e.exam_name || e.id) === examFilter);
-      if (found) return found;
+    if (activeModalExam) {
+      return activeModalExam;
     }
     if (postSaveNotice?.exam) {
       return postSaveNotice.exam;
     }
+    if (examFilter !== 'All Examinations') {
+      const found = exams.find(e => (e.title || e.exam_name || e.id) === examFilter);
+      if (found) return found;
+    }
     return exams[0] || null;
-  }, [examFilter, exams, postSaveNotice]);
+  }, [examFilter, exams, postSaveNotice, activeModalExam]);
 
   const handleExport = () => {
     const exportRows = filteredMarks.length ? filteredMarks : marks;
@@ -370,18 +507,24 @@ export default function EnterMarks() {
         />
       </div>
 
-      {/* Direct Prompt Alert Banner matching Image */}
+      {/* Direct Prompt Alert Banner */}
       {postSaveNotice && (
         <div
           className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 p-3 rounded-3 border shadow-xs"
           style={{ backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46' }}
         >
           <div className="d-flex align-items-center gap-2.5">
-            <CheckCircle2 size={20} className="text-success flex-shrink-0" />
+            <CheckCircle2 size={22} className="text-success flex-shrink-0" />
             <div>
               <div className="fw-bold" style={{ fontSize: '14px' }}>Marks saved successfully!</div>
               <div className="small" style={{ color: '#047857' }}>
-                The marks have been saved. Do you want to send the marks to parents?
+                {postSaveNotice.type === 'single' ? (
+                  <>
+                    The marks for <strong>{postSaveNotice.studentName}</strong> ({postSaveNotice.obtainedMarks}/{postSaveNotice.maxMarks}) have been saved. Do you want to send the marks directly to parent {postSaveNotice.parentName} ({postSaveNotice.maskedPhone})?
+                  </>
+                ) : (
+                  <>The marks have been saved for {postSaveNotice.count} students. Do you want to send the marks to parents?</>
+                )}
               </div>
             </div>
           </div>
@@ -390,13 +533,11 @@ export default function EnterMarks() {
               type="button"
               className="btn btn-sm text-white fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
               style={{ backgroundColor: '#15803D', borderColor: '#15803D', borderRadius: '8px', padding: '7px 16px', fontSize: '13px' }}
-              onClick={() => {
-                setSendMarksModalOpen(true);
-                setPostSaveNotice(null);
-              }}
+              disabled={isSendingDirect}
+              onClick={() => handleDirectSendMarksToParent(postSaveNotice)}
             >
               <MessageCircle size={15} />
-              <span>Send Marks to Parents</span>
+              <span>{isSendingDirect ? 'Sending...' : 'Send Marks to Parents'}</span>
             </button>
             <button
               type="button"
@@ -522,6 +663,41 @@ export default function EnterMarks() {
             >
               <Download size={14} />
               <span>Export Result Excel</span>
+            </button>
+          </div>
+
+          {/* Send All Marks to Parents Button */}
+          <div className="flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveModalExam(currentActiveExam);
+                setSendMarksModalOpen(true);
+              }}
+              className="btn btn-sm text-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs"
+              style={{
+                backgroundColor: '#15803D',
+                borderColor: '#15803D',
+                borderRadius: '8px',
+                height: '38px',
+                padding: '0 14px',
+                fontSize: '12.5px',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#166534';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#15803D';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              title="Open modal to send marks notifications to all students at once"
+            >
+              <Send size={14} />
+              <span>Send All Marks to Parents</span>
             </button>
           </div>
         </div>
@@ -685,6 +861,37 @@ export default function EnterMarks() {
                           >
                             <Eye size={14} />
                             <span>View</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSendRowMarkToParent(row)}
+                            className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-2 py-1 border"
+                            style={{
+                              color: '#15803D',
+                              fontWeight: 600,
+                              fontSize: '12.5px',
+                              cursor: 'pointer',
+                              backgroundColor: 'transparent',
+                              borderColor: 'transparent',
+                              borderRadius: '6px',
+                              transition: 'all 0.18s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#ECFDF5';
+                              e.currentTarget.style.borderColor = '#A7F3D0';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 2px 6px rgba(21, 128, 61, 0.12)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                              e.currentTarget.style.borderColor = 'transparent';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                            title="Send marks directly to parent on WhatsApp"
+                          >
+                            <MessageCircle size={14} />
+                            <span>Send to Parent</span>
                           </button>
                         </div>
                       </td>

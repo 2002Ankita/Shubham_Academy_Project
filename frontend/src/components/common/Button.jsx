@@ -35,7 +35,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={`${getVariantClass()} ${getSizeClass()} ${className}`}
+      className={`${getVariantClass()} ${getSizeClass()} text-nowrap ${className}`}
       onClick={onClick}
       disabled={disabled || loading}
       {...props}

@@ -146,11 +146,16 @@ export default function MarksForm({
       setIsSubmitting(true);
       await onSubmit({
         ...formData,
+        student: selectedStu,
         studentName: selectedStu?.name,
         rollNumber: selectedStu?.rollNumber,
+        parentPhone: selectedStu?.parentPhone || selectedStu?.parent_mobile || selectedStu?.phone,
+        parentName: selectedStu?.parentName || selectedStu?.parent_name,
         examTitle: selectedExam?.title || selectedExam?.exam_name,
         maxMarks: maxVal,
         obtainedMarks: marksVal,
+        percentage: percentage,
+        grade: grade,
         status: status
       });
       if (editingMark && onCancelEdit) {

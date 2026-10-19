@@ -1,37 +1,49 @@
 import api from './api';
 
+const mapTeacher = (teacher) => {
+  if (!teacher) return null;
+  let joinDate = 'N/A';
+  if (teacher.joining_date) {
+    try {
+      joinDate = typeof teacher.joining_date === 'string'
+        ? teacher.joining_date.split('T')[0]
+        : new Date(teacher.joining_date).toISOString().split('T')[0];
+    } catch {
+      joinDate = 'N/A';
+    }
+  }
+
+  return {
+    ...teacher,
+    name: teacher.full_name || '--',
+    phone: teacher.mobile_number || '--',
+    subject: (Array.isArray(teacher.subjects) && teacher.subjects.length > 0)
+      ? teacher.subjects[0]
+      : (teacher.subject || 'N/A'),
+    qualification: teacher.qualification || 'Qualified Faculty',
+    experience: teacher.experience || 'N/A',
+    assignedClasses: teacher.assigned_batches || [],
+    monthlySalary: teacher.hourly_rate ? teacher.hourly_rate * 160 : 0,
+    status: teacher.status || 'Active',
+    joinDate
+  };
+};
+
 export const teacherService = {
   getAll: async (params = {}) => {
     const res = await api.get('/teachers', { params });
-    return res.data.map(teacher => ({
-      ...teacher,
-      name: teacher.full_name,
-      phone: teacher.mobile_number,
-      subject: teacher.subjects?.[0] || 'N/A',
-      qualification: 'N/A', // Backend doesn't store this yet
-      experience: 'N/A', // Backend doesn't store this yet
-      assignedClasses: teacher.assigned_batches || [],
-      monthlySalary: teacher.hourly_rate * 160 || 0, // Mocking monthly from hourly
-      status: teacher.status || 'Active',
-      joinDate: teacher.joining_date?.split('T')[0] || 'N/A'
-    }));
+    const list = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
+    return list.map(mapTeacher);
+  },
+
+  getMe: async () => {
+    const res = await api.get('/teachers/me');
+    return mapTeacher(res.data);
   },
 
   getById: async (id) => {
     const res = await api.get(`/teachers/${id}`);
-    const teacher = res.data;
-    return {
-      ...teacher,
-      name: teacher.full_name,
-      phone: teacher.mobile_number,
-      subject: teacher.subjects?.[0] || 'N/A',
-      qualification: 'N/A',
-      experience: 'N/A',
-      assignedClasses: teacher.assigned_batches || [],
-      monthlySalary: teacher.hourly_rate * 160 || 0,
-      status: teacher.status || 'Active',
-      joinDate: teacher.joining_date?.split('T')[0] || 'N/A'
-    };
+    return mapTeacher(res.data);
   },
 
   create: async (data) => {

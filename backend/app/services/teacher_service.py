@@ -13,17 +13,33 @@ async def _format_teacher(teacher: Teacher) -> dict:
         user_obj = await User.get(teacher.user.ref.id)
         teacher.user = user_obj
     
+    assigned_batches = list(teacher.assigned_batches or [])
+    subjects = list(teacher.subjects or [])
+
+    if user_obj and user_obj.full_name and (not assigned_batches or not subjects):
+        try:
+            from app.models.batch import Batch
+            batches = await Batch.find(Batch.teacher_name == user_obj.full_name).to_list()
+            for b in batches:
+                label = f"{b.standard} - {b.batch_name or b.name}"
+                if label not in assigned_batches:
+                    assigned_batches.append(label)
+                if b.subject and b.subject not in subjects:
+                    subjects.append(b.subject)
+        except Exception:
+            pass
+    
     return {
         "id": str(teacher.id),
-        "employee_id": teacher.employee_id,
+        "employee_id": teacher.employee_id or f"EMP-{str(teacher.id)[:6].upper()}",
         "full_name": user_obj.full_name if user_obj else "",
         "email": user_obj.email if user_obj else "",
-        "mobile_number": teacher.mobile_number,
-        "subjects": teacher.subjects,
-        "assigned_batches": teacher.assigned_batches,
-        "hourly_rate": teacher.hourly_rate,
+        "mobile_number": teacher.mobile_number or "",
+        "subjects": subjects,
+        "assigned_batches": assigned_batches,
+        "hourly_rate": teacher.hourly_rate or 0.0,
         "joining_date": teacher.joining_date,
-        "status": teacher.status
+        "status": teacher.status or "Active"
     }
 
 async def create_teacher(teacher_in: TeacherCreate) -> dict:
@@ -101,6 +117,45 @@ async def create_teacher(teacher_in: TeacherCreate) -> dict:
 async def get_teachers() -> list[dict]:
     teachers = await Teacher.find_all().to_list()
     return [await _format_teacher(t) for t in teachers]
+
+async def get_teacher_for_user(user: User) -> dict | None:
+    if not user:
+        return None
+        
+    teacher = None
+    if getattr(user, "id", None):
+        teacher = await Teacher.find_one({"user.$id": user.id})
+    if not teacher and getattr(user, "id", None):
+        teacher = await Teacher.find_one(Teacher.user.id == user.id)
+    if not teacher and getattr(user, "id", None):
+        teacher = await Teacher.find_one(Teacher.employee_id == f"EMP-SEED-{str(user.id)}")
+    if not teacher and getattr(user, "id", None):
+        teacher = await resolve_teacher(str(user.id))
+    if not teacher and getattr(user, "id", None):
+        teacher = await Teacher.find_one({"user": user.id})
+        
+    if not teacher:
+        role = getattr(user, "role", "").upper().replace("-", "_")
+        if role == "TEACHER":
+            employee_id = f"EMP-{uuid.uuid4().hex[:6].upper()}"
+            phone = getattr(user, "mobile_number", "") or getattr(user, "phone", "") or ""
+            teacher = Teacher(
+                user=user,
+                employee_id=employee_id,
+                mobile_number=phone if phone else f"999{uuid.uuid4().hex[:7]}",
+                subjects=["General"],
+                assigned_batches=[],
+                hourly_rate=50.0,
+                status="Active"
+            )
+            try:
+                await teacher.insert()
+            except Exception:
+                teacher = await Teacher.find_one({"user.$id": user.id})
+                
+    if not teacher:
+        return None
+    return await _format_teacher(teacher)
 
 async def resolve_teacher(id_str: str) -> Teacher:
     from bson.errors import InvalidId

@@ -27,15 +27,36 @@ DEFAULT_BOOKS = [
 ]
 
 async def ensure_default_books():
-    """No hardcoded auto-injection. Users fill inventory information by themselves."""
-    pass
+    """Ensure existing items have total_stock populated."""
+    try:
+        items = await InventoryItem.find(InventoryItem.total_stock == None).to_list()
+        for item in items:
+            item.total_stock = item.in_stock or 0
+            await item.save()
+    except Exception:
+        pass
 
 async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
     item_dict = item_in.model_dump() if hasattr(item_in, "model_dump") else item_in.dict()
+    in_stock = int(item_dict.get("in_stock", 0) or 0)
+    reorder_level = int(item_dict.get("reorder_level", 0) or 0)
+    unit_cost = float(item_dict.get("unit_cost", 0) or 0.0)
+
+    if in_stock < 0:
+        raise HTTPException(status_code=400, detail="Initial stock cannot be negative")
+    if reorder_level < 0:
+        raise HTTPException(status_code=400, detail="Reorder level cannot be negative")
+    if unit_cost < 0:
+        raise HTTPException(status_code=400, detail="Unit cost cannot be negative")
+
     if not item_dict.get("title"):
         cat = item_dict.get("category", "Theory")
         subj = item_dict.get("subject", "Physics")
         item_dict["title"] = f"{cat} - {subj}"
+
+    if item_dict.get("total_stock") is None or item_dict.get("total_stock") < in_stock:
+        item_dict["total_stock"] = in_stock
+
     item = InventoryItem(**item_dict)
     await item.insert()
     d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
@@ -56,6 +77,10 @@ async def update_inventory_item(item_id: str, update_in: InventoryItemUpdate) ->
     
     for key, value in update_data.items():
         if value is not None:
+            if key in ["in_stock", "reorder_level"] and int(value) < 0:
+                raise HTTPException(status_code=400, detail=f"{key} cannot be negative")
+            if key == "unit_cost" and float(value) < 0:
+                raise HTTPException(status_code=400, detail="Unit cost cannot be negative")
             setattr(item, key, value)
             
     await item.save()
@@ -81,6 +106,8 @@ async def adjust_inventory_stock(item_id: str, delta: int) -> dict:
     if not item:
         raise HTTPException(status_code=404, detail="Book item not found")
     item.in_stock = max(0, item.in_stock + delta)
+    if item.total_stock is not None and delta > 0:
+        item.total_stock += delta
     await item.save()
     d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     d["id"] = str(item.id)
@@ -94,9 +121,13 @@ async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock)
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
     
-    qty = max(0, restock_in.quantity)
-    item.in_stock += qty
-    item.total_stock = (item.total_stock or 0) + qty
+    qty = restock_in.quantity
+    if qty <= 0:
+        raise HTTPException(status_code=400, detail="Restock quantity must be greater than 0")
+    
+    item.in_stock = (item.in_stock or 0) + qty
+    current_total = item.total_stock if item.total_stock is not None else (item.in_stock - qty)
+    item.total_stock = current_total + qty
     await item.save()
     d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     d["id"] = str(item.id)
@@ -273,14 +304,33 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         if matched_items:
             item = matched_items[0]
 
+    qty = int(getattr(delivery_in, "quantity", 1) or 1)
+    if qty <= 0:
+        raise HTTPException(status_code=400, detail="Handover quantity must be greater than 0")
+
     status = delivery_in.status or "Delivered"
+
+    if delivery_in.inventory_item_id and not item:
+        raise HTTPException(status_code=404, detail="Selected book item not found")
+
+    if item:
+        book_title = item.title
+        category = item.category or category
+        subject = item.subject or subject
+
+    # Strictly validate available stock before recording handover
+    if status in ["Delivered", "Handed Over"] and item:
+        if item.in_stock < qty:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock! Only {item.in_stock} copies available, but {qty} requested."
+            )
+
     handed_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academy Staff"
     
     handover_date = delivery_in.date
     if not handover_date and status in ["Delivered", "Handed Over"]:
         handover_date = datetime.utcnow()
-
-    qty = getattr(delivery_in, "quantity", 1) or 1
 
     delivery = InventoryDelivery(
         student=student,
@@ -303,7 +353,7 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     await delivery.insert()
 
     # Decrement available stock if delivered or handed over
-    if status in ["Delivered", "Handed Over"] and item and item.in_stock > 0:
+    if status in ["Delivered", "Handed Over"] and item:
         item.in_stock = max(0, item.in_stock - qty)
         await item.save()
 
@@ -403,7 +453,12 @@ async def update_delivery(id: str, update_in: InventoryDeliveryUpdate, current_u
                 InventoryItem.category == delivery.category,
                 InventoryItem.subject == delivery.subject
             )
-        if target_item and target_item.in_stock > 0:
+        if target_item:
+            if target_item.in_stock < qty:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock to confirm handover! Only {target_item.in_stock} copies available, but {qty} required."
+                )
             target_item.in_stock = max(0, target_item.in_stock - qty)
             await target_item.save()
             delivery.inventory_item = target_item
@@ -584,3 +639,44 @@ async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
             "not_delivered_count": not_delivered_count
         }
     }
+
+async def get_inventory_summary() -> dict:
+    items = await InventoryItem.find_all().to_list()
+    deliveries = await InventoryDelivery.find_all().to_list()
+
+    total_available_stock = sum(max(0, item.in_stock or 0) for item in items)
+    total_disbursed_copies = sum(
+        d.quantity or 1 for d in deliveries
+        if d.status in ["Delivered", "Handed Over"]
+    )
+    active_titles_count = len(items)
+    low_stock_count = sum(
+        1 for item in items
+        if (item.in_stock or 0) <= (item.reorder_level or 0)
+    )
+
+    return {
+        "total_available_stock": total_available_stock,
+        "total_disbursed_copies": total_disbursed_copies,
+        "active_titles_count": active_titles_count,
+        "low_stock_count": low_stock_count
+    }
+
+async def get_low_stock_items() -> list[dict]:
+    items = await InventoryItem.find_all().to_list()
+    low_stock_items = [
+        item for item in items
+        if (item.in_stock or 0) <= (item.reorder_level or 0)
+    ]
+    res = []
+    for item in low_stock_items:
+        d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        d["id"] = str(item.id)
+        if not d.get("category"):
+            d["category"] = "Theory"
+        if not d.get("subject"):
+            d["subject"] = "General"
+        if not d.get("total_stock"):
+            d["total_stock"] = d.get("in_stock", 50)
+        res.append(d)
+    return res

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import BackButton from '../../components/common/BackButton';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -69,15 +70,16 @@ export default function BooksStock() {
   });
 
   const [restockQty, setRestockQty] = useState(25);
+  const [restockRemarks, setRestockRemarks] = useState('');
 
   const [newBook, setNewBook] = useState({
     title: '',
     category: 'Theory',
     subject: 'Physics',
-    standard: '12th pcm tarabai park',
+    standard: '11th & 12th Science',
     inStock: 50,
     reorderLevel: 15,
-    unitCost: 400
+    unitCost: 350
   });
 
   const loadData = async () => {
@@ -118,7 +120,7 @@ export default function BooksStock() {
     const defaultStaff = user?.name || user?.full_name || (user?.role === 'teacher' ? 'Faculty Member' : 'Academic Admin Desk');
     setHandoverForm({
       inventoryItemId: preselectedItemId || (stock[0]?.id || ''),
-      studentId: students[0]?.id || '',
+      studentId: students[0]?.id || students[0]?._id || '',
       manualStudentName: '',
       manualRollNo: '',
       quantity: 1,
@@ -132,6 +134,7 @@ export default function BooksStock() {
   const openRestockModal = (item) => {
     setSelectedItemForRestock(item);
     setRestockQty(25);
+    setRestockRemarks('');
     setRestockModalOpen(true);
   };
 
@@ -143,7 +146,13 @@ export default function BooksStock() {
       return;
     }
 
-    if (item.inStock < Number(handoverForm.quantity)) {
+    const qty = Number(handoverForm.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error('Handover quantity must be greater than 0');
+      return;
+    }
+
+    if (Number(item.inStock) < qty) {
       toast.error(`Not enough stock available! Only ${item.inStock} copies remaining.`);
       return;
     }
@@ -170,63 +179,91 @@ export default function BooksStock() {
       await inventoryService.createDelivery({
         student_id: handoverForm.studentId || null,
         inventory_item_id: item.id,
-        handed_over_by: handoverForm.handedOverBy || user?.name || 'Academic Staff',
+        handed_over_by: handoverForm.handedOverBy || user?.name || user?.full_name || 'Academic Staff',
         handed_over_to: studentName,
         student_roll_no: rollNo || 'N/A',
         standard: standard,
-        quantity: Number(handoverForm.quantity) || 1,
+        quantity: qty,
         status: handoverForm.status,
         remarks: handoverForm.remarks
       });
 
-      toast.success(`Handover recorded! Handed over to ${studentName}.`);
+      toast.success(`Handover recorded! Handed over ${qty} ${qty > 1 ? 'copies' : 'copy'} to ${studentName}.`);
       setHandoverModalOpen(false);
-      loadData();
+      await loadData();
     } catch (err) {
-      toast.error('Failed to record handover');
+      const msg = err.response?.data?.detail || 'Failed to record handover';
+      toast.error(msg);
     }
   };
 
   const handleRestockSubmit = async (e) => {
     e.preventDefault();
     if (!selectedItemForRestock) return;
+    const qty = Number(restockQty);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error('Restock quantity must be greater than 0');
+      return;
+    }
     try {
-      await inventoryService.restockItem(selectedItemForRestock.id, Number(restockQty));
-      toast.success(`Added +${restockQty} copies to "${selectedItemForRestock.title}"!`);
+      await inventoryService.restockItem(selectedItemForRestock.id, qty, restockRemarks);
+      toast.success(`Added +${qty} copies to "${selectedItemForRestock.title}"!`);
       setRestockModalOpen(false);
-      loadData();
+      await loadData();
     } catch (err) {
-      toast.error('Failed to restock item');
+      const msg = err.response?.data?.detail || 'Failed to restock item';
+      toast.error(msg);
     }
   };
 
   const handleAddNewBook = async (e) => {
     e.preventDefault();
+    if (!newBook.title.trim()) {
+      toast.error('Please enter a book/package title');
+      return;
+    }
+    const inStock = Number(newBook.inStock);
+    if (isNaN(inStock) || inStock < 0) {
+      toast.error('Initial stock must be a non-negative number');
+      return;
+    }
+    const reorderLevel = Number(newBook.reorderLevel);
+    if (isNaN(reorderLevel) || reorderLevel < 0) {
+      toast.error('Reorder level must be a non-negative number');
+      return;
+    }
+    const unitCost = Number(newBook.unitCost);
+    if (isNaN(unitCost) || unitCost < 0) {
+      toast.error('Unit cost must be a non-negative number');
+      return;
+    }
+
     try {
       await inventoryService.createItem({
-        title: newBook.title,
+        title: newBook.title.trim(),
         category: newBook.category || 'Theory',
         subject: newBook.subject,
         standard: newBook.standard,
-        in_stock: Number(newBook.inStock),
-        total_stock: Number(newBook.inStock),
-        reorder_level: Number(newBook.reorderLevel),
-        unit_cost: Number(newBook.unitCost)
+        in_stock: inStock,
+        total_stock: inStock,
+        reorder_level: reorderLevel,
+        unit_cost: unitCost
       });
-      toast.success(`"${newBook.title}" added to inventory catalog!`);
+      toast.success(`"${newBook.title.trim()}" added to inventory catalog!`);
       setAddStockModalOpen(false);
       setNewBook({
         title: '',
         category: 'Theory',
         subject: 'Physics',
-        standard: '12th pcm tarabai park',
+        standard: '11th & 12th Science',
         inStock: 50,
         reorderLevel: 15,
-        unitCost: 400
+        unitCost: 350
       });
-      loadData();
+      await loadData();
     } catch (err) {
-      toast.error('Failed to add book module');
+      const msg = err.response?.data?.detail || 'Failed to add book module';
+      toast.error(msg);
     }
   };
 
@@ -239,34 +276,57 @@ export default function BooksStock() {
         'Handover confirmed upon student pickup'
       );
       toast.success(`Handover confirmed for ${studentName}!`);
-      loadData();
+      await loadData();
     } catch (err) {
-      toast.error('Failed to update status');
+      const msg = err.response?.data?.detail || 'Failed to update status';
+      toast.error(msg);
     }
   };
 
   // KPI calculations
   const totalAvailableStock = stock.reduce((sum, item) => sum + (Number(item.inStock) || 0), 0);
-  const totalHandedOverCopies = deliveries.reduce((sum, del) => del.status === 'Handed Over' || del.status === 'Delivered' ? sum + (Number(del.quantity) || 1) : sum, 0);
+  const totalHandedOverCopies = deliveries.reduce((sum, del) => (del.status === 'Handed Over' || del.status === 'Delivered') ? sum + (Number(del.quantity) || 1) : sum, 0);
   const lowStockCount = stock.filter(item => Number(item.inStock) <= Number(item.reorderLevel)).length;
   const totalModulesCount = stock.length;
 
+  // Dynamic streams extracted from stock catalog + standard academy options
+  const streamOptions = Array.from(
+    new Set([
+      '11th & 12th Science',
+      '12th pcm tarabai park',
+      '12th pcb tarabai park',
+      '12th pcmb tarabai park',
+      '11th pcm tarabai park',
+      '11th pcb tarabai park',
+      '11th pcmb tarabai park',
+      '12th pcm Mangalvar peth',
+      '12th pcb Mangalvar peth',
+      ...stock.map(s => s.standard).filter(Boolean)
+    ])
+  );
+
   // Filtered stock list
   const filteredStock = stock.filter(item => {
-    const matchesSearch =
-      (item.title && item.title.toLowerCase().includes(searchStock.toLowerCase())) ||
-      (item.subject && item.subject.toLowerCase().includes(searchStock.toLowerCase())) ||
-      (item.id && item.id.toLowerCase().includes(searchStock.toLowerCase()));
+    const q = searchStock.trim().toLowerCase();
+    const matchesSearch = !q ||
+      (item.title && item.title.toLowerCase().includes(q)) ||
+      (item.subject && item.subject.toLowerCase().includes(q)) ||
+      (item.standard && item.standard.toLowerCase().includes(q)) ||
+      (item.id && item.id.toLowerCase().includes(q));
 
-    const matchesStream = selectedStockStream === 'All' || item.standard === selectedStockStream;
+    const matchesStream = selectedStockStream === 'All' || 
+      (item.standard && item.standard.toLowerCase() === selectedStockStream.toLowerCase());
 
     let matchesStatus = true;
+    const currentStock = Number(item.inStock) || 0;
+    const reorderLvl = Number(item.reorderLevel) || 0;
+
     if (selectedStockStatus === 'Low Stock') {
-      matchesStatus = Number(item.inStock) <= Number(item.reorderLevel);
+      matchesStatus = currentStock > 0 && currentStock <= reorderLvl;
     } else if (selectedStockStatus === 'In Stock') {
-      matchesStatus = Number(item.inStock) > Number(item.reorderLevel);
+      matchesStatus = currentStock > reorderLvl;
     } else if (selectedStockStatus === 'Out of Stock') {
-      matchesStatus = Number(item.inStock) === 0;
+      matchesStatus = currentStock === 0;
     }
 
     return matchesSearch && matchesStream && matchesStatus;
@@ -292,54 +352,61 @@ export default function BooksStock() {
   });
 
   return (
-    <div className="d-flex flex-column gap-3 w-100 pb-4">
+    <div className="d-flex flex-column gap-3.5 w-100 pb-4">
       {/* 1. Header & Primary Action Buttons */}
-      <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 pt-1">
-        <div style={{ minWidth: 0 }}>
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px' }}>
-              Books Stock & Handover Tracking
-            </h2>
-            <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
-              Inventory & Distribution
+      <div className="mb-1">
+        <BackButton
+          to={user?.role === 'teacher' ? '/teacher/notes' : '/admin/notes'}
+          label="Back to Notes"
+          className="mb-2"
+        />
+        <div className="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 pt-0.5">
+          <div style={{ minWidth: 0 }}>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
+                Books Stock & Handover Tracking
+              </h2>
+              <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
+                Inventory & Distribution
+              </span>
+            </div>
+            <span className="small text-sa-muted mt-1.5 d-block" style={{ fontSize: '13px' }}>
+              Monitor physical stock levels, who handed over books, and to which students materials were distributed
             </span>
           </div>
-          <span className="small text-sa-muted mt-1 d-block" style={{ fontSize: '12.5px' }}>
-            Monitor physical stock levels, who handed over books, and to which students materials were distributed
-          </span>
-        </div>
 
-        <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
-            style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
-            onClick={loadData}
-            title="Reload latest inventory counts"
-          >
-            <RefreshCw size={14} className="flex-shrink-0" />
-            <span>Refresh</span>
-          </button>
+          <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0" style={{ marginTop: '0px' }}>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              onClick={loadData}
+              title="Reload latest inventory counts"
+            >
+              <RefreshCw size={14} className="flex-shrink-0" />
+              <span>Refresh</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
-            style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
-            onClick={() => setAddStockModalOpen(true)}
-          >
-            <Plus size={14} className="flex-shrink-0" />
-            <span>Add New Module</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              onClick={() => setAddStockModalOpen(true)}
+            >
+              <Plus size={14} className="flex-shrink-0" />
+              <span>Add New Module</span>
+            </button>
 
-          <button
-            type="button"
-            className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 py-1.5 fw-semibold shadow-xs text-nowrap"
-            style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
-            onClick={() => openHandoverModal()}
-          >
-            <Send size={14} className="flex-shrink-0" />
-            <span>Log Handover</span>
-          </button>
+            <button
+              type="button"
+              className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 py-1.5 fw-semibold shadow-xs text-nowrap"
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              onClick={() => openHandoverModal()}
+            >
+              <Send size={14} className="flex-shrink-0" />
+              <span>Log Handover</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -530,13 +597,9 @@ export default function BooksStock() {
                   onChange={(e) => setSelectedStockStream(e.target.value)}
                 >
                   <option value="All">All Streams & Centers</option>
-                  <option value="12th pcm tarabai park">12th PCM Tarabai Park</option>
-                  <option value="12th pcb tarabai park">12th PCB Tarabai Park</option>
-                  <option value="12th pcmb tarabai park">12th PCMB Tarabai Park</option>
-                  <option value="11th pcm tarabai park">11th PCM Tarabai Park</option>
-                  <option value="11th pcmb tarabai park">11th PCMB Tarabai Park</option>
-                  <option value="12th pcm Mangalvar peth">12th PCM Mangalwar Peth</option>
-                  <option value="12th pcb Mangalvar peth">12th PCB Mangalwar Peth</option>
+                  {streamOptions.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
                 </select>
 
                 <select
@@ -546,8 +609,8 @@ export default function BooksStock() {
                   onChange={(e) => setSelectedStockStatus(e.target.value)}
                 >
                   <option value="All">All Stock Levels</option>
-                  <option value="In Stock">In Stock Healthy</option>
-                  <option value="Low Stock">Low Stock Alert</option>
+                  <option value="In Stock">In Stock</option>
+                  <option value="Low Stock">Low Stock</option>
                   <option value="Out of Stock">Out of Stock</option>
                 </select>
               </div>
@@ -608,16 +671,18 @@ export default function BooksStock() {
                   title: 'Available Stock',
                   width: '180px',
                   render: (val, row) => {
-                    const isLow = Number(val) <= Number(row.reorderLevel);
-                    const isOut = Number(val) === 0;
-                    const total = Number(row.totalStock) || Number(val) || 1;
-                    const percentage = Math.min(100, Math.round((Number(val) / total) * 100));
+                    const stockVal = Number(val) || 0;
+                    const reorderVal = Number(row.reorderLevel) || 0;
+                    const isOut = stockVal === 0;
+                    const isLow = !isOut && stockVal <= reorderVal;
+                    const total = Number(row.totalStock) || (stockVal > 0 ? stockVal : 1);
+                    const percentage = Math.min(100, Math.max(0, Math.round((stockVal / total) * 100)));
 
                     return (
                       <div style={{ width: '150px' }}>
                         <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
                           <span className={`fw-bold small ${isOut ? 'text-danger' : isLow ? 'text-warning-emphasis' : 'text-success'}`}>
-                            {val} Copies
+                            {stockVal} Copies
                           </span>
                           <span className={`badge px-1.5 py-0.5 small ${isOut ? 'bg-danger text-white' : isLow ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-success-subtle text-success border border-success-subtle'}`} style={{ fontSize: '10px' }}>
                             {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
@@ -631,7 +696,7 @@ export default function BooksStock() {
                           />
                         </div>
                         <span className="text-muted d-block mt-0.5 text-nowrap" style={{ fontSize: '10px' }}>
-                          {val} of {total} printed copies left
+                          {stockVal} of {total} printed copies left
                         </span>
                       </div>
                     );
@@ -1045,6 +1110,17 @@ export default function BooksStock() {
               </div>
             </div>
 
+            <div>
+              <label className="form-label small fw-bold">Restock Remarks / Supplier Note (Optional)</label>
+              <input
+                type="text"
+                className="form-control"
+                value={restockRemarks}
+                onChange={(e) => setRestockRemarks(e.target.value)}
+                placeholder="e.g. Received reprint batch from printer"
+              />
+            </div>
+
             <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
               <Button variant="light" onClick={() => setRestockModalOpen(false)}>Cancel</Button>
               <Button type="submit" variant="primary">Confirm Restock</Button>
@@ -1061,22 +1137,43 @@ export default function BooksStock() {
       >
         <form onSubmit={handleAddNewBook} className="d-flex flex-column gap-3">
           <Input
-            label="Module / Book Title"
+            label="Module / Book Title *"
             name="title"
             value={newBook.title}
             onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
-            placeholder="e.g. Modern Physics Numerical Formula Guide"
+            placeholder="e.g. Theory - Physics or Modern Physics Guide"
             required
           />
 
           <div className="row g-2">
             <div className="col-6">
               <Select
+                label="Module Category"
+                name="category"
+                value={newBook.category}
+                onChange={(e) => setNewBook({ ...newBook, category: e.target.value })}
+                options={['Theory', 'CET', 'Foundation', 'Board Exam']}
+              />
+            </div>
+            <div className="col-6">
+              <Select
                 label="Subject"
                 name="subject"
                 value={newBook.subject}
                 onChange={(e) => setNewBook({ ...newBook, subject: e.target.value })}
-                options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Foundation']}
+                options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Foundation', 'General']}
+              />
+            </div>
+          </div>
+
+          <div className="row g-2">
+            <div className="col-6">
+              <Select
+                label="Target Class Stream"
+                name="standard"
+                value={newBook.standard}
+                onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
+                options={streamOptions}
               />
             </div>
             <div className="col-6">
@@ -1087,50 +1184,32 @@ export default function BooksStock() {
                 value={newBook.unitCost}
                 onChange={(e) => setNewBook({ ...newBook, unitCost: e.target.value })}
                 required
+                min="0"
               />
             </div>
           </div>
 
-          <Select
-            label="Target Class Stream"
-            name="standard"
-            value={newBook.standard}
-            onChange={(e) => setNewBook({ ...newBook, standard: e.target.value })}
-            options={[
-              '11th & 12th Science',
-              '11th pcm tarabai park',
-              '11th pcb tarabai park',
-              '11th pcmb tarabai park',
-              '12th pcm tarabai park',
-              '12th pcb tarabai park',
-              '12th pcmb tarabai park',
-              '11th pcm Mangalvar peth',
-              '11th pcb Mangalvar peth',
-              '12th pcm Mangalvar peth'
-            ]}
-          />
-
           <div className="row g-2">
             <div className="col-6">
               <Input
-                label="Initial Printed Stock Quantity"
+                label="Initial Printed Stock Quantity *"
                 name="inStock"
                 type="number"
                 value={newBook.inStock}
                 onChange={(e) => setNewBook({ ...newBook, inStock: e.target.value })}
                 required
-                min="1"
+                min="0"
               />
             </div>
             <div className="col-6">
               <Input
-                label="Low Stock Alert Threshold"
+                label="Low Stock Alert Threshold *"
                 name="reorderLevel"
                 type="number"
                 value={newBook.reorderLevel}
                 onChange={(e) => setNewBook({ ...newBook, reorderLevel: e.target.value })}
                 required
-                min="1"
+                min="0"
               />
             </div>
           </div>
