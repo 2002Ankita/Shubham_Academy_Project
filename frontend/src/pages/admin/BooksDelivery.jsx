@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { 
   Truck, 
   CheckCircle2, 
@@ -45,6 +47,7 @@ const normalizeSubject = (subj, title = '') => {
 };
 
 export default function BooksDelivery() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { confirm } = useConfirm();
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
@@ -352,6 +355,13 @@ export default function BooksDelivery() {
         </div>
 
         <div className="d-flex align-items-center gap-2">
+          <Button
+            variant="outline"
+            icon={Package}
+            onClick={() => navigate(user?.role === 'teacher' ? '/teacher/books/stock' : '/admin/books/stock')}
+          >
+            Books Stock
+          </Button>
           <Button variant="outline" icon={RefreshCw} onClick={fetchData}>
             Refresh
           </Button>
@@ -683,53 +693,62 @@ export default function BooksDelivery() {
               </button>
             </div>
 
-            {/* Recipient Dropdown */}
+            {/* Recipient Searchable Select */}
             {newDelivery.recipientType === 'Student' ? (
-              <div>
-                <select
-                  className="form-select"
-                  value={newDelivery.recipientId}
-                  onChange={(e) => {
-                    const selected = students.find(s => String(s.id || s._id || s.student_id) === String(e.target.value));
-                    setNewDelivery({
-                      ...newDelivery,
-                      recipientId: e.target.value,
-                      recipientName: selected ? selected.name : ''
-                    });
-                  }}
-                  required
-                >
-                  <option value="">-- Choose Student from Database --</option>
-                  {students.map(s => (
-                    <option key={s.id || s._id} value={s.id || s._id || s.student_id}>
-                      {s.name} &bull; Roll: {s.rollNumber || s.student_id || 'N/A'} ({s.standard || 'General'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                id="delivery-student-select"
+                label="Student Recipient"
+                required
+                options={students.map(s => {
+                  const id = s.id || s._id || s.student_id;
+                  const roll = s.rollNumber || s.student_id || 'N/A';
+                  const std = s.standard || 'General';
+                  return {
+                    value: id,
+                    label: s.name,
+                    badge: `Roll: ${roll}`,
+                    sublabel: `Class: ${std}${s.batch ? ` • ${s.batch}` : ''}`,
+                    keywords: [s.name, roll, std, s.batch]
+                  };
+                })}
+                value={newDelivery.recipientId}
+                onChange={(val, opt) => {
+                  setNewDelivery({
+                    ...newDelivery,
+                    recipientId: val,
+                    recipientName: opt ? opt.label : ''
+                  });
+                }}
+                placeholder="-- Choose Student from Database --"
+                searchPlaceholder="Search student by name, roll no, or stream..."
+              />
             ) : (
-              <div>
-                <select
-                  className="form-select"
-                  value={newDelivery.recipientId}
-                  onChange={(e) => {
-                    const selected = teachers.find(t => String(t.id || t._id) === String(e.target.value));
-                    setNewDelivery({
-                      ...newDelivery,
-                      recipientId: e.target.value,
-                      recipientName: selected ? (selected.name || selected.full_name) : ''
-                    });
-                  }}
-                  required
-                >
-                  <option value="">-- Choose Teacher from Database --</option>
-                  {teachers.map(t => (
-                    <option key={t.id || t._id} value={t.id || t._id}>
-                      {t.name || t.full_name} &bull; Subject: {t.subject || 'Faculty'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchableSelect
+                id="delivery-teacher-select"
+                label="Teacher Recipient"
+                required
+                options={teachers.map(t => {
+                  const id = t.id || t._id;
+                  const name = t.name || t.full_name || 'Faculty Member';
+                  return {
+                    value: id,
+                    label: name,
+                    badge: `Subject: ${t.subject || 'Faculty'}`,
+                    sublabel: t.email || t.phone || '',
+                    keywords: [name, t.subject, t.email, t.phone]
+                  };
+                })}
+                value={newDelivery.recipientId}
+                onChange={(val, opt) => {
+                  setNewDelivery({
+                    ...newDelivery,
+                    recipientId: val,
+                    recipientName: opt ? opt.label : ''
+                  });
+                }}
+                placeholder="-- Choose Teacher from Database --"
+                searchPlaceholder="Search teacher by name or subject..."
+              />
             )}
           </div>
 
@@ -900,50 +919,63 @@ export default function BooksDelivery() {
                 </button>
               </div>
 
-              {/* Recipient Dropdown / Selection */}
+              {/* Recipient Searchable Select */}
               {editingDelivery.recipientType === 'Student' ? (
-                <div>
-                  <select
-                    className="form-select mb-2"
+                <div className="mb-2">
+                  <SearchableSelect
+                    id="edit-delivery-student-select"
+                    label=""
+                    options={students.map(s => {
+                      const id = s.id || s._id || s.student_id;
+                      const roll = s.rollNumber || s.student_id || 'N/A';
+                      const std = s.standard || 'General';
+                      return {
+                        value: id,
+                        label: s.name,
+                        badge: `Roll: ${roll}`,
+                        sublabel: `Class: ${std}${s.batch ? ` • ${s.batch}` : ''}`,
+                        keywords: [s.name, roll, std, s.batch]
+                      };
+                    })}
                     value={editingDelivery.recipientId}
-                    onChange={(e) => {
-                      const selected = students.find(s => String(s.id || s._id || s.student_id) === String(e.target.value));
+                    onChange={(val, opt) => {
                       setEditingDelivery({
                         ...editingDelivery,
-                        recipientId: e.target.value,
-                        recipientName: selected ? selected.name : editingDelivery.recipientName
+                        recipientId: val,
+                        recipientName: opt ? opt.label : editingDelivery.recipientName
                       });
                     }}
-                  >
-                    <option value="">-- Select Registered Student --</option>
-                    {students.map(s => (
-                      <option key={s.id || s._id} value={s.id || s._id || s.student_id}>
-                        {s.name} &bull; Roll: {s.rollNumber || s.student_id || 'N/A'} ({s.standard || 'General'})
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Select Registered Student --"
+                    searchPlaceholder="Search student by name, roll no, or stream..."
+                  />
                 </div>
               ) : (
-                <div>
-                  <select
-                    className="form-select mb-2"
+                <div className="mb-2">
+                  <SearchableSelect
+                    id="edit-delivery-teacher-select"
+                    label=""
+                    options={teachers.map(t => {
+                      const id = t.id || t._id;
+                      const name = t.name || t.full_name || 'Faculty Member';
+                      return {
+                        value: id,
+                        label: name,
+                        badge: `Subject: ${t.subject || 'Faculty'}`,
+                        sublabel: t.email || t.phone || '',
+                        keywords: [name, t.subject, t.email, t.phone]
+                      };
+                    })}
                     value={editingDelivery.recipientId}
-                    onChange={(e) => {
-                      const selected = teachers.find(t => String(t.id || t._id) === String(e.target.value));
+                    onChange={(val, opt) => {
                       setEditingDelivery({
                         ...editingDelivery,
-                        recipientId: e.target.value,
-                        recipientName: selected ? (selected.name || selected.full_name) : editingDelivery.recipientName
+                        recipientId: val,
+                        recipientName: opt ? opt.label : editingDelivery.recipientName
                       });
                     }}
-                  >
-                    <option value="">-- Select Teacher --</option>
-                    {teachers.map(t => (
-                      <option key={t.id || t._id} value={t.id || t._id}>
-                        {t.name || t.full_name} &bull; Subject: {t.subject || 'Faculty'}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Select Teacher --"
+                    searchPlaceholder="Search teacher by name or subject..."
+                  />
                 </div>
               )}
 
