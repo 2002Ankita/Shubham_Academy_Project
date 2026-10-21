@@ -208,6 +208,8 @@ export default function AppRoutes() {
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />
         <Route path="/teacher/daily-activity" element={<TeacherDailyActivityReport />} />
         <Route path="/teacher/topic-duration" element={<TeacherTopicDurationPlanner />} />
+        <Route path="/teacher/topic-durations" element={<TeacherTopicDurationPlanner />} />
+        <Route path="/teacher/topic-duration-planner" element={<TeacherTopicDurationPlanner />} />
         <Route path="/teacher/topic-pacing" element={<TeacherTopicDurationPlanner />} />
         <Route path="/teacher/leave-request" element={<LeaveRequest />} />
         <Route path="/teacher/working-time" element={<WorkingTime />} />

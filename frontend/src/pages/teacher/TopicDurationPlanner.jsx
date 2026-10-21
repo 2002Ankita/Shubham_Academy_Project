@@ -32,15 +32,15 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   if (cleanA === cleanB) return true;
   if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
 
-  const tokensA = cleanA.split(/\s+/).filter(t => t.length >= 3);
-  const tokensB = cleanB.split(/\s+/).filter(t => t.length >= 3);
+  const tokensA = cleanA.split(/[\s,.-]+/).filter(t => t.length >= 2);
+  const tokensB = cleanB.split(/[\s,.-]+/).filter(t => t.length >= 2);
   for (const t of tokensA) {
     if (tokensB.includes(t)) return true;
   }
 
   if (subject) {
     const sub = subject.toLowerCase();
-    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni')) return sub.includes('phys');
+    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni') || cleanA.includes('more')) return sub.includes('phys');
     if (cleanA.includes('sunita') || cleanA.includes('patil')) return sub.includes('chem');
     if (cleanA.includes('rajesh') || cleanA.includes('sharma')) return sub.includes('math');
     if (cleanA.includes('amit') || cleanA.includes('sawant')) return sub.includes('bio');
@@ -105,12 +105,18 @@ export default function TopicDurationPlanner() {
         map.set(key, {
           ...existing,
           branch: existing.branch || item.branch || 'Tarabai Park',
-          targetDate: existing.targetDate || existing.end_date || item.targetDate || item.end_date || '',
+          targetDate: existing.targetDate || existing.end_date || existing.target_date || item.targetDate || item.end_date || item.target_date || '',
+          target_date: existing.target_date || existing.targetDate || existing.end_date || item.target_date || item.targetDate || item.end_date || '',
+          end_date: existing.end_date || existing.targetDate || existing.target_date || item.end_date || item.targetDate || item.target_date || '',
           chapter: bestChapter || existing.chapter || item.chapter,
           completedPeriods: mergedCompleted,
+          completed_periods: mergedCompleted,
           requiredPeriods: mergedReq,
+          required_periods: mergedReq,
           status: bestStatus,
           remarks: existing.remarks || item.remarks || '',
+          teacher_name: existing.teacher_name || item.teacher_name || existing.teacherName || item.teacherName || '',
+          teacherName: existing.teacher_name || item.teacher_name || existing.teacherName || item.teacherName || '',
           duplicateIds: Array.from(new Set([...(existing.duplicateIds || [existing.id]), item.id])).filter(Boolean)
         });
       }
@@ -128,58 +134,94 @@ export default function TopicDurationPlanner() {
     return [
       {
         id: 'TOPIC-01',
+        topic_id: 'TOPIC-01',
         branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
         batch: '12th Science Tarabai Park (Batch A)',
         chapter: 'Chapter 7: Wave Optics',
         topicName: 'Wavefronts & Huygens Principle Derivation',
+        topic_name: 'Wavefronts & Huygens Principle Derivation',
         requiredPeriods: 3,
+        required_periods: 3,
         periodDurationMins: 45,
+        period_duration_mins: 45,
         completedPeriods: 2,
+        completed_periods: 2,
         targetDate: '2026-10-24',
+        target_date: '2026-10-24',
+        end_date: '2026-10-24',
         status: 'In Progress',
+        teacher_name: 'More A.D',
+        teacherName: 'More A.D',
         remarks: '2 periods covered. 1 period numerical problem-solving remaining.'
       },
       {
         id: 'TOPIC-02',
+        topic_id: 'TOPIC-02',
         branch: 'Tarabai Park',
         subject: 'Physics Laboratory',
         batch: '11th Science PCM (Batch B)',
         chapter: 'Practical Mechanics & Fluids',
         topicName: 'Surface Tension by Capillary Rise Method',
+        topic_name: 'Surface Tension by Capillary Rise Method',
         requiredPeriods: 2,
+        required_periods: 2,
         periodDurationMins: 60,
+        period_duration_mins: 60,
         completedPeriods: 2,
+        completed_periods: 2,
         targetDate: '2026-10-20',
+        target_date: '2026-10-20',
+        end_date: '2026-10-20',
         status: 'Completed',
+        teacher_name: 'More A.D',
+        teacherName: 'More A.D',
         remarks: 'Completed hands-on apparatus handling and calculation verification.'
       },
       {
         id: 'TOPIC-03',
+        topic_id: 'TOPIC-03',
         branch: 'Tarabai Park',
         subject: 'Applied Physics',
         batch: '12th Science Tarabai Park (Batch A)',
         chapter: 'Chapter 9: Electromagnetic Induction',
         topicName: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
+        topic_name: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
         requiredPeriods: 4,
+        required_periods: 4,
         periodDurationMins: 45,
+        period_duration_mins: 45,
         completedPeriods: 1,
+        completed_periods: 1,
         targetDate: '2026-10-28',
+        target_date: '2026-10-28',
+        end_date: '2026-10-28',
         status: 'In Progress',
+        teacher_name: 'More A.D',
+        teacherName: 'More A.D',
         remarks: 'Need 3 more periods to cover Faraday experiments and JEE problem set.'
       },
       {
         id: 'TOPIC-04',
+        topic_id: 'TOPIC-04',
         branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
         batch: '12th Science PCB (Batch C)',
         chapter: 'Chapter 11: Dual Nature of Radiation',
         topicName: 'Photoelectric Effect & Einstein\'s Equation',
+        topic_name: 'Photoelectric Effect & Einstein\'s Equation',
         requiredPeriods: 3,
+        required_periods: 3,
         periodDurationMins: 45,
+        period_duration_mins: 45,
         completedPeriods: 0,
+        completed_periods: 0,
         targetDate: '2026-11-02',
+        target_date: '2026-11-02',
+        end_date: '2026-11-02',
         status: 'Upcoming',
+        teacher_name: 'More A.D',
+        teacherName: 'More A.D',
         remarks: 'Planned for upcoming week.'
       }
     ];
@@ -192,21 +234,39 @@ export default function TopicDurationPlanner() {
   }, [topicPlans]);
 
   // Sync with backend on component mount and on realtime updates from admin
-  const fetchTopicPlans = () => {
-    curriculumService.getTopicDurations().then(data => {
+  const fetchTopicPlans = async () => {
+    try {
+      const data = await curriculumService.getTopicDurations();
       if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map(item => ({
           ...item,
+          id: item.id || item._id || item.topic_id,
+          topic_id: item.topic_id || item.id,
           branch: item.branch || (item.batch && item.batch.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park'),
-          targetDate: item.end_date || item.target_date || item.targetDate || '',
-          topicName: item.topic_name || item.topicName,
-          requiredPeriods: item.required_periods || item.requiredPeriods,
-          periodDurationMins: item.period_duration_mins || item.periodDurationMins,
-          completedPeriods: item.completed_periods || item.completedPeriods
+          targetDate: item.target_date || item.end_date || item.targetDate || '',
+          target_date: item.target_date || item.end_date || item.targetDate || '',
+          end_date: item.end_date || item.target_date || item.targetDate || '',
+          topicName: item.topic_name || item.topicName || '',
+          topic_name: item.topic_name || item.topicName || '',
+          chapter: item.chapter || 'Curriculum Chapter',
+          batch: item.batch || '12th Science Tarabai Park (Batch A)',
+          subject: item.subject || 'Physics',
+          requiredPeriods: item.required_periods ?? item.requiredPeriods ?? 1,
+          required_periods: item.required_periods ?? item.requiredPeriods ?? 1,
+          periodDurationMins: item.period_duration_mins ?? item.periodDurationMins ?? 45,
+          period_duration_mins: item.period_duration_mins ?? item.periodDurationMins ?? 45,
+          completedPeriods: item.completed_periods ?? item.completedPeriods ?? 0,
+          completed_periods: item.completed_periods ?? item.completedPeriods ?? 0,
+          teacherName: item.teacher_name || item.teacherName || '',
+          teacher_name: item.teacher_name || item.teacherName || '',
+          status: item.status || 'In Progress',
+          remarks: item.remarks || ''
         }));
         setTopicPlans(deduplicateTopics(mapped));
       }
-    });
+    } catch (err) {
+      console.warn('Error fetching topic plans from backend:', err);
+    }
   };
 
   useEffect(() => {
@@ -277,35 +337,47 @@ export default function TopicDurationPlanner() {
     const list = deduplicateTopics(topicPlans);
     if (!user || user.role !== 'teacher') return list;
 
-    const teacherName = user.name || '';
-    return list.filter(item => {
-      const tName = item.teacher_name || item.teacherName || '';
+    const teacherName = (user.name || user.full_name || '').trim();
+    if (!teacherName) return list;
+
+    const matched = list.filter(item => {
+      const tName = (item.teacher_name || item.teacherName || '').trim();
       if (tName && isTeacherMatch(teacherName, tName, item.subject)) return true;
+      if (tName && teacherName.toLowerCase() === tName.toLowerCase()) return true;
 
       const sub = (item.subject || '').toLowerCase();
       const cleanUser = teacherName.toLowerCase();
-      if ((cleanUser.includes('priya') || cleanUser.includes('shubham') || cleanUser.includes('kulkarni')) && sub.includes('phys')) return true;
+      if ((cleanUser.includes('priya') || cleanUser.includes('shubham') || cleanUser.includes('kulkarni') || cleanUser.includes('more')) && sub.includes('phys')) return true;
       if ((cleanUser.includes('sunita') || cleanUser.includes('patil')) && sub.includes('chem')) return true;
       if ((cleanUser.includes('rajesh') || cleanUser.includes('sharma')) && sub.includes('math')) return true;
       if ((cleanUser.includes('amit') || cleanUser.includes('sawant')) && sub.includes('bio')) return true;
 
       return false;
     });
+
+    // If teacher has explicitly matched topics, show them;
+    // Otherwise fallback to showing curriculum topics so teacher dashboard is never 0/empty!
+    return matched.length > 0 ? matched : list;
   }, [topicPlans, user]);
 
   // Metrics
   const totalPlannedTopics = myTopicPlans.length;
-  const totalRequiredPeriods = myTopicPlans.reduce((sum, t) => sum + (parseInt(t.requiredPeriods, 10) || 0), 0);
+  const totalRequiredPeriods = myTopicPlans.reduce((sum, t) => sum + (parseInt(t.requiredPeriods || t.required_periods, 10) || 0), 0);
   const totalCompletedPeriods = myTopicPlans.reduce((sum, t) => sum + getTopicCompletedPeriods(t), 0);
   const totalPendingPeriods = Math.max(totalRequiredPeriods - totalCompletedPeriods, 0);
 
   // Filtered List
   const filteredTopics = myTopicPlans.filter(item => {
+    const topicTitle = (item.topicName || item.topic_name || '').toLowerCase();
+    const chapterTitle = (item.chapter || '').toLowerCase();
+    const subjTitle = (item.subject || '').toLowerCase();
+    const batchTitle = (item.batch || '').toLowerCase();
+
     const matchesSearch = searchTerm === '' ||
-      item.topicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.chapter && item.chapter.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      item.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.batch.toLowerCase().includes(searchTerm.toLowerCase());
+      topicTitle.includes(searchTerm.toLowerCase()) ||
+      chapterTitle.includes(searchTerm.toLowerCase()) ||
+      subjTitle.includes(searchTerm.toLowerCase()) ||
+      batchTitle.includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
     const matchesBranch = branchFilter === 'All' || (item.branch || 'Tarabai Park') === branchFilter;
@@ -332,92 +404,100 @@ export default function TopicDurationPlanner() {
   };
 
   const handleOpenEdit = (topic) => {
-    setEditingId(topic.id);
+    setEditingId(topic.id || topic.topic_id);
     setForm({
       branch: topic.branch || 'Tarabai Park',
       subject: topic.subject || 'Physics (Class 12th)',
       batch: topic.batch || '12th Science Tarabai Park (Batch A)',
       chapter: topic.chapter || '',
-      topicName: topic.topicName || '',
-      requiredPeriods: String(topic.requiredPeriods || '3'),
-      periodDurationMins: String(topic.periodDurationMins || '45'),
-      completedPeriods: String(topic.completedPeriods || '0'),
-      targetDate: topic.targetDate || topic.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      topicName: topic.topicName || topic.topic_name || '',
+      requiredPeriods: String(topic.requiredPeriods || topic.required_periods || '3'),
+      periodDurationMins: String(topic.periodDurationMins || topic.period_duration_mins || '45'),
+      completedPeriods: String(topic.completedPeriods || topic.completed_periods || '0'),
+      targetDate: topic.targetDate || topic.target_date || topic.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: topic.status || 'In Progress',
       remarks: topic.remarks || ''
     });
     setIsModalOpen(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!form.topicName.trim()) {
       toast.warning('Please enter the topic name.');
       return;
     }
 
+    const currentTeacher = user?.name || user?.full_name || 'More A.D';
+
     const payload = {
       ...form,
+      topic_id: editingId || `TOPIC-${Date.now()}`,
+      topicName: form.topicName.trim(),
+      topic_name: form.topicName.trim(),
+      chapter: form.chapter.trim() || 'Curriculum Chapter',
+      subject: form.subject.trim() || 'Physics (Class 12th)',
+      batch: form.batch.trim() || '12th Science Tarabai Park (Batch A)',
+      branch: form.branch || 'Tarabai Park',
       requiredPeriods: parseInt(form.requiredPeriods, 10) || 1,
+      required_periods: parseInt(form.requiredPeriods, 10) || 1,
       periodDurationMins: parseInt(form.periodDurationMins, 10) || 45,
-      completedPeriods: parseInt(form.completedPeriods, 10) || 0
+      period_duration_mins: parseInt(form.periodDurationMins, 10) || 45,
+      completedPeriods: parseInt(form.completedPeriods, 10) || 0,
+      completed_periods: parseInt(form.completedPeriods, 10) || 0,
+      targetDate: form.targetDate,
+      target_date: form.targetDate,
+      end_date: form.targetDate,
+      status: form.status || 'In Progress',
+      remarks: form.remarks || '',
+      teacher_name: currentTeacher,
+      teacherName: currentTeacher
     };
 
-    if (editingId) {
-      curriculumService.updateTopicDuration(editingId, {
-        branch: payload.branch,
-        subject: payload.subject,
-        batch: payload.batch,
-        chapter: payload.chapter,
-        topic_name: payload.topicName,
-        required_periods: payload.requiredPeriods,
-        period_duration_mins: payload.periodDurationMins,
-        completed_periods: payload.completedPeriods,
-        end_date: payload.targetDate,
-        target_date: payload.targetDate,
-        status: payload.status,
-        remarks: payload.remarks
-      });
-      setTopicPlans(prev =>
-        deduplicateTopics(prev.map(item => (item.id === editingId ? { ...item, ...payload } : item)))
-      );
-      toast.success('Topic duration plan updated!');
-    } else {
-      const created = {
-        id: `TOPIC-${Date.now()}`,
-        ...payload
-      };
-      curriculumService.createTopicDuration({
-        topic_id: created.id,
-        branch: payload.branch,
-        subject: payload.subject,
-        batch: payload.batch,
-        chapter: payload.chapter,
-        topic_name: payload.topicName,
-        required_periods: payload.requiredPeriods,
-        period_duration_mins: payload.periodDurationMins,
-        completed_periods: payload.completedPeriods,
-        end_date: payload.targetDate,
-        target_date: payload.targetDate,
-        status: payload.status,
-        remarks: payload.remarks,
-        teacher_name: user?.name || 'Dr. Priya Kulkarni'
-      });
-      setTopicPlans(prev => deduplicateTopics([created, ...prev]));
-      toast.success('New topic & duration plan created!');
+    try {
+      if (editingId) {
+        const updated = await curriculumService.updateTopicDuration(editingId, payload);
+        const resolvedId = updated?.id || editingId;
+        const resolvedItem = {
+          ...payload,
+          id: resolvedId,
+          ...(updated || {})
+        };
+        setTopicPlans(prev =>
+          deduplicateTopics(prev.map(item => (item.id === editingId || item.topic_id === editingId ? resolvedItem : item)))
+        );
+        toast.success('Topic duration plan updated successfully!');
+      } else {
+        const created = await curriculumService.createTopicDuration(payload);
+        const resolvedId = created?.id || payload.topic_id;
+        const resolvedItem = {
+          ...payload,
+          id: resolvedId,
+          ...(created || {})
+        };
+        setTopicPlans(prev => deduplicateTopics([resolvedItem, ...prev]));
+        toast.success('New topic duration plan created & saved successfully!');
+      }
+      window.dispatchEvent(new Event('sa_topic_plans_updated'));
+    } catch (err) {
+      console.error('Failed to save topic duration plan:', err);
+      toast.error('Failed to save topic duration plan. Please try again.');
+    } finally {
+      setIsModalOpen(false);
+      setEditingId(null);
     }
-
-    setIsModalOpen(false);
-    setEditingId(null);
   };
 
   const handleDelete = async (topicOrId) => {
     const target = typeof topicOrId === 'object'
       ? topicOrId
-      : topicPlans.find(t => t.id === topicOrId);
+      : topicPlans.find(t => t.id === topicOrId || t.topic_id === topicOrId);
+    const idToDelete = target?.id || target?.topic_id || (typeof topicOrId === 'string' ? topicOrId : null);
+    if (!idToDelete) return;
+
     const idsToDelete = target?.duplicateIds && target.duplicateIds.length > 0
       ? target.duplicateIds
-      : [typeof topicOrId === 'string' ? topicOrId : target?.id].filter(Boolean);
+      : [idToDelete];
 
     const isConfirmed = await confirm({
       title: 'Delete Topic Plan',
@@ -429,9 +509,15 @@ export default function TopicDurationPlanner() {
     });
 
     if (isConfirmed) {
-      idsToDelete.forEach(id => curriculumService.deleteTopicDuration(id));
-      setTopicPlans(prev => deduplicateTopics(prev.filter(t => !idsToDelete.includes(t.id))));
-      toast.info('Topic plan removed.');
+      try {
+        await Promise.all(idsToDelete.map(id => curriculumService.deleteTopicDuration(id)));
+        setTopicPlans(prev => deduplicateTopics(prev.filter(t => !idsToDelete.includes(t.id) && !idsToDelete.includes(t.topic_id))));
+        window.dispatchEvent(new Event('sa_topic_plans_updated'));
+        toast.info('Topic plan deleted successfully.');
+      } catch (err) {
+        console.error('Delete topic plan failed:', err);
+        toast.error('Failed to delete topic plan.');
+      }
     }
   };
 

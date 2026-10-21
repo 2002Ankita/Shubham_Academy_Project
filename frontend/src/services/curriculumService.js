@@ -119,7 +119,7 @@ export const curriculumService = {
   getTopicDurations: async (params = {}) => {
     try {
       const res = await api.get('/topic-durations', { params });
-      if (Array.isArray(res.data) && res.data.length > 0) {
+      if (Array.isArray(res.data)) {
         localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(res.data));
         return res.data;
       }
@@ -158,7 +158,14 @@ export const curriculumService = {
   createTopicDuration: async (data) => {
     try {
       const res = await api.post('/topic-durations', data);
-      return res.data;
+      if (res.data) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
+          const updated = [res.data, ...saved.filter(i => i.id !== res.data.id && i.topic_id !== res.data.topic_id)];
+          localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
     } catch (err) {
       console.warn('Backend create topic-duration failed, saving locally:', err);
       const localItem = { id: `TOPIC-${Date.now()}`, ...data };
@@ -210,12 +217,19 @@ export const curriculumService = {
   updateTopicDuration: async (id, data) => {
     try {
       const res = await api.put(`/topic-durations/${id}`, data);
-      return res.data;
+      if (res.data) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
+          const updated = saved.map((item) => ((item.id === id || item.topic_id === id) ? { ...item, ...res.data } : item));
+          localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
     } catch (err) {
       console.warn('Backend update topic-duration failed, updating locally:', err);
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
-        const updated = saved.map((item) => (item.id === id ? { ...item, ...data } : item));
+        const updated = saved.map((item) => ((item.id === id || item.topic_id === id) ? { ...item, ...data } : item));
         localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
       } catch (_) {}
       return { id, ...data };
@@ -231,7 +245,7 @@ export const curriculumService = {
     }
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_TOPICS_KEY) || '[]');
-      const updated = saved.filter((item) => item.id !== id);
+      const updated = saved.filter((item) => item.id !== id && item.topic_id !== id);
       localStorage.setItem(STORAGE_TOPICS_KEY, JSON.stringify(updated));
     } catch (_) {}
     return { success: true };

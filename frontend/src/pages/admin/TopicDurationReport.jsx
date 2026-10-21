@@ -579,18 +579,24 @@ export default function AdminTopicDurationReport() {
 
   // Sync with backend on component mount and merge
   useEffect(() => {
-    let local = [];
-    try {
-      const s = localStorage.getItem(STORAGE_TOPICS_KEY);
-      if (s) local = JSON.parse(s);
-    } catch (_) {}
+    const syncTopics = () => {
+      let local = [];
+      try {
+        const s = localStorage.getItem(STORAGE_TOPICS_KEY);
+        if (s) local = JSON.parse(s);
+      } catch (_) {}
 
-    curriculumService.getTopicDurations().then(data => {
-      if (Array.isArray(data) && data.length > 0) {
-        const merged = mergeTopics(masterTopics, local, data);
-        setTopicList(merged);
-      }
-    });
+      curriculumService.getTopicDurations().then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const merged = mergeTopics(masterTopics, local, data);
+          setTopicList(merged);
+        }
+      });
+    };
+
+    syncTopics();
+    window.addEventListener('sa_topic_plans_updated', syncTopics);
+    return () => window.removeEventListener('sa_topic_plans_updated', syncTopics);
   }, []);
 
   // Daily teacher activities for cross-verifying actual periods
