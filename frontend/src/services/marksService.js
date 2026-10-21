@@ -93,24 +93,26 @@ export const marksService = {
     try {
       const res = await api.get('/marks', { params });
       if (Array.isArray(res.data) && res.data.length > 0) {
-        return res.data.map(mark => ({
-          id: mark.id,
-          studentId: mark.student_id,
-          examId: mark.exam_id,
-          studentName: mark.student_name || 'Student ID: ' + (mark.student_id ? mark.student_id.substring(mark.student_id.length - 6) : ''),
-          rollNumber: mark.roll_number || 'N/A',
-          examName: mark.exam_name || `Exam ID: ${mark.exam_id}`,
-          examTitle: mark.exam_name || `Exam ID: ${mark.exam_id}`,
-          date: mark.exam_date || mark.date || '2026-03-15',
-          subject: mark.subject || 'N/A',
-          teacher: mark.teacher || 'Faculty',
-          maxMarks: mark.max_marks || 100,
-          obtainedMarks: mark.marks_obtained,
-          percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
-          grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
-          status: mark.status || 'Published',
-          remarks: mark.remarks || ''
-        }));
+        return res.data
+          .filter(mark => mark && (mark.student_name || mark.roll_number || mark.exam_name))
+          .map(mark => ({
+            id: mark.id,
+            studentId: mark.student_id,
+            examId: mark.exam_id,
+            studentName: mark.student_name || (mark.student_id ? 'Student ' + mark.student_id.substring(mark.student_id.length - 6) : 'Unknown Student'),
+            rollNumber: mark.roll_number || 'N/A',
+            examName: mark.exam_name || (mark.exam_id ? `Exam ${mark.exam_id.substring(mark.exam_id.length - 6)}` : 'Exam'),
+            examTitle: mark.exam_name || (mark.exam_id ? `Exam ${mark.exam_id.substring(mark.exam_id.length - 6)}` : 'Exam'),
+            date: mark.exam_date || mark.date || new Date().toISOString().split('T')[0],
+            subject: mark.subject || 'N/A',
+            teacher: mark.teacher || 'Faculty',
+            maxMarks: mark.max_marks || 100,
+            obtainedMarks: mark.marks_obtained,
+            percentage: ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1),
+            grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+            status: mark.status || 'Published',
+            remarks: mark.remarks || ''
+          }));
       }
       return DEFAULT_STUDENT_RESULTS;
     } catch {

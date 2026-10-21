@@ -134,7 +134,7 @@ async def update_attendance(
     token: str = Depends(oauth2_scheme)
 ):
     user = await get_current_user(token)
-    role = user.role.upper()
+    role = user.role.upper().replace("-", "_")
     if role not in {"ADMIN", "SUPER_ADMIN"}:
         raise HTTPException(status_code=403, detail="Not authorized to update attendance")
     return await update_attendance_record(attendance_id, update_in.model_dump(exclude_unset=True))
@@ -145,7 +145,7 @@ async def delete_attendance(
     token: str = Depends(oauth2_scheme)
 ):
     user = await get_current_user(token)
-    role = user.role.upper()
+    role = user.role.upper().replace("-", "_")
     if role not in {"ADMIN", "SUPER_ADMIN"}:
         raise HTTPException(status_code=403, detail="Not authorized to delete attendance")
     return await delete_attendance_record(attendance_id)

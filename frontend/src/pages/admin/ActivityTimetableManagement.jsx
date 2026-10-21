@@ -135,13 +135,46 @@ export default function ActivityTimetableManagement() {
   const [batches, setBatches] = useState([]);
   const [teachers, setTeachers] = useState([]);
 
-  // Faculty mapping presets by Subject
+  // Faculty mapping presets by Subject using registered faculty
   const defaultFacultyBySubject = {
-    'Physics': 'Dr. Priya Kulkarni',
-    'Chemistry': 'Prof. Sunita Patil',
-    'Mathematics': 'Prof. Rajesh Sharma',
-    'Biology': 'Prof. Amit Sawant'
+    'Physics': 'More A.D',
+    'Chemistry': 'More A.D',
+    'Mathematics': 'veer 1',
+    'Biology': 'Shri'
   };
+
+  const facultyColorMap = {
+    'Physics': '#1D4ED8',
+    'Chemistry': '#BE185D',
+    'Mathematics': '#15803D',
+    'Biology': '#7E22CE'
+  };
+
+  // Dynamically populated from registered faculty in database
+  const dynamicFacultyList = useMemo(() => {
+    const list = [{ id: 'All', label: 'All Faculty Activities', badge: 'All', color: '#8B1216' }];
+    if (teachers && teachers.length > 0) {
+      teachers.forEach(t => {
+        const name = t.name || t.full_name || (t.user ? t.user.full_name : '');
+        if (name && !list.some(x => x.id === name)) {
+          list.push({
+            id: name,
+            label: name,
+            badge: t.subject || 'Faculty',
+            color: facultyColorMap[t.subject] || '#4F46E5'
+          });
+        }
+      });
+    } else {
+      [
+        { id: 'More A.D', label: 'More A.D', badge: 'Physics', color: '#1D4ED8' },
+        { id: 'veer 1', label: 'veer 1', badge: 'Maths', color: '#15803D' },
+        { id: 'Shri', label: 'Shri', badge: 'Biology', color: '#7E22CE' },
+        { id: 'Swami ', label: 'Swami ', badge: 'Physics', color: '#0284C7' }
+      ].forEach(f => list.push(f));
+    }
+    return list;
+  }, [teachers]);
 
   // Branch list
   const branches = ['Tarabai Park', 'Mangalwar Peth'];
@@ -153,8 +186,8 @@ export default function ActivityTimetableManagement() {
       branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
       subject: 'Physics',
-      teacherName: 'Dr. Priya Kulkarni',
-      batch: '12th Science Tarabai Park (Batch A)',
+      teacherName: 'More A.D',
+      batch: '12th pcm tarabai park',
       chapter: 'Chapter 7: Wave Optics',
       topicTaught: 'Wavefronts & Huygens Principle Derivation',
       timeSlot: '08:30 AM - 10:00 AM',
@@ -170,8 +203,8 @@ export default function ActivityTimetableManagement() {
       branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
       subject: 'Chemistry',
-      teacherName: 'Prof. Sunita Patil',
-      batch: '12th Science Tarabai Park (Batch A)',
+      teacherName: 'More A.D',
+      batch: '12th pcm tarabai park',
       chapter: 'Chapter 4: Chemical Kinetics',
       topicTaught: 'Order of Reaction & Arrhenius Rate Equation',
       timeSlot: '10:00 AM - 11:00 AM',
@@ -187,8 +220,8 @@ export default function ActivityTimetableManagement() {
       branch: 'Mangalwar Peth',
       activity: 'Classroom Lecture & Theory',
       subject: 'Mathematics',
-      teacherName: 'Prof. Rajesh Sharma',
-      batch: '11th Science Mangalwar Peth (Batch A)',
+      teacherName: 'veer 1',
+      batch: '11th pcm Mangalvar Peth',
       chapter: 'Chapter 3: Trigonometric Functions',
       topicTaught: 'Compound Angles & Double Angle Formulae',
       timeSlot: '11:30 AM - 12:30 PM',
@@ -204,8 +237,8 @@ export default function ActivityTimetableManagement() {
       branch: 'Mangalwar Peth',
       activity: 'Practical Lab Session',
       subject: 'Biology',
-      teacherName: 'Prof. Amit Sawant',
-      batch: '12th Science Mangalwar Peth (Batch A)',
+      teacherName: 'Shri',
+      batch: '12th pcm Mangalvar Peth',
       chapter: 'Chapter 8: Human Health & Disease',
       topicTaught: 'Innate & Acquired Immunity, Antibody Structure',
       timeSlot: '01:30 PM - 03:00 PM',
@@ -246,7 +279,7 @@ export default function ActivityTimetableManagement() {
             timeSlot: item.time_slot || item.timeSlot || '09:00 AM – 10:00 AM',
             totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods || 2,
             targetDate: item.target_date || item.targetDate || item.activity_date || '2026-10-25',
-            teacherName: item.teacher_name || item.teacherName || defaultFacultyBySubject[item.subject] || 'Dr. Priya Kulkarni'
+            teacherName: item.teacher_name || item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D'
           };
         });
         setDailyActivities(mapped);
@@ -296,8 +329,8 @@ export default function ActivityTimetableManagement() {
     branch: 'Tarabai Park',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
-    teacherName: 'Dr. Priya Kulkarni',
-    batch: '12th Science Tarabai Park (Batch A)',
+    teacherName: 'More A.D',
+    batch: '12th pcm tarabai park',
     chapter: 'Chapter 7: Wave Optics',
     topicTaught: '',
     timeSlot: '03:00 PM - 04:00 PM',
@@ -361,7 +394,7 @@ export default function ActivityTimetableManagement() {
           else if (subject.toLowerCase().includes('math')) subject = 'Mathematics';
           else if (subject.toLowerCase().includes('bio')) subject = 'Biology';
 
-          const batch = batchStr || (branch === 'Mangalwar Peth' ? '12th Science Mangalwar Peth (Batch A)' : '12th Science Tarabai Park (Batch A)');
+          const batch = batchStr || (branch === 'Mangalwar Peth' ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park');
           const chapter = String(norm['chapter'] || norm['unit'] || norm['chaptername'] || 'Curriculum Module').trim();
           const topicTaught = String(norm['topictaught'] || norm['topictaughtsyllabuscovered'] || norm['topic'] || norm['syllabus'] || '').trim();
           const timeSlot = String(norm['timeslot'] || norm['time'] || norm['slot'] || '03:00 PM - 04:00 PM').trim();
@@ -375,7 +408,7 @@ export default function ActivityTimetableManagement() {
           // Auto-assign faculty based on Subject or Excel row
           let teacherName = String(norm['teachername'] || norm['teacher'] || norm['faculty'] || '').trim();
           if (!teacherName) {
-            teacherName = defaultFacultyBySubject[subject] || 'Dr. Priya Kulkarni';
+            teacherName = defaultFacultyBySubject[subject] || 'More A.D';
           }
 
           return {
@@ -456,7 +489,7 @@ export default function ActivityTimetableManagement() {
               day,
               time: item.timeSlot,
               subject: item.subject,
-              teacher_name: item.teacherName || defaultFacultyBySubject[item.subject] || 'Dr. Priya Kulkarni',
+              teacher_name: item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D',
               batch: item.batch,
               branch: item.branch || 'Tarabai Park',
               room: 'Room 201'
@@ -520,8 +553,8 @@ export default function ActivityTimetableManagement() {
       branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
       subject: 'Physics',
-      teacherName: 'Dr. Priya Kulkarni',
-      batch: '12th Science Tarabai Park (Batch A)',
+      teacherName: 'More A.D',
+      batch: '12th pcm tarabai park',
       chapter: 'Chapter 7: Wave Optics',
       topicTaught: '',
       timeSlot: '03:00 PM - 04:00 PM',
@@ -541,8 +574,8 @@ export default function ActivityTimetableManagement() {
       branch: act.branch || 'Tarabai Park',
       activity: act.activity || 'Classroom Lecture & Theory',
       subject: act.subject || 'Physics',
-      teacherName: act.teacherName || defaultFacultyBySubject[act.subject] || 'Dr. Priya Kulkarni',
-      batch: act.batch || '12th Science Tarabai Park (Batch A)',
+      teacherName: act.teacherName || defaultFacultyBySubject[act.subject] || 'More A.D',
+      batch: act.batch || '12th pcm tarabai park',
       chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
       timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
@@ -576,7 +609,7 @@ export default function ActivityTimetableManagement() {
       hours: parseFloat(dailyForm.hours) || 1.0,
       target_date: dailyForm.targetDate,
       status: dailyForm.status,
-      teacher_name: dailyForm.teacherName || defaultFacultyBySubject[dailyForm.subject] || 'Dr. Priya Kulkarni',
+      teacher_name: dailyForm.teacherName || defaultFacultyBySubject[dailyForm.subject] || 'More A.D',
       remarks: dailyForm.remarks,
       frequency: 'Daily',
       activity_date: new Date().toISOString().split('T')[0]
@@ -681,8 +714,8 @@ export default function ActivityTimetableManagement() {
     timeSlot: '09:00 AM – 10:00 AM',
     branch: 'Tarabai Park',
     subject: 'Physics',
-    teacherName: 'Dr. Priya Kulkarni',
-    batch: '12th Science Tarabai Park (Batch A)',
+    teacherName: 'More A.D',
+    batch: '12th pcm tarabai park',
     classCode: '12-A',
     room: 'Room 201'
   });
@@ -707,7 +740,7 @@ export default function ActivityTimetableManagement() {
             day: slot.day ? slot.day.charAt(0).toUpperCase() + slot.day.slice(1).toLowerCase() : 'Monday',
             time: (slot.time || '09:00 AM – 10:00 AM').replace(/[-–—]/g, '–').replace(/\\s+/g, ' ').trim(),
             subject: slot.subject || b.subject || 'Physics',
-            teacher_name: slot.teacher_name || b.teacher_name || defaultFacultyBySubject[slot.subject || b.subject] || 'Dr. Priya Kulkarni',
+            teacher_name: slot.teacher_name || b.teacher_name || defaultFacultyBySubject[slot.subject || b.subject] || 'More A.D',
             room: slot.room || b.room || 'Room 201',
             branch: slot.branch || parentBranch,
             batch: b.name
@@ -826,11 +859,11 @@ export default function ActivityTimetableManagement() {
 
           let teacherName = String(norm['assignedfaculty'] || norm['faculty'] || norm['teachername'] || norm['teacher'] || '').trim();
           if (!teacherName) {
-            teacherName = defaultFacultyBySubject[subject] || 'Dr. Priya Kulkarni';
+            teacherName = defaultFacultyBySubject[subject] || 'More A.D';
           }
 
           let branch = String(norm['branch'] || norm['location'] || '').trim();
-          const batchStr = String(norm['classbatch'] || norm['batch'] || norm['class'] || '12th Science Tarabai Park (Batch A)').trim();
+          const batchStr = String(norm['classbatch'] || norm['batch'] || norm['class'] || '12th pcm tarabai park').trim();
           if (!branch) {
             branch = batchStr.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park';
           }
@@ -913,8 +946,8 @@ export default function ActivityTimetableManagement() {
       timeSlot: timeSlot || '09:00 AM – 10:00 AM',
       branch: 'Tarabai Park',
       subject: 'Physics',
-      teacherName: 'Dr. Priya Kulkarni',
-      batch: '12th Science Tarabai Park (Batch A)',
+      teacherName: 'More A.D',
+      batch: '12th pcm tarabai park',
       classCode: '12-A',
       room: 'Room 201'
     });
@@ -928,8 +961,8 @@ export default function ActivityTimetableManagement() {
       timeSlot: slot.time || '09:00 AM – 10:00 AM',
       branch: slot.branch || 'Tarabai Park',
       subject: slot.subject || 'Physics',
-      teacherName: slot.teacher_name || defaultFacultyBySubject[slot.subject] || 'Dr. Priya Kulkarni',
-      batch: slot.batch || '12th Science Tarabai Park (Batch A)',
+      teacherName: slot.teacher_name || defaultFacultyBySubject[slot.subject] || 'More A.D',
+      batch: slot.batch || '12th pcm tarabai park',
       classCode: slot.class_code || '12-A',
       room: slot.room || 'Room 201'
     });
@@ -940,7 +973,7 @@ export default function ActivityTimetableManagement() {
     e.preventDefault();
     setLoading(true);
     try {
-      const teacher = timetableForm.teacherName || defaultFacultyBySubject[timetableForm.subject] || 'Dr. Priya Kulkarni';
+      const teacher = timetableForm.teacherName || defaultFacultyBySubject[timetableForm.subject] || 'More A.D';
       const slotPayload = {
         day: timetableForm.day,
         time: timetableForm.timeSlot.replace(/[-–—]/g, '–').replace(/\\s+/g, ' ').trim(),
@@ -1397,13 +1430,7 @@ export default function ActivityTimetableManagement() {
               <span className="text-sa-muted small fw-semibold" style={{ fontSize: '12px' }}>
                 Filter Faculty:
               </span>
-              {[
-                { id: 'All', label: 'All Faculty Activities', badge: 'All', color: '#8B1216' },
-                { id: 'Dr. Priya Kulkarni', label: 'Dr. Priya Kulkarni', badge: 'Physics', color: '#1D4ED8' },
-                { id: 'Prof. Sunita Patil', label: 'Prof. Sunita Patil', badge: 'Chemistry', color: '#BE185D' },
-                { id: 'Prof. Rajesh Sharma', label: 'Prof. Rajesh Sharma', badge: 'Maths', color: '#15803D' },
-                { id: 'Prof. Amit Sawant', label: 'Prof. Amit Sawant', badge: 'Biology', color: '#7E22CE' }
-              ].map((f) => {
+              {dynamicFacultyList.map((f) => {
                 const active = dailyTeacherFilter === f.id;
                 return (
                   <button
@@ -1505,11 +1532,18 @@ export default function ActivityTimetableManagement() {
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12px', borderColor: '#CBD5E1' }}
               >
                 <option value="All">All Batches</option>
-                <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
-                <option value="12th Science Tarabai Park (Batch B)">12th Science Tarabai Park (Batch B)</option>
-                <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
-                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
+                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
               </select>
             </div>
 
@@ -2514,8 +2548,8 @@ export default function ActivityTimetableManagement() {
                     ...prev,
                     branch: br,
                     batch: br === 'Mangalwar Peth'
-                      ? '12th Science Mangalwar Peth (Batch A)'
-                      : '12th Science Tarabai Park (Batch A)'
+                      ? '12th pcm Mangalvar Peth'
+                      : '12th pcm tarabai park'
                   }));
                 }}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
@@ -2557,10 +2591,18 @@ export default function ActivityTimetableManagement() {
                 onChange={(e) => setDailyForm(prev => ({ ...prev, teacherName: e.target.value }))}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
               >
-                <option value="Dr. Priya Kulkarni">Dr. Priya Kulkarni (Physics)</option>
-                <option value="Prof. Sunita Patil">Prof. Sunita Patil (Chemistry)</option>
-                <option value="Prof. Rajesh Sharma">Prof. Rajesh Sharma (Mathematics)</option>
-                <option value="Prof. Amit Sawant">Prof. Amit Sawant (Biology)</option>
+                {teachers.length > 0 ? (
+                  teachers.map((t) => (
+                    <option key={t.id} value={t.name}>{t.name} ({t.subject || (t.subjects && t.subjects[0]) || 'General'})</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="veer 1">veer 1 (Mathematics)</option>
+                    <option value="More A.D">More A.D (Physics)</option>
+                    <option value="Shri">Shri (Biology)</option>
+                    <option value="Swami ">Swami  (Physics)</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -2572,11 +2614,18 @@ export default function ActivityTimetableManagement() {
                 onChange={(e) => setDailyForm(prev => ({ ...prev, batch: e.target.value }))}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
               >
-                <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
-                <option value="12th Science Tarabai Park (Batch B)">12th Science Tarabai Park (Batch B)</option>
-                <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
-                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
+                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
               </select>
             </div>
           </div>
@@ -2920,10 +2969,10 @@ export default function ActivityTimetableManagement() {
                   ))
                 ) : (
                   <>
-                    <option value="Dr. Priya Kulkarni">Dr. Priya Kulkarni (Physics)</option>
-                    <option value="Prof. Sunita Patil">Prof. Sunita Patil (Chemistry)</option>
-                    <option value="Prof. Rajesh Sharma">Prof. Rajesh Sharma (Mathematics)</option>
-                    <option value="Prof. Amit Sawant">Prof. Amit Sawant (Biology)</option>
+                    <option value="More A.D">More A.D (Physics)</option>
+                    <option value="veer 1">veer 1 (Mathematics)</option>
+                    <option value="Shri">Shri (Biology)</option>
+                    <option value="Swami ">Swami  (Physics)</option>
                   </>
                 )}
               </select>
@@ -2939,8 +2988,8 @@ export default function ActivityTimetableManagement() {
                 onChange={(e) => {
                   const b = e.target.value;
                   const defaultBatch = b === 'Mangalwar Peth'
-                    ? '12th Science Mangalwar Peth (Batch A)'
-                    : '12th Science Tarabai Park (Batch A)';
+                    ? '12th pcm Mangalvar Peth'
+                    : '12th pcm tarabai park';
                   setTimetableForm(prev => ({ ...prev, branch: b, batch: defaultBatch }));
                 }}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
@@ -2958,7 +3007,7 @@ export default function ActivityTimetableManagement() {
                 value={timetableForm.batch}
                 onChange={(e) => {
                   const val = e.target.value;
-                  const code = val.includes('12') ? (val.includes('Batch B') ? '12-B' : '12-A') : '11-A';
+                  const code = val.includes('12') ? '12-A' : '11-A';
                   setTimetableForm(prev => ({ ...prev, batch: val, classCode: code }));
                 }}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
@@ -2970,12 +3019,18 @@ export default function ActivityTimetableManagement() {
                   ))
                 ) : (
                   <>
-                    <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
-                    <option value="12th Science Tarabai Park (Batch B)">12th Science Tarabai Park (Batch B)</option>
-                    <option value="11th Science PCM (Batch A)">11th Science PCM (Batch A)</option>
-                    <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                    <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
-                    <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
+                    <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                    <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                    <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                    <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                    <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                    <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                    <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                    <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                    <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                    <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                    <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                    <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
                   </>
                 )}
               </select>

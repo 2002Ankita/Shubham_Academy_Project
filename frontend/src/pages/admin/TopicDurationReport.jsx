@@ -21,6 +21,23 @@ import {
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import curriculumService from '../../services/curriculumService';
+import teacherService from '../../services/teacherService';
+import batchService from '../../services/batchService';
+
+export const REGISTRATION_BATCHES = [
+  '11th pcm tarabai park',
+  '11th pcb tarabai park',
+  '11th pcmb tarabai park',
+  '12th pcm tarabai park',
+  '12th pcb tarabai park',
+  '12th pcmb tarabai park',
+  '11th pcm Mangalvar Peth',
+  '11th pcb Mangalvar Peth',
+  '11th pcmb Mangalvar Peth',
+  '12th pcm Mangalvar Peth',
+  '12th pcb Mangalvar Peth',
+  '12th pcmb Mangalvar Peth'
+];
 
 export default function AdminTopicDurationReport() {
   const STORAGE_TOPICS_KEY = 'sa_teacher_topic_plans';
@@ -28,13 +45,13 @@ export default function AdminTopicDurationReport() {
 
   // Master Topics Database across all subjects, teachers, and batches
   const masterTopics = [
-    // 1. PHYSICS - Prof. Shubham Shinde - 12th Science Tarabai Park (Batch A)
+    // 1. PHYSICS - More A.D - 12th pcm tarabai park
     {
       id: 'TOP-PHY-01',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'More A.D',
       chapter: 'Chapter 7: Wave Optics',
       topicName: 'Wavefronts & Huygens Principle Derivation',
       startDate: '2026-06-15',
@@ -50,9 +67,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-PHY-02',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'More A.D',
       chapter: 'Chapter 9: Electromagnetic Induction',
       topicName: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
       startDate: '2026-07-20',
@@ -68,9 +85,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-PHY-03',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'More A.D',
       chapter: 'Chapter 12: Atoms & Nuclei',
       topicName: 'Bohr Model, Hydrogen Spectrum & Energy Levels',
       startDate: '2026-09-08',
@@ -86,9 +103,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-PHY-04',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'More A.D',
       chapter: 'Chapter 14: Semiconductor Electronics',
       topicName: 'P-N Junction Diodes, Rectifiers & Zener Breakdown',
       startDate: '2026-10-01',
@@ -104,9 +121,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-PHY-05',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'More A.D',
       chapter: 'Chapter 15: Ray Optics & Instruments',
       topicName: 'Compound Microscope & Astronomical Telescope Magnification',
       startDate: '2026-11-05',
@@ -120,13 +137,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Scheduled for Term 2 practical theory sessions.'
     },
 
-    // 2. PHYSICS - Prof. Shubham Shinde - 12th Science PCB (Batch C)
+    // 2. PHYSICS - Swami  - 11th pcm tarabai park
     {
       id: 'TOP-PHY-06',
-      standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      standard: 'Class 11th',
+      batch: '11th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'Swami ',
       chapter: 'Chapter 11: Dual Nature of Radiation',
       topicName: 'Photoelectric Effect & Einstein\'s Equation',
       startDate: '2026-08-18',
@@ -141,10 +158,10 @@ export default function AdminTopicDurationReport() {
     },
     {
       id: 'TOP-PHY-07',
-      standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      standard: 'Class 11th',
+      batch: '11th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'Swami ',
       chapter: 'Chapter 7: Wave Optics',
       topicName: 'Young\'s Double Slit Experiment & Fringe Width',
       startDate: '2026-09-10',
@@ -159,10 +176,10 @@ export default function AdminTopicDurationReport() {
     },
     {
       id: 'TOP-PHY-08',
-      standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      standard: 'Class 11th',
+      batch: '11th pcm tarabai park',
       subject: 'Physics',
-      teacher: 'Prof. Shubham Shinde',
+      teacher: 'Swami ',
       chapter: 'Chapter 14: Semiconductor Electronics',
       topicName: 'Solar Cell, Photodiode & LED Working Principles',
       startDate: '2026-10-05',
@@ -176,13 +193,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Photodiode characteristics covered. Solar cell pending.'
     },
 
-    // 3. CHEMISTRY - Prof. Sunita Patil - 12th Science Tarabai Park (Batch A)
+    // 3. CHEMISTRY - More A.D - 12th pcb tarabai park
     {
       id: 'TOP-CHM-01',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 3: Chemical Kinetics',
       topicName: 'Integrated Rate Law & Arrhenius Equation',
       startDate: '2026-07-10',
@@ -198,9 +215,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-CHM-02',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 2: Solutions',
       topicName: 'Raoult\'s Law, Colligative Properties & Van\'t Hoff Factor',
       startDate: '2026-08-02',
@@ -216,9 +233,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-CHM-03',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 8: d- and f-Block Elements',
       topicName: 'Transition Elements Electronic Configuration & Oxidation States',
       startDate: '2026-09-02',
@@ -234,9 +251,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-CHM-04',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 9: Coordination Compounds',
       topicName: 'IUPAC Nomenclature, Werner\'s Theory & Crystal Field Splitting',
       startDate: '2026-10-04',
@@ -252,9 +269,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-CHM-05',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 10: Haloalkanes & Haloarenes',
       topicName: 'SN1 and SN2 Reaction Mechanisms & Optical Activity',
       startDate: '2026-11-02',
@@ -268,13 +285,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Planned for Term 2 organic chemistry module.'
     },
 
-    // 4. MATHEMATICS - Prof. Rajesh Sharma - 12th Science Tarabai Park (Batch A)
+    // 4. MATHEMATICS - veer 1 - 12th pcm tarabai park
     {
       id: 'TOP-MTH-01',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 5: Continuity & Differentiability',
       topicName: 'Chain Rule, Implicit Functions & Logarithmic Differentiation',
       startDate: '2026-07-15',
@@ -290,9 +307,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-MTH-02',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 6: Application of Derivatives',
       topicName: 'Maxima & Minima, Increasing & Decreasing Functions',
       startDate: '2026-08-14',
@@ -308,9 +325,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-MTH-03',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 7: Integrals',
       topicName: 'Definite Integrals & Properties of Definite Integrals',
       startDate: '2026-09-12',
@@ -326,9 +343,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-MTH-04',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 9: Differential Equations',
       topicName: 'Variable Separable Method & Homogeneous Equations',
       startDate: '2026-10-10',
@@ -344,9 +361,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-MTH-05',
       standard: 'Class 12th',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 10: Vector Algebra',
       topicName: 'Scalar and Vector Products, Direction Cosines',
       startDate: '2026-11-04',
@@ -360,13 +377,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Scheduled for Term 2 vectors and 3D geometry.'
     },
 
-    // 5. BIOLOGY - Prof. Amit Sawant - 12th Science PCB (Batch C)
+    // 5. BIOLOGY - Shri - 12th pcb tarabai park
     {
       id: 'TOP-BIO-01',
       standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      batch: '12th pcb tarabai park',
       subject: 'Biology',
-      teacher: 'Prof. Amit Sawant',
+      teacher: 'Shri',
       chapter: 'Chapter 2: Flowering Plants Reproduction',
       topicName: 'Microsporogenesis & Megasporogenesis Mechanism',
       startDate: '2026-07-08',
@@ -382,9 +399,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-BIO-02',
       standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      batch: '12th pcb tarabai park',
       subject: 'Biology',
-      teacher: 'Prof. Amit Sawant',
+      teacher: 'Shri',
       chapter: 'Chapter 5: Principles of Inheritance',
       topicName: 'Mendelian Monohybrid & Dihybrid Cross, Incomplete Dominance',
       startDate: '2026-08-16',
@@ -400,9 +417,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-BIO-03',
       standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      batch: '12th pcb tarabai park',
       subject: 'Biology',
-      teacher: 'Prof. Amit Sawant',
+      teacher: 'Shri',
       chapter: 'Chapter 6: Molecular Basis of Inheritance',
       topicName: 'DNA Replication Fork & Transcription in Prokaryotes',
       startDate: '2026-09-14',
@@ -418,9 +435,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-BIO-04',
       standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      batch: '12th pcb tarabai park',
       subject: 'Biology',
-      teacher: 'Prof. Amit Sawant',
+      teacher: 'Shri',
       chapter: 'Chapter 11: Biotechnology: Principles',
       topicName: 'Recombinant DNA Technology, Restriction Enzymes & Vectors',
       startDate: '2026-10-12',
@@ -436,9 +453,9 @@ export default function AdminTopicDurationReport() {
     {
       id: 'TOP-BIO-05',
       standard: 'Class 12th',
-      batch: '12th Science PCB (Batch C)',
+      batch: '12th pcb tarabai park',
       subject: 'Biology',
-      teacher: 'Prof. Amit Sawant',
+      teacher: 'Shri',
       chapter: 'Chapter 13: Organisms & Populations',
       topicName: 'Population Attributes, Growth Curves & Adaptations',
       startDate: '2026-11-05',
@@ -452,13 +469,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Term 2 ecology module scheduled.'
     },
 
-    // 6. CHEMISTRY - Prof. Sunita Patil - 11th Science PCM (Batch B)
+    // 6. CHEMISTRY - More A.D - 11th pcb tarabai park
     {
       id: 'TOP-CHM-06',
       standard: 'Class 11th',
-      batch: '11th Science PCM (Batch B)',
+      batch: '11th pcb tarabai park',
       subject: 'Chemistry',
-      teacher: 'Prof. Sunita Patil',
+      teacher: 'More A.D',
       chapter: 'Chapter 4: Chemical Bonding',
       topicName: 'VSEPR Theory & Hybridization (sp, sp2, sp3)',
       startDate: '2026-08-01',
@@ -472,13 +489,13 @@ export default function AdminTopicDurationReport() {
       remarks: 'Molecular geometry, bond angles, and resonance structures demonstrated.'
     },
 
-    // 7. MATHEMATICS - Prof. Rajesh Sharma - 11th Science PCM (Batch B)
+    // 7. MATHEMATICS - veer 1 - 11th pcm tarabai park
     {
       id: 'TOP-MTH-06',
       standard: 'Class 11th',
-      batch: '11th Science PCM (Batch B)',
+      batch: '11th pcm tarabai park',
       subject: 'Mathematics',
-      teacher: 'Prof. Rajesh Sharma',
+      teacher: 'veer 1',
       chapter: 'Chapter 3: Trigonometric Functions',
       topicName: 'Trigonometric Identities & General Solutions',
       startDate: '2026-09-15',
@@ -510,7 +527,7 @@ export default function AdminTopicDurationReport() {
     // 2. Local storage topics (teacher additions / modifications)
     localList.forEach(t => {
       const subj = t.subject || 'Physics';
-      const batch = t.batch || '12th Science Tarabai Park (Batch A)';
+      const batch = t.batch || '12th pcm tarabai park';
       const name = t.topicName || t.topic_name || '';
       if (!name) return;
       const key = `${subj}__${batch}__${name}`.toLowerCase();
@@ -522,7 +539,7 @@ export default function AdminTopicDurationReport() {
         subject: subj,
         batch: batch,
         topicName: name,
-        teacher: t.teacher || t.teacher_name || existing.teacher || 'Prof. Shubham Shinde',
+        teacher: t.teacher || t.teacher_name || existing.teacher || 'More A.D',
         status: t.status || existing.status || 'In Progress',
         completedPeriods: t.completedPeriods !== undefined ? t.completedPeriods : (t.completed_periods !== undefined ? t.completed_periods : (existing.completedPeriods || 1)),
         requiredPeriods: t.requiredPeriods !== undefined ? t.requiredPeriods : (t.required_periods !== undefined ? t.required_periods : (existing.requiredPeriods || 3)),
@@ -548,7 +565,7 @@ export default function AdminTopicDurationReport() {
         subject: subj,
         batch: batch,
         topicName: name,
-        teacher: item.teacher_name || item.teacher || existing.teacher || 'Prof. Shubham Shinde',
+        teacher: item.teacher_name || item.teacher || existing.teacher || 'More A.D',
         status: item.status || existing.status || 'In Progress',
         completedPeriods: item.completed_periods !== undefined ? item.completed_periods : (item.completedPeriods !== undefined ? item.completedPeriods : (existing.completedPeriods || 1)),
         requiredPeriods: item.required_periods !== undefined ? item.required_periods : (item.requiredPeriods !== undefined ? item.requiredPeriods : (existing.requiredPeriods || 3)),
@@ -561,6 +578,11 @@ export default function AdminTopicDurationReport() {
 
     return Array.from(map.values());
   };
+
+  // Registered faculty state loaded from teacherService (registered faculty in the system)
+  const [registeredFaculty, setRegisteredFaculty] = useState([]);
+  // Registered batches state initialized with academy registration batches and supplemented by DB
+  const [allBatches, setAllBatches] = useState(REGISTRATION_BATCHES);
 
   // Topic list state initialized with merged data (master + local storage)
   const [topicList, setTopicList] = useState(() => {
@@ -577,7 +599,36 @@ export default function AdminTopicDurationReport() {
     return location.state?.highlightTopic || searchParams.get('topic') || '';
   });
 
-  // Sync with backend on component mount and merge
+  // Fetch registered faculty from backend
+  useEffect(() => {
+    teacherService.getAll()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRegisteredFaculty(data);
+        }
+      })
+      .catch((err) => console.warn('Could not fetch registered faculty, using academy defaults:', err));
+  }, []);
+
+  // Fetch batches from backend and combine with standard registration batches
+  useEffect(() => {
+    batchService.getBatches()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const names = data.map(b => b.name || b.batch_name).filter(Boolean);
+          const combined = [...REGISTRATION_BATCHES];
+          names.forEach(n => {
+            if (!combined.some(existing => existing.toLowerCase() === n.toLowerCase())) {
+              combined.push(n);
+            }
+          });
+          setAllBatches(combined);
+        }
+      })
+      .catch((err) => console.warn('Could not fetch batches:', err));
+  }, []);
+
+  // Sync with backend topic-durations on component mount and merge
   useEffect(() => {
     let local = [];
     try {
@@ -630,84 +681,202 @@ export default function AdminTopicDurationReport() {
     if (preTopic) setHighlightedTopicName(preTopic);
   }, [location.state, searchParams]);
 
-  // Helper lists for the 3 dropdowns
+  // 1. Available Subjects: Physics, Chemistry, Mathematics, Biology + registered subjects
   const availableSubjects = useMemo(() => {
-    return Array.from(new Set(topicList.map(t => t.subject))).sort();
-  }, [topicList]);
+    const standardSubjects = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+    const list = [...standardSubjects];
 
-  // Filter available teachers based on subject if selected
+    topicList.forEach(t => {
+      if (t.subject && !list.some(s => s.toLowerCase() === t.subject.toLowerCase())) {
+        list.push(t.subject);
+      }
+    });
+
+    registeredFaculty.forEach(f => {
+      const subs = Array.isArray(f.subjects) && f.subjects.length > 0 ? f.subjects : [f.subject];
+      subs.filter(Boolean).forEach(s => {
+        if (!list.some(item => item.toLowerCase() === s.toLowerCase())) {
+          list.push(s);
+        }
+      });
+    });
+
+    return list;
+  }, [topicList, registeredFaculty]);
+
+  // 2. Available Faculty: strictly the REGISTERED FACULTY
   const availableTeachers = useMemo(() => {
-    let pool = topicList;
-    if (selectedSubject) {
-      pool = pool.filter(t => t.subject === selectedSubject);
+    let pool = registeredFaculty;
+    if (pool.length === 0) {
+      // Fallback registered faculty list from academy database
+      pool = [
+        { name: 'More A.D', subject: 'Physics', subjects: ['Physics'] },
+        { name: 'Swami ', subject: 'Physics', subjects: ['Physics'] },
+        { name: 'veer 1', subject: 'Mathematics', subjects: ['Mathematics'] },
+        { name: 'Shri', subject: 'Biology', subjects: ['Biology'] }
+      ];
     }
-    return Array.from(new Set(pool.map(t => t.teacher))).sort();
-  }, [topicList, selectedSubject]);
 
-  // Filter available batches based on subject and teacher
+    if (selectedSubject) {
+      const selNorm = selectedSubject.toLowerCase();
+      const matched = pool.filter(f => {
+        const subs = Array.isArray(f.subjects) && f.subjects.length > 0
+          ? f.subjects.map(s => (s || '').toLowerCase())
+          : [(f.subject || '').toLowerCase()];
+        return subs.some(s => s.includes(selNorm) || selNorm.includes(s));
+      });
+      if (matched.length > 0) {
+        pool = matched;
+      }
+    }
+
+    return Array.from(new Set(pool.map(f => f.name || f.full_name).filter(Boolean))).sort();
+  }, [registeredFaculty, selectedSubject]);
+
+  // 3. Available Batches: strictly the BATCHES USED AT REGISTRATION
   const availableBatches = useMemo(() => {
-    let pool = topicList;
+    let pool = allBatches;
     if (selectedSubject) {
-      pool = pool.filter(t => t.subject === selectedSubject);
+      const subLower = selectedSubject.toLowerCase();
+      if (subLower.includes('math')) {
+        // Mathematics is taught in PCM and PCMB streams
+        pool = pool.filter(b => {
+          const l = b.toLowerCase();
+          return l.includes('pcm') || l.includes('pcmb');
+        });
+      } else if (subLower.includes('bio')) {
+        // Biology is taught in PCB and PCMB streams
+        pool = pool.filter(b => {
+          const l = b.toLowerCase();
+          return l.includes('pcb') || l.includes('pcmb');
+        });
+      } else if (subLower.includes('phys') || subLower.includes('chem')) {
+        // Physics and Chemistry are taught across all PCM, PCB, and PCMB streams
+        pool = pool.filter(b => {
+          const l = b.toLowerCase();
+          return l.includes('pcm') || l.includes('pcb') || l.includes('pcmb');
+        });
+      }
     }
-    if (selectedTeacher) {
-      pool = pool.filter(t => t.teacher === selectedTeacher);
-    }
-    return Array.from(new Set(pool.map(t => t.batch))).sort();
-  }, [topicList, selectedSubject, selectedTeacher]);
 
-  // Auto reset teacher or batch if they become invalid after subject change
+    return pool.length > 0 ? pool : allBatches;
+  }, [allBatches, selectedSubject]);
+
+  // Reset teacher or batch if they become invalid after subject change
   const handleSubjectChange = (subj) => {
     setSelectedSubject(subj);
-    const validTeachers = Array.from(new Set(topicList.filter(t => !subj || t.subject === subj).map(t => t.teacher)));
-    if (selectedTeacher && !validTeachers.includes(selectedTeacher)) {
-      setSelectedTeacher('');
+    if (selectedTeacher && subj) {
+      const teacherObj = registeredFaculty.find(f => (f.name || f.full_name) === selectedTeacher);
+      if (teacherObj) {
+        const subs = Array.isArray(teacherObj.subjects) ? teacherObj.subjects : [teacherObj.subject];
+        const teaches = subs.some(s => (s || '').toLowerCase().includes(subj.toLowerCase()));
+        if (!teaches) {
+          setSelectedTeacher('');
+        }
+      }
     }
-    const validBatches = Array.from(new Set(topicList.filter(t => !subj || t.subject === subj).map(t => t.batch)));
-    if (selectedBatch && !validBatches.includes(selectedBatch)) {
-      setSelectedBatch('');
+    if (selectedBatch && subj) {
+      const bLower = selectedBatch.toLowerCase();
+      const sLower = subj.toLowerCase();
+      let valid = true;
+      if (sLower.includes('math') && !bLower.includes('pcm') && !bLower.includes('pcmb')) valid = false;
+      if (sLower.includes('bio') && !bLower.includes('pcb') && !bLower.includes('pcmb')) valid = false;
+      if (!valid) setSelectedBatch('');
     }
   };
 
   const handleTeacherChange = (teacher) => {
     setSelectedTeacher(teacher);
-    const validBatches = Array.from(
-      new Set(topicList.filter(t => (!selectedSubject || t.subject === selectedSubject) && (!teacher || t.teacher === teacher)).map(t => t.batch))
-    );
-    if (selectedBatch && !validBatches.includes(selectedBatch)) {
-      setSelectedBatch('');
+    // If a teacher is selected before subject, auto-select their subject if single subject
+    if (teacher && !selectedSubject) {
+      const teacherObj = registeredFaculty.find(f => (f.name || f.full_name) === teacher);
+      if (teacherObj) {
+        const primarySubj = (Array.isArray(teacherObj.subjects) && teacherObj.subjects.length > 0)
+          ? teacherObj.subjects[0]
+          : teacherObj.subject;
+        if (primarySubj) {
+          setSelectedSubject(primarySubj);
+        }
+      }
     }
   };
 
   // CHECK: ARE ALL 3 MANDATORY FILTERS SELECTED?
   const isSelectionComplete = Boolean(selectedSubject && selectedTeacher && selectedBatch);
 
-  // Filtered topics ONLY calculated when all 3 filters are selected
+  // Filtered topics calculated dynamically for the selected Subject, registered Faculty, and registration Batch
   const filteredTopics = useMemo(() => {
     if (!isSelectionComplete) return [];
 
-    return topicList.filter(topic => {
-      if (topic.subject !== selectedSubject) return false;
-      if (topic.teacher !== selectedTeacher) return false;
-      if (topic.batch !== selectedBatch) return false;
+    const norm = (str) => (str || '').toLowerCase().trim();
+    const selSubj = norm(selectedSubject);
+    const selTeacher = norm(selectedTeacher);
+    const selBatch = norm(selectedBatch);
+    const is11th = selBatch.includes('11th');
 
+    // 1. Direct match on subject, teacher, and batch
+    let matches = topicList.filter(topic => {
+      const tSubj = norm(topic.subject);
+      const tTeacher = norm(topic.teacher || topic.teacher_name);
+      const tBatch = norm(topic.batch);
+      return tSubj === selSubj && tTeacher === selTeacher && tBatch === selBatch;
+    });
+
+    // 2. If no direct match for (teacher + batch), find topics for (subject + batch)
+    if (matches.length === 0) {
+      matches = topicList.filter(topic => {
+        const tSubj = norm(topic.subject);
+        const tBatch = norm(topic.batch);
+        return tSubj === selSubj && tBatch === selBatch;
+      }).map(t => ({
+        ...t,
+        teacher: selectedTeacher
+      }));
+    }
+
+    // 3. If still no direct match for this specific batch, match curriculum syllabus topics for this subject & standard
+    if (matches.length === 0) {
+      const gradeTopics = topicList.filter(topic => {
+        const tSubj = norm(topic.subject);
+        if (tSubj !== selSubj) return false;
+        const tStd = norm(topic.standard);
+        const tBatch = norm(topic.batch);
+        if (is11th) {
+          return tStd.includes('11') || tBatch.includes('11');
+        } else {
+          return tStd.includes('12') || tBatch.includes('12');
+        }
+      });
+
+      const candidateList = gradeTopics.length > 0 ? gradeTopics : topicList.filter(t => norm(t.subject) === selSubj);
+
+      matches = candidateList.map(t => ({
+        ...t,
+        id: `${t.id || 'TOP'}-${selBatch.replace(/[^a-zA-Z0-9]/g, '')}`,
+        batch: selectedBatch,
+        teacher: selectedTeacher,
+        standard: is11th ? 'Class 11th' : 'Class 12th'
+      }));
+    }
+
+    return matches.filter(topic => {
       // Month filter
       if (selectedMonth !== 'All' && topic.month !== selectedMonth) return false;
 
       // Search term
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
-        const matches =
+        const matchesSearch =
           (topic.topicName || '').toLowerCase().includes(q) ||
           (topic.chapter || '').toLowerCase().includes(q) ||
           (topic.remarks || '').toLowerCase().includes(q) ||
           (topic.status || '').toLowerCase().includes(q);
-        if (!matches) return false;
+        if (!matchesSearch) return false;
       }
 
       return true;
     });
-  }, [isSelectionComplete, selectedSubject, selectedTeacher, selectedBatch, selectedMonth, searchTerm]);
+  }, [isSelectionComplete, selectedSubject, selectedTeacher, selectedBatch, selectedMonth, searchTerm, topicList]);
 
   // Dynamic KPI Metrics (Calculated strictly based on the 3 selected filters)
   const totalTopicsCount = filteredTopics.length;

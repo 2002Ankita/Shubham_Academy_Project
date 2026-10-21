@@ -150,7 +150,17 @@ async def get_topic_duration_matrix(
 
     topics = await TopicDuration.find(query).sort("start_date").to_list()
 
-    # Fallback seeding if empty
+    # Fallback to subject topics for the grade level (11th / 12th)
+    if not topics:
+        std = "11" if "11" in batch else "12"
+        fallback_query = {
+            "subject": {"$regex": f"^{re.escape(subject)}$", "$options": "i"}
+        }
+        all_subj_topics = await TopicDuration.find(fallback_query).sort("start_date").to_list()
+        grade_topics = [t for t in all_subj_topics if (std in getattr(t, "standard", "") or std in getattr(t, "batch", ""))]
+        topics = grade_topics if grade_topics else all_subj_topics
+
+    # Fallback seeding if still empty
     if not topics:
         await seed_curriculum_database()
         topics = await TopicDuration.find(query).sort("start_date").to_list()
@@ -389,13 +399,13 @@ async def seed_curriculum_database():
         return existing_count
 
     initial_topics = [
-        # 1. Physics - Prof. Shubham Shinde - 12th Science Tarabai Park (Batch A)
+        # 1. Physics - More A.D - 12th pcm tarabai park
         {
             "topic_id": "TOP-PHY-01",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Physics",
-            "teacher_name": "Prof. Shubham Shinde",
+            "teacher_name": "More A.D",
             "chapter": "Chapter 7: Wave Optics",
             "topic_name": "Wavefronts & Huygens Principle Derivation",
             "start_date": "2026-06-15",
@@ -411,9 +421,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-PHY-02",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Physics",
-            "teacher_name": "Prof. Shubham Shinde",
+            "teacher_name": "More A.D",
             "chapter": "Chapter 9: Electromagnetic Induction",
             "topic_name": "Lenz's Law, Self-Inductance & Mutual Inductance",
             "start_date": "2026-07-20",
@@ -429,9 +439,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-PHY-03",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Physics",
-            "teacher_name": "Prof. Shubham Shinde",
+            "teacher_name": "More A.D",
             "chapter": "Chapter 12: Atoms & Nuclei",
             "topic_name": "Bohr Model, Hydrogen Spectrum & Energy Levels",
             "start_date": "2026-09-08",
@@ -447,9 +457,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-PHY-04",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Physics",
-            "teacher_name": "Prof. Shubham Shinde",
+            "teacher_name": "More A.D",
             "chapter": "Chapter 14: Semiconductor Electronics",
             "topic_name": "P-N Junction Diodes, Rectifiers & Zener Breakdown",
             "start_date": "2026-10-01",
@@ -465,9 +475,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-PHY-05",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Physics",
-            "teacher_name": "Prof. Shubham Shinde",
+            "teacher_name": "More A.D",
             "chapter": "Chapter 15: Ray Optics & Instruments",
             "topic_name": "Compound Microscope & Astronomical Telescope Magnification",
             "start_date": "2026-11-05",
@@ -481,13 +491,13 @@ async def seed_curriculum_database():
             "remarks": "Scheduled for Term 2 practical theory sessions."
         },
 
-        # 2. Chemistry - Prof. Sunita Patil - 12th Science Tarabai Park (Batch A)
+        # 2. Chemistry - Dr. Priya Kulkarni - 12th pcb tarabai park
         {
             "topic_id": "TOP-CHM-01",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcb tarabai park",
             "subject": "Chemistry",
-            "teacher_name": "Prof. Sunita Patil",
+            "teacher_name": "Dr. Priya Kulkarni",
             "chapter": "Chapter 3: Chemical Kinetics",
             "topic_name": "Integrated Rate Law & Arrhenius Equation",
             "start_date": "2026-07-10",
@@ -503,9 +513,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-CHM-02",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcb tarabai park",
             "subject": "Chemistry",
-            "teacher_name": "Prof. Sunita Patil",
+            "teacher_name": "Dr. Priya Kulkarni",
             "chapter": "Chapter 2: Solutions",
             "topic_name": "Raoult's Law, Colligative Properties & Van't Hoff Factor",
             "start_date": "2026-08-02",
@@ -521,9 +531,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-CHM-03",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcb tarabai park",
             "subject": "Chemistry",
-            "teacher_name": "Prof. Sunita Patil",
+            "teacher_name": "Dr. Priya Kulkarni",
             "chapter": "Chapter 8: d- and f-Block Elements",
             "topic_name": "Transition Elements Electronic Configuration & Oxidation States",
             "start_date": "2026-09-02",
@@ -539,9 +549,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-CHM-04",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcb tarabai park",
             "subject": "Chemistry",
-            "teacher_name": "Prof. Sunita Patil",
+            "teacher_name": "Dr. Priya Kulkarni",
             "chapter": "Chapter 9: Coordination Compounds",
             "topic_name": "IUPAC Nomenclature, Werner's Theory & Crystal Field Splitting",
             "start_date": "2026-10-04",
@@ -555,13 +565,13 @@ async def seed_curriculum_database():
             "remarks": "Octahedral and tetrahedral CFT splitting diagrams introduced."
         },
 
-        # 3. Mathematics - Prof. Rajesh Sharma - 12th Science Tarabai Park (Batch A)
+        # 3. Mathematics - veer 1 - 12th pcm tarabai park
         {
             "topic_id": "TOP-MTH-01",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Mathematics",
-            "teacher_name": "Prof. Rajesh Sharma",
+            "teacher_name": "veer 1",
             "chapter": "Chapter 5: Continuity & Differentiability",
             "topic_name": "Chain Rule, Implicit Functions & Logarithmic Differentiation",
             "start_date": "2026-07-15",
@@ -577,9 +587,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-MTH-02",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Mathematics",
-            "teacher_name": "Prof. Rajesh Sharma",
+            "teacher_name": "veer 1",
             "chapter": "Chapter 7: Integrals",
             "topic_name": "Definite Integrals & Properties of Definite Integrals",
             "start_date": "2026-09-12",
@@ -595,9 +605,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-MTH-03",
             "standard": "Class 12th",
-            "batch": "12th Science Tarabai Park (Batch A)",
+            "batch": "12th pcm tarabai park",
             "subject": "Mathematics",
-            "teacher_name": "Prof. Rajesh Sharma",
+            "teacher_name": "veer 1",
             "chapter": "Chapter 9: Differential Equations",
             "topic_name": "Variable Separable Method & Homogeneous Equations",
             "start_date": "2026-10-10",
@@ -611,13 +621,13 @@ async def seed_curriculum_database():
             "remarks": "Linear differential equations integrating factor session in progress."
         },
 
-        # 4. Biology - Prof. Amit Sawant - 12th Science PCB (Batch C)
+        # 4. Biology - Shri - 12th pcb tarabai park
         {
             "topic_id": "TOP-BIO-01",
             "standard": "Class 12th",
-            "batch": "12th Science PCB (Batch C)",
+            "batch": "12th pcb tarabai park",
             "subject": "Biology",
-            "teacher_name": "Prof. Amit Sawant",
+            "teacher_name": "Shri",
             "chapter": "Chapter 2: Flowering Plants Reproduction",
             "topic_name": "Microsporogenesis & Megasporogenesis Mechanism",
             "start_date": "2026-07-08",
@@ -633,9 +643,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-BIO-02",
             "standard": "Class 12th",
-            "batch": "12th Science PCB (Batch C)",
+            "batch": "12th pcb tarabai park",
             "subject": "Biology",
-            "teacher_name": "Prof. Amit Sawant",
+            "teacher_name": "Shri",
             "chapter": "Chapter 5: Principles of Inheritance",
             "topic_name": "Mendelian Monohybrid & Dihybrid Cross, Incomplete Dominance",
             "start_date": "2026-08-16",
@@ -651,9 +661,9 @@ async def seed_curriculum_database():
         {
             "topic_id": "TOP-BIO-03",
             "standard": "Class 12th",
-            "batch": "12th Science PCB (Batch C)",
+            "batch": "12th pcb tarabai park",
             "subject": "Biology",
-            "teacher_name": "Prof. Amit Sawant",
+            "teacher_name": "Shri",
             "chapter": "Chapter 6: Molecular Basis of Inheritance",
             "topic_name": "DNA Replication Fork & Transcription in Prokaryotes",
             "start_date": "2026-09-14",

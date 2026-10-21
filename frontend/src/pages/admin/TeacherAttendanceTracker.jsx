@@ -102,16 +102,36 @@ export default function TeacherAttendanceTracker() {
   const handleOpenCreateModal = () => {
     setModalMode('create');
     setEditingRecordId(null);
+    const now = new Date();
+    const curHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     setFormData({
       teacher_id: teachersList[0]?.id || '',
       date: selectedDate,
-      status: 'Present',
-      check_in_time: '09:00',
-      check_out_time: '17:00',
-      remarks: 'Manual attendance entry'
+      status: 'Working',
+      check_in_time: curHM,
+      check_out_time: '',
+      remarks: 'Campus Duty & Lectures'
     });
     setIsModalOpen(true);
   };
+
+  // Real-time automatic working duration calculation for modal
+  const modalCalculatedDuration = useMemo(() => {
+    if (!formData.check_in_time) return null;
+    if (formData.check_out_time) {
+      const [inH, inM] = formData.check_in_time.split(':').map(Number);
+      const [outH, outM] = formData.check_out_time.split(':').map(Number);
+      let diff = (outH * 60 + outM) - (inH * 60 + inM);
+      if (diff < 0) diff += 24 * 60;
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return `${h}h ${m}m`;
+    }
+    if (formData.status === 'Working') {
+      return 'Active / In Progress';
+    }
+    return null;
+  }, [formData.check_in_time, formData.check_out_time, formData.status]);
 
   // Open Modal to edit existing record
   const handleOpenEditModal = (rec) => {
@@ -120,7 +140,11 @@ export default function TeacherAttendanceTracker() {
 
     const getHM = (isoStr) => {
       if (!isoStr) return '';
-      const d = new Date(isoStr);
+      const s = typeof isoStr === 'string' && !isoStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(isoStr)
+        ? isoStr + 'Z'
+        : isoStr;
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return '';
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
@@ -150,17 +174,37 @@ export default function TeacherAttendanceTracker() {
       let checkOutIso = null;
 
       if (formData.check_in_time) {
-        checkInIso = new Date(`${baseDate}T${formData.check_in_time}:00`).toISOString();
+        const timePart = formData.check_in_time.length === 5 
+          ? `${formData.check_in_time}:00` 
+          : formData.check_in_time;
+        const d = new Date(`${baseDate}T${timePart}`);
+        if (!isNaN(d.getTime())) {
+          checkInIso = d.toISOString();
+        }
       }
+
       if (formData.check_out_time) {
-        checkOutIso = new Date(`${baseDate}T${formData.check_out_time}:00`).toISOString();
+        const timePart = formData.check_out_time.length === 5 
+          ? `${formData.check_out_time}:00` 
+          : formData.check_out_time;
+        const d = new Date(`${baseDate}T${timePart}`);
+        if (!isNaN(d.getTime())) {
+          checkOutIso = d.toISOString();
+        }
+      }
+
+      let finalStatus = formData.status;
+      if (checkOutIso && finalStatus === 'Working') {
+        finalStatus = 'Present';
+      } else if (!checkOutIso && checkInIso && finalStatus === 'Present') {
+        finalStatus = 'Working';
       }
 
       if (modalMode === 'create') {
         await attendanceService.markTeacherManual({
           teacher_id: formData.teacher_id,
           date: new Date(baseDate).toISOString(),
-          status: formData.status,
+          status: finalStatus,
           check_in_time: checkInIso,
           check_out_time: checkOutIso,
           remarks: formData.remarks
@@ -168,7 +212,9 @@ export default function TeacherAttendanceTracker() {
         toast.success('Teacher attendance logged successfully!');
       } else {
         await attendanceService.updateAttendance(editingRecordId, {
-          status: formData.status,
+          teacher_id: formData.teacher_id,
+          date: new Date(baseDate).toISOString(),
+          status: finalStatus,
           check_in_time: checkInIso,
           check_out_time: checkOutIso,
           remarks: formData.remarks
@@ -267,7 +313,10 @@ export default function TeacherAttendanceTracker() {
   const formatTime = (isoStr) => {
     if (!isoStr) return '--';
     try {
-      return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const s = typeof isoStr === 'string' && !isoStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(isoStr)
+        ? isoStr + 'Z'
+        : isoStr;
+      return new Date(s).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
       return '--';
     }
@@ -848,10 +897,33 @@ export default function TeacherAttendanceTracker() {
                 type="time"
                 className="form-control form-control-sm"
                 value={formData.check_out_time}
-                onChange={(e) => setFormData({ ...formData, check_out_time: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData({
+                    ...formData,
+                    check_out_time: val,
+                    status: val ? 'Present' : formData.status
+                  });
+                }}
               />
             </div>
           </div>
+
+          {/* Auto-Calculated Duration Preview */}
+          {modalCalculatedDuration && (
+            <div
+              className="p-2.5 rounded-2 d-flex align-items-center justify-content-between"
+              style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '12px' }}
+            >
+              <span className="text-sa-muted fw-medium d-inline-flex align-items-center gap-1.5">
+                <Clock size={14} className="text-primary" />
+                <span>Calculated Working Hours:</span>
+              </span>
+              <span className="fw-bold text-sa-charcoal px-2 py-0.5 rounded bg-white border" style={{ fontSize: '12.5px' }}>
+                {modalCalculatedDuration}
+              </span>
+            </div>
+          )}
 
           {/* Remarks */}
           <div>

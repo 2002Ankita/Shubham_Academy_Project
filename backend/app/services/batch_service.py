@@ -12,8 +12,8 @@ async def ensure_default_batches():
     """Seed initial batches and link student profiles if none exist."""
     count = await Batch.count()
     if count == 0:
-        teacher = await Teacher.find_one(Teacher.employee_id == "TCH-001")
-        teacher_name = "Dr. Priya Kulkarni"
+        teacher = await Teacher.find_one(Teacher.employee_id == "EMP-A1EBC7")
+        teacher_name = "More A.D"
         if teacher:
             if isinstance(teacher.user, User):
                 teacher_name = teacher.user.full_name
@@ -27,63 +27,63 @@ async def ensure_default_batches():
 
         default_batches = [
             Batch(
-                name="12th Science Tarabai Park (Batch A)",
+                name="12th pcm tarabai park",
                 standard="12th Science",
                 subject="Physics",
                 room="Room 201",
-                time="09:00 AM – 10:00 AM",
+                time="08:00 AM – 10:30 AM",
                 student_count=24,
                 teacher_name=teacher_name,
                 teacher=teacher,
-                batch_name="A",
-                class_code="12-A",
+                batch_name="PCM",
+                class_code="12-PCM",
                 days=["Monday", "Wednesday", "Friday"],
                 timetable=[
-                    {"day": "Monday", "time": "09:00 AM – 10:00 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-A"},
-                    {"day": "Wednesday", "time": "09:00 AM – 10:00 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-A"},
-                    {"day": "Friday", "time": "09:00 AM – 10:00 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-A"}
+                    {"day": "Monday", "time": "08:00 AM – 10:30 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-PCM"},
+                    {"day": "Wednesday", "time": "08:00 AM – 10:30 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-PCM"},
+                    {"day": "Friday", "time": "08:00 AM – 10:30 AM", "room": "Room 201", "subject": "Physics", "class_code": "12-PCM"}
                 ],
                 academic_year="2025-2026",
                 branch="Tarabai Park",
                 status="Active"
             ),
             Batch(
-                name="12th Science Tarabai Park (Batch B)",
+                name="12th pcb tarabai park",
                 standard="12th Science",
                 subject="Physics",
                 room="Room 202",
-                time="10:00 AM – 11:00 AM",
+                time="10:30 AM – 01:00 PM",
                 student_count=22,
                 teacher_name=teacher_name,
                 teacher=teacher,
-                batch_name="B",
-                class_code="12-B",
-                days=["Monday", "Tuesday", "Thursday"],
+                batch_name="PCB",
+                class_code="12-PCB",
+                days=["Monday", "Wednesday", "Friday"],
                 timetable=[
-                    {"day": "Monday", "time": "10:00 AM – 11:00 AM", "room": "Room 202", "subject": "Physics", "class_code": "12-B"},
-                    {"day": "Tuesday", "time": "10:00 AM – 11:00 AM", "room": "Room 202", "subject": "Physics", "class_code": "12-B"},
-                    {"day": "Thursday", "time": "10:00 AM – 11:00 AM", "room": "Room 202", "subject": "Physics", "class_code": "12-B"}
+                    {"day": "Monday", "time": "10:30 AM – 01:00 PM", "room": "Room 202", "subject": "Physics", "class_code": "12-PCB"},
+                    {"day": "Wednesday", "time": "10:30 AM – 01:00 PM", "room": "Room 202", "subject": "Physics", "class_code": "12-PCB"},
+                    {"day": "Friday", "time": "10:30 AM – 01:00 PM", "room": "Room 202", "subject": "Physics", "class_code": "12-PCB"}
                 ],
                 academic_year="2025-2026",
                 branch="Tarabai Park",
                 status="Active"
             ),
             Batch(
-                name="11th Science PCM (Batch A)",
+                name="11th pcm tarabai park",
                 standard="11th Science",
                 subject="Physics",
                 room="Physics Lab 1",
-                time="11:00 AM – 12:00 PM",
+                time="08:00 AM – 10:30 AM",
                 student_count=28,
                 teacher_name=teacher_name,
                 teacher=teacher,
-                batch_name="A",
-                class_code="11-A",
-                days=["Tuesday", "Thursday", "Friday"],
+                batch_name="PCM",
+                class_code="11-PCM",
+                days=["Tuesday", "Thursday", "Saturday"],
                 timetable=[
-                    {"day": "Tuesday", "time": "11:00 AM – 12:00 PM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-A"},
-                    {"day": "Thursday", "time": "11:00 AM – 12:00 PM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-A"},
-                    {"day": "Friday", "time": "11:00 AM – 12:00 PM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-A"}
+                    {"day": "Tuesday", "time": "08:00 AM – 10:30 AM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-PCM"},
+                    {"day": "Thursday", "time": "08:00 AM – 10:30 AM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-PCM"},
+                    {"day": "Saturday", "time": "08:00 AM – 10:30 AM", "room": "Physics Lab 1", "subject": "Physics", "class_code": "11-PCM"}
                 ],
                 academic_year="2025-2026",
                 branch="Tarabai Park",
@@ -321,10 +321,10 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
     updated_batches = []
     
     faculty_by_subject = {
-        "Physics": "Dr. Priya Kulkarni",
-        "Chemistry": "Prof. Sunita Patil",
-        "Mathematics": "Prof. Rajesh Sharma",
-        "Biology": "Prof. Amit Sawant"
+        "Physics": "More A.D",
+        "Chemistry": "More A.D",
+        "Mathematics": "veer 1",
+        "Biology": "Shri"
     }
 
     for item in items:
@@ -333,7 +333,7 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
         # Standardize dash in time string
         time_slot = raw_time.replace("-", "–").replace("—", "–").strip()
         subject = (item.get("subject") or item.get("Subject") or "Physics").strip()
-        batch_name = (item.get("batch") or item.get("class_batch") or item.get("Class / Batch") or "12th Science Tarabai Park (Batch A)").strip()
+        batch_name = (item.get("batch") or item.get("class_batch") or item.get("Class / Batch") or "12th pcm tarabai park").strip()
         room = item.get("room") or item.get("Room") or "Room 201"
         branch = item.get("branch") or item.get("Branch") or ("Mangalwar Peth" if "mangalwar" in batch_name.lower() else "Tarabai Park")
         teacher_name = item.get("teacher_name") or item.get("teacher") or item.get("Teacher Name") or ""
@@ -341,15 +341,15 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
         if not teacher_name:
             sub_low = subject.lower()
             if "physic" in sub_low:
-                teacher_name = "Dr. Priya Kulkarni"
+                teacher_name = "More A.D"
             elif "chem" in sub_low:
-                teacher_name = "Prof. Sunita Patil"
+                teacher_name = "More A.D"
             elif "math" in sub_low:
-                teacher_name = "Prof. Rajesh Sharma"
+                teacher_name = "veer 1"
             elif "bio" in sub_low:
-                teacher_name = "Prof. Amit Sawant"
+                teacher_name = "Shri"
             else:
-                teacher_name = faculty_by_subject.get(subject, "Dr. Priya Kulkarni")
+                teacher_name = faculty_by_subject.get(subject, "More A.D")
 
         # 1. Search for batch with exact name and subject
         batch = await Batch.find_one({

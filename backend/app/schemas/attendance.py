@@ -50,6 +50,8 @@ class TeacherManualAttendanceCreate(BaseModel):
     remarks: Optional[str] = None
 
 class AttendanceUpdate(BaseModel):
+    teacher_id: Optional[str] = None
+    date: Optional[datetime] = None
     status: Optional[str] = None
     check_in_time: Optional[datetime] = None
     check_out_time: Optional[datetime] = None

@@ -12,7 +12,7 @@ export const curriculumService = {
   getDailyActivities: async (params = {}) => {
     try {
       const res = await api.get('/daily-activities', { params });
-      if (Array.isArray(res.data) && res.data.length > 0) {
+      if (Array.isArray(res.data)) {
         localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(res.data));
         return res.data;
       }
@@ -32,7 +32,14 @@ export const curriculumService = {
   createDailyActivity: async (data) => {
     try {
       const res = await api.post('/daily-activities', data);
-      return res.data;
+      if (res?.data) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
+          const updated = [res.data, ...saved.filter(item => item.id !== res.data.id)];
+          localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
     } catch (err) {
       console.warn('Backend create daily-activity failed, saving locally:', err);
       const localItem = { id: `ACT-${Date.now()}`, ...data, created_at: new Date().toISOString() };
@@ -84,7 +91,14 @@ export const curriculumService = {
   updateDailyActivity: async (id, data) => {
     try {
       const res = await api.put(`/daily-activities/${id}`, data);
-      return res.data;
+      if (res?.data) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
+          const updated = saved.map(item => item.id === id ? { ...item, ...res.data } : item);
+          localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+        } catch (_) {}
+        return res.data;
+      }
     } catch (err) {
       console.warn('Backend update daily-activity failed, updating locally:', err);
       try {

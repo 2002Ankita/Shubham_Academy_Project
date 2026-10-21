@@ -82,6 +82,14 @@ async def authenticate(user_in: UserLogin) -> str:
         raise HTTPException(status_code=400, detail="Incorrect email, mobile number, or password")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+
+    # Automatically record teacher check-in and start working hours calculation
+    if (user.role or "").upper() == "TEACHER":
+        try:
+            from app.services.attendance_service import auto_record_teacher_login
+            await auto_record_teacher_login(str(user.id))
+        except Exception as e:
+            print("Auto teacher check-in error on authenticate:", e)
     
     return create_access_token(subject=user.email)
 

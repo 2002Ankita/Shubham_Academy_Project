@@ -160,12 +160,49 @@ export default function FeeReminderHistory() {
     }
   };
 
-  const handleResend = (row) => {
-    toast.success(`Fee reminder re-queued for ${row.student_name} via ${row.channel || 'WhatsApp'}!`);
+  const handleResend = async (row) => {
+    try {
+      await reminderService.triggerManual({
+        studentId: row.student_id,
+        parentMobile: row.parent_mobile,
+        channel: row.channel || 'WhatsApp',
+        dueAmount: row.amount_outstanding
+      });
+      toast.success(`Fee reminder re-dispatched to ${row.student_name} (${row.parent_mobile ? `+91 ${row.parent_mobile}` : ''}) via ${row.channel || 'WhatsApp'}!`);
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to resend reminder');
+    }
   };
 
-  // Filtered dataset
-  const filteredList = history.filter((item) => {
+  // Enriched and filtered dataset
+  const enrichedList = history.map((item) => {
+    const stu = students.find(
+      (s) => String(s.id) === String(item.student_id) || String(s.student_id) === String(item.student_id)
+    );
+    const resolvedName = item.student_name && item.student_name !== 'Student'
+      ? item.student_name
+      : (stu?.name || stu?.full_name || 'Student');
+    const resolvedRoll = item.roll_number && item.roll_number !== 'N/A'
+      ? item.roll_number
+      : (stu?.rollNumber || stu?.student_id || 'N/A');
+    const rawPhone = item.parent_mobile || stu?.parentPhone || stu?.parent_mobile || stu?.mobile_number || '';
+    const resolvedPhone = rawPhone ? String(rawPhone).replace(/\D/g, '').slice(-10) : '';
+    const isWhatsApp = item.channel === 'WhatsApp' || (item.provider_response && /whatsapp/i.test(item.provider_response));
+    const resolvedChannel = item.channel || (isWhatsApp ? 'WhatsApp' : 'SMS');
+    const resolvedStage = item.reminder_stage || (item.idempotency_key?.includes('manual') ? 'Manual Alert' : 'Automated Alert');
+
+    return {
+      ...item,
+      student_name: resolvedName,
+      roll_number: resolvedRoll,
+      parent_mobile: resolvedPhone,
+      channel: resolvedChannel,
+      reminder_stage: resolvedStage
+    };
+  });
+
+  const filteredList = enrichedList.filter((item) => {
     const matchesSearch =
       !searchQuery ||
       item.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -182,10 +219,10 @@ export default function FeeReminderHistory() {
   });
 
   // Summary counts
-  const deliveredCount = history.filter((h) => h.delivery_status === 'Delivered').length;
-  const sentCount = history.filter((h) => h.delivery_status === 'Sent' || h.delivery_status === 'Queued').length;
-  const skippedCount = history.filter((h) => h.delivery_status === 'Skipped').length;
-  const failedCount = history.filter((h) => h.delivery_status === 'Failed').length;
+  const deliveredCount = enrichedList.filter((h) => h.delivery_status === 'Delivered').length;
+  const sentCount = enrichedList.filter((h) => h.delivery_status === 'Sent' || h.delivery_status === 'Queued').length;
+  const skippedCount = enrichedList.filter((h) => h.delivery_status === 'Skipped').length;
+  const failedCount = enrichedList.filter((h) => h.delivery_status === 'Failed').length;
 
   const renderStatusBadge = (status) => {
     switch (status) {
@@ -387,15 +424,15 @@ export default function FeeReminderHistory() {
               render: (val, row) => (
                 <div className="d-flex align-items-center gap-1.5 small">
                   {row.channel === 'WhatsApp' ? (
-                    <span className="badge bg-success bg-opacity-10 text-success p-1 rounded-circle">
+                    <span className="badge bg-success bg-opacity-10 text-success p-1 rounded-circle" title="WhatsApp">
                       <MessageSquare size={13} />
                     </span>
                   ) : (
-                    <span className="badge bg-primary bg-opacity-10 text-primary p-1 rounded-circle">
+                    <span className="badge bg-primary bg-opacity-10 text-primary p-1 rounded-circle" title="Carrier SMS">
                       <Smartphone size={13} />
                     </span>
                   )}
-                  <span>+91 {val || '98XXXXXXXX'}</span>
+                  <span className="fw-semibold text-sa-charcoal">{val ? `+91 ${val}` : '—'}</span>
                 </div>
               )
             },
@@ -429,11 +466,15 @@ export default function FeeReminderHistory() {
               title: 'Dispatched At',
               render: (val) => {
                 if (!val) return '—';
-                const date = new Date(val);
+                const dateStr = typeof val === 'string' && !val.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(val)
+                  ? val + 'Z'
+                  : val;
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return '—';
                 return (
-                  <span className="small text-muted">
+                  <span className="small text-muted font-monospace" style={{ fontSize: '0.80rem' }}>
                     {date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}{' '}
-                    {date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    {date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </span>
                 );
               }

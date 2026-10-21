@@ -23,10 +23,16 @@ class ReminderHistoryResponse(BaseModel):
     id: str
     idempotency_key: str
     student_id: Optional[str] = ""
+    student_name: Optional[str] = "Student"
+    roll_number: Optional[str] = "N/A"
+    parent_mobile: Optional[str] = ""
+    channel: Optional[str] = None
+    reminder_stage: Optional[str] = None
     amount_outstanding: float
     delivery_status: str
     scheduled_time: datetime
-    provider_response: Optional[str]
+    provider_response: Optional[str] = None
+
 
 class ManualReminderRequest(BaseModel):
     student_id: Optional[str] = None

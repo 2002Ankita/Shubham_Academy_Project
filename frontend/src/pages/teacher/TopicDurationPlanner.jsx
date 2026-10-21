@@ -130,7 +130,7 @@ export default function TopicDurationPlanner() {
         id: 'TOPIC-01',
         branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
-        batch: '12th Science Tarabai Park (Batch A)',
+        batch: '12th pcm tarabai park',
         chapter: 'Chapter 7: Wave Optics',
         topicName: 'Wavefronts & Huygens Principle Derivation',
         requiredPeriods: 3,
@@ -144,7 +144,7 @@ export default function TopicDurationPlanner() {
         id: 'TOPIC-02',
         branch: 'Tarabai Park',
         subject: 'Physics Laboratory',
-        batch: '11th Science PCM (Batch B)',
+        batch: '11th pcm tarabai park',
         chapter: 'Practical Mechanics & Fluids',
         topicName: 'Surface Tension by Capillary Rise Method',
         requiredPeriods: 2,
@@ -158,7 +158,7 @@ export default function TopicDurationPlanner() {
         id: 'TOPIC-03',
         branch: 'Tarabai Park',
         subject: 'Applied Physics',
-        batch: '12th Science Tarabai Park (Batch A)',
+        batch: '12th pcm tarabai park',
         chapter: 'Chapter 9: Electromagnetic Induction',
         topicName: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
         requiredPeriods: 4,
@@ -172,7 +172,7 @@ export default function TopicDurationPlanner() {
         id: 'TOPIC-04',
         branch: 'Tarabai Park',
         subject: 'Physics (Class 12th)',
-        batch: '12th Science PCB (Batch C)',
+        batch: '12th pcb tarabai park',
         chapter: 'Chapter 11: Dual Nature of Radiation',
         topicName: 'Photoelectric Effect & Einstein\'s Equation',
         requiredPeriods: 3,
@@ -226,7 +226,7 @@ export default function TopicDurationPlanner() {
   const [form, setForm] = useState({
     branch: 'Tarabai Park',
     subject: 'Physics (Class 12th)',
-    batch: '12th Science Tarabai Park (Batch A)',
+    batch: '12th pcm tarabai park',
     chapter: '',
     topicName: '',
     requiredPeriods: '3',
@@ -318,7 +318,7 @@ export default function TopicDurationPlanner() {
     setForm({
       branch: 'Tarabai Park',
       subject: 'Physics (Class 12th)',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       chapter: '',
       topicName: '',
       requiredPeriods: '3',
@@ -336,7 +336,7 @@ export default function TopicDurationPlanner() {
     setForm({
       branch: topic.branch || 'Tarabai Park',
       subject: topic.subject || 'Physics (Class 12th)',
-      batch: topic.batch || '12th Science Tarabai Park (Batch A)',
+      batch: topic.batch || '12th pcm tarabai park',
       chapter: topic.chapter || '',
       topicName: topic.topicName || '',
       requiredPeriods: String(topic.requiredPeriods || '3'),
@@ -401,7 +401,7 @@ export default function TopicDurationPlanner() {
         target_date: payload.targetDate,
         status: payload.status,
         remarks: payload.remarks,
-        teacher_name: user?.name || 'Dr. Priya Kulkarni'
+        teacher_name: user?.name || 'More A.D'
       });
       setTopicPlans(prev => deduplicateTopics([created, ...prev]));
       toast.success('New topic & duration plan created!');
@@ -860,8 +860,8 @@ export default function TopicDurationPlanner() {
                     ...form,
                     branch: b,
                     batch: b === 'Mangalwar Peth'
-                      ? '12th Science Mangalwar Peth (Batch A)'
-                      : '12th Science Tarabai Park (Batch A)'
+                      ? '12th pcm Mangalvar Peth'
+                      : '12th pcm tarabai park'
                   });
                 }}
               >
@@ -925,11 +925,18 @@ export default function TopicDurationPlanner() {
                 onChange={(e) => setForm({ ...form, batch: e.target.value })}
                 required
               >
-                <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
-                <option value="12th Science Tarabai Park (Batch B)">12th Science Tarabai Park (Batch B)</option>
-                <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
-                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
+                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
                 <option value="All Enrolled Batches">All Enrolled Batches</option>
               </select>
             </div>

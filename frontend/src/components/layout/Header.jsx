@@ -924,7 +924,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
               )}
               <div className="d-none d-sm-flex flex-column text-start text-truncate" style={{ lineHeight: 1.15 }}>
                 <span className="fw-bold text-sa-charcoal text-truncate" style={{ fontSize: '0.82rem' }}>
-                  {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'Dr. Priya Kulkarni' : 'Shubham Sharma')}
+                  {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'More A.D' : 'Shubham Sharma')}
                 </span>
                 <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
                   {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : isStudent ? 'Student' : 'Administrator'}

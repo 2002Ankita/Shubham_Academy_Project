@@ -257,6 +257,84 @@ async def check_out_teacher(attendance_in: AttendanceCreate) -> dict:
     res["teacher_id"] = str(teacher.id)
     return res
 
+async def auto_record_teacher_login(teacher_id_or_user_id: str) -> Optional[Attendance]:
+    """
+    Called when a teacher logs in or visits their portal.
+    Automatically checks them in for today if not already checked in.
+    """
+    from app.services.teacher_service import resolve_teacher
+    teacher = await resolve_teacher(str(teacher_id_or_user_id))
+    if not teacher:
+        return None
+
+    now = datetime.utcnow()
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    existing = await Attendance.find_one({
+        "$and": [
+            _get_teacher_mongo_query(teacher.id),
+            {"date": {"$gte": day_start, "$lte": day_end}}
+        ]
+    })
+
+    if not existing:
+        attendance = Attendance(
+            teacher=teacher,
+            date=now,
+            status="Working",
+            check_in_time=now,
+            check_out_time=None,
+            remarks="Auto Check-In on Faculty Login"
+        )
+        await attendance.insert()
+        return attendance
+    else:
+        if not existing.check_in_time:
+            existing.check_in_time = now
+            existing.status = "Working"
+            if not existing.remarks:
+                existing.remarks = "Auto Check-In on Faculty Login"
+            await existing.save()
+        return existing
+
+async def auto_record_teacher_logout(teacher_id_or_user_id: str) -> Optional[Attendance]:
+    """
+    Called when a teacher logs out.
+    Automatically sets check-out time and computes total duration if currently checked in.
+    """
+    from app.services.teacher_service import resolve_teacher
+    teacher = await resolve_teacher(str(teacher_id_or_user_id))
+    if not teacher:
+        return None
+
+    now = datetime.utcnow()
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    existing = await Attendance.find_one({
+        "$and": [
+            _get_teacher_mongo_query(teacher.id),
+            {"date": {"$gte": day_start, "$lte": day_end}},
+            {"check_in_time": {"$ne": None}},
+            {"check_out_time": None}
+        ]
+    })
+
+    if existing and existing.check_in_time:
+        existing.check_out_time = now
+        existing.status = "Present"
+        diff = existing.check_out_time - existing.check_in_time
+        total_seconds = max(0, diff.total_seconds())
+        hrs = int(total_seconds // 3600)
+        mins = int((total_seconds % 3600) // 60)
+        existing.total_hours = f"{hrs}h {mins}m"
+        note = "Auto Check-Out on Faculty Logout"
+        existing.remarks = f"{existing.remarks} | {note}" if existing.remarks else note
+        await existing.save()
+        return existing
+    return None
+
 async def get_teacher_attendance(teacher_id: str) -> list[dict]:
     from app.services.teacher_service import resolve_teacher
     teacher = await resolve_teacher(teacher_id)
@@ -270,6 +348,7 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
         _get_teacher_mongo_query(teacher.id)
     ).sort("-date", "-check_in_time").to_list()
 
+    now = datetime.utcnow()
     res = []
     for r in records:
         d = r.model_dump()
@@ -278,7 +357,90 @@ async def get_teacher_attendance(teacher_id: str) -> list[dict]:
         d["student_id"] = ""
         d.pop("teacher", None)
         d.pop("student", None)
+
+        # Dynamic live calculation of working hours
+        if r.check_in_time and r.check_out_time:
+            diff = r.check_out_time - r.check_in_time
+            total_seconds = max(0, diff.total_seconds())
+            hrs = int(total_seconds // 3600)
+            mins = int((total_seconds % 3600) // 60)
+            d["total_hours"] = f"{hrs}h {mins}m"
+            d["status"] = r.status or "Present"
+        elif r.check_in_time and not r.check_out_time:
+            rec_date = r.date or r.check_in_time
+            if rec_date.date() == now.date():
+                diff = now - r.check_in_time
+                total_seconds = max(0, diff.total_seconds())
+                hrs = int(total_seconds // 3600)
+                mins = int((total_seconds % 3600) // 60)
+                d["total_hours"] = f"{hrs}h {mins}m"
+                d["status"] = "Working"
+            else:
+                scheduled_mins = await get_teacher_scheduled_lecture_minutes(teacher, rec_date.strftime('%A'))
+                hrs = scheduled_mins // 60
+                mins = scheduled_mins % 60
+                d["total_hours"] = f"{hrs}h {mins:02d}m"
+                d["status"] = "Present"
+        elif r.total_hours:
+            d["total_hours"] = r.total_hours
+
         res.append(d)
+
+    # Check if teacher was mentioned in DailyActivity on dates without Attendance
+    try:
+        from app.models.daily_activity import DailyActivity
+        t_name = ""
+        if isinstance(teacher.user, User):
+            t_name = teacher.user.full_name
+        elif teacher.user:
+            try:
+                u = await User.get(teacher.user.ref.id)
+                if u:
+                    t_name = u.full_name
+            except Exception:
+                pass
+
+        activity_query = {"$or": [{"teacher_id": str(teacher.id)}]}
+        if t_name:
+            activity_query["$or"].append({"teacher_name": t_name})
+        
+        acts = await DailyActivity.find(activity_query).to_list()
+        existing_dates = {r.date.strftime("%Y-%m-%d") for r in records if r.date}
+
+        acts_by_date = {}
+        for a in acts:
+            d_str = a.target_date or (getattr(a, 'activity_date', None))
+            if not d_str and a.created_at:
+                d_str = a.created_at.strftime("%Y-%m-%d")
+            if d_str and d_str not in existing_dates:
+                if d_str not in acts_by_date:
+                    acts_by_date[d_str] = []
+                acts_by_date[d_str].append(a)
+
+        for d_str, day_acts in acts_by_date.items():
+            tot_h = sum(float(getattr(x, 'hours', 1.0) or 1.0) for x in day_acts)
+            hrs = int(tot_h)
+            mins = int((tot_h - hrs) * 60)
+            formatted_h = f"{hrs}h {mins:02d}m"
+            try:
+                rec_date = datetime.strptime(d_str, "%Y-%m-%d")
+            except Exception:
+                rec_date = datetime.utcnow()
+
+            res.append({
+                "id": f"ACT-ATT-{str(day_acts[0].id)}",
+                "teacher_id": str(teacher.id),
+                "student_id": "",
+                "date": rec_date.isoformat(),
+                "status": "Present",
+                "check_in_time": None,
+                "check_out_time": None,
+                "total_hours": formatted_h,
+                "remarks": f"Lectures conducted: {len(day_acts)} session(s)"
+            })
+    except Exception:
+        pass
+
     return res
 
 async def get_all_teachers_attendance(
@@ -373,21 +535,25 @@ async def get_all_teachers_attendance(
 
         t_info = teacher_map.get(tid_str, {})
 
-        hours_str = r.total_hours
-        if not hours_str and r.check_in_time and r.check_out_time:
+        hours_str = None
+        if r.check_in_time and r.check_out_time:
             diff = r.check_out_time - r.check_in_time
-            hrs, rem = divmod(diff.total_seconds(), 3600)
-            mins, _ = divmod(rem, 60)
-            hours_str = f"{int(hrs)}h {int(mins)}m"
-        elif not hours_str and r.check_in_time and not r.check_out_time:
+            total_seconds = max(0, diff.total_seconds())
+            hrs = int(total_seconds // 3600)
+            mins = int((total_seconds % 3600) // 60)
+            hours_str = f"{hrs}h {mins}m"
+        elif r.check_in_time and not r.check_out_time:
             rec_date = r.date or r.check_in_time
             if rec_date.date() == datetime.utcnow().date():
                 diff = datetime.utcnow() - r.check_in_time
-                hrs, rem = divmod(diff.total_seconds(), 3600)
-                mins, _ = divmod(rem, 60)
-                hours_str = f"{int(hrs)}h {int(mins)}m"
+                total_seconds = max(0, diff.total_seconds())
+                hrs = int(total_seconds // 3600)
+                mins = int((total_seconds % 3600) // 60)
+                hours_str = f"{hrs}h {mins}m"
             else:
-                hours_str = "1h 00m"
+                hours_str = r.total_hours or "1h 00m"
+        elif r.total_hours:
+            hours_str = r.total_hours
 
         res.append({
             "id": str(r.id),
@@ -397,13 +563,89 @@ async def get_all_teachers_attendance(
             "email": t_info.get("email", ""),
             "mobile_number": t_info.get("mobile_number", ""),
             "subjects": t_info.get("subjects", []),
-            "date": r.date.isoformat(),
+            "date": r.date.replace(tzinfo=timezone.utc).isoformat() if (r.date and r.date.tzinfo is None) else (r.date.isoformat() if r.date else None),
             "status": r.status,
-            "check_in_time": r.check_in_time.isoformat() if r.check_in_time else None,
-            "check_out_time": r.check_out_time.isoformat() if r.check_out_time else None,
+            "check_in_time": r.check_in_time.replace(tzinfo=timezone.utc).isoformat() if (r.check_in_time and r.check_in_time.tzinfo is None) else (r.check_in_time.isoformat() if r.check_in_time else None),
+            "check_out_time": r.check_out_time.replace(tzinfo=timezone.utc).isoformat() if (r.check_out_time and r.check_out_time.tzinfo is None) else (r.check_out_time.isoformat() if r.check_out_time else None),
             "total_hours": hours_str or "--",
             "remarks": r.remarks or ""
         })
+
+    # Also automatically include teachers who conducted DailyActivities on dates without punch records
+    try:
+        from app.models.daily_activity import DailyActivity
+        act_query = {}
+        if date_str:
+            clean_date = date_str.split("T")[0]
+            act_query = {"$or": [{"target_date": clean_date}, {"activity_date": clean_date}]}
+        elif start_date and end_date:
+            s_clean = start_date.split("T")[0]
+            e_clean = end_date.split("T")[0]
+            act_query = {"$or": [
+                {"target_date": {"$gte": s_clean, "$lte": e_clean}},
+                {"activity_date": {"$gte": s_clean, "$lte": e_clean}}
+            ]}
+
+        acts = await DailyActivity.find(act_query).to_list()
+        existing_combos = set()
+        for item in res:
+            t_key = item.get("teacher_id") or item.get("teacher_name", "").lower()
+            d_key = item.get("date", "").split("T")[0]
+            existing_combos.add((t_key, d_key))
+
+        acts_by_teacher_date = {}
+        for a in acts:
+            d_str = a.target_date or getattr(a, 'activity_date', None)
+            if not d_str and a.created_at:
+                d_str = a.created_at.strftime("%Y-%m-%d")
+            t_id = a.teacher_id or ""
+            t_name = a.teacher_name or ""
+            key = (t_id, t_name, d_str)
+            if key not in acts_by_teacher_date:
+                acts_by_teacher_date[key] = []
+            acts_by_teacher_date[key].append(a)
+
+        for (a_tid, a_tname, d_str), day_acts in acts_by_teacher_date.items():
+            if not d_str:
+                continue
+            matched_tid = a_tid
+            if not matched_tid and a_tname:
+                for tid_k, t_val in teacher_map.items():
+                    if t_val.get("teacher_name", "").lower() == a_tname.lower():
+                        matched_tid = tid_k
+                        break
+
+            if (matched_tid, d_str) in existing_combos or (a_tname.lower(), d_str) in existing_combos:
+                continue
+
+            t_info = teacher_map.get(matched_tid, {})
+            tot_h = sum(float(getattr(x, 'hours', 1.0) or 1.0) for x in day_acts)
+            hrs = int(tot_h)
+            mins = int((tot_h - hrs) * 60)
+            formatted_h = f"{hrs}h {mins:02d}m"
+
+            try:
+                rec_date = datetime.strptime(d_str, "%Y-%m-%d")
+            except Exception:
+                rec_date = datetime.utcnow()
+
+            res.append({
+                "id": f"ACT-ATT-{str(day_acts[0].id)}",
+                "teacher_id": matched_tid or "",
+                "teacher_name": t_info.get("teacher_name") or a_tname or "Faculty Member",
+                "employee_id": t_info.get("employee_id", "--"),
+                "email": t_info.get("email", ""),
+                "mobile_number": t_info.get("mobile_number", ""),
+                "subjects": t_info.get("subjects", []),
+                "date": rec_date.isoformat(),
+                "status": "Present",
+                "check_in_time": None,
+                "check_out_time": None,
+                "total_hours": formatted_h,
+                "remarks": f"Lectures conducted: {len(day_acts)} session(s)"
+            })
+    except Exception:
+        pass
 
     return res
 
@@ -496,36 +738,32 @@ async def mark_manual_teacher_attendance(data: dict) -> dict:
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
-    date_val = data.get("date")
-    if isinstance(date_val, str):
-        date_dt = datetime.fromisoformat(date_val.replace("Z", "+00:00"))
-    elif isinstance(date_val, datetime):
-        date_dt = date_val
-    else:
-        date_dt = datetime.utcnow()
+    date_dt = _to_naive_utc(data.get("date")) or datetime.utcnow()
+    check_in = _to_naive_utc(data.get("check_in_time"))
+    check_out = _to_naive_utc(data.get("check_out_time"))
 
-    check_in = None
-    if data.get("check_in_time"):
-        if isinstance(data["check_in_time"], str):
-            check_in = datetime.fromisoformat(data["check_in_time"].replace("Z", "+00:00"))
-        else:
-            check_in = data["check_in_time"]
-
-    check_out = None
-    if data.get("check_out_time"):
-        if isinstance(data["check_out_time"], str):
-            check_out = datetime.fromisoformat(data["check_out_time"].replace("Z", "+00:00"))
-        else:
-            check_out = data["check_out_time"]
-
-    total_hours = data.get("total_hours")
-    if not total_hours and check_in and check_out:
+    total_hours = None
+    if check_in and check_out:
         diff = check_out - check_in
-        hrs, rem = divmod(diff.total_seconds(), 3600)
-        mins, _ = divmod(rem, 60)
-        total_hours = f"{int(hrs)}h {int(mins)}m"
+        total_seconds = max(0, diff.total_seconds())
+        hrs = int(total_seconds // 3600)
+        mins = int((total_seconds % 3600) // 60)
+        total_hours = f"{hrs}h {mins}m"
+    elif check_in and not check_out:
+        if date_dt.date() == datetime.utcnow().date():
+            diff = datetime.utcnow() - check_in
+            total_seconds = max(0, diff.total_seconds())
+            hrs = int(total_seconds // 3600)
+            mins = int((total_seconds % 3600) // 60)
+            total_hours = f"{hrs}h {mins}m"
+        else:
+            total_hours = data.get("total_hours") or "1h 00m"
+    elif data.get("total_hours"):
+        total_hours = data.get("total_hours")
 
     status = data.get("status", "Present")
+    if not check_out and check_in and status == "Present":
+        status = "Working"
 
     day_start = date_dt.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = date_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -542,8 +780,7 @@ async def mark_manual_teacher_attendance(data: dict) -> dict:
             existing.check_in_time = check_in
         if check_out:
             existing.check_out_time = check_out
-        if total_hours:
-            existing.total_hours = total_hours
+        existing.total_hours = total_hours
         if data.get("remarks"):
             existing.remarks = data["remarks"]
         await existing.save()
@@ -567,8 +804,63 @@ async def mark_manual_teacher_attendance(data: dict) -> dict:
     res["teacher_id"] = str(teacher.id)
     return res
 
+def _to_naive_utc(val):
+    if not val:
+        return None
+    if isinstance(val, str):
+        clean = val.replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(clean)
+        except Exception:
+            return None
+    elif isinstance(val, datetime):
+        dt = val
+    else:
+        return None
+
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
 async def update_attendance_record(record_id: str, data: dict) -> dict:
-    record = await Attendance.get(ObjectId(record_id))
+    record = None
+    if record_id:
+        if str(record_id).startswith("ACT-ATT-"):
+            act_id = str(record_id).replace("ACT-ATT-", "")
+            from app.models.daily_activity import DailyActivity
+            from app.services.teacher_service import resolve_teacher
+            act = await DailyActivity.get(ObjectId(act_id)) if ObjectId.is_valid(act_id) else None
+            teacher_ref = None
+            if act and act.teacher_id:
+                teacher_ref = await resolve_teacher(act.teacher_id)
+            if not teacher_ref and data.get("teacher_id"):
+                teacher_ref = await resolve_teacher(data["teacher_id"])
+
+            d_val = data.get("date") or (act.target_date if act else None) or datetime.utcnow()
+            d_dt = _to_naive_utc(d_val) or datetime.utcnow()
+            day_start = d_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = d_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            if teacher_ref:
+                record = await Attendance.find_one({
+                    "$and": [
+                        _get_teacher_mongo_query(teacher_ref.id),
+                        {"date": {"$gte": day_start, "$lte": day_end}}
+                    ]
+                })
+                if not record:
+                    record = Attendance(
+                        teacher=teacher_ref,
+                        date=day_start,
+                        status="Present"
+                    )
+                    await record.insert()
+        else:
+            try:
+                record = await Attendance.get(ObjectId(record_id))
+            except Exception:
+                record = None
+
     if not record:
         raise HTTPException(status_code=404, detail="Attendance record not found")
 
@@ -576,28 +868,53 @@ async def update_attendance_record(record_id: str, data: dict) -> dict:
         record.status = data["status"]
     if "remarks" in data:
         record.remarks = data["remarks"]
-    if "check_in_time" in data:
-        if data["check_in_time"]:
-            record.check_in_time = datetime.fromisoformat(str(data["check_in_time"]).replace("Z", "+00:00"))
-        else:
-            record.check_in_time = None
-    if "check_out_time" in data:
-        if data["check_out_time"]:
-            record.check_out_time = datetime.fromisoformat(str(data["check_out_time"]).replace("Z", "+00:00"))
-        else:
-            record.check_out_time = None
+    if "date" in data and data["date"]:
+        parsed_d = _to_naive_utc(data["date"])
+        if parsed_d:
+            record.date = parsed_d
 
-    if "total_hours" in data and data["total_hours"]:
-        record.total_hours = data["total_hours"]
-    elif record.check_in_time and record.check_out_time:
+    if "check_in_time" in data:
+        record.check_in_time = _to_naive_utc(data["check_in_time"])
+    if "check_out_time" in data:
+        record.check_out_time = _to_naive_utc(data["check_out_time"])
+
+    # Ensure both existing dates are normalized naive UTC
+    if record.check_in_time and record.check_in_time.tzinfo is not None:
+        record.check_in_time = record.check_in_time.astimezone(timezone.utc).replace(tzinfo=None)
+    if record.check_out_time and record.check_out_time.tzinfo is not None:
+        record.check_out_time = record.check_out_time.astimezone(timezone.utc).replace(tzinfo=None)
+
+    # Recalculate duration and status
+    if record.check_in_time and record.check_out_time:
         diff = record.check_out_time - record.check_in_time
-        hrs, rem = divmod(diff.total_seconds(), 3600)
-        mins, _ = divmod(rem, 60)
-        record.total_hours = f"{int(hrs)}h {int(mins)}m"
+        total_seconds = max(0, diff.total_seconds())
+        hrs = int(total_seconds // 3600)
+        mins = int((total_seconds % 3600) // 60)
+        record.total_hours = f"{hrs}h {mins}m"
+        if record.status == "Working":
+            record.status = "Present"
+    elif record.check_in_time and not record.check_out_time:
+        record.total_hours = "--"
+        if record.status == "Present":
+            record.status = "Working"
+    elif not record.check_in_time and not record.check_out_time:
+        if record.status == "Working":
+            record.status = "Present"
+    elif "total_hours" in data and data["total_hours"]:
+        record.total_hours = data["total_hours"]
 
     await record.save()
     res = record.model_dump()
     res["id"] = str(record.id)
+    if record.teacher:
+        t_id = record.teacher.id if hasattr(record.teacher, "id") else getattr(record.teacher.ref, "id", None)
+        res["teacher_id"] = str(t_id) if t_id else ""
+    if record.date:
+        res["date"] = record.date.replace(tzinfo=timezone.utc).isoformat()
+    if record.check_in_time:
+        res["check_in_time"] = record.check_in_time.replace(tzinfo=timezone.utc).isoformat()
+    if record.check_out_time:
+        res["check_out_time"] = record.check_out_time.replace(tzinfo=timezone.utc).isoformat()
     return res
 
 async def delete_attendance_record(record_id: str) -> dict:

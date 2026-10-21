@@ -3,7 +3,7 @@ from app.schemas.reminders import ReminderSettingsUpdate
 from app.services.fee_service import get_pending_fees
 from app.models.student import Student
 from app.services.notification_provider import NotificationProvider
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def get_reminder_history(student_id: str = None, skip: int = 0, limit: int
         if student:
             query = {"student.$id": student.id}
     
-    records = await ReminderHistory.find(query).skip(skip).limit(limit).to_list()
+    records = await ReminderHistory.find(query).sort("-scheduled_time").skip(skip).limit(limit).to_list()
     return records
 
 async def process_reminders():
@@ -80,22 +80,40 @@ async def process_reminders():
             student_id=student.student_id
         )
 
+        if days_diff == 0:
+            stage_label = "On Due Date"
+        elif days_diff < 0:
+            stage_label = f"{abs(days_diff)} Days Before Due Date"
+        else:
+            stage_label = f"{days_diff} Days Overdue"
+
+        channel = getattr(settings, "channel", "SMS") or "SMS"
+        stu_name = getattr(student, "full_name", None) or student.student_id or "Student"
+        roll_no = student.student_id or "N/A"
+        p_mobile = str(student.parent_mobile or student.mobile_number or "").replace("+91", "").replace("-", "").replace(" ", "").strip()
+
         history = existing
         if not history:
             history = ReminderHistory(
                 idempotency_key=idempotency_key,
                 academy="Default",
                 student=student,
-                scheduled_time=datetime.utcnow(),
+                student_id_str=roll_no,
+                student_name=stu_name,
+                roll_number=roll_no,
+                parent_mobile=p_mobile,
+                channel=channel,
+                reminder_stage=stage_label,
+                scheduled_time=datetime.now(timezone.utc),
                 amount_outstanding=pending.pending_fees
             )
             await history.insert()
             
-        res = await provider.send_sms(f"+91{student.parent_mobile}", message)
+        res = await provider.send_sms(f"+91{p_mobile}", message)
         history.delivery_status = res["status"]
         history.provider_response = res["response"]
         history.retry_count += 1
-        history.updated_at = datetime.utcnow()
+        history.updated_at = datetime.now(timezone.utc)
         await history.save()
 
 async def trigger_manual_reminder(
@@ -189,7 +207,13 @@ async def trigger_manual_reminder(
         idempotency_key=idempotency_key,
         academy="Default",
         student=student,
-        scheduled_time=datetime.utcnow(),
+        student_id_str=student_id_str,
+        student_name=student_name_str,
+        roll_number=student_id_str,
+        parent_mobile=clean_mobile,
+        channel=channel,
+        reminder_stage="Manual Alert",
+        scheduled_time=datetime.now(timezone.utc),
         amount_outstanding=amount
     )
     await history.insert()
@@ -197,7 +221,7 @@ async def trigger_manual_reminder(
     res = await provider.send_sms(f"+91{clean_mobile}", message)
     history.delivery_status = res.get("status", "Sent")
     history.provider_response = f"Dispatched via {channel}: " + str(res.get("response", "Success"))
-    history.updated_at = datetime.utcnow()
+    history.updated_at = datetime.now(timezone.utc)
     await history.save()
 
     return history

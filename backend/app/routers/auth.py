@@ -32,14 +32,26 @@ async def login_swagger(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @router.post("/logout")
 async def logout(token: str = Depends(oauth2_scheme)):
-    # JWT is stateless, so we just return success.
-    # To actually invalidate, a token blacklist would be needed.
+    from app.services.auth_service import get_current_user
+    try:
+        user = await get_current_user(token)
+        if user and (user.role or "").upper() == "TEACHER":
+            from app.services.attendance_service import auto_record_teacher_logout
+            await auto_record_teacher_logout(str(user.id))
+    except Exception as e:
+        print("Auto teacher logout error:", e)
     return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(token: str = Depends(oauth2_scheme)):
     from app.services.auth_service import get_current_user
     user = await get_current_user(token)
+    if (user.role or "").upper() == "TEACHER":
+        try:
+            from app.services.attendance_service import auto_record_teacher_login
+            await auto_record_teacher_login(str(user.id))
+        except Exception:
+            pass
     return {
         "id": str(user.id),
         "email": user.email,

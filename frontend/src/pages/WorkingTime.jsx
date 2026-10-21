@@ -21,15 +21,34 @@ export default function WorkingTime() {
   const [loading, setLoading] = useState(true);
   const [teacherDetails, setTeacherDetails] = useState(null);
 
-  const targetTeacherId = id || user?.id || 'TCH-001';
+  const [targetTeacherId, setTargetTeacherId] = useState(id || (user?.role?.includes('teacher') ? user?.id : null));
 
   useEffect(() => {
+    const resolveTarget = async () => {
+      if (id) {
+        setTargetTeacherId(id);
+      } else if (user?.id && (user?.role?.toLowerCase().includes('teacher'))) {
+        setTargetTeacherId(user.id);
+      } else {
+        try {
+          const allT = await teacherService.getAll();
+          if (allT && allT.length > 0) {
+            setTargetTeacherId(allT[0].id);
+          }
+        } catch (_) {}
+      }
+    };
+    resolveTarget();
+  }, [id, user]);
+
+  useEffect(() => {
+    if (!targetTeacherId) return;
     const fetchData = async () => {
       try {
         const [attData, salData, teacherData] = await Promise.all([
           attendanceService.getWorkingTime(targetTeacherId).catch(() => []),
           salaryService.getMySalaries().catch(() => []),
-          id ? teacherService.getById(id).catch(() => null) : Promise.resolve(null)
+          teacherService.getById(targetTeacherId).catch(() => null)
         ]);
         setRecords(attData || []);
         setSalaries(salData || []);
@@ -44,7 +63,7 @@ export default function WorkingTime() {
       }
     };
     fetchData();
-  }, [targetTeacherId, id]);
+  }, [targetTeacherId]);
 
   const totalRequired = 160;
   let totalWorkedMinutes = 0;

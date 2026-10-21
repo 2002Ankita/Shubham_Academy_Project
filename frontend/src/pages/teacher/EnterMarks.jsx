@@ -46,7 +46,7 @@ export default function EnterMarks() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 10;
 
   // Modal & post-save direct prompt
   const [sendMarksModalOpen, setSendMarksModalOpen] = useState(false);
@@ -142,7 +142,7 @@ export default function EnterMarks() {
 
       // Batch filter
       if (batchFilter !== 'All Batches') {
-        const student = students.find(s => s.id === mark.studentId);
+        const student = students.find(s => s.id === mark.studentId || s.student_id === mark.studentId);
         const stuBatch = student?.batch || student?.standard || mark.standard || '';
         if (!stuBatch.toLowerCase().includes(batchFilter.toLowerCase())) return false;
       }
@@ -210,6 +210,7 @@ export default function EnterMarks() {
         });
       }
       setEditingMark(null);
+      setCurrentPage(1);
       await fetchData();
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to save marks. Please check the inputs.';
@@ -230,6 +231,7 @@ export default function EnterMarks() {
         exam: examObj,
         count: entries.length
       });
+      setCurrentPage(1);
       await fetchData();
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to save bulk marks.';

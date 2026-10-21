@@ -123,24 +123,37 @@ async def _format_exam(exam: Exam) -> dict:
 
 async def _format_mark(mark: Mark) -> dict:
     exam_obj = None
-    if isinstance(mark.exam, Exam):
+    if isinstance(getattr(mark, 'exam', None), Exam):
         exam_obj = mark.exam
     elif getattr(mark, 'exam', None):
-        exam_obj = await Exam.get(mark.exam.ref.id)
-        mark.exam = exam_obj
+        try:
+            ex_id = getattr(mark.exam, 'ref', None).id if getattr(mark.exam, 'ref', None) else getattr(mark.exam, 'id', None)
+            if ex_id:
+                exam_obj = await Exam.get(ex_id)
+                mark.exam = exam_obj
+        except Exception:
+            exam_obj = None
 
     student_obj = None
-    if isinstance(mark.student, Student):
+    if isinstance(getattr(mark, 'student', None), Student):
         student_obj = mark.student
     elif getattr(mark, 'student', None):
-        student_obj = await Student.get(mark.student.ref.id)
-        mark.student = student_obj
-        
+        try:
+            st_id = getattr(mark.student, 'ref', None).id if getattr(mark.student, 'ref', None) else getattr(mark.student, 'id', None)
+            if st_id:
+                student_obj = await Student.get(st_id)
+                mark.student = student_obj
+        except Exception:
+            student_obj = None
+
+    if not student_obj or not exam_obj:
+        return None
+
     pass_status = False
     grade = "F"
-    if mark.exam:
-        pass_status = mark.marks_obtained >= mark.exam.passing_marks
-        pct = (mark.marks_obtained / mark.exam.max_marks) * 100 if mark.exam.max_marks > 0 else 0
+    if exam_obj:
+        pass_status = mark.marks_obtained >= exam_obj.passing_marks
+        pct = (mark.marks_obtained / exam_obj.max_marks) * 100 if exam_obj.max_marks > 0 else 0
         if pct >= 90: grade = "A+"
         elif pct >= 80: grade = "A"
         elif pct >= 70: grade = "B"
@@ -427,13 +440,24 @@ async def get_student_results(student_id: str) -> list[dict]:
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
         
-    marks = await Mark.find(Mark.student.id == student.id).to_list()
+    marks = await Mark.find(Mark.student.id == student.id).sort("-_id").to_list()
     # Student portal should only view Published marks, not drafts
-    return [await _format_mark(m) for m in marks if getattr(m, "status", "Published") != "Draft"]
+    res = []
+    for m in marks:
+        if getattr(m, "status", "Published") != "Draft":
+            fmt = await _format_mark(m)
+            if fmt is not None:
+                res.append(fmt)
+    return res
 
 async def get_all_marks() -> list[dict]:
-    marks = await Mark.find_all().to_list()
-    return [await _format_mark(m) for m in marks]
+    marks = await Mark.find_all().sort("-_id").to_list()
+    res = []
+    for m in marks:
+        fmt = await _format_mark(m)
+        if fmt is not None:
+            res.append(fmt)
+    return res
 
 async def delete_exam(id: str):
     from bson.errors import InvalidId

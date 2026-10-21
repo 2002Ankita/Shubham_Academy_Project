@@ -38,21 +38,63 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   if (cleanA === cleanB) return true;
   if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
 
-  const tokensA = cleanA.split(/\s+/).filter(t => t.length >= 3);
-  const tokensB = cleanB.split(/\s+/).filter(t => t.length >= 3);
+  // Normalized alphanumeric match (e.g. "more a.d" vs "more ad" vs "moread")
+  const normA = cleanA.replace(/[^a-z0-9]/g, '');
+  const normB = cleanB.replace(/[^a-z0-9]/g, '');
+  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) return true;
+
+  const tokensA = cleanA.split(/[\s.]+/).filter(t => t.length >= 2);
+  const tokensB = cleanB.split(/[\s.]+/).filter(t => t.length >= 2);
   for (const t of tokensA) {
     if (tokensB.includes(t)) return true;
   }
 
   if (subject) {
     const sub = subject.toLowerCase();
-    if (cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni')) return sub.includes('phys');
-    if (cleanA.includes('sunita') || cleanA.includes('patil')) return sub.includes('chem');
-    if (cleanA.includes('rajesh') || cleanA.includes('sharma')) return sub.includes('math');
-    if (cleanA.includes('amit') || cleanA.includes('sawant')) return sub.includes('bio');
+    if ((cleanA.includes('priya') || cleanA.includes('shubham') || cleanA.includes('kulkarni') || cleanA.includes('more') || cleanA.includes('swami')) && sub.includes('phys')) return true;
+    if ((cleanA.includes('sunita') || cleanA.includes('patil')) && sub.includes('chem')) return true;
+    if ((cleanA.includes('rajesh') || cleanA.includes('sharma') || cleanA.includes('veer')) && sub.includes('math')) return true;
+    if ((cleanA.includes('amit') || cleanA.includes('sawant') || cleanA.includes('shri')) && sub.includes('bio')) return true;
   }
 
   return false;
+};
+
+// Helper to normalize and map raw activity items consistently
+const mapActivity = (item) => {
+  if (!item) return null;
+  const rawBatch = (item.batch || '').toLowerCase();
+  const rawBranch = (item.branch || '').toLowerCase();
+  const branch = (rawBatch.includes('mangalwar') || rawBranch.includes('mangalwar'))
+    ? 'Mangalwar Peth'
+    : (rawBatch.includes('tarabai') || rawBranch.includes('tarabai') ? 'Tarabai Park' : (item.branch || 'Tarabai Park'));
+
+  const parsedHours = parseFloat(item.hours);
+  const hours = isNaN(parsedHours) ? 1.0 : parsedHours;
+
+  const parsedPeriods = parseInt(item.periods, 10);
+  const periods = isNaN(parsedPeriods) ? 1 : parsedPeriods;
+
+  const parsedTotalPeriods = parseInt(item.total_planned_periods || item.totalPlannedPeriods, 10);
+  const totalPlannedPeriods = isNaN(parsedTotalPeriods) ? 2 : parsedTotalPeriods;
+
+  return {
+    ...item,
+    id: String(item.id || item._id || `ACT-${Date.now()}`),
+    branch,
+    teacher_name: item.teacher_name || item.teacherName || '',
+    teacher_id: item.teacher_id ? String(item.teacher_id) : '',
+    chapter: item.chapter || (item.topic_taught && item.topic_taught.includes('-') ? item.topic_taught.split('-')[0].trim() : (item.topic_taught && item.topic_taught.includes(':') ? item.topic_taught.split(':')[0].trim() : 'Curriculum Module')),
+    targetDate: item.target_date || item.targetDate || item.activity_date || '',
+    activity_date: item.activity_date || item.target_date || item.targetDate || '',
+    topicTaught: item.topic_taught || item.topicTaught || '',
+    timeSlot: item.time_slot || item.timeSlot || '08:30 AM - 10:00 AM',
+    hours,
+    periods,
+    totalPlannedPeriods,
+    status: item.status || 'Completed',
+    remarks: item.remarks || ''
+  };
 };
 
 // Helper to format Class / Batch without repeating the branch name
@@ -77,58 +119,14 @@ export default function DailyActivityReport() {
   const [dailyActivities, setDailyActivities] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
-    return [
-      {
-        id: 'ACT-01',
-        branch: 'Tarabai Park',
-        activity: 'Classroom Lecture & Theory',
-        subject: 'Physics (Class 12th)',
-        batch: '12th Science Tarabai Park (Batch A)',
-        chapter: 'Chapter 7: Wave Optics',
-        topicTaught: 'Wave Optics - Wavefronts & Huygens Principle Derivation',
-        timeSlot: '08:30 AM - 10:00 AM',
-        hours: 1.5,
-        periods: 2,
-        totalPlannedPeriods: 3,
-        targetDate: '2026-10-24',
-        status: 'Completed',
-        remarks: 'Derived reflection & refraction laws. Solved 4 numerical problems on slit interference. Homework assigned.'
-      },
-      {
-        id: 'ACT-02',
-        branch: 'Tarabai Park',
-        activity: 'Practical Lab Session',
-        subject: 'Physics Laboratory',
-        batch: '11th Science PCM (Batch B)',
-        chapter: 'Practical Mechanics & Fluids',
-        topicTaught: 'Surface Tension by Capillary Rise Method - Hands-on Experiment',
-        timeSlot: '10:30 AM - 12:30 PM',
-        hours: 2.0,
-        periods: 2,
-        totalPlannedPeriods: 2,
-        targetDate: '2026-10-20',
-        status: 'Completed',
-        remarks: 'Checked student lab journals, calibrated traveling microscope apparatus for all 24 students.'
-      },
-      {
-        id: 'ACT-03',
-        branch: 'Tarabai Park',
-        activity: 'Doubt Clearing Masterclass',
-        subject: 'Applied Physics',
-        batch: '12th Science Tarabai Park (Batch A)',
-        chapter: 'Chapter 9: Electromagnetic Induction',
-        topicTaught: 'Electromagnetic Induction - Lenz\'s Law & Self-Inductance Numericals',
-        timeSlot: '01:30 PM - 02:30 PM',
-        hours: 1.0,
-        periods: 1,
-        totalPlannedPeriods: 4,
-        targetDate: '2026-10-28',
-        status: 'Completed',
-        remarks: 'Solved JEE / NEET PYQs on induced EMF with 18 attending students.'
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(mapActivity).filter(Boolean);
+        }
       }
-    ];
+    } catch (_) {}
+    return [];
   });
 
   // Sync to local storage
@@ -140,29 +138,28 @@ export default function DailyActivityReport() {
 
   // Sync with backend on component mount and on realtime updates from admin
   useEffect(() => {
-    const fetchActivities = () => {
-      curriculumService.getDailyActivities().then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map(item => {
-            const rawBatch = (item.batch || '').toLowerCase();
-            const rawBranch = (item.branch || '').toLowerCase();
-            const branch = (rawBatch.includes('mangalwar') || rawBranch.includes('mangalwar'))
-              ? 'Mangalwar Peth'
-              : (rawBatch.includes('tarabai') || rawBranch.includes('tarabai') ? 'Tarabai Park' : (item.branch || 'Tarabai Park'));
-
-            return {
-              ...item,
-              branch,
-              chapter: item.chapter || (item.topic_taught && item.topic_taught.includes('-') ? item.topic_taught.split('-')[0].trim() : (item.topic_taught && item.topic_taught.includes(':') ? item.topic_taught.split(':')[0].trim() : 'Curriculum Module')),
-              targetDate: item.target_date || item.targetDate || item.activity_date || '',
-              topicTaught: item.topic_taught || item.topicTaught,
-              timeSlot: item.time_slot || item.timeSlot,
-              totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods
-            };
-          });
-          setDailyActivities(mapped);
+    const fetchActivities = async () => {
+      try {
+        const data = await curriculumService.getDailyActivities();
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            setDailyActivities(data.map(mapActivity).filter(Boolean));
+          } else {
+            // If backend returned empty list, also check if local storage had entries
+            try {
+              const localSaved = localStorage.getItem(STORAGE_KEY);
+              if (localSaved) {
+                const parsed = JSON.parse(localSaved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setDailyActivities(parsed.map(mapActivity).filter(Boolean));
+                }
+              }
+            } catch (_) {}
+          }
         }
-      });
+      } catch (err) {
+        console.warn('Backend daily-activities fetch error:', err);
+      }
     };
 
     fetchActivities();
@@ -183,7 +180,7 @@ export default function DailyActivityReport() {
     branch: 'Tarabai Park',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
-    batch: '12th Science Tarabai Park (Batch A)',
+    batch: '12th pcm tarabai park',
     chapter: '',
     topicTaught: '',
     timeSlot: '03:00 PM - 04:00 PM',
@@ -234,7 +231,7 @@ export default function DailyActivityReport() {
 
           const topic = String(norm['topictaught'] || norm['topic'] || norm['topicname'] || norm['syllabus'] || norm['topics'] || '').trim();
           const subject = String(norm['subject'] || norm['sub'] || norm['subjectname'] || 'Physics').trim();
-          const batch = String(norm['classbatch'] || norm['batch'] || norm['class'] || norm['division'] || '12th Science Tarabai Park (Batch A)').trim();
+          const batch = String(norm['classbatch'] || norm['batch'] || norm['class'] || norm['division'] || '12th pcm tarabai park').trim();
           let branch = String(norm['branch'] || norm['branchname'] || norm['location'] || '').trim();
           if (!branch) {
             branch = batch.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park';
@@ -332,7 +329,7 @@ export default function DailyActivityReport() {
         "Branch": "Tarabai Park",
         "Activity Type": "Classroom Lecture & Theory",
         "Subject": "Physics",
-        "Class / Batch": "12th Science Tarabai Park (Batch A)",
+        "Class / Batch": "12th pcm tarabai park",
         "Chapter": "Chapter 7: Wave Optics",
         "Topic Taught": "Wave Optics - Wavefronts & Huygens Principle",
         "Target Completion Date": "2026-10-24",
@@ -347,7 +344,7 @@ export default function DailyActivityReport() {
         "Branch": "Mangalwar Peth",
         "Activity Type": "Practical Lab Session",
         "Subject": "Physics Laboratory",
-        "Class / Batch": "11th Science Mangalwar Peth (Batch A)",
+        "Class / Batch": "11th pcm Mangalvar Peth",
         "Chapter": "Practical Mechanics & Fluids",
         "Topic Taught": "Surface Tension - Capillary Rise Experiment",
         "Target Completion Date": "2026-10-25",
@@ -370,7 +367,10 @@ export default function DailyActivityReport() {
   const handleBulkImportActivities = async (activitiesToImport) => {
     if (!activitiesToImport || activitiesToImport.length === 0) return;
 
+    const facultyName = (user?.name || user?.full_name || 'Prof. Shubham Shinde').trim();
+    const facultyId = user?.id ? String(user.id) : null;
     let savedList = [];
+
     for (let i = 0; i < activitiesToImport.length; i++) {
       const item = activitiesToImport[i];
       let stdSubject = (item.subject || 'Physics').trim();
@@ -380,43 +380,44 @@ export default function DailyActivityReport() {
       else if (lowerSubj.includes('math')) stdSubject = 'Mathematics';
       else if (lowerSubj.includes('bio')) stdSubject = 'Biology';
 
+      const targetDateVal = item.targetDate || new Date().toISOString().split('T')[0];
+      const hoursVal = parseFloat(item.hours) || 1.0;
+      const periodsVal = parseInt(item.periods, 10) || 1;
+      const totalPlannedPeriodsVal = parseInt(item.totalPlannedPeriods, 10) || 2;
+
       const payload = {
         branch: item.branch || (item.batch?.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park'),
         activity: item.activity || 'Classroom Lecture & Theory',
         subject: stdSubject,
-        batch: item.batch || '12th Science Tarabai Park (Batch A)',
+        batch: item.batch || '12th pcm tarabai park',
         chapter: item.chapter || '',
-        target_date: item.targetDate || new Date().toISOString().split('T')[0],
+        target_date: targetDateVal,
+        activity_date: targetDateVal,
         topic_taught: item.topicTaught,
         time_slot: item.timeSlot || '09:00 AM - 10:30 AM',
-        hours: parseFloat(item.hours) || 1.0,
-        periods: parseInt(item.periods, 10) || 1,
-        total_planned_periods: parseInt(item.totalPlannedPeriods, 10) || 2,
+        hours: hoursVal,
+        periods: periodsVal,
+        total_planned_periods: totalPlannedPeriodsVal,
         status: item.status || 'Completed',
-        remarks: item.remarks || ''
-      };
-
-      const created = {
-        id: `ACT-${Date.now()}-${i}`,
-        ...payload,
-        targetDate: payload.target_date,
-        topicTaught: payload.topic_taught,
-        timeSlot: payload.time_slot,
-        totalPlannedPeriods: payload.total_planned_periods
+        remarks: item.remarks || '',
+        teacher_name: facultyName,
+        teacher_id: facultyId
       };
 
       try {
-        await curriculumService.createDailyActivity(payload);
+        const createdRes = await curriculumService.createDailyActivity(payload);
+        savedList.push(mapActivity(createdRes || { id: `ACT-${Date.now()}-${i}`, ...payload }));
       } catch (e) {
         console.warn('Backend save activity failed:', e);
+        savedList.push(mapActivity({ id: `ACT-${Date.now()}-${i}`, ...payload }));
       }
-      savedList.push(created);
     }
 
     setDailyActivities(prev => [...savedList, ...prev]);
     setIsExcelPreviewModalOpen(false);
     setExcelParsedData([]);
-    toast.success(`Successfully imported and logged ${savedList.length} activities from Excel!`);
+    window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
+    toast.success(`Successfully imported and logged ${savedList.length} activities from Excel! Teaching hours updated.`);
   };
 
   // Handle redirect from Topic Duration Matrix if topic was sent
@@ -428,7 +429,7 @@ export default function DailyActivityReport() {
         branch: topic.branch || 'Tarabai Park',
         activity: 'Classroom Lecture & Theory',
         subject: topic.subject || 'Physics',
-        batch: topic.batch || '12th Science Tarabai Park (Batch A)',
+        batch: topic.batch || '12th pcm tarabai park',
         chapter: topic.chapter || '',
         topicTaught: topic.topicTaught || topic.topicName || '',
         timeSlot: '03:00 PM - 04:00 PM',
@@ -445,35 +446,53 @@ export default function DailyActivityReport() {
 
   // Filter activities strictly for the logged-in teacher (if role is teacher)
   const myActivities = useMemo(() => {
-    if (!user || user.role !== 'teacher') {
+    if (!user) return dailyActivities;
+    // Admins and super-admins see all daily activities
+    if (user.role && user.role !== 'teacher') {
       return dailyActivities;
     }
-    const currentTeacherName = user.name || '';
+
+    const currentTeacherName = (user.name || user.full_name || '').trim();
+    const currentTeacherId = user.id ? String(user.id) : '';
+
     return dailyActivities.filter(item => {
-      const itemTeacher = item.teacher_name || item.teacherName || '';
+      // 1. Direct teacher ID match
+      if (item.teacher_id && currentTeacherId && String(item.teacher_id) === currentTeacherId) {
+        return true;
+      }
+
+      // 2. Direct teacher name match
+      const itemTeacher = (item.teacher_name || item.teacherName || '').trim();
       if (itemTeacher && isTeacherMatch(currentTeacherName, itemTeacher, item.subject)) {
         return true;
       }
-      // If item doesn't have teacher name set, match by subject
-      const sub = (item.subject || '').toLowerCase();
-      const tName = currentTeacherName.toLowerCase();
-      if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni')) && sub.includes('phys')) return true;
-      if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
-      if ((tName.includes('rajesh') || tName.includes('sharma')) && sub.includes('math')) return true;
-      if ((tName.includes('amit') || tName.includes('sawant')) && sub.includes('bio')) return true;
+
+      // 3. Fallback for unassigned or newly imported activities without teacher: match by teacher's subject
+      if (!itemTeacher && !item.teacher_id) {
+        const sub = (item.subject || '').toLowerCase();
+        const tName = currentTeacherName.toLowerCase();
+        if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni') || tName.includes('more') || tName.includes('swami')) && sub.includes('phys')) return true;
+        if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
+        if ((tName.includes('rajesh') || tName.includes('sharma') || tName.includes('veer')) && sub.includes('math')) return true;
+        if ((tName.includes('amit') || tName.includes('sawant') || tName.includes('shri')) && sub.includes('bio')) return true;
+      }
 
       return false;
     });
   }, [dailyActivities, user]);
 
-  // Computed Metrics based on teacher's own activities
-  const totalTeachingHoursToday = myActivities
-    .reduce((sum, act) => sum + (parseFloat(act.hours) || 0), 0)
-    .toFixed(1);
+  // Computed Metrics based on teacher's own activities - Dynamically updates as activities are added/modified
+  const totalTeachingHoursToday = useMemo(() => {
+    const total = myActivities.reduce((sum, act) => {
+      const h = parseFloat(act.hours);
+      return sum + (isNaN(h) ? 0 : h);
+    }, 0);
+    return total.toFixed(1);
+  }, [myActivities]);
 
   const completedActivitiesCount = myActivities.filter(a => a.status === 'Completed').length;
   const uniqueTopicsTaughtCount = myActivities.filter(a => a.topicTaught && a.topicTaught.trim().length > 0).length;
-  const uniqueBatchesCount = new Set(myActivities.map(a => a.batch)).size;
+  const uniqueBatchesCount = new Set(myActivities.map(a => a.batch).filter(Boolean)).size;
 
   const targetHours = 6.0;
   const progressPercent = Math.min(Math.round((parseFloat(totalTeachingHoursToday) / targetHours) * 100), 100);
@@ -500,7 +519,7 @@ export default function DailyActivityReport() {
       branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
       subject: 'Physics',
-      batch: '12th Science Tarabai Park (Batch A)',
+      batch: '12th pcm tarabai park',
       chapter: '',
       topicTaught: '',
       timeSlot: '03:00 PM - 04:00 PM',
@@ -520,7 +539,7 @@ export default function DailyActivityReport() {
       branch: act.branch || 'Tarabai Park',
       activity: act.activity || 'Classroom Lecture & Theory',
       subject: act.subject || 'Physics',
-      batch: act.batch || '12th Science Tarabai Park (Batch A)',
+      batch: act.batch || '12th pcm tarabai park',
       chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
       timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
@@ -534,89 +553,77 @@ export default function DailyActivityReport() {
     setIsActivityModalOpen(true);
   };
 
-  const handleSaveActivity = (e) => {
+  const handleSaveActivity = async (e) => {
     e.preventDefault();
-    if (!newActivity.topicTaught.trim()) {
+    if (!newActivity.topicTaught || !newActivity.topicTaught.trim()) {
       toast.warning('Please enter the topic taught today.');
       return;
     }
 
-    const payload = {
-      ...newActivity,
-      hours: parseFloat(newActivity.hours) || 1.0,
-      periods: parseInt(newActivity.periods, 10) || 1,
-      totalPlannedPeriods: parseInt(newActivity.totalPlannedPeriods, 10) || 1
-    };
+    const hoursVal = parseFloat(newActivity.hours) || 1.0;
+    const periodsVal = parseInt(newActivity.periods, 10) || 1;
+    const totalPlannedPeriodsVal = parseInt(newActivity.totalPlannedPeriods, 10) || 2;
 
     // Standardize subject name
-    let stdSubject = payload.subject.trim();
+    let stdSubject = (newActivity.subject || 'Physics').trim();
     const lowerSubj = stdSubject.toLowerCase();
     if (lowerSubj.includes('physic')) stdSubject = 'Physics';
     else if (lowerSubj.includes('chem')) stdSubject = 'Chemistry';
     else if (lowerSubj.includes('math')) stdSubject = 'Mathematics';
     else if (lowerSubj.includes('bio')) stdSubject = 'Biology';
 
-    // Determine faculty name
-    let faculty = 'Prof. Shubham Shinde';
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
-      if (u.name) faculty = u.name;
-    } catch (_) {}
-    if (!faculty || faculty === 'Assigned Faculty') {
-      if (stdSubject === 'Physics') faculty = 'Prof. Shubham Shinde';
-      else if (stdSubject === 'Chemistry') faculty = 'Prof. Sunita Patil';
-      else if (stdSubject === 'Mathematics') faculty = 'Prof. Rajesh Sharma';
-      else if (stdSubject === 'Biology') faculty = 'Prof. Amit Sawant';
-    }
+    // Determine faculty details
+    const facultyName = (user?.name || user?.full_name || 'Prof. Shubham Shinde').trim();
+    const facultyId = user?.id ? String(user.id) : null;
+    const targetDateVal = newActivity.targetDate || new Date().toISOString().split('T')[0];
 
-    const todayDate = new Date().toISOString().split('T')[0];
-    const todayMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const stdGrade = payload.batch.includes('11th') ? 'Class 11th' : 'Class 12th';
+    const backendPayload = {
+      branch: newActivity.branch || 'Tarabai Park',
+      activity: newActivity.activity || 'Classroom Lecture & Theory',
+      subject: stdSubject,
+      batch: newActivity.batch || '12th pcm tarabai park',
+      chapter: newActivity.chapter || '',
+      target_date: targetDateVal,
+      activity_date: targetDateVal,
+      topic_taught: newActivity.topicTaught.trim(),
+      time_slot: newActivity.timeSlot || '03:00 PM - 04:00 PM',
+      hours: hoursVal,
+      periods: periodsVal,
+      total_planned_periods: totalPlannedPeriodsVal,
+      status: newActivity.status || 'Completed',
+      remarks: newActivity.remarks || '',
+      teacher_name: facultyName,
+      teacher_id: facultyId
+    };
 
     if (editingActivityId) {
-      curriculumService.updateDailyActivity(editingActivityId, {
-        branch: payload.branch,
-        activity: payload.activity,
-        subject: stdSubject,
-        batch: payload.batch,
-        chapter: payload.chapter,
-        target_date: payload.targetDate,
-        topic_taught: payload.topicTaught,
-        time_slot: payload.timeSlot,
-        hours: payload.hours,
-        periods: payload.periods,
-        total_planned_periods: payload.totalPlannedPeriods,
-        status: payload.status,
-        remarks: payload.remarks
-      });
-      setDailyActivities(prev =>
-        prev.map(item => (item.id === editingActivityId ? { ...item, ...payload, subject: stdSubject } : item))
-      );
-      toast.success('Teaching activity updated successfully!');
+      try {
+        const updatedRes = await curriculumService.updateDailyActivity(editingActivityId, backendPayload);
+        const mappedUpdated = mapActivity(updatedRes || { id: editingActivityId, ...backendPayload });
+        setDailyActivities(prev =>
+          prev.map(item => (item.id === editingActivityId ? mappedUpdated : item))
+        );
+        toast.success(`Teaching activity updated! Hours logged: ${hoursVal} hrs.`);
+      } catch (err) {
+        console.error('Update activity error:', err);
+        const fallbackUpdated = mapActivity({ id: editingActivityId, ...backendPayload });
+        setDailyActivities(prev =>
+          prev.map(item => (item.id === editingActivityId ? fallbackUpdated : item))
+        );
+        toast.info(`Teaching activity updated locally! Hours: ${hoursVal} hrs.`);
+      }
     } else {
-      const created = {
-        id: `ACT-${Date.now()}`,
-        ...payload,
-        subject: stdSubject
-      };
-
-      // 1. Save daily activity in backend & local state
-      curriculumService.createDailyActivity({
-        branch: payload.branch,
-        activity: payload.activity,
-        subject: stdSubject,
-        batch: payload.batch,
-        chapter: payload.chapter,
-        target_date: payload.targetDate,
-        topic_taught: payload.topicTaught,
-        time_slot: payload.timeSlot,
-        hours: payload.hours,
-        periods: payload.periods,
-        total_planned_periods: payload.totalPlannedPeriods,
-        status: payload.status,
-        remarks: payload.remarks
-      });
-      setDailyActivities(prev => [created, ...prev]);
+      try {
+        const createdRes = await curriculumService.createDailyActivity(backendPayload);
+        const mappedCreated = mapActivity(createdRes || { id: `ACT-${Date.now()}`, ...backendPayload });
+        setDailyActivities(prev => [mappedCreated, ...prev]);
+        toast.success(`Teaching activity logged & saved to database! Hours: +${hoursVal} hrs.`);
+      } catch (err) {
+        console.error('Create activity error:', err);
+        const fallbackCreated = mapActivity({ id: `ACT-${Date.now()}`, ...backendPayload });
+        setDailyActivities(prev => [fallbackCreated, ...prev]);
+        toast.info(`Teaching activity saved locally! Hours: +${hoursVal} hrs.`);
+      }
 
       // 2. Synchronize to Topic Duration Matrix (sa_teacher_topic_plans) -> ALWAYS 'In Progress'
       try {
@@ -625,14 +632,18 @@ export default function DailyActivityReport() {
         if (savedPlans) topicPlans = JSON.parse(savedPlans);
 
         const matchIdx = topicPlans.findIndex(
-          t => (t.topicName || '').toLowerCase() === payload.topicTaught.trim().toLowerCase() &&
-               (t.batch || '').toLowerCase() === payload.batch.trim().toLowerCase()
+          t => (t.topicName || '').toLowerCase() === backendPayload.topic_taught.toLowerCase() &&
+               (t.batch || '').toLowerCase() === backendPayload.batch.toLowerCase()
         );
+
+        const todayDate = new Date().toISOString().split('T')[0];
+        const todayMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const stdGrade = backendPayload.batch.includes('11th') ? 'Class 11th' : 'Class 12th';
 
         if (matchIdx >= 0) {
           const target = topicPlans[matchIdx];
-          const newDone = (parseInt(target.completedPeriods, 10) || 0) + payload.periods;
-          const req = parseInt(target.requiredPeriods, 10) || payload.totalPlannedPeriods || 3;
+          const newDone = (parseInt(target.completedPeriods, 10) || 0) + backendPayload.periods;
+          const req = parseInt(target.requiredPeriods, 10) || backendPayload.total_planned_periods || 3;
           topicPlans[matchIdx] = {
             ...target,
             completedPeriods: newDone,
@@ -640,27 +651,27 @@ export default function DailyActivityReport() {
             startDate: target.startDate || todayDate
           };
         } else {
-          const chapterName = payload.topicTaught.includes('-')
-            ? payload.topicTaught.split('-')[0].trim()
-            : (payload.topicTaught.includes(':') ? payload.topicTaught.split(':')[0].trim() : 'Curriculum Chapter');
+          const chapterName = backendPayload.topic_taught.includes('-')
+            ? backendPayload.topic_taught.split('-')[0].trim()
+            : (backendPayload.topic_taught.includes(':') ? backendPayload.topic_taught.split(':')[0].trim() : 'Curriculum Chapter');
 
           const newTopicPlan = {
             id: `TOP-${Date.now()}`,
             standard: stdGrade,
-            batch: payload.batch,
+            batch: backendPayload.batch,
             subject: stdSubject,
-            teacher: faculty,
+            teacher: facultyName,
             chapter: chapterName,
-            topicName: payload.topicTaught.trim(),
+            topicName: backendPayload.topic_taught,
             startDate: todayDate,
             endDate: null,
-            requiredPeriods: Math.max(payload.totalPlannedPeriods || 3, payload.periods || 1),
+            requiredPeriods: Math.max(backendPayload.total_planned_periods || 3, backendPayload.periods || 1),
             periodDurationMins: 45,
-            completedPeriods: payload.periods || 1,
-            status: 'In Progress', // Added to In Progress
+            completedPeriods: backendPayload.periods || 1,
+            status: 'In Progress',
             academicYear: '2026-2027',
             month: todayMonth,
-            remarks: payload.remarks || 'Initiated from Teacher Daily Activity Log'
+            remarks: backendPayload.remarks || 'Initiated from Teacher Daily Activity Log'
           };
           topicPlans.unshift(newTopicPlan);
         }
@@ -677,12 +688,9 @@ export default function DailyActivityReport() {
       } catch (err) {
         console.warn('Local topic duration plan sync error:', err);
       }
-
-      toast.success(
-        `Teaching activity logged & added to Topic Duration Matrix under "In Progress"!`
-      );
     }
 
+    window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
     setIsActivityModalOpen(false);
     setEditingActivityId(null);
   };
@@ -691,16 +699,21 @@ export default function DailyActivityReport() {
     const isConfirmed = await confirm({
       title: 'Delete Activity Record',
       message: 'Are you sure you want to delete this activity log?',
-      subtitle: 'This will remove the activity from your daily report.',
+      subtitle: 'This will remove the activity from your daily report and update your teaching hours.',
       confirmText: 'Delete Record',
       cancelText: 'Keep Record',
       type: 'danger'
     });
 
     if (isConfirmed) {
-      curriculumService.deleteDailyActivity(id);
+      try {
+        await curriculumService.deleteDailyActivity(id);
+      } catch (err) {
+        console.warn('Backend delete daily activity error:', err);
+      }
       setDailyActivities(prev => prev.filter(a => a.id !== id));
-      toast.info('Activity record removed.');
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
+      toast.info('Activity record removed and teaching hours updated.');
     }
   };
 
@@ -882,10 +895,12 @@ export default function DailyActivityReport() {
             </div>
             <div>
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
-                {completedActivitiesCount} / {dailyActivities.length}
+                {completedActivitiesCount} / {myActivities.length}
               </div>
               <span className="text-warning-emphasis fw-semibold mt-1 d-block" style={{ fontSize: '11px' }}>
-                100% on schedule today
+                {myActivities.length > 0
+                  ? `${Math.round((completedActivitiesCount / myActivities.length) * 100)}% on schedule today`
+                  : '100% on schedule today'}
               </span>
             </div>
           </div>
@@ -1040,10 +1055,18 @@ export default function DailyActivityReport() {
               style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '190px' }}
             >
               <option value="All">All Batches</option>
-              <option value="12th Science Tarabai Park (Batch A)">12th Science (Tarabai Park)</option>
-              <option value="12th Science Mangalwar Peth (Batch A)">12th Science (Mangalwar Peth)</option>
-              <option value="11th Science PCM (Batch B)">11th Science (Batch B)</option>
-              <option value="12th Science PCB (Batch C)">12th Science (Batch C)</option>
+              <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+              <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+              <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+              <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+              <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+              <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+              <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+              <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+              <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+              <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+              <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+              <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
             </select>
           </div>
         </div>
@@ -1257,12 +1280,18 @@ export default function DailyActivityReport() {
                 onChange={(e) => setNewActivity({ ...newActivity, batch: e.target.value })}
                 required
               >
-                <option value="12th Science Tarabai Park (Batch A)">12th Science Tarabai Park (Batch A)</option>
-                <option value="11th Science Tarabai Park (Batch A)">11th Science Tarabai Park (Batch A)</option>
-                <option value="12th Science Mangalwar Peth (Batch A)">12th Science Mangalwar Peth (Batch A)</option>
-                <option value="11th Science Mangalwar Peth (Batch A)">11th Science Mangalwar Peth (Batch A)</option>
-                <option value="11th Science PCM (Batch B)">11th Science PCM (Batch B)</option>
-                <option value="12th Science PCB (Batch C)">12th Science PCB (Batch C)</option>
+                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
                 <option value="All Enrolled Batches">All Enrolled Batches</option>
               </select>
             </div>

@@ -19,6 +19,12 @@ class ReminderHistory(Document):
     idempotency_key: Annotated[str, Indexed(unique=True)]
     academy: str
     student: Optional[Link[Student]] = None
+    student_id_str: Optional[str] = None
+    student_name: Optional[str] = None
+    roll_number: Optional[str] = None
+    parent_mobile: Optional[str] = None
+    channel: Optional[str] = None
+    reminder_stage: Optional[str] = None
     fee_installment_ref: Optional[str] = None
     scheduled_time: datetime
     amount_outstanding: float
@@ -30,3 +36,4 @@ class ReminderHistory(Document):
 
     class Settings:
         name = "reminder_history"
+

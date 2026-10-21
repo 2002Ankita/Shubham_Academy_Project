@@ -75,23 +75,23 @@ export const attendanceService = {
       const isPastDate = localDateStr < todayDateStr;
       const isAutoClosed = Boolean((r.remarks && r.remarks.toLowerCase().includes('auto closed')) || (isPastDate && !r.check_out_time));
 
-      let totalHours = r.total_hours || '--';
+      let totalHours = '--';
       if (checkInDate && checkOutDate) {
-        if (!r.total_hours) {
-          const diffMs = checkOutDate - checkInDate;
-          const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-          const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          totalHours = `${diffHrs}h ${diffMins}m`;
-        }
+        const diffMs = Math.max(0, checkOutDate.getTime() - checkInDate.getTime());
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        totalHours = `${diffHrs}h ${diffMins}m`;
       } else if (checkInDate && !checkOutDate) {
         if (isPastDate) {
           totalHours = r.total_hours || '1h 00m';
         } else {
-          const diffMs = Date.now() - checkInDate.getTime();
+          const diffMs = Math.max(0, Date.now() - checkInDate.getTime());
           const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
           const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
           totalHours = `${diffHrs}h ${diffMins}m`;
         }
+      } else if (r.total_hours) {
+        totalHours = r.total_hours;
       }
 
       let checkOutDisplay = '--';

@@ -15,10 +15,12 @@ router = APIRouter(prefix="/daily-activities", tags=["Daily Activities"])
 @router.get("", response_model=List[DailyActivityResponse])
 async def list_daily_activities(
     teacher_name: Optional[str] = None,
+    teacher_id: Optional[str] = None,
     subject: Optional[str] = None,
     batch: Optional[str] = None,
     standard: Optional[str] = None,
     status: Optional[str] = None,
+    date: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Retrieve daily teacher activity records with flexible filtering"""
@@ -29,8 +31,11 @@ async def list_daily_activities(
             pass
 
     query = {}
-    if teacher_name:
+    if teacher_id:
+        query["teacher_id"] = teacher_id
+    elif teacher_name:
         query["teacher_name"] = {"$regex": teacher_name, "$options": "i"}
+
     if subject and subject != "All":
         query["subject"] = {"$regex": subject, "$options": "i"}
     if batch and batch != "All":
@@ -39,6 +44,8 @@ async def list_daily_activities(
         query["standard"] = {"$regex": standard, "$options": "i"}
     if status and status != "All":
         query["status"] = status
+    if date:
+        query["$or"] = [{"activity_date": date}, {"target_date": date}]
 
     activities = await DailyActivity.find(query).sort("-created_at").to_list()
 
@@ -56,19 +63,41 @@ async def create_daily_activity(
 ):
     """Log a new daily teacher classroom activity and automatically sync to Topic Duration Matrix (In Progress)"""
     current_teacher = None
+    current_teacher_id = None
     if token:
         try:
             user = await get_current_user(token)
             current_teacher = user.full_name
+            current_teacher_id = str(user.id)
         except Exception:
             pass
 
     data = activity_in.dict()
     if not data.get("teacher_name") and current_teacher:
         data["teacher_name"] = current_teacher
+    if not data.get("teacher_id") and current_teacher_id:
+        data["teacher_id"] = current_teacher_id
+
+    # Fallback: if teacher_id is missing but teacher_name is present, resolve teacher_id
+    if not data.get("teacher_id") and data.get("teacher_name"):
+        try:
+            from app.models.user import User
+            import re
+            u = await User.find_one({"full_name": {"$regex": f"^{re.escape(data['teacher_name'].strip())}$", "$options": "i"}})
+            if u:
+                data["teacher_id"] = str(u.id)
+        except Exception:
+            pass
 
     if not data.get("activity_date"):
-        data["activity_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+        data["activity_date"] = data.get("target_date") or datetime.utcnow().strftime("%Y-%m-%d")
+    if not data.get("target_date"):
+        data["target_date"] = data.get("activity_date")
+
+    try:
+        data["hours"] = float(data.get("hours") or 1.0)
+    except (ValueError, TypeError):
+        data["hours"] = 1.0
 
     activity = DailyActivity(**data)
     await activity.insert()
@@ -235,10 +264,15 @@ async def get_daily_activity(id: str, token: Optional[str] = Depends(oauth2_sche
         except Exception:
             pass
 
+    activity = None
     try:
-        activity = await DailyActivity.get(ObjectId(id))
+        if ObjectId.is_valid(id):
+            activity = await DailyActivity.get(ObjectId(id))
     except Exception:
         activity = None
+
+    if not activity:
+        activity = await DailyActivity.find_one({"$or": [{"_id": id}, {"id": id}]})
 
     if not activity:
         raise HTTPException(status_code=404, detail="Daily activity not found")
@@ -260,15 +294,31 @@ async def update_daily_activity(
         except Exception:
             pass
 
+    activity = None
     try:
-        activity = await DailyActivity.get(ObjectId(id))
+        if ObjectId.is_valid(id):
+            activity = await DailyActivity.get(ObjectId(id))
     except Exception:
         activity = None
+
+    if not activity:
+        activity = await DailyActivity.find_one({"$or": [{"_id": id}, {"id": id}]})
 
     if not activity:
         raise HTTPException(status_code=404, detail="Daily activity not found")
 
     update_data = activity_in.dict(exclude_unset=True)
+    if "hours" in update_data and update_data["hours"] is not None:
+        try:
+            update_data["hours"] = float(update_data["hours"])
+        except (ValueError, TypeError):
+            pass
+
+    if "target_date" in update_data and not update_data.get("activity_date"):
+        update_data["activity_date"] = update_data["target_date"]
+    elif "activity_date" in update_data and not update_data.get("target_date"):
+        update_data["target_date"] = update_data["activity_date"]
+
     for key, value in update_data.items():
         if value is not None:
             setattr(activity, key, value)
@@ -289,13 +339,18 @@ async def delete_daily_activity(id: str, token: Optional[str] = Depends(oauth2_s
         except Exception:
             pass
 
+    activity = None
     try:
-        activity = await DailyActivity.get(ObjectId(id))
+        if ObjectId.is_valid(id):
+            activity = await DailyActivity.get(ObjectId(id))
     except Exception:
         activity = None
+
+    if not activity:
+        activity = await DailyActivity.find_one({"$or": [{"_id": id}, {"id": id}]})
 
     if not activity:
         raise HTTPException(status_code=404, detail="Daily activity not found")
 
     await activity.delete()
-    return {"message": "Daily activity deleted successfully"}
+    return {"message": "Daily activity deleted successfully", "id": id}
