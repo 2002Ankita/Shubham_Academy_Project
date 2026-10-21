@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherForm from '../../components/forms/TeacherForm';
 import teacherService from '../../services/teacherService';
+import { useAuth } from '../../hooks/useAuth';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 import '../../styles/teacherOnboarding.css';
 
 export default function AddTeacher() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
+
+  const isTeacher = (user?.role || '').toLowerCase() === 'teacher';
+  const directoryPath = isTeacher ? '/teacher/teachers' : '/admin/teachers';
 
   const handleStepClick = (step, elementId) => {
     setActiveStep(step);
@@ -33,7 +38,7 @@ export default function AddTeacher() {
       }
       
       toast.success(`Faculty ${created.full_name || created.name || formData.name} onboarded successfully!`);
-      navigate('/admin/teachers');
+      navigate(directoryPath);
     } catch (error) {
       const detail = error.response?.data?.detail;
       let errMsg = 'Failed to onboard faculty member';
@@ -55,7 +60,7 @@ export default function AddTeacher() {
         <button
           type="button"
           className="btn btn-link p-0 d-inline-flex align-items-center gap-1.5 small text-sa-charcoal fw-semibold text-decoration-none"
-          onClick={() => navigate('/admin/teachers')}
+          onClick={() => navigate(directoryPath)}
           style={{ fontSize: '13.5px' }}
         >
           <ArrowLeft size={16} />

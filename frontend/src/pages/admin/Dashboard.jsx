@@ -6,6 +6,9 @@ import feeService from '../../services/feeService';
 import examService from '../../services/examService';
 import batchService from '../../services/batchService';
 import inventoryService from '../../services/inventoryService';
+import leaveService from '../../services/leaveService';
+import salaryService from '../../services/salaryService';
+import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
 import {
   ResponsiveContainer,
@@ -34,13 +37,17 @@ import {
   ChevronRight,
   ShieldCheck,
   CheckCircle2,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   Tag,
   Clock,
   Sparkles,
   BookOpen,
   BookMarked,
-  Truck
+  Truck,
+  Check,
+  X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -61,6 +68,14 @@ export default function AdminDashboard() {
   const [recentAdmissions, setRecentAdmissions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
 
+  // Faculty Dynamic Data States
+  const [facultyLeaves, setFacultyLeaves] = useState([]);
+  const [facultyAttendance, setFacultyAttendance] = useState([]);
+  const [facultySummary, setFacultySummary] = useState(null);
+  const [facultySalaries, setFacultySalaries] = useState([]);
+  const [facultyList, setFacultyList] = useState([]);
+  const [leaveActionLoading, setLeaveActionLoading] = useState(false);
+
   const [attendanceData, setAttendanceData] = useState([
     { day: 'Mon', present: 0, absent: 0 },
     { day: 'Tue', present: 0, absent: 0 },
@@ -75,15 +90,52 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [studentsRes, attendanceRes, feesRes, examsRes, batchesRes, summaryRes, inventoryRes] = await Promise.allSettled([
+      const todayDate = new Date();
+      const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+
+      const [
+        studentsRes,
+        attendanceRes,
+        feesRes,
+        examsRes,
+        batchesRes,
+        summaryRes,
+        inventoryRes,
+        leavesRes,
+        salariesRes,
+        teachersRes,
+        teacherAttRes,
+        teacherSumRes
+      ] = await Promise.allSettled([
         studentService.getAll(),
         attendanceService.getLogs(),
         feeService.getAll(),
         examService.getAll(),
         batchService.getBatches(),
         attendanceService.getReportSummary(),
-        inventoryService.getItems()
+        inventoryService.getItems(),
+        leaveService.getAllLeaveRequests(),
+        salaryService.getAll(),
+        teacherService.getAll(),
+        attendanceService.getTeachersAttendance({ date: todayStr }),
+        attendanceService.getTeachersSummary({ date: todayStr })
       ]);
+
+      if (leavesRes.status === 'fulfilled') {
+        setFacultyLeaves(leavesRes.value || []);
+      }
+      if (salariesRes.status === 'fulfilled') {
+        setFacultySalaries(salariesRes.value || []);
+      }
+      if (teachersRes.status === 'fulfilled') {
+        setFacultyList(teachersRes.value || []);
+      }
+      if (teacherAttRes.status === 'fulfilled') {
+        setFacultyAttendance(teacherAttRes.value || []);
+      }
+      if (teacherSumRes.status === 'fulfilled') {
+        setFacultySummary(teacherSumRes.value || null);
+      }
 
       if (studentsRes.status === 'fulfilled') {
         const students = studentsRes.value || [];
@@ -172,6 +224,70 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Faculty calculations
+  const pendingLeaves = facultyLeaves.filter(
+    (l) => (l.status || '').toLowerCase() === 'pending'
+  );
+  const approvedLeavesCount = facultyLeaves.filter(
+    (l) => (l.status || '').toLowerCase() === 'approved'
+  );
+
+  const totalTeachers = facultyList.length;
+  const presentTeachers = facultySummary?.present_count ?? facultyAttendance.filter(
+    (r) => r.status === 'Present' || r.status === 'Working'
+  ).length;
+  const workingTeachers = facultySummary?.working_count ?? facultyAttendance.filter(
+    (r) => r.status === 'Working'
+  ).length;
+  const absentTeachers = facultySummary?.absent_count ?? Math.max(0, totalTeachers - presentTeachers);
+
+  // Total shift hours today
+  let totalFacultyHoursToday = 0;
+  facultyAttendance.forEach(r => {
+    const raw = r.total_hours || r.totalHours;
+    if (raw) {
+      const match = raw.match(/(\d+)\s*h(?:\s*(\d+)\s*m)?/i);
+      if (match) {
+        totalFacultyHoursToday += Number(match[1]) + (Number(match[2] || 0) / 60);
+      }
+    }
+  });
+
+  // Salary calculations
+  const totalSalaryLiability = facultySalaries.reduce(
+    (acc, s) => acc + (Number(s.netPayable) || Number(s.baseSalary) || 0),
+    0
+  );
+  const totalSalaryDisbursed = facultySalaries.reduce(
+    (acc, s) => acc + ((Number(s.netPayable) || 0) - (Number(s.amountPending) || 0)),
+    0
+  );
+  const totalSalaryPending = facultySalaries.reduce(
+    (acc, s) => acc + (Number(s.amountPending) || 0),
+    0
+  );
+  const salaryDisbursedPercent = totalSalaryLiability > 0
+    ? Math.min(100, Math.round((totalSalaryDisbursed / totalSalaryLiability) * 100))
+    : 0;
+
+  const handleQuickLeaveAction = async (id, status) => {
+    setLeaveActionLoading(true);
+    try {
+      await leaveService.updateLeaveStatus(
+        id,
+        status,
+        status === 'Approved' ? 'Approved by Admin' : 'Rejected by Admin'
+      );
+      toast.success(`Leave request ${status.toLowerCase()} successfully!`);
+      const updated = await leaveService.getAllLeaveRequests();
+      setFacultyLeaves(updated || []);
+    } catch (err) {
+      toast.error(`Failed to ${status.toLowerCase()} leave request`);
+    } finally {
+      setLeaveActionLoading(false);
+    }
+  };
 
   const pendingDiscounts = allStudents.filter(
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
@@ -571,6 +687,435 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FACULTY OPERATIONS: LEAVES, WORKING TIME & SALARY */}
+      <div className="d-flex flex-column gap-3 pt-2">
+        {/* Section Header */}
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 pb-1 border-bottom" style={{ borderColor: 'rgba(220, 38, 38, 0.12)' }}>
+          <div className="d-flex align-items-center gap-2.5">
+            <div
+              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
+              style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)' }}
+            >
+              <Users size={19} />
+            </div>
+            <div>
+              <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.20rem', lineHeight: 1.25 }}>
+                Faculty Operations: Working Time, Leaves & Salary
+              </h2>
+              <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
+                Real-time tracking of staff working hours, pending leaves, and payroll records
+              </span>
+            </div>
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/teachers/attendance')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+            >
+              <Clock size={13} />
+              <span>Full Attendance</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/teachers/leave-approvals')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+            >
+              <Calendar size={13} />
+              <span>Leave Approvals</span>
+              {pendingLeaves.length > 0 && (
+                <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
+                  {pendingLeaves.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/teachers/salary')}
+              className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 rounded-2 shadow-xs"
+              style={{ backgroundColor: '#8B1216', fontSize: '0.78rem', fontWeight: 600 }}
+            >
+              <ReceiptIndianRupee size={13} />
+              <span>Salary Register</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Cards: Working Time, Leaves, Salary */}
+        <div className="row g-3 g-xl-4">
+          {/* Card 1: Faculty Working Time & Attendance */}
+          <div className="col-12 col-lg-4">
+            <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
+              {/* Header */}
+              <div className="d-flex align-items-center justify-content-between mb-2.5">
+                <div className="d-flex align-items-center gap-2">
+                  <Clock size={18} style={{ color: 'var(--sa-primary-red)' }} />
+                  <h3 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
+                    Faculty Working Time
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/teachers/attendance')}
+                  className="btn btn-link p-0 text-decoration-none fw-semibold"
+                  style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
+                >
+                  View Tracker &rarr;
+                </button>
+              </div>
+
+              {/* KPI Pill */}
+              <div
+                className="d-flex align-items-center justify-content-between p-2 rounded-2 mb-2.5"
+                style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}
+              >
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>ON DUTY</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.1rem', color: '#166534' }}>
+                    {presentTeachers} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748B' }}>/ {totalTeachers}</span>
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>WORKING NOW</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.1rem', color: '#D97706' }}>
+                    {workingTeachers}
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>HOURS TODAY</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.1rem', color: '#8B1216' }}>
+                    {totalFacultyHoursToday.toFixed(1)}h
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance Entries */}
+              <div className="d-flex flex-column gap-2 flex-grow-1 overflow-auto" style={{ maxHeight: '220px' }}>
+                {facultyAttendance.length === 0 ? (
+                  <div className="text-center py-4 text-sa-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+                    <Clock size={24} className="text-muted mb-1.5 opacity-50" />
+                    <span style={{ fontSize: '0.80rem' }}>No teacher punches recorded today</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin/teachers/attendance')}
+                      className="btn btn-sm btn-link p-0 mt-1"
+                      style={{ fontSize: '0.76rem', color: '#8B1216' }}
+                    >
+                      Record Check-In Manually
+                    </button>
+                  </div>
+                ) : (
+                  facultyAttendance.slice(0, 4).map((record, idx) => {
+                    const isWorking = record.status === 'Working';
+                    const isPresent = record.status === 'Present';
+                    return (
+                      <div
+                        key={record.id || idx}
+                        className="d-flex align-items-center justify-content-between p-2 rounded-2"
+                        style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
+                      >
+                        <div className="min-w-0 pe-2">
+                          <div className="fw-semibold text-sa-charcoal text-truncate" style={{ fontSize: '0.82rem', lineHeight: 1.25 }}>
+                            {record.teacher_name || record.name || 'Faculty Member'}
+                          </div>
+                          <div className="text-sa-muted small mt-0.5" style={{ fontSize: '0.70rem' }}>
+                            In: {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'} • Out: {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (isWorking ? 'In Progress' : '--')}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                          <span
+                            className="badge rounded-pill fw-semibold px-2 py-0.5"
+                            style={{
+                              fontSize: '0.68rem',
+                              backgroundColor: isWorking ? '#FEF3C7' : isPresent ? '#EAF6EF' : '#FEE2E2',
+                              color: isWorking ? '#B45309' : isPresent ? '#168554' : '#DC2626'
+                            }}
+                          >
+                            {record.status || 'Present'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Card Footer */}
+              <div className="mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
+                <span>Daily shift standard: 8h/day</span>
+                <span className="fw-semibold text-sa-charcoal">{presentTeachers} of {totalTeachers} present today</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Faculty Leaves */}
+          <div className="col-12 col-lg-4">
+            <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
+              {/* Header */}
+              <div className="d-flex align-items-center justify-content-between mb-2.5">
+                <div className="d-flex align-items-center gap-2">
+                  <Calendar size={18} style={{ color: 'var(--sa-primary-red)' }} />
+                  <h3 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
+                    Faculty Leaves
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/teachers/leave-approvals')}
+                  className="btn btn-link p-0 text-decoration-none fw-semibold"
+                  style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
+                >
+                  Review All &rarr;
+                </button>
+              </div>
+
+              {/* KPI Pill */}
+              <div
+                className="d-flex align-items-center justify-content-between p-2 rounded-2 mb-2.5"
+                style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}
+              >
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>PENDING APPROVAL</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.1rem', color: pendingLeaves.length > 0 ? '#DC2626' : '#166534' }}>
+                    {pendingLeaves.length}
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>APPROVED</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.1rem', color: '#166534' }}>
+                    {approvedLeavesCount.length}
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>TOTAL REQUESTS</div>
+                  <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.1rem' }}>
+                    {facultyLeaves.length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Leaves List with Quick Action */}
+              <div className="d-flex flex-column gap-2 flex-grow-1 overflow-auto" style={{ maxHeight: '220px' }}>
+                {facultyLeaves.length === 0 ? (
+                  <div className="text-center py-4 text-sa-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+                    <Calendar size={24} className="text-muted mb-1.5 opacity-50" />
+                    <span style={{ fontSize: '0.80rem' }}>No leave requests submitted yet</span>
+                    <span className="text-muted" style={{ fontSize: '0.72rem' }}>All faculty members on active duty</span>
+                  </div>
+                ) : (
+                  facultyLeaves.slice(0, 4).map((leave, idx) => {
+                    const isPending = (leave.status || '').toLowerCase() === 'pending';
+                    const isApproved = (leave.status || '').toLowerCase() === 'approved';
+                    const fromDateStr = leave.from_date ? new Date(leave.from_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+                    const toDateStr = leave.to_date ? new Date(leave.to_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+                    return (
+                      <div
+                        key={leave.id || idx}
+                        className="d-flex align-items-center justify-content-between p-2 rounded-2"
+                        style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
+                      >
+                        <div className="min-w-0 pe-2">
+                          <div className="fw-semibold text-sa-charcoal text-truncate" style={{ fontSize: '0.82rem', lineHeight: 1.25 }}>
+                            {leave.teacher_name || 'Faculty Member'}
+                          </div>
+                          <div className="text-sa-muted small mt-0.5 text-truncate" style={{ fontSize: '0.70rem' }} title={leave.reason}>
+                            <span className="fw-semibold text-dark">{leave.leave_type || 'Leave'}</span> • {fromDateStr} to {toDateStr} ({leave.number_of_days}d)
+                          </div>
+                        </div>
+
+                        {/* Status or Instant Action Buttons */}
+                        <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                          {isPending ? (
+                            <div className="d-flex align-items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={leaveActionLoading}
+                                onClick={() => handleQuickLeaveAction(leave.id, 'Approved')}
+                                className="btn btn-sm btn-success p-1 d-flex align-items-center justify-content-center shadow-xs"
+                                style={{ width: '24px', height: '24px', borderRadius: '6px' }}
+                                title="Quick Approve Leave"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={leaveActionLoading}
+                                onClick={() => handleQuickLeaveAction(leave.id, 'Rejected')}
+                                className="btn btn-sm btn-outline-danger p-1 d-flex align-items-center justify-content-center shadow-xs"
+                                style={{ width: '24px', height: '24px', borderRadius: '6px' }}
+                                title="Quick Reject Leave"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className="badge rounded-pill fw-semibold px-2 py-0.5"
+                              style={{
+                                fontSize: '0.68rem',
+                                backgroundColor: isApproved ? '#EAF6EF' : '#FEE2E2',
+                                color: isApproved ? '#168554' : '#DC2626'
+                              }}
+                            >
+                              {leave.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Card Footer */}
+              <div className="mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
+                <span className="text-truncate">Instant 1-click approvals supported</span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/teachers/leave-approvals')}
+                  className="btn btn-link p-0 text-decoration-none fw-semibold"
+                  style={{ fontSize: '0.74rem', color: '#8B1216' }}
+                >
+                  Manage Approvals &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Faculty Salary & Payroll */}
+          <div className="col-12 col-lg-4">
+            <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
+              {/* Header */}
+              <div className="d-flex align-items-center justify-content-between mb-2.5">
+                <div className="d-flex align-items-center gap-2">
+                  <ReceiptIndianRupee size={18} style={{ color: '#168554' }} />
+                  <h3 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
+                    Faculty Salary & Payroll
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/teachers/salary')}
+                  className="btn btn-link p-0 text-decoration-none fw-semibold"
+                  style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
+                >
+                  Salary Register &rarr;
+                </button>
+              </div>
+
+              {/* KPI Pill */}
+              <div
+                className="d-flex align-items-center justify-content-between p-2 rounded-2 mb-2"
+                style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}
+              >
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>TOTAL PAYROLL</div>
+                  <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.05rem' }}>
+                    ₹{totalSalaryLiability.toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1 border-end">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>DISBURSED</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: '#168554' }}>
+                    ₹{totalSalaryDisbursed.toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="text-center flex-grow-1">
+                  <div className="text-sa-muted" style={{ fontSize: '0.68rem', fontWeight: 600 }}>PENDING</div>
+                  <div className="fw-bold brand-font" style={{ fontSize: '1.05rem', color: totalSalaryPending > 0 ? '#DC2626' : '#64748B' }}>
+                    ₹{totalSalaryPending.toLocaleString('en-IN')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-2.5 px-0.5">
+                <div className="d-flex align-items-center justify-content-between small text-muted mb-1" style={{ fontSize: '0.70rem' }}>
+                  <span>Disbursement Progress</span>
+                  <span className="fw-bold text-dark">{salaryDisbursedPercent}% Completed</span>
+                </div>
+                <div className="progress" style={{ height: '5px', backgroundColor: '#F1F5F9', borderRadius: '3px' }}>
+                  <div
+                    className="progress-bar"
+                    style={{
+                      width: `${salaryDisbursedPercent}%`,
+                      backgroundColor: '#168554',
+                      borderRadius: '3px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Salaries List */}
+              <div className="d-flex flex-column gap-2 flex-grow-1 overflow-auto" style={{ maxHeight: '185px' }}>
+                {facultySalaries.length === 0 ? (
+                  <div className="text-center py-4 text-sa-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+                    <ReceiptIndianRupee size={24} className="text-muted mb-1.5 opacity-50" />
+                    <span style={{ fontSize: '0.80rem' }}>No salary records generated for this month</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin/teachers/salary')}
+                      className="btn btn-sm btn-link p-0 mt-1"
+                      style={{ fontSize: '0.76rem', color: '#8B1216' }}
+                    >
+                      Generate Drafts in Salary Register
+                    </button>
+                  </div>
+                ) : (
+                  facultySalaries.slice(0, 4).map((sal, idx) => {
+                    const isDisbursed = sal.status === 'Disbursed';
+                    const isPartial = sal.status === 'Partially Paid';
+                    return (
+                      <div
+                        key={sal.id || idx}
+                        className="d-flex align-items-center justify-content-between p-2 rounded-2"
+                        style={{ backgroundColor: '#FCFDFE', border: '1px solid #F1F5F9' }}
+                      >
+                        <div className="min-w-0 pe-2">
+                          <div className="fw-semibold text-sa-charcoal text-truncate" style={{ fontSize: '0.82rem', lineHeight: 1.25 }}>
+                            {sal.teacherName || 'Faculty Member'}
+                          </div>
+                          <div className="text-sa-muted small mt-0.5" style={{ fontSize: '0.70rem' }}>
+                            Net: ₹{(Number(sal.netPayable) || 0).toLocaleString('en-IN')} • Pend: ₹{(Number(sal.amountPending) || 0).toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                          <span
+                            className="badge rounded-pill fw-semibold px-2 py-0.5"
+                            style={{
+                              fontSize: '0.68rem',
+                              backgroundColor: isDisbursed ? '#EAF6EF' : isPartial ? '#FEF3C7' : '#FEE2E2',
+                              color: isDisbursed ? '#168554' : isPartial ? '#B45309' : '#DC2626'
+                            }}
+                          >
+                            {sal.status || 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Card Footer */}
+              <div className="mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
+                <span>Payroll cycle: Monthly 1st-30th</span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/teachers/salary')}
+                  className="btn btn-link p-0 text-decoration-none fw-semibold"
+                  style={{ fontSize: '0.74rem', color: '#8B1216' }}
+                >
+                  Disburse &rarr;
+                </button>
+              </div>
             </div>
           </div>
         </div>
