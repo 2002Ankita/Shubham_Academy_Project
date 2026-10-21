@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
 import teacherService from '../../services/teacherService';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, UserPlus } from 'lucide-react';
 
 export default function TeacherDirectory() {
   const navigate = useNavigate();
@@ -95,11 +95,22 @@ export default function TeacherDirectory() {
           </div>
         </div>
 
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search faculty by name, subject, class..."
-        />
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search faculty by name, subject, class..."
+          />
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/teachers/add')}
+            className="btn text-white d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-2 rounded-2 shadow-xs transition-all"
+            style={{ backgroundColor: '#8B1216', fontSize: '13px', whiteSpace: 'nowrap' }}
+          >
+            <UserPlus size={15} />
+            <span>+ Add Faculty</span>
+          </button>
+        </div>
       </div>
 
       <Table

@@ -7,6 +7,7 @@ import batchService from '../../services/batchService';
 import { attendanceService } from '../../services/attendanceService';
 import salaryService from '../../services/salaryService';
 import curriculumService from '../../services/curriculumService';
+import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 
@@ -58,7 +59,8 @@ import {
   Coins,
   BarChart2,
   Tv,
-  Check
+  Check,
+  UserPlus
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
@@ -86,6 +88,19 @@ export default function TeacherDashboard() {
   const [salaryDetails, setSalaryDetails] = useState({ pending: 0, status: 'N/A' });
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
+
+  // Working Faculty state
+  const [workingFaculty, setWorkingFaculty] = useState([]);
+  const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
+  const [addFacultyLoading, setAddFacultyLoading] = useState(false);
+  const [newFacultyForm, setNewFacultyForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    subject: 'Physics',
+    monthlySalary: 65000,
+    password: ''
+  });
 
   const loadAttendanceStatus = async () => {
     if (!user?.id) return;
@@ -131,16 +146,58 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleQuickAddFaculty = async (e) => {
+    e.preventDefault();
+    if (!newFacultyForm.name || !newFacultyForm.email || !newFacultyForm.phone || !newFacultyForm.password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    setAddFacultyLoading(true);
+    try {
+      await teacherService.create(newFacultyForm);
+      try {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        await salaryService.generateDrafts(currentMonth);
+      } catch (_) { }
+
+      toast.success(`Faculty ${newFacultyForm.name} onboarded successfully!`);
+      setShowAddFacultyModal(false);
+      setNewFacultyForm({
+        name: '',
+        email: '',
+        phone: '',
+        subject: 'Physics',
+        monthlySalary: 65000,
+        password: ''
+      });
+      const refreshed = await teacherService.getAll();
+      setWorkingFaculty(refreshed || []);
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      let errMsg = 'Failed to onboard faculty member';
+      if (typeof detail === 'string') errMsg = detail;
+      else if (Array.isArray(detail) && detail[0]?.msg) errMsg = detail[0].msg;
+      toast.error(errMsg);
+    } finally {
+      setAddFacultyLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [studentsRes, examsRes, noticesRes, batchesRes, activitiesRes] = await Promise.allSettled([
+        const [studentsRes, examsRes, noticesRes, batchesRes, activitiesRes, teachersRes] = await Promise.allSettled([
           studentService.getAll(),
           examService.getAll(),
           noticeService.getAll(),
           batchService.getBatches(),
-          curriculumService.getDailyActivities().catch(() => [])
+          curriculumService.getDailyActivities().catch(() => []),
+          teacherService.getAll()
         ]);
+
+        if (teachersRes.status === 'fulfilled') {
+          setWorkingFaculty(teachersRes.value || []);
+        }
 
         if (user && user.id) {
           await loadAttendanceStatus();
@@ -891,11 +948,172 @@ export default function TeacherDashboard() {
               </div>
               <ChevronRight size={15} style={{ color: '#166534' }} className="flex-shrink-0 ms-1" />
             </button>
+
+            {/* Action 5: Add Working Faculty */}
+            <button
+              onClick={() => setShowAddFacultyModal(true)}
+              className="btn teacher-action-card-btn w-100 text-start d-flex align-items-center justify-content-between border shadow-xs"
+              style={{
+                backgroundColor: '#FEF2F2',
+                borderColor: 'rgba(220, 38, 38, 0.2)',
+                height: '46px'
+              }}
+            >
+              <div className="d-flex align-items-center gap-2.5 min-w-0">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '32px', height: '32px', backgroundColor: 'rgba(139, 18, 22, 0.1)', color: '#8B1216' }}
+                >
+                  <UserPlus size={16} />
+                </div>
+                <div className="min-w-0">
+                  <span className="fw-bold d-block text-truncate" style={{ fontSize: '12.5px', color: '#8B1216', lineHeight: 1.2 }}>
+                    Add Working Faculty
+                  </span>
+                  <span className="text-muted d-block text-truncate" style={{ fontSize: '10px', lineHeight: 1.1, marginTop: '1px' }}>
+                    Onboard new faculty teacher
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={15} style={{ color: '#8B1216' }} className="flex-shrink-0 ms-1" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 5. UPCOMING EXAMINATIONS & PENDING TASKS (2 EQUAL COLUMNS - ZERO OVERLAP) */}
+      {/* 5. WORKING FACULTY & TEACHING STAFF (WITH ADD FACULTY OPTION) */}
+      <div
+        className="teacher-grid-card d-flex flex-column"
+        style={{ minHeight: '190px', padding: '16px 20px' }}
+      >
+        <div className="d-flex align-items-center justify-content-between pb-2.5 mb-2 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+          <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+            <Users size={17} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+            <h3 className="teacher-card-heading">
+              Working Faculty & Teaching Staff
+            </h3>
+            <span
+              className="badge rounded-pill fw-medium ms-1"
+              style={{ backgroundColor: '#FDF0F0', color: '#8B1216', fontSize: '11px', border: '1px solid rgba(220, 38, 38, 0.15)' }}
+            >
+              {workingFaculty.length} Working Faculty
+            </span>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddFacultyModal(true)}
+              className="btn btn-sm d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs transition-all"
+              style={{
+                backgroundColor: '#8B1216',
+                fontSize: '11.5px',
+                padding: '5px 12px',
+                borderRadius: '8px'
+              }}
+            >
+              <UserPlus size={13} />
+              <span>+ Add Faculty</span>
+            </button>
+            <button
+              onClick={() => navigate('/teacher/teachers')}
+              className="btn btn-link p-0 text-decoration-none fw-semibold ms-1"
+              style={{ fontSize: '12px', whiteSpace: 'nowrap', color: '#8B1216' }}
+            >
+              Faculty Directory &rarr;
+            </button>
+          </div>
+        </div>
+
+        {/* Faculty Cards */}
+        {workingFaculty.length === 0 ? (
+          <div className="d-flex flex-column align-items-center justify-content-center text-center py-4 flex-grow-1">
+            <div
+              className="rounded-circle d-flex align-items-center justify-content-center mb-2"
+              style={{ width: '42px', height: '42px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+            >
+              <Users size={20} />
+            </div>
+            <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '13px' }}>
+              No working faculty records found
+            </div>
+            <div className="text-sa-muted mt-0.5 mb-2" style={{ fontSize: '11.5px' }}>
+              Click below to onboard and assign teaching faculty
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddFacultyModal(true)}
+              className="btn btn-sm text-white fw-semibold px-3 py-1 rounded-2 shadow-xs"
+              style={{ backgroundColor: '#8B1216', fontSize: '12px' }}
+            >
+              <UserPlus size={13} className="me-1" /> Add Working Faculty
+            </button>
+          </div>
+        ) : (
+          <div className="row g-2.5 pt-1">
+            {workingFaculty.slice(0, 4).map((fac, idx) => {
+              const initials = (fac.name || 'Faculty Member')
+                .split(' ')
+                .map(n => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+              return (
+                <div key={fac.id || idx} className="col-12 col-sm-6 col-xl-3">
+                  <div
+                    className="p-3 rounded-3 border d-flex flex-column justify-content-between h-100 transition-all hover-schedule-row shadow-xs"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.88)',
+                      borderColor: 'rgba(220, 38, 38, 0.12)'
+                    }}
+                  >
+                    <div className="d-flex align-items-start gap-2.5 min-w-0">
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 text-white shadow-xs"
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          fontSize: '12.5px',
+                          background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)'
+                        }}
+                      >
+                        {initials}
+                      </div>
+                      <div className="min-w-0 flex-grow-1">
+                        <div className="fw-bold text-sa-charcoal text-truncate" title={fac.name} style={{ fontSize: '13px', lineHeight: 1.25 }}>
+                          {fac.name}
+                        </div>
+                        <span
+                          className="badge rounded-pill fw-medium mt-1 d-inline-block text-truncate"
+                          style={{
+                            backgroundColor: '#FEF8EB',
+                            color: '#D97718',
+                            fontSize: '10.5px',
+                            padding: '2px 8px',
+                            maxWidth: '100%'
+                          }}
+                        >
+                          {fac.subject || 'Faculty'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-between pt-2 mt-2.5 border-top" style={{ fontSize: '11px', borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+                      <span className="d-flex align-items-center gap-1.5 text-success fw-semibold">
+                        <span className="rounded-circle d-inline-block" style={{ width: '6px', height: '6px', backgroundColor: '#16A34A', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)' }} />
+                        {fac.status || 'Active'}
+                      </span>
+                      <span className="text-sa-muted text-truncate" style={{ maxWidth: '110px' }}>
+                        {fac.phone || fac.email || 'Working'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 6. UPCOMING EXAMINATIONS & PENDING TASKS (2 EQUAL COLUMNS - ZERO OVERLAP) */}
       <div className="teacher-two-col-grid">
         {/* Card 1: Upcoming Examinations */}
         <div
@@ -1149,6 +1367,159 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* QUICK ADD FACULTY MODAL */}
+      {showAddFacultyModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 2000,
+            padding: '16px'
+          }}
+          onClick={() => setShowAddFacultyModal(false)}
+        >
+          <div
+            className="bg-white rounded-4 shadow-xl border w-100 p-4"
+            style={{ maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+              <div className="d-flex align-items-center gap-2.5">
+                <div
+                  className="rounded-3 d-flex align-items-center justify-content-center"
+                  style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+                >
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h4 className="fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.15rem' }}>
+                    Onboard Working Faculty
+                  </h4>
+                  <span className="text-sa-muted small">
+                    Add a new faculty teacher to the working roster
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowAddFacultyModal(false)}
+              />
+            </div>
+
+            <form onSubmit={handleQuickAddFaculty} className="d-flex flex-column gap-3">
+              <div>
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                  Faculty Full Name <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="form-control"
+                  placeholder="e.g. Dr. Priya Kulkarni"
+                  value={newFacultyForm.name}
+                  onChange={(e) => setNewFacultyForm({ ...newFacultyForm, name: e.target.value })}
+                />
+              </div>
+
+              <div className="row g-2">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Official Email <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    className="form-control"
+                    placeholder="faculty@shubham.edu"
+                    value={newFacultyForm.email}
+                    onChange={(e) => setNewFacultyForm({ ...newFacultyForm, email: e.target.value })}
+                  />
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Phone Number <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    className="form-control"
+                    placeholder="+91 98220 XXXXX"
+                    value={newFacultyForm.phone}
+                    onChange={(e) => setNewFacultyForm({ ...newFacultyForm, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="row g-2">
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Subject Domain <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={newFacultyForm.subject}
+                    onChange={(e) => setNewFacultyForm({ ...newFacultyForm, subject: e.target.value })}
+                  >
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Biology">Biology</option>
+                    <option value="English">English</option>
+                    <option value="Computer Science">Computer Science</option>
+                  </select>
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Monthly Base Salary (₹)
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="65000"
+                    value={newFacultyForm.monthlySalary}
+                    onChange={(e) => setNewFacultyForm({ ...newFacultyForm, monthlySalary: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                  Initial Account Password <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  className="form-control"
+                  placeholder="Min 6 characters"
+                  value={newFacultyForm.password}
+                  onChange={(e) => setNewFacultyForm({ ...newFacultyForm, password: e.target.value })}
+                />
+              </div>
+
+              <div className="d-flex align-items-center justify-content-end gap-2 pt-2 border-top mt-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary px-3 py-1.5"
+                  onClick={() => setShowAddFacultyModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addFacultyLoading}
+                  className="btn text-white px-4 py-1.5 fw-semibold shadow-xs"
+                  style={{ backgroundColor: '#8B1216' }}
+                >
+                  {addFacultyLoading ? 'Adding...' : 'Onboard Faculty'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

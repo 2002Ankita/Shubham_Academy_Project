@@ -206,6 +206,7 @@ export default function AppRoutes() {
         <Route path="/teacher/classes" element={<TeacherMyClasses />} />
         <Route path="/teacher/students" element={<TeacherStudents />} />
         <Route path="/teacher/teachers" element={<TeacherDirectory />} />
+        <Route path="/teacher/teachers/add" element={<AddTeacher />} />
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />
         <Route path="/teacher/daily-activity" element={<TeacherDailyActivityReport />} />
         <Route path="/teacher/topic-duration" element={<TeacherTopicDurationPlanner />} />
