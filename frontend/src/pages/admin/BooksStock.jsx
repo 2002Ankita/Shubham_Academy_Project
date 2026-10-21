@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import BackButton from '../../components/common/BackButton';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   BookMarked,
   Plus,
@@ -21,7 +23,8 @@ import {
   TrendingDown,
   User,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Truck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -31,9 +34,25 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function BooksStock() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // State
-  const [activeTab, setActiveTab] = useState('stock'); // 'stock' | 'handovers'
+  // Tab routing with URL parameter sync
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam === 'handovers' ? 'handovers' : 'stock'); // 'stock' | 'handovers'
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', newTab);
+    setSearchParams(newParams, { replace: true });
+  };
+
+  useEffect(() => {
+    if (tabParam === 'handovers' || tabParam === 'stock') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const [stock, setStock] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [students, setStudents] = useState([]);
@@ -120,7 +139,7 @@ export default function BooksStock() {
     const defaultStaff = user?.name || user?.full_name || (user?.role === 'teacher' ? 'Faculty Member' : 'Academic Admin Desk');
     setHandoverForm({
       inventoryItemId: preselectedItemId || (stock[0]?.id || ''),
-      studentId: students[0]?.id || students[0]?._id || '',
+      studentId: '', // Clean empty default so user can easily search and select
       manualStudentName: '',
       manualRollNo: '',
       quantity: 1,
@@ -130,6 +149,15 @@ export default function BooksStock() {
     });
     setHandoverModalOpen(true);
   };
+
+  // Auto-open handover modal if URL has ?action=handover or ?action=distribute
+  useEffect(() => {
+    const action = searchParams.get('action');
+    const pkgId = searchParams.get('packageId') || searchParams.get('itemId');
+    if (action === 'handover' || action === 'distribute') {
+      openHandoverModal(pkgId || '');
+    }
+  }, [searchParams, stock]);
 
   const openRestockModal = (item) => {
     setSelectedItemForRestock(item);
@@ -162,7 +190,7 @@ export default function BooksStock() {
     let standard = item.standard;
 
     if (handoverForm.studentId) {
-      const selectedStudent = students.find(s => (s.id || s._id) === handoverForm.studentId);
+      const selectedStudent = students.find(s => String(s.id || s._id || s.student_id) === String(handoverForm.studentId));
       if (selectedStudent) {
         studentName = selectedStudent.name;
         rollNo = selectedStudent.rollNumber || selectedStudent.student_id;
@@ -191,6 +219,8 @@ export default function BooksStock() {
       toast.success(`Handover recorded! Handed over ${qty} ${qty > 1 ? 'copies' : 'copy'} to ${studentName}.`);
       setHandoverModalOpen(false);
       await loadData();
+      // Redirect / route directly to Handovers tab so the user sees the newly logged record
+      handleTabChange('handovers');
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to record handover';
       toast.error(msg);
@@ -391,6 +421,17 @@ export default function BooksStock() {
               type="button"
               className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
               style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              onClick={() => navigate(user?.role === 'teacher' ? '/teacher/books/delivery' : '/admin/books/delivery')}
+              title="Go to Books Delivery Register & History"
+            >
+              <Truck size={14} className="flex-shrink-0" />
+              <span>Delivery Register</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
               onClick={() => setAddStockModalOpen(true)}
             >
               <Plus size={14} className="flex-shrink-0" />
@@ -524,7 +565,7 @@ export default function BooksStock() {
           <div className="d-inline-flex p-1 bg-light rounded-3 border" style={{ backgroundColor: '#F8FAFC' }}>
             <button
               type="button"
-              onClick={() => setActiveTab('stock')}
+              onClick={() => handleTabChange('stock')}
               className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${
                 activeTab === 'stock'
                   ? 'bg-white shadow-xs'
@@ -544,7 +585,7 @@ export default function BooksStock() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('handovers')}
+              onClick={() => handleTabChange('handovers')}
               className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${
                 activeTab === 'handovers'
                   ? 'bg-white shadow-xs'
@@ -957,37 +998,49 @@ export default function BooksStock() {
       >
         <form onSubmit={handleHandoverSubmit} className="d-flex flex-column gap-3">
           <div>
-            <label className="form-label small fw-bold">Select Material Package *</label>
-            <select
-              className="form-select"
-              value={handoverForm.inventoryItemId}
-              onChange={(e) => setHandoverForm({ ...handoverForm, inventoryItemId: e.target.value })}
+            <SearchableSelect
+              id="handover-material-package"
+              label="Select Material Package"
               required
-            >
-              <option value="">-- Choose Module --</option>
-              {stock.map(item => (
-                <option key={item.id} value={item.id} disabled={Number(item.inStock) <= 0}>
-                  {item.title} ({item.inStock} copies available) {Number(item.inStock) <= 0 ? '[OUT OF STOCK]' : ''}
-                </option>
-              ))}
-            </select>
+              options={stock.map(item => ({
+                value: item.id,
+                label: item.title,
+                badge: item.standard || 'General',
+                stockBadge: Number(item.inStock) > 0 ? `${item.inStock} copies available` : 'OUT OF STOCK',
+                stockBadgeColor: Number(item.inStock) > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger text-white',
+                disabled: Number(item.inStock) <= 0,
+                keywords: [item.title, item.subject, item.standard, item.category]
+              }))}
+              value={handoverForm.inventoryItemId}
+              onChange={(val) => setHandoverForm({ ...handoverForm, inventoryItemId: val })}
+              placeholder="-- Choose Module --"
+              searchPlaceholder="Search material package by title or stream..."
+            />
           </div>
 
           <div>
-            <label className="form-label small fw-bold">To Whom Handed Over (Select Student) *</label>
-            <select
-              className="form-select"
+            <SearchableSelect
+              id="handover-student-select"
+              label="To Whom Handed Over (Select Student)"
+              required={!handoverForm.manualStudentName}
+              options={students.map(s => {
+                const id = s.id || s._id || s.student_id;
+                const roll = s.rollNumber || s.student_id || 'N/A';
+                const std = s.standard || '12th';
+                return {
+                  value: id,
+                  label: s.name,
+                  badge: `Roll: ${roll}`,
+                  sublabel: `Class: ${std}${s.batch ? ` • Batch: ${s.batch}` : ''}`,
+                  keywords: [s.name, roll, std, s.batch, s.phone, s.contact]
+                };
+              })}
               value={handoverForm.studentId}
-              onChange={(e) => setHandoverForm({ ...handoverForm, studentId: e.target.value })}
-            >
-              <option value="">-- Choose Student from Directory --</option>
-              {students.map(s => (
-                <option key={s.id || s._id} value={s.id || s._id}>
-                  {s.name} ({s.rollNumber || s.student_id || 'N/A'}) - {s.standard || '12th'}
-                </option>
-              ))}
-            </select>
-            <div className="small text-muted mt-1">Or write manual recipient name if not in directory:</div>
+              onChange={(val) => setHandoverForm({ ...handoverForm, studentId: val })}
+              placeholder="-- Choose Student from Directory --"
+              searchPlaceholder="Search student by name, roll number, or class..."
+              helperText="Search by name, roll number or stream. Or enter manual recipient below if not found in directory:"
+            />
           </div>
 
           {!handoverForm.studentId && (

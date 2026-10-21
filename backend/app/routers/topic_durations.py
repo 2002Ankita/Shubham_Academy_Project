@@ -17,6 +17,23 @@ oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/token", auto_er
 
 router = APIRouter(prefix="/topic-durations", tags=["Topic Durations & Curriculum Matrix"])
 
+
+async def find_topic_duration(id_str: str) -> Optional[TopicDuration]:
+    """Find a TopicDuration by MongoDB ObjectId string or topic_id string"""
+    if not id_str:
+        return None
+    topic = None
+    try:
+        if ObjectId.is_valid(id_str):
+            topic = await TopicDuration.get(ObjectId(id_str))
+    except Exception:
+        pass
+    if not topic:
+        topic = await TopicDuration.find_one(TopicDuration.topic_id == id_str)
+    if not topic:
+        topic = await TopicDuration.find_one({"$or": [{"_id": id_str}, {"topic_id": id_str}]})
+    return topic
+
 @router.get("", response_model=List[TopicDurationResponse])
 async def list_topic_durations(
     subject: Optional[str] = None,
@@ -321,16 +338,16 @@ async def get_topic_duration(id: str, token: Optional[str] = Depends(oauth2_sche
         except Exception:
             pass
 
-    try:
-        topic = await TopicDuration.get(ObjectId(id))
-    except Exception:
-        topic = None
-
+    topic = await find_topic_duration(id)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic duration plan not found")
 
     d = topic.dict(exclude={"id", "_id"})
     d["id"] = str(topic.id)
+    if not d.get("target_date") and d.get("end_date"):
+        d["target_date"] = d["end_date"]
+    elif not d.get("end_date") and d.get("target_date"):
+        d["end_date"] = d["target_date"]
     return TopicDurationResponse(**d)
 
 @router.put("/{id}", response_model=TopicDurationResponse)
@@ -346,11 +363,7 @@ async def update_topic_duration(
         except Exception:
             pass
 
-    try:
-        topic = await TopicDuration.get(ObjectId(id))
-    except Exception:
-        topic = None
-
+    topic = await find_topic_duration(id)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic duration plan not found")
 
@@ -364,6 +377,10 @@ async def update_topic_duration(
 
     d = topic.dict(exclude={"id", "_id"})
     d["id"] = str(topic.id)
+    if not d.get("target_date") and d.get("end_date"):
+        d["target_date"] = d["end_date"]
+    elif not d.get("end_date") and d.get("target_date"):
+        d["end_date"] = d["target_date"]
     return TopicDurationResponse(**d)
 
 @router.delete("/{id}")
@@ -375,11 +392,7 @@ async def delete_topic_duration(id: str, token: Optional[str] = Depends(oauth2_s
         except Exception:
             pass
 
-    try:
-        topic = await TopicDuration.get(ObjectId(id))
-    except Exception:
-        topic = None
-
+    topic = await find_topic_duration(id)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic duration plan not found")
 

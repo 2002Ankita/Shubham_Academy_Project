@@ -779,6 +779,26 @@ export default function DailyActivityReport() {
 
           <button
             type="button"
+            onClick={() => navigate('/teacher/topic-duration')}
+            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
+            style={{
+              height: '38px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              padding: '0 14px',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#CBD5E1',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
+            }}
+            title="Open Topic Duration & Period Allocation Matrix"
+          >
+            <Clock size={15} style={{ color: '#8B1216' }} />
+            <span>Topic Duration Matrix</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleExportExcel}
             className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
             style={{
