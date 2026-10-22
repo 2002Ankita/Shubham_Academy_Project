@@ -84,7 +84,6 @@ import StudentAttendance from '../pages/student/Attendance';
 import StudentFees from '../pages/student/Fees';
 import StudentExaminations from '../pages/student/Examinations';
 import StudentResults from '../pages/student/Results';
-import StudentStudyMaterials from '../pages/student/StudyMaterials';
 import StudentNotes from '../pages/student/Notes';
 import StudentBooksDelivery from '../pages/student/BooksDelivery';
 import StudentAnnouncements from '../pages/student/Announcements';
@@ -246,7 +245,7 @@ export default function AppRoutes() {
         <Route path="/student/fees" element={<StudentFees />} />
         <Route path="/student/exams" element={<StudentExaminations />} />
         <Route path="/student/results" element={<StudentResults />} />
-        <Route path="/student/study-materials" element={<StudentStudyMaterials />} />
+        <Route path="/student/study-materials" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="/student/notes" element={<StudentNotes />} />
         <Route path="/student/books-delivery" element={<StudentBooksDelivery />} />
         <Route path="/student/books/delivery" element={<StudentBooksDelivery />} />

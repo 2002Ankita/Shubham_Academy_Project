@@ -730,22 +730,22 @@ export default function StudentDashboard() {
                 <ChevronRight size={17} className="text-sa-primary" />
               </button>
 
-              {/* Card 2: Download Notes (Soft Yellow/Cream) */}
+              {/* Card 2: Books Delivery (Soft Yellow/Cream) */}
               <button
                 type="button"
                 className="sa-qa-amber w-100 d-flex align-items-center justify-content-between border-0 shadow-xs text-start"
                 style={{ padding: '0.75rem 0.9rem' }}
-                onClick={() => navigate('/student/study-materials')}
+                onClick={() => navigate('/student/books-delivery')}
               >
                 <div className="d-flex align-items-center gap-2.5">
                   <div
                     className="rounded-2 bg-white d-flex align-items-center justify-content-center shadow-xs flex-shrink-0"
                     style={{ width: '34px', height: '34px' }}
                   >
-                    <BookOpen size={17} style={{ color: '#D97706' }} />
+                    <Truck size={17} style={{ color: '#D97706' }} />
                   </div>
                   <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>
-                    Download Notes
+                    Books Delivery
                   </span>
                 </div>
                 <ChevronRight size={17} style={{ color: '#D97706' }} />
