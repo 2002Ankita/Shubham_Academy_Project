@@ -2,9 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from typing import List, Optional
 from datetime import datetime
 import io
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 from bson import ObjectId
 
 from app.models.leave_request import LeaveRequest
@@ -28,6 +25,16 @@ def _extract_teacher_id(req: LeaveRequest) -> str:
 
 def _generate_leave_excel(requests: list, teacher_name: str = None, balance_summary: dict = None) -> bytes:
     """Generate an executive-styled .xlsx workbook for faculty leave requests."""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail="Excel generation requires openpyxl. Please run: pip install openpyxl"
+        )
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Leave Requests"

@@ -7,6 +7,11 @@ from app.core.database import init_db
 async def lifespan(app: FastAPI):
     await init_db()
     try:
+        from app.services.auth_service import ensure_default_users
+        await ensure_default_users()
+    except Exception:
+        pass
+    try:
         from app.services.inventory_service import ensure_default_books
         await ensure_default_books()
     except Exception:

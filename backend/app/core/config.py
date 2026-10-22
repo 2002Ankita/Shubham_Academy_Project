@@ -11,13 +11,13 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = "shubham_academy_super_secret_key_dev_2026"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
     
     # Database
-    MONGODB_URL: str
-    DATABASE_NAME: str
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    DATABASE_NAME: str = "academy_management"
     
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE_PATH), 
@@ -28,13 +28,14 @@ class Settings(BaseSettings):
 try:
     settings = Settings()
 except ValidationError as e:
-    # Instead of traceback, give a clear developer-friendly error
-    missing_vars = [err['loc'][0] for err in e.errors() if err['type'] == 'missing']
-    if missing_vars:
-        raise ValueError(
-            "Missing required environment variables. "
-            "Please create backend/.env from backend/.env.example and configure "
-            "SECRET_KEY, MONGODB_URL and DATABASE_NAME."
-        ) from None
-    else:
-        raise
+    # Fallback to local development defaults rather than crashing startup
+    print(
+        "[WARNING] backend/.env missing or incomplete. Falling back to local development defaults. "
+        "Create backend/.env from backend/.env.example to customize.",
+        file=sys.stderr
+    )
+    settings = Settings(
+        SECRET_KEY="shubham_academy_super_secret_key_dev_2026",
+        MONGODB_URL="mongodb://localhost:27017",
+        DATABASE_NAME="academy_management"
+    )

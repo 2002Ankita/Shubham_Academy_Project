@@ -30,7 +30,7 @@ export const authService = {
     } catch (err) {
       console.error('Login failed:', err.response?.data || err.message);
       if (!err.response) {
-        throw new Error('Unable to connect to the backend server. Please ensure the backend is running on port 8000.');
+        throw new Error('Unable to connect to backend server. Ensure backend is running (python app.py) on port 8000 and MongoDB is active.');
       }
       throw new Error(err.response?.data?.detail || 'Invalid email or password');
     }
