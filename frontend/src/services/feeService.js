@@ -78,8 +78,8 @@ export const feeService = {
     }
   },
 
-  getFeeDetails: async (studentId) => {
-    const res = await api.get(`/fees/${studentId}`);
+  getFeeDetails: async (studentId, params = {}) => {
+    const res = await api.get(`/fees/${studentId}`, { params });
     return res.data;
   },
 
@@ -88,9 +88,11 @@ export const feeService = {
       student_id: data.studentId,
       amount_paid: Number(data.amountPaid),
       payment_method: data.paymentMode || 'Online',
-      transaction_reference: `TXN-${Date.now()}`,
-      remarks: data.feeHead || 'Manual Collection',
-      total_course_fees_override: Number(data.totalFees) || null
+      transaction_reference: data.transactionRef || `TXN-${Date.now()}`,
+      remarks: data.remarks || data.feeHead || 'Manual Collection',
+      total_course_fees_override: Number(data.totalFees) || null,
+      branch: data.branch || undefined,
+      standard: data.standard || undefined
     };
     const res = await api.post('/fees', payload);
     const receiptNo = `REC-${res.data.id.substring(res.data.id.length - 6).toUpperCase()}`;

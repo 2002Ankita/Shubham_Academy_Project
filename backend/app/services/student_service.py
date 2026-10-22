@@ -369,9 +369,67 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
 
     return await _format_student(student)
 
-async def get_students() -> list[dict]:
+def student_matches_branch(student: Student, branch_target: Optional[str]) -> bool:
+    if not branch_target or branch_target.strip().upper() == "ALL":
+        return True
+    target = branch_target.lower().strip()
+    s_branch = (getattr(student, "branch", "") or "").lower().strip()
+    s_batch = (getattr(student, "batch", "") or "").lower().strip()
+    combined = f"{s_branch} {s_batch}"
+    
+    if "tarabai" in target:
+        if "mangal" in combined:
+            return False
+        return "tarabai" in combined or "main" in combined or "kolhapur" in combined or s_branch == "tarabai park"
+        
+    if "mangal" in target:
+        return "mangal" in combined
+        
+    return target in combined
+
+def student_matches_standard(student: Student, standard_target: Optional[str]) -> bool:
+    if not standard_target or standard_target.strip().upper() == "ALL":
+        return True
+    target = standard_target.lower().strip()
+    s_std = (getattr(student, "standard", "") or "").lower().strip()
+    s_batch = (getattr(student, "batch", "") or "").lower().strip()
+    combined = f"{s_std} {s_batch}"
+    
+    if "11" in target:
+        return "11" in combined and "12" not in combined
+        
+    if "12" in target:
+        return "12" in combined and "11" not in combined
+        
+    return target in combined
+
+async def get_students(
+    branch: Optional[str] = None,
+    standard: Optional[str] = None,
+    search: Optional[str] = None
+) -> list[dict]:
     students = await Student.find_all().to_list()
-    return [await _format_student(s) for s in students]
+    res = []
+    clean_search = (search or "").strip().lower()
+
+    for s in students:
+        if branch and not student_matches_branch(s, branch):
+            continue
+        if standard and not student_matches_standard(s, standard):
+            continue
+            
+        formatted = await _format_student(s)
+        
+        if clean_search:
+            name_val = (formatted.get("full_name") or "").lower()
+            roll_val = (formatted.get("student_id") or "").lower()
+            phone_val = (formatted.get("mobile_number") or "").lower()
+            if clean_search not in name_val and clean_search not in roll_val and clean_search not in phone_val:
+                continue
+                
+        res.append(formatted)
+        
+    return res
 
 async def resolve_student(id_str: str) -> Optional[Student]:
     from bson.errors import InvalidId

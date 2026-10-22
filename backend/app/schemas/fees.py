@@ -9,6 +9,8 @@ class FeePaymentCreate(BaseModel):
     transaction_reference: str
     remarks: str
     total_course_fees_override: Optional[float] = None
+    branch: Optional[str] = None
+    standard: Optional[str] = None
 
 class FeePaymentResponse(FeePaymentCreate):
     id: str

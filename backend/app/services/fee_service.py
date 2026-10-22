@@ -428,11 +428,18 @@ async def _lookup_student_fee(student: Student, struct_list: list = None) -> flo
     return 0.0
 
 async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
-    from app.services.student_service import resolve_student
+    from app.services.student_service import resolve_student, student_matches_branch, student_matches_standard
     student = await resolve_student(payment_in.student_id)
     
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+
+    if getattr(payment_in, 'branch', None):
+        if not student_matches_branch(student, payment_in.branch):
+            raise HTTPException(status_code=400, detail=f"Student does not belong to branch: {payment_in.branch}")
+    if getattr(payment_in, 'standard', None):
+        if not student_matches_standard(student, payment_in.standard):
+            raise HTTPException(status_code=400, detail=f"Student does not belong to standard: {payment_in.standard}")
         
     # Update total fees if an override was provided in the UI
     if getattr(payment_in, 'total_course_fees_override', None) is not None and payment_in.total_course_fees_override > 0:
@@ -470,7 +477,12 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     res["discount_approved_by"] = getattr(student, "discount_approved_by", None)
     return res
 
-async def get_all_fee_payments() -> list[dict]:
+async def get_all_fee_payments(
+    student_id: Optional[str] = None,
+    branch: Optional[str] = None,
+    standard: Optional[str] = None
+) -> list[dict]:
+    from app.services.student_service import student_matches_branch, student_matches_standard
     structures = await FeeStructure.find_all().to_list()
     payments = await FeePayment.find_all().to_list()
     
@@ -484,6 +496,15 @@ async def get_all_fee_payments() -> list[dict]:
     student_payments_map = {}
     for p in payments:
         s_id = str(p.student.id) if p.student else "unknown"
+        if student_id:
+            raw_s_id = str(getattr(p.student, "student_id", ""))
+            if s_id != student_id and raw_s_id != student_id:
+                continue
+        if p.student:
+            if branch and not student_matches_branch(p.student, branch):
+                continue
+            if standard and not student_matches_standard(p.student, standard):
+                continue
         if s_id not in student_payments_map:
             student_payments_map[s_id] = []
         student_payments_map[s_id].append(p)
@@ -522,12 +543,21 @@ async def get_all_fee_payments() -> list[dict]:
         
     return res
 
-async def get_fee_details(student_id: str) -> FeeDetailsResponse:
-    from app.services.student_service import resolve_student
+async def get_fee_details(
+    student_id: str,
+    branch: Optional[str] = None,
+    standard: Optional[str] = None
+) -> FeeDetailsResponse:
+    from app.services.student_service import resolve_student, student_matches_branch, student_matches_standard
     student = await resolve_student(student_id)
         
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+
+    if branch and not student_matches_branch(student, branch):
+        raise HTTPException(status_code=400, detail=f"Student does not belong to selected branch: {branch}")
+    if standard and not student_matches_standard(student, standard):
+        raise HTTPException(status_code=400, detail=f"Student does not belong to selected standard: {standard}")
         
     # Get all payments
     payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()

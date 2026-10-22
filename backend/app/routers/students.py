@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Union
+from typing import List, Union, Optional
 from app.schemas.student import StudentCreate, StudentAdminCreate, StudentResponse
 from app.services.student_service import create_student, get_students, get_student_by_id, update_student, delete_student
 from app.services.auth_service import get_current_user
@@ -25,9 +25,14 @@ async def list_discount_approvals(status: str = None, token: str = Depends(oauth
     return await get_discount_approvals(status)
 
 @router.get("", response_model=List[StudentResponse])
-async def list_students(token: str = Depends(oauth2_scheme)):
+async def list_students(
+    branch: Optional[str] = None,
+    standard: Optional[str] = None,
+    search: Optional[str] = None,
+    token: str = Depends(oauth2_scheme)
+):
     await get_current_user(token)
-    return await get_students()
+    return await get_students(branch=branch, standard=standard, search=search)
 
 @router.get("/{id}", response_model=StudentResponse)
 async def get_student_endpoint(id: str, token: str = Depends(oauth2_scheme)):
