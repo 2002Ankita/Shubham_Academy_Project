@@ -32,8 +32,9 @@ const parseDurationToMinutes = (durStr) => {
 
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
   const [formData, setFormData] = useState({
-    title: 'Mid-Term Assessment 2026',
-    standard: '',
+    title: 'Weekly Test - Mechanics & Kinematics',
+    standard: '11th Science',
+    batch: '11th pcm tarabai park',
     subject: 'Physics',
     date: new Date().toISOString().split('T')[0],
     startTime: '10:00 am',
@@ -42,8 +43,12 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
     maxMarks: 100,
     passingMarks: 35,
     roomNo: 'Hall A & B',
-    teacher_id: ''
+    teacher_id: '',
+    notifySMS: true,
+    notifyWhatsApp: true
   });
+
+  const [previewTab, setPreviewTab] = useState('whatsapp'); // 'whatsapp' or 'sms'
 
   useEffect(() => {
     if (teachers.length > 0 && !formData.teacher_id) {
@@ -78,38 +83,73 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
     });
   };
 
+  const activeChannels = [
+    formData.notifySMS ? 'SMS' : null,
+    formData.notifyWhatsApp ? 'WhatsApp' : null
+  ].filter(Boolean);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
       ...formData,
+      batch: formData.batch || formData.standard || '11th pcm tarabai park',
+      standard: formData.standard || formData.batch || '11th Science',
+      notify_parents: activeChannels.length > 0,
+      notify_sms: formData.notifySMS,
+      notify_whatsapp: formData.notifyWhatsApp,
+      channels: activeChannels.length > 0 ? activeChannels : ['SMS', 'WhatsApp'],
       maxMarks: Number(formData.maxMarks),
       passingMarks: Number(formData.passingMarks)
     });
   };
 
+  const smsPreviewMessage = `Dear Parent, a test '${formData.title || 'Weekly Assessment'}' for subject '${formData.subject}' has been scheduled on ${formData.date || 'today'} (${formData.startTime} - ${formData.endTime}) for batch '${formData.batch}'. Please ensure attendance. - Shubham Academy`;
+
+  const waPreviewMessage = `*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important examination has been scheduled for your ward:\n\n📝 *Test Name:* ${formData.title || 'Weekly Assessment'}\n📚 *Subject:* ${formData.subject}\n📅 *Date:* ${formData.date || 'Today'}\n⏰ *Time:* ${formData.startTime} - ${formData.endTime} (${formData.duration})\n👥 *Target Batch:* ${formData.batch}\n📍 *Hall / Room:* ${formData.roomNo || 'Main Examination Hall'}\n🎯 *Max Marks:* ${formData.maxMarks} (Passing: ${formData.passingMarks})\n\nPlease ensure your ward prepares thoroughly and arrives on time.\n\n_Shubham Academy Examination Cell_`;
+
   return (
-    <form onSubmit={handleSubmit} className="sa-card p-4">
-      <h5 className="brand-font fw-bold text-sa-charcoal mb-3 fs-6">
-        Schedule New Examination
-      </h5>
+    <form onSubmit={handleSubmit} className="sa-card p-4 border shadow-sm">
+      <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+        <div>
+          <h5 className="brand-font fw-bold text-sa-charcoal mb-0 fs-6">
+            Schedule Assessment / Test & Dispatch Parent Alerts
+          </h5>
+          <span className="small text-muted">
+            Enter test details and schedule; parents of enrolled students will be alerted automatically via SMS and WhatsApp.
+          </span>
+        </div>
+        <div className="d-flex align-items-center gap-1.5">
+          <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fw-medium d-inline-flex align-items-center gap-1">
+            <span>💬 WhatsApp & 📱 SMS Connected</span>
+          </span>
+        </div>
+      </div>
 
       <div className="row g-3">
         <div className="col-12 col-md-6">
           <Input
-            label="Examination Title"
+            label="Test / Assessment Name"
             name="title"
             value={formData.title}
             onChange={handleChange}
+            placeholder="e.g. Thermodynamics Weekly Unit Test"
             required
           />
         </div>
 
         <div className="col-12 col-md-6">
           <Select
-            label="Target Standard / Class"
-            name="standard"
-            value={formData.standard}
-            onChange={handleChange}
+            label="Target Batch"
+            name="batch"
+            value={formData.batch}
+            onChange={(e) => {
+              handleChange(e);
+              setFormData(prev => ({
+                ...prev,
+                batch: e.target.value,
+                standard: e.target.value.includes('12th') ? '12th Science' : '11th Science'
+              }));
+            }}
             options={[
               '11th pcm tarabai park',
               '11th pcb tarabai park',
@@ -128,29 +168,19 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           />
         </div>
 
-        <div className="col-12 col-md-6">
+        <div className="col-12 col-md-4">
           <Select
             label="Subject"
             name="subject"
             value={formData.subject}
             onChange={handleChange}
-            options={['Physics', 'Chemistry', 'Mathematics - I', 'Mathematics - II', 'Biology', 'Accountancy', 'Economics']}
+            options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics', 'Comprehensive Science']}
           />
         </div>
 
-        <div className="col-12 col-md-6">
-          <Select
-            label="Assign Invigilator / Teacher"
-            name="teacher_id"
-            value={formData.teacher_id}
-            onChange={handleChange}
-            options={teachers.map(t => ({ value: t.id, label: t.name }))}
-          />
-        </div>
-
-        <div className="col-12 col-md-3">
+        <div className="col-12 col-md-4">
           <Input
-            label="Exam Date"
+            label="Test Date"
             name="date"
             type="date"
             value={formData.date}
@@ -159,29 +189,39 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           />
         </div>
 
-        <div className="col-12 col-md-3">
+        <div className="col-12 col-md-4">
+          <Select
+            label="Invigilator / Supervisor"
+            name="teacher_id"
+            value={formData.teacher_id}
+            onChange={handleChange}
+            options={teachers.map(t => ({ value: t.id, label: t.name }))}
+          />
+        </div>
+
+        <div className="col-12 col-md-4">
           <Input
             label="Start Time"
             name="startTime"
             value={formData.startTime}
             onChange={handleChange}
-            placeholder="e.g. 10:00 AM or 01:00 pm"
+            placeholder="e.g. 10:00 am"
             required
           />
         </div>
 
-        <div className="col-12 col-md-3">
+        <div className="col-12 col-md-4">
           <Input
             label="End Time"
             name="endTime"
             value={formData.endTime}
             onChange={handleChange}
-            placeholder="e.g. 01:00 PM or 04:00 pm"
+            placeholder="e.g. 01:00 pm"
             required
           />
         </div>
 
-        <div className="col-12 col-md-3">
+        <div className="col-12 col-md-4">
           <Input
             label="Duration"
             name="duration"
@@ -205,12 +245,110 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
 
         <div className="col-12 col-md-6">
           <Input
-            label="Assigned Examination Hall"
+            label="Assigned Hall / Classroom"
             name="roomNo"
             value={formData.roomNo}
             onChange={handleChange}
-            placeholder="e.g. Hall A"
+            placeholder="e.g. Hall A (Main Campus)"
           />
+        </div>
+
+        {/* Automatic Parent SMS & WhatsApp Notification Settings */}
+        <div className="col-12">
+          <div className="p-3.5 rounded-3 border bg-light bg-opacity-75">
+            <span className="small fw-bold text-sa-charcoal d-block mb-2">
+              Parent Notification Channels (Sent automatically upon schedule creation):
+            </span>
+
+            <div className="d-flex flex-wrap gap-4 mb-3">
+              <div className="form-check form-switch d-flex align-items-center gap-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="notifyWhatsAppSwitch"
+                  checked={formData.notifyWhatsApp}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notifyWhatsApp: e.target.checked }))}
+                  style={{ cursor: 'pointer', width: '2.4rem', height: '1.25rem' }}
+                />
+                <label className="form-check-label fw-bold text-success d-flex align-items-center gap-1" htmlFor="notifyWhatsAppSwitch" style={{ cursor: 'pointer' }}>
+                  <span>💬 Notify Parents on WhatsApp</span>
+                  <span className="badge bg-success text-white py-0.5 px-1.5" style={{ fontSize: '10px' }}>Instant</span>
+                </label>
+              </div>
+
+              <div className="form-check form-switch d-flex align-items-center gap-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="notifySMSSwitch"
+                  checked={formData.notifySMS}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notifySMS: e.target.checked }))}
+                  style={{ cursor: 'pointer', width: '2.4rem', height: '1.25rem' }}
+                />
+                <label className="form-check-label fw-bold text-primary d-flex align-items-center gap-1" htmlFor="notifySMSSwitch" style={{ cursor: 'pointer' }}>
+                  <span>📱 Notify Parents on SMS</span>
+                  <span className="badge bg-primary-subtle text-primary py-0.5 px-1.5" style={{ fontSize: '10px' }}>Cellular</span>
+                </label>
+              </div>
+            </div>
+
+            {(formData.notifyWhatsApp || formData.notifySMS) && (
+              <div className="p-3 rounded-3 bg-white border border-secondary-subtle">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="btn-group btn-group-sm" role="group">
+                    {formData.notifyWhatsApp && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTab('whatsapp')}
+                        className={`btn btn-sm ${previewTab === 'whatsapp' ? 'btn-success text-white' : 'btn-outline-success'}`}
+                        style={{ fontSize: '12px' }}
+                      >
+                        💬 WhatsApp Message Preview
+                      </button>
+                    )}
+                    {formData.notifySMS && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTab('sms')}
+                        className={`btn btn-sm ${previewTab === 'sms' ? 'btn-primary text-white' : 'btn-outline-primary'}`}
+                        style={{ fontSize: '12px' }}
+                      >
+                        📱 SMS Message Preview
+                      </button>
+                    )}
+                  </div>
+                  <span className="small text-muted" style={{ fontSize: '11px' }}>
+                    Auto-dispatched to enrolled parent contacts
+                  </span>
+                </div>
+
+                {previewTab === 'whatsapp' && formData.notifyWhatsApp ? (
+                  <div
+                    className="p-3 rounded-3 border"
+                    style={{
+                      backgroundColor: '#e7f8ee',
+                      borderColor: '#a7f3d0',
+                      color: '#065f46',
+                      fontSize: '13px',
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'system-ui, -apple-system, sans-serif'
+                    }}
+                  >
+                    {waPreviewMessage}
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-2 bg-light text-sa-charcoal font-monospace border small">
+                    "{smsPreviewMessage}"
+                  </div>
+                )}
+
+                <span className="small text-success d-flex align-items-center gap-1 mt-2" style={{ fontSize: '11px' }}>
+                  ✓ Delivery status and receipt timestamps will be tracked in Notification History for each student.
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -221,9 +359,10 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           </Button>
         )}
         <Button type="submit" variant="primary" loading={loading}>
-          Create & Announce Exam
+          Schedule Test & Dispatch Alerts
         </Button>
       </div>
     </form>
   );
 }
+

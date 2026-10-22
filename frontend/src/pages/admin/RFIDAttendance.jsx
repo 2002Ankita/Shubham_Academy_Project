@@ -5,12 +5,13 @@ import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import attendanceService from '../../services/attendanceService';
 import TeacherAttendanceTracker from './TeacherAttendanceTracker';
-import { ScanLine, Send, CheckCircle2, UserCheck, ShieldCheck } from 'lucide-react';
+import LectureAttendanceManager from './LectureAttendanceManager';
+import { ScanLine, Send, CheckCircle2, UserCheck, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function RFIDAttendance() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'teachers'; // Default to teachers tracking
+  const activeTab = searchParams.get('tab') || 'lecture'; // Default to lecture attendance & Excel import
 
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +47,23 @@ export default function RFIDAttendance() {
     <div className="d-flex flex-column gap-3 w-100">
       {/* Top Tab Navigator for Academy Admin */}
       <div
-        className="d-flex align-items-center gap-2 p-1.5 bg-white border rounded-4 shadow-2xs"
+        className="d-flex flex-wrap align-items-center gap-2 p-1.5 bg-white border rounded-4 shadow-2xs"
         style={{ width: 'fit-content' }}
       >
+        <button
+          type="button"
+          onClick={() => handleTabChange('lecture')}
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3 py-2 fw-semibold rounded-3 transition-all ${
+            activeTab === 'lecture'
+              ? 'btn-dark text-white shadow-sm'
+              : 'btn-light text-sa-charcoal bg-transparent border-0'
+          }`}
+          style={{ fontSize: '13px' }}
+        >
+          <FileSpreadsheet size={16} />
+          <span>Lecture Attendance & Excel Import</span>
+        </button>
+
         <button
           type="button"
           onClick={() => handleTabChange('teachers')}
@@ -78,11 +93,15 @@ export default function RFIDAttendance() {
         </button>
       </div>
 
-      {/* Tab 1: Teacher Check-In & Check-Out Tracking */}
+      {/* Tab 1: Lecture Attendance & Excel Import */}
+      {activeTab === 'lecture' && <LectureAttendanceManager />}
+
+      {/* Tab 2: Teacher Check-In & Check-Out Tracking */}
       {activeTab === 'teachers' && <TeacherAttendanceTracker />}
 
-      {/* Tab 2: Student RFID Gate Attendance */}
+      {/* Tab 3: Student RFID Gate Attendance */}
       {activeTab === 'students' && (
+
         <div className="d-flex flex-column gap-4">
           <div>
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
