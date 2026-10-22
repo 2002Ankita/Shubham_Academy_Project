@@ -5,7 +5,6 @@ from app.services.fee_service import get_pending_fees
 from app.models.student import Student
 from app.services.notification_provider import NotificationProvider
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
