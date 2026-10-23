@@ -46,12 +46,6 @@ async def logout(token: str = Depends(oauth2_scheme)):
 async def get_me(token: str = Depends(oauth2_scheme)):
     from app.services.auth_service import get_current_user
     user = await get_current_user(token)
-    if (user.role or "").upper() == "TEACHER":
-        try:
-            from app.services.attendance_service import auto_record_teacher_login
-            await auto_record_teacher_login(str(user.id))
-        except Exception:
-            pass
     return {
         "id": str(user.id),
         "email": user.email,

@@ -375,7 +375,6 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       { label: 'Fees & Receipts', path: '/student/fees', icon: FeeRupeeIcon, matchPrefixes: ['/student/fees'] },
       { label: 'Examinations', path: '/student/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/student/exams'] },
       { label: 'Results', path: '/student/results', icon: ReportsBarIcon, matchPrefixes: ['/student/results'] },
-      { label: 'Study Materials', path: '/student/study-materials', icon: NotesStockIcon, matchPrefixes: ['/student/study-materials'] },
       { label: 'Books Delivery', path: '/student/books-delivery', icon: Truck, matchPrefixes: ['/student/books-delivery', '/student/books/delivery', '/student/notes-delivery', '/student/notes/delivery'] },
       { label: 'Announcements', path: '/student/announcements', icon: NotificationsBellIcon, matchPrefixes: ['/student/announcements'] },
       { label: 'Contact', path: '/student/contact', icon: ContactPhoneIcon, matchPrefixes: ['/student/contact'] },

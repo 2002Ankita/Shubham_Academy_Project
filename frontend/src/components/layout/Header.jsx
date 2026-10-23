@@ -244,7 +244,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
     { title: 'Fee Details & Receipts', path: '/student/fees', keywords: ['fees', 'receipt', 'dues', 'payments'] },
     { title: 'Examination Timetable', path: '/student/exams', keywords: ['exams', 'examination', 'hall ticket'] },
     { title: 'Academic Results & Rank', path: '/student/results', keywords: ['results', 'marks', 'report card', 'rank'] },
-    { title: 'Study Materials & Notes', path: '/student/study-materials', keywords: ['materials', 'notes', 'study', 'pdf'] },
+    { title: 'Books Delivery Status', path: '/student/books-delivery', keywords: ['books', 'delivery', 'theory', 'cet', 'stock'] },
     { title: 'Announcements & Notices', path: '/student/announcements', keywords: ['announcements', 'notices', 'bulletins'] },
     { title: 'Student Profile', path: '/student/profile', keywords: ['profile', 'account', 'settings'] },
   ];

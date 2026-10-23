@@ -1148,7 +1148,7 @@ export default function AdminDashboard() {
               <table className="table table-sm table-borderless align-middle m-0" style={{ fontSize: '0.82rem' }}>
                 <thead>
                   <tr className="text-sa-muted text-uppercase" style={{ fontSize: '0.70rem', letterSpacing: '0.04em', borderBottom: '1px solid #F1F5F9' }}>
-                    <th className="fw-semibold pb-2">#</th>
+                    <th className="fw-semibold pb-2">Student ID</th>
                     <th className="fw-semibold pb-2">Student Name</th>
                     <th className="fw-semibold pb-2">Class</th>
                     <th className="fw-semibold pb-2">Admission Date</th>

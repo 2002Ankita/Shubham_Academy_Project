@@ -271,8 +271,8 @@ async def check_out_teacher(attendance_in: AttendanceCreate) -> dict:
 
 async def auto_record_teacher_login(teacher_id_or_user_id: str) -> Optional[Attendance]:
     """
-    Called when a teacher logs in or visits their portal.
-    Automatically checks them in for today if not already checked in.
+    Auto check-in disabled: Teacher check-in must be manual (punch/entry).
+    Only returns existing record if already created.
     """
     from app.services.teacher_service import resolve_teacher
     teacher = await resolve_teacher(str(teacher_id_or_user_id))
@@ -289,26 +289,7 @@ async def auto_record_teacher_login(teacher_id_or_user_id: str) -> Optional[Atte
             {"date": {"$gte": day_start, "$lte": day_end}}
         ]
     })
-
-    if not existing:
-        attendance = Attendance(
-            teacher=teacher,
-            date=now,
-            status="Working",
-            check_in_time=now,
-            check_out_time=None,
-            remarks="Auto Check-In on Faculty Login"
-        )
-        await attendance.insert()
-        return attendance
-    else:
-        if not existing.check_in_time:
-            existing.check_in_time = now
-            existing.status = "Working"
-            if not existing.remarks:
-                existing.remarks = "Auto Check-In on Faculty Login"
-            await existing.save()
-        return existing
+    return existing
 
 async def auto_record_teacher_logout(teacher_id_or_user_id: str) -> Optional[Attendance]:
     """
