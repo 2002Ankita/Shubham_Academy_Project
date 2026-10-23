@@ -79,7 +79,7 @@ export default function StudentContact() {
       id: 3,
       icon: Calendar,
       question: 'How to view attendance?',
-      answer: 'Navigate to the Attendance tab to view your real-time daily RFID punch logs, monthly attendance percentage, and leave history.'
+      answer: 'Navigate to the Attendance tab to view your real-time daily punch logs, monthly attendance percentage, and leave history.'
     },
     {
       id: 4,
@@ -510,7 +510,7 @@ export default function StudentContact() {
                     <option value="Fees & Payment Query">Fees & Payment Query</option>
                     <option value="Notes & Study Materials">Notes & Study Materials</option>
                     <option value="Batch & Lecture Timing">Batch & Lecture Timing</option>
-                    <option value="RFID Attendance & ID Card">RFID Attendance & ID Card</option>
+                    <option value="Attendance & ID Card">Attendance & ID Card</option>
                     <option value="Exam & Marks Clarification">Exam & Marks Clarification</option>
                   </select>
                 </div>

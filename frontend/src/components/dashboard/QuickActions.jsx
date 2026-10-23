@@ -17,7 +17,7 @@ export default function QuickActions({ role = 'admin', onTriggerAction }) {
     if (role === 'admin') {
       return [
         { label: 'Register Student', icon: UserPlus, path: '/admin/students/register', color: '#A91F1F' },
-        { label: 'RFID Attendance', icon: ScanLine, path: '/admin/attendance', color: '#D5A61C' },
+        { label: 'Attendance', icon: ScanLine, path: '/admin/attendance', color: '#D5A61C' },
         { label: 'Collect Fee', icon: CreditCard, path: '/admin/fees', color: '#168554' },
         { label: 'Create Exam', icon: FilePlus, path: '/admin/exams', color: '#D97718' },
       ];

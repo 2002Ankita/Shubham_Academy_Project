@@ -133,11 +133,11 @@ export default function WorkingTimeTable({ records }) {
                 <span className="fw-bold text-sa-charcoal fs-6">{selectedRecord.date} ({selectedRecord.day})</span>
               </div>
               <div className="col-6 col-md-4">
-                <span className="text-muted d-block small">Check In (Biometric / RFID)</span>
+                <span className="text-muted d-block small">Check In (Biometric / Card)</span>
                 <span className="fw-bold text-success fs-6">{selectedRecord.checkIn}</span>
               </div>
               <div className="col-6 col-md-4">
-                <span className="text-muted d-block small">Check Out (Biometric / RFID)</span>
+                <span className="text-muted d-block small">Check Out (Biometric / Card)</span>
                 <span className="fw-bold text-primary fs-6">{selectedRecord.checkOut}</span>
               </div>
               <div className="col-6 col-md-4">
@@ -150,7 +150,7 @@ export default function WorkingTimeTable({ records }) {
               </div>
               <div className="col-12 col-md-4">
                 <span className="text-muted d-block small">Biometric Device Terminal</span>
-                <span className="fw-medium text-sa-charcoal">Main Campus RFID Gate 1 & Bio-Device</span>
+                <span className="fw-medium text-sa-charcoal">Main Campus Terminal 1 & Bio-Device</span>
               </div>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function WorkingTimeTable({ records }) {
                 Daily Working Time Log
               </h2>
               <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-                Detailed biometric & RFID punch record ({filteredRecords.length} days)
+                Detailed biometric & attendance punch record ({filteredRecords.length} days)
               </p>
             </div>
 

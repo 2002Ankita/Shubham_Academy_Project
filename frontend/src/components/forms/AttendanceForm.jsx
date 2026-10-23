@@ -34,12 +34,12 @@ export default function AttendanceForm({ onScanRfid, onManualSubmit, loading }) 
       <div className="d-flex align-items-center gap-2 mb-3">
         <ScanLine size={22} className="text-sa-primary" />
         <h5 className="brand-font fw-bold m-0 text-sa-charcoal fs-6">
-          Live RFID Scanner Terminal
+          Live Attendance Scanner Terminal
         </h5>
       </div>
 
       <p className="small text-sa-muted mb-4">
-        Connect RFID USB reader or simulate card swipe. The system automatically fetches student details and triggers an SMS alert to parents.
+        Connect card reader or simulate card swipe. The system automatically fetches student details and triggers an SMS alert to parents.
       </p>
 
       {scanResult && (
@@ -58,9 +58,9 @@ export default function AttendanceForm({ onScanRfid, onManualSubmit, loading }) 
         <div className="row g-3 align-items-end">
           <div className="col-12 col-md-5">
             <Input
-              label="Scan or Enter RFID Card UID"
+              label="Scan or Enter Student Card UID"
               name="rfidCard"
-              placeholder="e.g. RFID-984210"
+              placeholder="e.g. CARD-984210"
               value={rfidCard}
               onChange={(e) => setRfidCard(e.target.value)}
               helperText="Press Enter after scanning badge"
@@ -98,7 +98,7 @@ export default function AttendanceForm({ onScanRfid, onManualSubmit, loading }) 
         </div>
       </form>
 
-      {/* Quick Test Demo RFID Badges */}
+      {/* Quick Test Demo Badges */}
       <div className="mt-3 pt-3 border-top">
         <span className="text-xs fw-semibold text-sa-muted me-2" style={{ fontSize: '0.75rem' }}>
           Test Quick Badges:
@@ -106,23 +106,23 @@ export default function AttendanceForm({ onScanRfid, onManualSubmit, loading }) 
         <button
           type="button"
           className="badge bg-light text-dark border me-2 py-1 px-2 pointer"
-          onClick={() => setRfidCard('RFID-984210')}
+          onClick={() => setRfidCard('CARD-984210')}
         >
-          Aarav (RFID-984210)
+          Aarav (CARD-984210)
         </button>
         <button
           type="button"
           className="badge bg-light text-dark border me-2 py-1 px-2 pointer"
-          onClick={() => setRfidCard('RFID-984211')}
+          onClick={() => setRfidCard('CARD-984211')}
         >
-          Ananya (RFID-984211)
+          Ananya (CARD-984211)
         </button>
         <button
           type="button"
           className="badge bg-light text-dark border py-1 px-2 pointer"
-          onClick={() => setRfidCard('RFID-984212')}
+          onClick={() => setRfidCard('CARD-984212')}
         >
-          Rohan (RFID-984212)
+          Rohan (CARD-984212)
         </button>
       </div>
     </div>

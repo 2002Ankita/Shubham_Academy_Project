@@ -21,8 +21,15 @@ class TopicDuration(Document):
     academic_year: Optional[str] = "2026-2027"
     month: Optional[str] = None
     remarks: Optional[str] = None
+    sr_no: Optional[int] = None
+    title: Optional[str] = None
+    boards_lectures: Optional[int] = 0
+    entrance_lectures: Optional[int] = 0
+    total_lectures: Optional[int] = 0
+    branch_scope: Optional[str] = "mp/tp"
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
+
 
     class Settings:
         name = "topic_durations"

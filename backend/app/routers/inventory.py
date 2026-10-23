@@ -74,9 +74,21 @@ async def create_delivery(delivery_in: InventoryDeliveryCreate, token: str = Dep
     return await add_delivery(delivery_in, current_user_name=user.full_name)
 
 @router.get("/deliveries", response_model=List[InventoryDeliveryResponse])
-async def list_deliveries(student_id: Optional[str] = Query(None), token: str = Depends(oauth2_scheme)):
+async def list_deliveries(
+    student_id: Optional[str] = Query(None),
+    branch: Optional[str] = Query(None),
+    academic_batch: Optional[str] = Query(None),
+    batch: Optional[str] = Query(None),
+    session: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
     await get_current_user(token)
-    return await get_deliveries(student_id=student_id)
+    return await get_deliveries(
+        student_id=student_id,
+        branch=branch,
+        academic_batch=academic_batch or batch,
+        session=session
+    )
 
 @router.put("/deliveries/{delivery_id}", response_model=InventoryDeliveryResponse)
 async def mark_delivery_status(delivery_id: str, update_in: InventoryDeliveryUpdate, token: str = Depends(oauth2_scheme)):

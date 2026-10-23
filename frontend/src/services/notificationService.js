@@ -3,7 +3,7 @@ import api from './api';
 export const DEFAULT_NOTIFICATIONS = [
   {
     id: 'NTF-01',
-    title: 'RFID Attendance Logged',
+    title: 'Gate Attendance Logged',
     time: '08:14 AM',
     date: '05 Oct 2026',
     formattedDateTime: '05 Oct 2026, 08:14 AM',
@@ -11,7 +11,7 @@ export const DEFAULT_NOTIFICATIONS = [
     category: 'Attendance & Biometrics',
     priority: 'Normal',
     author: 'Campus Security & Gate Operations',
-    details: 'Student Aarav Deshmukh registered an automated biometric RFID in-gate entry at Main Campus Gate 1. In-time recorded: 08:14 AM. Status has been verified and marked as Present for today\'s academic sessions and lectures. No manual intervention required.',
+    details: 'Student Aarav Deshmukh registered an in-gate entry at Main Campus Gate 1. In-time recorded: 08:14 AM. Status has been verified and marked as Present for today\'s academic sessions and lectures. No manual intervention required.',
     read: false
   },
   {
@@ -134,15 +134,15 @@ export const DEFAULT_NOTIFICATIONS = [
   },
   {
     id: 'NTF-TCH-03',
-    title: 'Biometric RFID In-Punch Verified',
+    title: 'Biometric Attendance In-Punch Verified',
     time: '08:05 AM',
     date: '12 Oct 2026',
     formattedDateTime: '12 Oct 2026, 08:05 AM',
     type: 'attendance',
     category: 'Biometrics & Timings',
     priority: 'Normal',
-    author: 'RFID Biometric Terminal #1',
-    details: 'Faculty RFID smart card punch registered at Main Campus Terminal 1. Time recorded: 08:05 AM. Daily working hours tracker initiated. Status: Present.',
+    author: 'Gate Biometric Terminal #1',
+    details: 'Faculty smart card punch registered at Main Campus Terminal 1. Time recorded: 08:05 AM. Daily working hours tracker initiated. Status: Present.',
     read: false
   }
 ];

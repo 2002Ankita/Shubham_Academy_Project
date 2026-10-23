@@ -20,6 +20,12 @@ class TopicDurationBase(BaseModel):
     academic_year: Optional[str] = "2026-2027"
     month: Optional[str] = None
     remarks: Optional[str] = None
+    sr_no: Optional[int] = None
+    title: Optional[str] = None
+    boards_lectures: Optional[int] = 0
+    entrance_lectures: Optional[int] = 0
+    total_lectures: Optional[int] = 0
+    branch_scope: Optional[str] = "mp/tp"
 
     @model_validator(mode="before")
     @classmethod
@@ -28,6 +34,12 @@ class TopicDurationBase(BaseModel):
             # Map camelCase to snake_case if snake_case not present
             if "topicName" in data and not data.get("topic_name"):
                 data["topic_name"] = data["topicName"]
+            if "title" in data and not data.get("title"):
+                data["title"] = data["title"]
+            if data.get("title") and not data.get("topic_name"):
+                data["topic_name"] = data["title"]
+            if data.get("topic_name") and not data.get("title"):
+                data["title"] = data["topic_name"]
             if "requiredPeriods" in data and not data.get("required_periods"):
                 data["required_periods"] = data["requiredPeriods"]
             if "periodDurationMins" in data and not data.get("period_duration_mins"):
@@ -52,14 +64,28 @@ class TopicDurationBase(BaseModel):
                 data["academic_year"] = data["academicYear"]
             if "branch" in data and not data.get("branch"):
                 data["branch"] = "Tarabai Park"
+            if "boards" in data and not data.get("boards_lectures"):
+                try:
+                    data["boards_lectures"] = int(data["boards"])
+                except Exception:
+                    pass
+            if "entrance" in data and not data.get("entrance_lectures"):
+                try:
+                    data["entrance_lectures"] = int(data["entrance"])
+                except Exception:
+                    pass
+            if not data.get("total_lectures"):
+                b = data.get("boards_lectures") or 0
+                e = data.get("entrance_lectures") or 0
+                data["total_lectures"] = b + e
             if not data.get("chapter"):
-                data["chapter"] = "Curriculum Chapter"
+                data["chapter"] = data.get("title") or "Curriculum Chapter"
             if not data.get("standard"):
                 data["standard"] = "Class 12th"
             if not data.get("teacher_name"):
                 data["teacher_name"] = "Senior Faculty"
             if not data.get("topic_name"):
-                data["topic_name"] = "Topic Plan"
+                data["topic_name"] = data.get("title") or "Topic Plan"
         return data
 
 class TopicDurationCreate(TopicDurationBase):
@@ -74,6 +100,12 @@ class TopicDurationUpdate(BaseModel):
     teacher_name: Optional[str] = None
     chapter: Optional[str] = None
     topic_name: Optional[str] = None
+    title: Optional[str] = None
+    sr_no: Optional[int] = None
+    boards_lectures: Optional[int] = None
+    entrance_lectures: Optional[int] = None
+    total_lectures: Optional[int] = None
+    branch_scope: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     target_date: Optional[str] = None
@@ -91,6 +123,10 @@ class TopicDurationUpdate(BaseModel):
         if isinstance(data, dict):
             if "topicName" in data and not data.get("topic_name"):
                 data["topic_name"] = data["topicName"]
+            if data.get("title") and not data.get("topic_name"):
+                data["topic_name"] = data["title"]
+            if data.get("topic_name") and not data.get("title"):
+                data["title"] = data["topic_name"]
             if "requiredPeriods" in data and not data.get("required_periods"):
                 data["required_periods"] = data["requiredPeriods"]
             if "periodDurationMins" in data and not data.get("period_duration_mins"):
@@ -126,3 +162,22 @@ class TopicDurationMatrixSummary(BaseModel):
     in_progress_count: int
     upcoming_count: int
     topics: List[TopicDurationResponse]
+
+class SyllabusChapterPlanItem(BaseModel):
+    sr_no: int
+    title: str
+    boards_lectures: int = 0
+    entrance_lectures: int = 0
+    total_lectures: int = 0
+    subject: str = "Physics"
+    standard: str = "12th"
+    academic_year: str = "2026-2027"
+    branch_scope: str = "mp/tp"
+
+class SyllabusPlanBulkSaveRequest(BaseModel):
+    academic_year: str = "2026-2027"
+    standard: str = "12th"
+    subject: str = "Physics"
+    branch_scope: str = "mp/tp"
+    chapters: List[SyllabusChapterPlanItem]
+

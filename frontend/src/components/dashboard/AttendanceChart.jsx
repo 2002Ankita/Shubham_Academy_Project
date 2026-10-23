@@ -26,7 +26,7 @@ export default function AttendanceChart({
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
           <h5 className="brand-font fw-bold m-0 text-sa-charcoal fs-6">{title}</h5>
-          <span className="small text-sa-muted">RFID Gate Sensor Data (Daily Aggregates)</span>
+          <span className="small text-sa-muted">Daily Attendance Data (Aggregates)</span>
         </div>
       </div>
 

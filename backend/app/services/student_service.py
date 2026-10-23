@@ -11,6 +11,16 @@ from typing import Optional, Any
 from datetime import datetime
 
 from app.models.discount import DiscountApproval
+from app.core.branch_config import (
+    parse_student_branch_batch,
+    validate_branch_batch_selection,
+    student_matches_filters,
+    BRANCH_TARABAI,
+    BRANCH_MANGALWAR,
+    BRANCHES,
+    ACADEMIC_BATCHES,
+    SESSIONS,
+)
 
 async def _format_student(student: Student) -> dict:
     user_obj = None
@@ -36,6 +46,12 @@ async def _format_student(student: Student) -> dict:
         except Exception:
             pass
 
+    raw_br = getattr(student, "branch", None)
+    raw_ba = getattr(student, "batch", None)
+    raw_ab = getattr(student, "academic_batch", None)
+    raw_se = getattr(student, "session", None)
+    norm_br, norm_ab, norm_se, norm_std = parse_student_branch_batch(raw_br, raw_ba, raw_ab, raw_se)
+
     return {
         "id": str(student.id),
         "student_id": student.student_id,
@@ -53,9 +69,12 @@ async def _format_student(student: Student) -> dict:
         "relation": getattr(student, "relation", None) or "Father",
         "parent_email": getattr(student, "parent_email", None) or "",
         "parent_occupation": getattr(student, "parent_occupation", None) or "",
-        "standard": student.standard or "",
-        "batch": student.batch or "",
-        "branch": student.branch or "Kolhapur Main Branch",
+        "standard": getattr(student, "standard", None) or norm_std,
+        "batch": norm_ab,
+        "academic_batch": norm_ab,
+        "academicBatch": norm_ab,
+        "session": norm_se,
+        "branch": norm_br,
         "academic_year": student.academic_year or "2025-2026",
         "previous_school": getattr(student, "previous_school", None) or "",
         "rfid_tag": student.rfid_tag or "",
@@ -174,6 +193,21 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     elif existing_mobile:
         existing_student = existing_mobile
 
+    # Parse and validate standardized branch, academic_batch, and session
+    raw_branch = data.get("branch")
+    raw_batch = data.get("batch") or data.get("academic_batch") or data.get("academicBatch")
+    raw_academic_batch = data.get("academic_batch") or data.get("academicBatch") or raw_batch
+    raw_session = data.get("session")
+
+    norm_branch, norm_batch, norm_session, norm_std = parse_student_branch_batch(
+        raw_branch, raw_batch, raw_academic_batch, raw_session
+    )
+
+    try:
+        validate_branch_batch_selection(norm_branch, norm_batch, norm_session)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
     if existing_student:
         linked_user = None
         if existing_user:
@@ -205,18 +239,17 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         existing_student.paid_fees = paid_fees
         existing_student.remaining_fees = remaining_fees
         existing_student.original_fees = orig_fees
+        existing_student.branch = norm_branch
+        existing_student.academic_batch = norm_batch
+        existing_student.session = norm_session
+        existing_student.batch = norm_batch
+        existing_student.standard = norm_std
         if data.get("date_of_birth"):
             existing_student.date_of_birth = data["date_of_birth"]
         if data.get("gender"):
             existing_student.gender = data["gender"]
         if data.get("address"):
             existing_student.address = data["address"]
-        if data.get("standard"):
-            existing_student.standard = data["standard"]
-        if data.get("batch"):
-            existing_student.batch = data["batch"]
-        if data.get("branch"):
-            existing_student.branch = data["branch"]
         if disc_amount > 0:
             existing_student.discount_amount = disc_amount
             existing_student.discount_requested_amount = disc_amount
@@ -293,10 +326,11 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         total_fees=total_fees,
         paid_fees=paid_fees,
         remaining_fees=remaining_fees,
-        profile_completed=False,
-        standard=data.get("standard") or None,
-        batch=data.get("batch") or None,
-        branch=data.get("branch") or "Kolhapur Main Branch",
+        standard=norm_std,
+        batch=norm_batch,
+        academic_batch=norm_batch,
+        session=norm_session,
+        branch=norm_branch,
         academic_year=data.get("academic_year") or "2025-2026",
         admission_date=admission_date,
         rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
@@ -405,6 +439,9 @@ def student_matches_standard(student: Student, standard_target: Optional[str]) -
 
 async def get_students(
     branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    session: Optional[str] = None,
+    batch: Optional[str] = None,
     standard: Optional[str] = None,
     search: Optional[str] = None
 ) -> list[dict]:
@@ -412,8 +449,10 @@ async def get_students(
     res = []
     clean_search = (search or "").strip().lower()
 
+    target_batch = academic_batch or batch
+
     for s in students:
-        if branch and not student_matches_branch(s, branch):
+        if not student_matches_filters(s, branch_filter=branch, academic_batch_filter=target_batch, session_filter=session):
             continue
         if standard and not student_matches_standard(s, standard):
             continue
@@ -430,6 +469,39 @@ async def get_students(
         res.append(formatted)
         
     return res
+
+async def normalize_all_students():
+    """Ensure all existing students in database have standardized branch, academic_batch, session, standard."""
+    try:
+        students = await Student.find_all().to_list()
+        for s in students:
+            raw_br = getattr(s, "branch", None)
+            raw_ba = getattr(s, "batch", None)
+            raw_ab = getattr(s, "academic_batch", None)
+            raw_se = getattr(s, "session", None)
+            norm_br, norm_ab, norm_se, norm_std = parse_student_branch_batch(raw_br, raw_ba, raw_ab, raw_se)
+            
+            changed = False
+            if getattr(s, "branch", None) != norm_br:
+                s.branch = norm_br
+                changed = True
+            if getattr(s, "academic_batch", None) != norm_ab:
+                s.academic_batch = norm_ab
+                changed = True
+            if getattr(s, "session", None) != norm_se:
+                s.session = norm_se
+                changed = True
+            if getattr(s, "batch", None) != norm_ab:
+                s.batch = norm_ab
+                changed = True
+            if getattr(s, "standard", None) != norm_std:
+                s.standard = norm_std
+                changed = True
+            if changed:
+                await s.save()
+    except Exception as e:
+        print("Error during auto-normalizing students:", e)
+
 
 async def resolve_student(id_str: str) -> Optional[Student]:
     from bson.errors import InvalidId

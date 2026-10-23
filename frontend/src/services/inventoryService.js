@@ -54,9 +54,21 @@ export const inventoryService = {
     return res.data;
   },
 
-  getDeliveries: async (studentId = null) => {
-    const url = studentId ? `/inventory/deliveries?student_id=${encodeURIComponent(studentId)}` : '/inventory/deliveries';
-    const res = await api.get(url);
+  getDeliveries: async (params = {}) => {
+    let query = '';
+    if (typeof params === 'string') {
+      query = `?student_id=${encodeURIComponent(params)}`;
+    } else if (params && typeof params === 'object') {
+      const q = new URLSearchParams();
+      if (params.studentId || params.student_id) q.append('student_id', params.studentId || params.student_id);
+      if (params.branch) q.append('branch', params.branch);
+      if (params.academicBatch || params.academic_batch) q.append('academic_batch', params.academicBatch || params.academic_batch);
+      if (params.batch) q.append('batch', params.batch);
+      if (params.session) q.append('session', params.session);
+      const str = q.toString();
+      if (str) query = `?${str}`;
+    }
+    const res = await api.get(`/inventory/deliveries${query}`);
     return (res.data || []).map(d => ({
       ...d,
       id: d.id,
@@ -71,6 +83,12 @@ export const inventoryService = {
       bookTitle: d.book_title || `${d.category || 'Theory'} - ${d.subject || 'Physics'}`,
       category: d.category || 'Theory',
       subject: d.subject || 'General',
+      branch: d.branch,
+      academicBatch: d.academic_batch || d.academicBatch,
+      academic_batch: d.academic_batch || d.academicBatch,
+      session: d.session,
+      batch: d.batch,
+      standard: d.standard,
       handedOverBy: d.handed_over_by || d.verified_by || 'Staff Desk',
       verifiedBy: d.verified_by || d.handed_over_by || '--',
       rawDate: d.raw_date || null,

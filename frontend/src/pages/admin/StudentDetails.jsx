@@ -9,6 +9,7 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
+import { formatStudentBatchDisplay } from '../../config/branchBatchConfig';
 import {
   ArrowLeft,
   GraduationCap,
@@ -204,7 +205,10 @@ export default function StudentDetails() {
             </h3>
             <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
               <span className="small text-sa-muted">
-                Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • RFID UID: {student.rfid_tag || student.rfidCard || 'N/A'} • Class: {student.standard || 'N/A'}
+                Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • Card UID: {student.rfid_tag || student.rfidCard || 'N/A'} • Class: {student.standard || 'N/A'}
+              </span>
+              <span className="badge bg-light text-sa-charcoal border px-2 py-0.5 rounded-pill small fw-bold">
+                📍 {formatStudentBatchDisplay(student)}
               </span>
               {student.profileCompleted ? (
                 <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-pill small">
@@ -267,12 +271,20 @@ export default function StudentDetails() {
 
             <hr className="my-3 opacity-25" />
 
-            <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Academic Enrollment</h6>
+            <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Admission Placement Details</h6>
             <p className="small text-sa-muted mb-1">
-              <strong>Class / Standard:</strong> {student.standard || 'Pending student selection'}
+              <strong>Branch:</strong> <span className="fw-bold text-dark">{student.branch || 'Tarabai Park'}</span>
             </p>
+            <p className="small text-sa-muted mb-1">
+              <strong>Academic Batch:</strong> <span className="fw-bold text-dark">{student.academicBatch || student.academic_batch || student.batch || student.standard || '11th PCM'}</span>
+            </p>
+            {student.session && (
+              <p className="small text-sa-muted mb-1">
+                <strong>Session:</strong> <span className="badge bg-primary-subtle text-primary border border-primary-subtle">{student.session}</span>
+              </p>
+            )}
             <p className="small text-sa-muted mb-0">
-              <strong>Batch:</strong> {student.batch || 'Pending allocation'}
+              <strong>Placement Summary:</strong> <span className="badge bg-dark text-white ms-1">{formatStudentBatchDisplay(student)}</span>
             </p>
           </div>
         </div>
@@ -290,7 +302,7 @@ export default function StudentDetails() {
                   {student.attendancePercent || 0}%
                 </h3>
                 <span className="small text-sa-muted">
-                  Total RFID gate taps verified this term
+                  Total gate attendance taps verified this term
                 </span>
               </div>
             </div>

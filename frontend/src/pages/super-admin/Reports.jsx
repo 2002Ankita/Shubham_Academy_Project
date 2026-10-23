@@ -10,7 +10,7 @@ export default function SuperAdminReports() {
     { id: 'GLB-01', name: 'Annual Consolidated Academic Performance 2025-26', campus: 'All Campuses', period: 'Full Year', size: '5.2 MB', generated: '2026-09-01' },
     { id: 'GLB-02', name: 'Quarterly Revenue & Defaulters Analysis Q2', campus: 'All Campuses', period: 'Q2 2026', size: '3.8 MB', generated: '2026-09-10' },
     { id: 'GLB-03', name: 'Faculty Attendance & Workload Audit', campus: 'All Campuses', period: 'August 2026', size: '2.1 MB', generated: '2026-09-15' },
-    { id: 'GLB-04', name: 'RFID Hardware Health & Network Diagnostics', campus: 'All Campuses', period: 'Last 30 Days', size: '1.4 MB', generated: '2026-09-18' },
+    { id: 'GLB-04', name: 'Attendance Hardware Health & Network Diagnostics', campus: 'All Campuses', period: 'Last 30 Days', size: '1.4 MB', generated: '2026-09-18' },
   ]);
 
   const handleDownload = (id) => {

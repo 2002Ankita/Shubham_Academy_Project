@@ -103,7 +103,7 @@ const StudentsIcon = ({ size = 21, className = '' }) => (
   </svg>
 );
 
-const RfidAttendanceIcon = ({ size = 21, className = '' }) => (
+const AttendanceNavIcon = ({ size = 21, className = '' }) => (
   <svg
     width={size}
     height={size}
@@ -309,7 +309,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
-        { label: 'Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
+        { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
         feeSubmenuItem,
         { label: 'Discount Approvals', path: '/super-admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/super-admin/discounts', '/super-admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
@@ -351,7 +351,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
-        { label: 'RFID Attendance', path: '/admin/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/admin/attendance'] },
+        { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
         feeSubmenuItem,
         { label: 'Discount Approvals', path: '/admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/admin/discounts', '/admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
@@ -371,7 +371,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     return [
       { label: 'Dashboard', path: '/student/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/student/dashboard'] },
       { label: 'My Classes', path: '/student/classes', icon: Users, matchPrefixes: ['/student/classes'] },
-      { label: 'Attendance', path: '/student/attendance', icon: RfidAttendanceIcon, matchPrefixes: ['/student/attendance'] },
+      { label: 'Attendance', path: '/student/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/student/attendance'] },
       { label: 'Fees & Receipts', path: '/student/fees', icon: FeeRupeeIcon, matchPrefixes: ['/student/fees'] },
       { label: 'Examinations', path: '/student/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/student/exams'] },
       { label: 'Results', path: '/student/results', icon: ReportsBarIcon, matchPrefixes: ['/student/results'] },

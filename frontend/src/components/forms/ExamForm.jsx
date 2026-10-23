@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
+import BranchBatchSelector from '../common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  ACADEMIC_BATCHES,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return null;
@@ -34,7 +41,10 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
   const [formData, setFormData] = useState({
     title: 'Weekly Test - Mechanics & Kinematics',
     standard: '11th Science',
-    batch: '11th pcm tarabai park',
+    branch: BRANCH_TARABAI,
+    session: '',
+    academicBatch: ACADEMIC_BATCHES[0],
+    batch: `${BRANCH_TARABAI} • ${ACADEMIC_BATCHES[0]}`,
     subject: 'Physics',
     date: new Date().toISOString().split('T')[0],
     startTime: '10:00 am',
@@ -137,34 +147,28 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
           />
         </div>
 
-        <div className="col-12 col-md-6">
-          <Select
-            label="Target Batch"
-            name="batch"
-            value={formData.batch}
-            onChange={(e) => {
-              handleChange(e);
-              setFormData(prev => ({
-                ...prev,
-                batch: e.target.value,
-                standard: e.target.value.includes('12th') ? '12th Science' : '11th Science'
-              }));
-            }}
-            options={[
-              '11th pcm tarabai park',
-              '11th pcb tarabai park',
-              '11th pcmb tarabai park',
-              '12th pcm tarabai park',
-              '12th pcb tarabai park',
-              '12th pcmb tarabai park',
-              '11th pcm Mangalvar peth',
-              '11th pcb Mangalvar peth',
-              '11th pcmb Mangalvar peth',
-              '12th pcm Mangalvar peth',
-              '12th pcb Mangalvar peth',
-              '12th pcmb Mangalvar peth'
-            ]}
-            required
+        <div className="col-12">
+          <BranchBatchSelector
+            branch={formData.branch || BRANCH_TARABAI}
+            onBranchChange={(b) => setFormData(prev => ({
+              ...prev,
+              branch: b,
+              batch: formatStudentBatchDisplay({ branch: b, session: prev.session, academicBatch: prev.academicBatch })
+            }))}
+            session={formData.session || ''}
+            onSessionChange={(s) => setFormData(prev => ({
+              ...prev,
+              session: s,
+              batch: formatStudentBatchDisplay({ branch: prev.branch, session: s, academicBatch: prev.academicBatch })
+            }))}
+            academicBatch={formData.academicBatch || ACADEMIC_BATCHES[0]}
+            onAcademicBatchChange={(ab) => setFormData(prev => ({
+              ...prev,
+              academicBatch: ab,
+              batch: formatStudentBatchDisplay({ branch: prev.branch, session: prev.session, academicBatch: ab }),
+              standard: ab.includes('12th') ? '12th Science' : '11th Science'
+            }))}
+            layout="grid"
           />
         </div>
 

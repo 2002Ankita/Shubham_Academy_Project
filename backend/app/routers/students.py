@@ -28,11 +28,21 @@ async def list_discount_approvals(status: str = None, token: str = Depends(oauth
 async def list_students(
     branch: Optional[str] = None,
     standard: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    batch: Optional[str] = None,
+    session: Optional[str] = None,
     search: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
     await get_current_user(token)
-    return await get_students(branch=branch, standard=standard, search=search)
+    return await get_students(
+        branch=branch,
+        standard=standard,
+        academic_batch=academic_batch,
+        batch=batch,
+        session=session,
+        search=search
+    )
 
 @router.get("/{id}", response_model=StudentResponse)
 async def get_student_endpoint(id: str, token: str = Depends(oauth2_scheme)):

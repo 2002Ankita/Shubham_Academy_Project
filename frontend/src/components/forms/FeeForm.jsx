@@ -4,6 +4,14 @@ import Select from '../common/Select';
 import Button from '../common/Button';
 import feeService from '../../services/feeService';
 import studentService from '../../services/studentService';
+import BranchBatchSelector from '../common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  isSessionRequired,
+  matchesStudentFilters,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 import {
   Building,
   GraduationCap,
@@ -25,9 +33,16 @@ export default function FeeForm({
   loading: externalLoading,
   onStudentSelectChange
 }) {
-  // 1. Branch & Standard State
-  const [selectedBranch, setSelectedBranch] = useState(null);
-  const [selectedStandard, setSelectedStandard] = useState(null);
+  // 1. Standardized Branch, Session & Academic Batch State
+  const [selectedBranch, setSelectedBranch] = useState(BRANCH_TARABAI);
+  const [selectedSession, setSelectedSession] = useState('');
+  const [selectedAcademicBatch, setSelectedAcademicBatch] = useState('11th PCM');
+
+  // Derived Standard
+  const selectedStandard = (selectedAcademicBatch || '').startsWith('12th') ? '12th Science' : '11th Science';
+  const isFilterComplete = Boolean(
+    selectedBranch && selectedAcademicBatch && (!isSessionRequired(selectedBranch) || selectedSession)
+  );
 
   // 2. Student Data State
   const [eligibleStudents, setEligibleStudents] = useState([]);
@@ -52,9 +67,9 @@ export default function FeeForm({
     pendingAmount: 0
   });
 
-  // Fetch eligible students when BOTH branch and standard are selected
+  // Fetch eligible students when Branch, Session, and Batch are selected
   useEffect(() => {
-    if (!selectedBranch || !selectedStandard) {
+    if (!isFilterComplete) {
       setEligibleStudents([]);
       setSelectedStudentId('');
       setSelectedStudent(null);
@@ -67,7 +82,6 @@ export default function FeeForm({
 
     let isMounted = true;
     setLoadingStudents(true);
-    // Reset previously selected student whenever branch or standard changes
     setSelectedStudentId('');
     setSelectedStudent(null);
     setFeeDetails(null);
@@ -77,46 +91,20 @@ export default function FeeForm({
     }
 
     studentService
-      .getAll({ branch: selectedBranch, standard: selectedStandard })
+      .getAll({
+        branch: selectedBranch,
+        academic_batch: selectedAcademicBatch,
+        session: selectedSession
+      })
       .then((data) => {
         if (!isMounted) return;
-        // Also perform exact client-side branch and standard filtering to guarantee data exclusivity
-        const filtered = (data || []).filter((s) => {
-          // Branch check
-          const bTarget = selectedBranch.toLowerCase();
-          const sBranch = (s.branch || '').toLowerCase();
-          const sBatch = (s.batch || '').toLowerCase();
-          const combinedBranch = `${sBranch} ${sBatch}`;
-
-          let branchMatch = false;
-          if (bTarget.includes('tarabai')) {
-            if (combinedBranch.includes('mangal')) {
-              branchMatch = false;
-            } else {
-              branchMatch =
-                combinedBranch.includes('tarabai') ||
-                combinedBranch.includes('main') ||
-                combinedBranch.includes('kolhapur') ||
-                sBranch === 'tarabai park';
-            }
-          } else if (bTarget.includes('mangal')) {
-            branchMatch = combinedBranch.includes('mangal');
-          }
-
-          // Standard check
-          const stdTarget = selectedStandard.toLowerCase();
-          const sStd = (s.standard || '').toLowerCase();
-          const combinedStd = `${sStd} ${sBatch}`;
-          let stdMatch = false;
-          if (stdTarget.includes('11')) {
-            stdMatch = combinedStd.includes('11') && !combinedStd.includes('12');
-          } else if (stdTarget.includes('12')) {
-            stdMatch = combinedStd.includes('12') && !combinedStd.includes('11');
-          }
-
-          return branchMatch && stdMatch;
-        });
-
+        const filtered = (data || []).filter((s) =>
+          matchesStudentFilters(s, {
+            branch: selectedBranch,
+            session: selectedSession,
+            academicBatch: selectedAcademicBatch
+          })
+        );
         setEligibleStudents(filtered);
       })
       .catch((err) => {
@@ -130,7 +118,7 @@ export default function FeeForm({
     return () => {
       isMounted = false;
     };
-  }, [selectedBranch, selectedStandard]);
+  }, [selectedBranch, selectedSession, selectedAcademicBatch, isFilterComplete]);
 
   // Filter eligible students based on search term
   const searchFilteredStudents = useMemo(() => {
@@ -215,16 +203,6 @@ export default function FeeForm({
     }
   };
 
-  const handleBranchChange = (branch) => {
-    if (selectedBranch === branch) return;
-    setSelectedBranch(branch);
-  };
-
-  const handleStandardChange = (standard) => {
-    if (selectedStandard === standard) return;
-    setSelectedStandard(standard);
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -250,15 +228,16 @@ export default function FeeForm({
         studentId: selectedStudent.id,
         studentName: selectedStudent.name,
         rollNumber: selectedStudent.rollNumber,
-        standard: selectedStudent.standard,
-        branch: selectedBranch
+        standard: selectedStudent.standard || selectedStandard,
+        branch: selectedBranch,
+        academic_batch: selectedAcademicBatch,
+        session: selectedSession,
+        batch: selectedStudent.batch || `${selectedAcademicBatch} ${selectedBranch}`
       });
     } finally {
       setSubmitting(false);
     }
   };
-
-  const isFilterComplete = Boolean(selectedBranch && selectedStandard);
 
   return (
     <div className="sa-card p-4 p-lg-4 border shadow-sm">
@@ -270,158 +249,70 @@ export default function FeeForm({
             Student Fee Collection Counter
           </h5>
           <p className="text-muted small m-0 mt-1">
-            Select branch and standard to locate eligible students and record tuition collections.
+            Select branch, session (if Mangalwar Peth), and academic batch to locate eligible students.
           </p>
         </div>
         {selectedStudent && (
           <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold small align-self-start align-self-sm-center">
-            ● Active Student: {selectedStudent.name}
+            ● Active Student: {selectedStudent.name} ({formatStudentBatchDisplay(selectedStudent)})
           </span>
         )}
       </div>
 
-      {/* 1 & 2. Balanced Filter Control Panel (Branch & Standard) */}
+      {/* 1. Standardized Branch & Academic Batch Selector */}
       <div className="p-3.5 p-md-4 rounded-3 border bg-light-subtle mb-4">
-        <div className="row g-3 g-md-4">
-          {/* Branch Selection */}
-          <div className="col-12 col-md-6">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <label className="form-label fw-bold small text-sa-charcoal d-flex align-items-center gap-1.5 m-0">
-                <Building size={16} className="text-sa-primary" /> Branch Selection
-              </label>
-              {selectedBranch && (
-                <span className="badge bg-white text-sa-primary border small py-1 px-2 fw-semibold">
-                  {selectedBranch}
-                </span>
-              )}
-            </div>
-            <div className="d-flex gap-2">
-              <button
-                type="button"
-                id="branch-btn-tarabai"
-                onClick={() => handleBranchChange('Tarabai Park')}
-                className={`btn flex-fill d-inline-flex align-items-center justify-content-center gap-2 py-2.5 px-3 fw-semibold rounded-2 transition-all ${
-                  selectedBranch === 'Tarabai Park'
-                    ? 'text-white shadow-sm'
-                    : 'btn-outline-secondary text-sa-charcoal bg-white'
-                }`}
-                style={{
-                  backgroundColor: selectedBranch === 'Tarabai Park' ? '#8B1216' : '#fff',
-                  borderColor: selectedBranch === 'Tarabai Park' ? '#8B1216' : '#dee2e6',
-                  boxShadow: selectedBranch === 'Tarabai Park' ? '0 4px 12px rgba(139, 18, 22, 0.22)' : 'none'
-                }}
-              >
-                <Building size={16} />
-                <span>Tarabai Park</span>
-                {selectedBranch === 'Tarabai Park' && <CheckCircle2 size={16} className="ms-1" />}
-              </button>
-
-              <button
-                type="button"
-                id="branch-btn-mangalvar"
-                onClick={() => handleBranchChange('Mangalvar Peth')}
-                className={`btn flex-fill d-inline-flex align-items-center justify-content-center gap-2 py-2.5 px-3 fw-semibold rounded-2 transition-all ${
-                  selectedBranch === 'Mangalvar Peth'
-                    ? 'text-white shadow-sm'
-                    : 'btn-outline-secondary text-sa-charcoal bg-white'
-                }`}
-                style={{
-                  backgroundColor: selectedBranch === 'Mangalvar Peth' ? '#8B1216' : '#fff',
-                  borderColor: selectedBranch === 'Mangalvar Peth' ? '#8B1216' : '#dee2e6',
-                  boxShadow: selectedBranch === 'Mangalvar Peth' ? '0 4px 12px rgba(139, 18, 22, 0.22)' : 'none'
-                }}
-              >
-                <Building size={16} />
-                <span>Mangalvar Peth</span>
-                {selectedBranch === 'Mangalvar Peth' && <CheckCircle2 size={16} className="ms-1" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Standard Selection */}
-          <div className="col-12 col-md-6">
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <label className="form-label fw-bold small text-sa-charcoal d-flex align-items-center gap-1.5 m-0">
-                <GraduationCap size={16} className="text-sa-primary" /> Standard Selection
-              </label>
-              {selectedStandard && (
-                <span className="badge bg-white text-sa-primary border small py-1 px-2 fw-semibold">
-                  {selectedStandard} Standard
-                </span>
-              )}
-            </div>
-            <div className="d-flex gap-2">
-              <button
-                type="button"
-                id="standard-btn-11th"
-                onClick={() => handleStandardChange('11th')}
-                className={`btn flex-fill d-inline-flex align-items-center justify-content-center gap-2 py-2.5 px-3 fw-semibold rounded-2 transition-all ${
-                  selectedStandard === '11th'
-                    ? 'text-white shadow-sm'
-                    : 'btn-outline-secondary text-sa-charcoal bg-white'
-                }`}
-                style={{
-                  backgroundColor: selectedStandard === '11th' ? '#8B1216' : '#fff',
-                  borderColor: selectedStandard === '11th' ? '#8B1216' : '#dee2e6',
-                  boxShadow: selectedStandard === '11th' ? '0 4px 12px rgba(139, 18, 22, 0.22)' : 'none'
-                }}
-              >
-                <GraduationCap size={16} />
-                <span>11th Standard</span>
-                {selectedStandard === '11th' && <CheckCircle2 size={16} className="ms-1" />}
-              </button>
-
-              <button
-                type="button"
-                id="standard-btn-12th"
-                onClick={() => handleStandardChange('12th')}
-                className={`btn flex-fill d-inline-flex align-items-center justify-content-center gap-2 py-2.5 px-3 fw-semibold rounded-2 transition-all ${
-                  selectedStandard === '12th'
-                    ? 'text-white shadow-sm'
-                    : 'btn-outline-secondary text-sa-charcoal bg-white'
-                }`}
-                style={{
-                  backgroundColor: selectedStandard === '12th' ? '#8B1216' : '#fff',
-                  borderColor: selectedStandard === '12th' ? '#8B1216' : '#dee2e6',
-                  boxShadow: selectedStandard === '12th' ? '0 4px 12px rgba(139, 18, 22, 0.22)' : 'none'
-                }}
-              >
-                <GraduationCap size={16} />
-                <span>12th Standard</span>
-                {selectedStandard === '12th' && <CheckCircle2 size={16} className="ms-1" />}
-              </button>
-            </div>
-          </div>
+        <div className="d-flex align-items-center justify-content-between mb-2">
+          <label className="form-label fw-bold small text-sa-charcoal d-flex align-items-center gap-1.5 m-0">
+            <Building size={16} className="text-sa-primary" /> Branch & Batch Selection (Admission Filter)
+          </label>
+          {isFilterComplete && (
+            <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
+              {selectedBranch} • {selectedSession ? `${selectedSession} • ` : ''}{selectedAcademicBatch}
+            </span>
+          )}
         </div>
+        <BranchBatchSelector
+          branch={selectedBranch}
+          session={selectedSession}
+          academicBatch={selectedAcademicBatch}
+          onBranchChange={(b) => {
+            setSelectedBranch(b);
+            if (!isSessionRequired(b)) setSelectedSession('');
+          }}
+          onSessionChange={setSelectedSession}
+          onBatchChange={setSelectedAcademicBatch}
+          required={true}
+          showAllOption={false}
+        />
       </div>
 
-      {/* 3. Initial State Notice (Before both Branch & Standard selected) */}
+      {/* 2. Initial State Notice (Before required fields selected) */}
       {!isFilterComplete && (
         <div className="alert alert-light border border-dashed rounded-3 p-4 text-center my-3 bg-light">
           <div className="text-sa-muted mb-2">
             <AlertCircle size={36} className="text-secondary opacity-75" />
           </div>
           <h6 className="fw-bold text-sa-charcoal mb-1">
-            Select Branch and Standard to view students.
+            Complete Branch and Academic Batch selection to view students.
           </h6>
           <p className="text-muted small mb-0">
-            Student records remain restricted until both branch and standard are selected.
+            Student fee records remain restricted until the valid branch and batch are chosen.
           </p>
         </div>
       )}
 
-      {/* 4. Student Search and Dropdown Selection (When Filter Complete) */}
+      {/* 3. Student Search and Dropdown Selection (When Filter Complete) */}
       {isFilterComplete && (
         <div className="p-3.5 p-md-4 rounded-3 border bg-white shadow-xs mb-4">
           <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
             <div className="d-flex align-items-center gap-2">
               <User size={16} className="text-sa-primary" />
               <h6 className="fw-bold text-sa-charcoal m-0 small">
-                Search & Select Student
+                Search & Select Student from Enrolled Batch
               </h6>
             </div>
             <span className="badge bg-light text-sa-charcoal border small">
-              Campus: <strong>{selectedBranch}</strong> • <strong>{selectedStandard} Standard</strong>
+              Campus: <strong>{selectedBranch}</strong> • <strong>{selectedSession ? `${selectedSession} • ` : ''}{selectedAcademicBatch}</strong>
             </span>
           </div>
 
@@ -480,7 +371,7 @@ export default function FeeForm({
                 {loadingStudents ? (
                   <option value="">Loading students...</option>
                 ) : eligibleStudents.length === 0 ? (
-                  <option value="">-- No students found for this branch and standard --</option>
+                  <option value="">-- No students found for this branch and batch --</option>
                 ) : searchFilteredStudents.length === 0 ? (
                   <option value="">-- No matching student found --</option>
                 ) : (
@@ -490,7 +381,7 @@ export default function FeeForm({
                     </option>
                     {searchFilteredStudents.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.rollNumber} - {s.name} ({s.standard})
+                        {s.rollNumber} - {s.name} • {formatStudentBatchDisplay(s)}
                       </option>
                     ))}
                   </>
@@ -504,8 +395,8 @@ export default function FeeForm({
             <div className="mt-3 text-warning-emphasis bg-warning-subtle border border-warning-subtle rounded-2 px-3 py-2.5 small d-flex align-items-center gap-2">
               <AlertCircle size={16} className="flex-shrink-0" />
               <span>
-                <strong>No students found for this branch and standard.</strong> There are currently
-                no registered students matching {selectedBranch} + {selectedStandard}.
+                <strong>No students found for this batch.</strong> There are currently
+                no registered students matching {selectedBranch} • {selectedSession ? `${selectedSession} • ` : ''}{selectedAcademicBatch}.
               </span>
             </div>
           )}
@@ -514,7 +405,7 @@ export default function FeeForm({
             <div className="mt-3 text-danger bg-danger-subtle border border-danger-subtle rounded-2 px-3 py-2.5 small d-flex align-items-center gap-2">
               <AlertCircle size={16} className="flex-shrink-0" />
               <span>
-                <strong>No matching student found.</strong> No student matches &ldquo;{studentSearch}&rdquo; in {selectedBranch} ({selectedStandard}).
+                <strong>No matching student found.</strong> No student matches &ldquo;{studentSearch}&rdquo; in this selected batch.
               </span>
             </div>
           )}

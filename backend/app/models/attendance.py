@@ -15,6 +15,12 @@ class Attendance(Document):
     check_out_time: Optional[datetime] = None
     total_hours: Optional[str] = None
     remarks: Optional[str] = None
+    branch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    session: Optional[str] = None
+    batch: Optional[str] = None
+    lecture_slot: Optional[int] = None
+    subject: Optional[str] = None
 
     class Settings:
         name = "attendance"

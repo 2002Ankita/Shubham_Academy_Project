@@ -265,6 +265,30 @@ export const curriculumService = {
     return { success: true };
   },
 
+  // Retrieve Syllabus & Lecture Breakdown Plan (Boards vs Entrance) for mp/tp
+  getSyllabusPlan: async (params = {}) => {
+    try {
+      const res = await api.get('/topic-durations/syllabus-plan', { params });
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend getSyllabusPlan failed:', err);
+    }
+    return [];
+  },
+
+  // Save / Update bulk syllabus plans
+  saveBulkSyllabusPlan: async (payload) => {
+    try {
+      const res = await api.post('/topic-durations/syllabus-plan/bulk', payload);
+      return res.data;
+    } catch (err) {
+      console.warn('Backend saveBulkSyllabusPlan failed:', err);
+      throw err;
+    }
+  },
+
   // Seed default curriculum data on server
   seedCurriculumDatabase: async () => {
     try {
@@ -278,3 +302,4 @@ export const curriculumService = {
 };
 
 export default curriculumService;
+

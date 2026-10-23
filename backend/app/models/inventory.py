@@ -32,6 +32,10 @@ class InventoryDelivery(Document):
     handed_over_to: Optional[str] = None
     student_roll_no: Optional[str] = None
     standard: Optional[str] = None
+    branch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    session: Optional[str] = None
+    batch: Optional[str] = None
     status: str = "Pending Pickup"  # "Handed Over" | "Pending Pickup"
     date: Optional[datetime] = None
     verified_by: Optional[str] = None

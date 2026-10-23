@@ -46,10 +46,11 @@ export default function ActivityTimetableManagement() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Active top-level Tab: 'daily' | 'timetable'
+  // Active top-level Tab: 'daily' | 'timetable' | 'syllabus'
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'weekly' || params.get('tab') === 'timetable') return 'timetable';
+    if (params.get('tab') === 'syllabus' || params.get('tab') === 'lecture-plan') return 'syllabus';
     return 'daily';
   });
 
@@ -77,6 +78,8 @@ export default function ActivityTimetableManagement() {
     const params = new URLSearchParams(location.search);
     if (params.get('tab') === 'weekly' || params.get('tab') === 'timetable') {
       setActiveTab('timetable');
+    } else if (params.get('tab') === 'syllabus' || params.get('tab') === 'lecture-plan') {
+      setActiveTab('syllabus');
     }
   }, [location.search]);
 
@@ -293,6 +296,7 @@ export default function ActivityTimetableManagement() {
       if (Array.isArray(teacherData)) {
         setTeachers(teacherData);
       }
+      await loadSyllabusData();
     } catch (err) {
       console.error('Failed to load activity data:', err);
     } finally {
@@ -311,6 +315,566 @@ export default function ActivityTimetableManagement() {
       window.removeEventListener('sa_timetable_updated', handleUpdate);
     };
   }, []);
+
+  // -------------------------------------------------------------
+  // TAB 3: SYLLABUS & LECTURE BREAKDOWN PLAN (BOARDS VS ENTRANCE)
+  // -------------------------------------------------------------
+  const [syllabusList, setSyllabusList] = useState([]);
+  const [syllabusSubject, setSyllabusSubject] = useState('Physics');
+  const [syllabusStandard, setSyllabusStandard] = useState('12th');
+  const [syllabusAcademicYear, setSyllabusAcademicYear] = useState('2026 – 2027');
+  const [syllabusSearch, setSyllabusSearch] = useState('');
+  const syllabusExcelInputRef = useRef(null);
+
+  // Add / Edit chapter modal state
+  const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
+  const [editingChapterId, setEditingChapterId] = useState(null);
+  const [chapterForm, setChapterForm] = useState({
+    sr_no: '',
+    title: '',
+    boards_lectures: 6,
+    entrance_lectures: 2,
+    subject: 'Physics',
+    standard: '12th',
+    academic_year: '2026 – 2027',
+    branch_scope: 'mp/tp'
+  });
+
+  const loadSyllabusData = async () => {
+    try {
+      const data = await curriculumService.getSyllabusPlan({
+        subject: 'All',
+        standard: syllabusStandard,
+        academic_year: syllabusAcademicYear
+      });
+      if (Array.isArray(data)) {
+        setSyllabusList(data);
+      }
+    } catch (err) {
+      console.warn('Failed to load syllabus plan:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'syllabus') {
+      loadSyllabusData();
+    }
+  }, [activeTab]);
+
+  const filteredSyllabusList = useMemo(() => {
+    return syllabusList.filter((item) => {
+      const matchSubject = syllabusSubject === 'All' || !syllabusSubject ||
+        (item.subject && item.subject.toLowerCase() === syllabusSubject.toLowerCase());
+      const matchSearch = !syllabusSearch.trim() ||
+        (item.title && item.title.toLowerCase().includes(syllabusSearch.toLowerCase())) ||
+        String(item.sr_no).includes(syllabusSearch);
+      return matchSubject && matchSearch;
+    });
+  }, [syllabusList, syllabusSubject, syllabusSearch]);
+
+  const totalSyllabusChapters = filteredSyllabusList.length;
+  const totalBoardsLec = filteredSyllabusList.reduce((acc, curr) => acc + (Number(curr.boards_lectures) || 0), 0);
+  const totalEntranceLec = filteredSyllabusList.reduce((acc, curr) => acc + (Number(curr.entrance_lectures) || 0), 0);
+  const totalAllLec = totalBoardsLec + totalEntranceLec;
+
+  // Strict Column Header Matchers (prevents words like "Current", "Elements", "Differentiation", etc. from being treated as headers)
+  const isSrHeader = (val) => /^(sr\.?\s*no\.?|sr|sno|srnum|no\.?)$/i.test(String(val || '').trim());
+  const isTitleHeader = (val) => /^(title|chapter|chapter\s*name|topic|topic\s*name|unit)$/i.test(String(val || '').trim());
+  const isBoardsHeader = (val) => /^(boards?|board\s*lectures?|theory)$/i.test(String(val || '').trim());
+  const isEntranceHeader = (val) => /^(entrance|entrance\s*lectures?|ent|neet|jee|cet)$/i.test(String(val || '').trim());
+
+  // Helper to detect if a cell or header text represents a subject section banner (Strict whole-match to avoid false positives on chapters)
+  const isSubjectBannerText = (text = '') => {
+    if (!text) return null;
+    const s = String(text).trim().toLowerCase();
+    if (!s) return null;
+    if (/^(11th|12th)?\s*physics(\s*(mp\/tp|curriculum|lecture plan|theory))?$/i.test(s) || /^(subject\s*[:\-])?\s*physics$/i.test(s)) {
+      return 'Physics';
+    }
+    if (/^(11th|12th)?\s*chemistry(\s*(mp\/tp|curriculum|lecture plan|theory))?$/i.test(s) || /^(subject\s*[:\-])?\s*chemistry$/i.test(s)) {
+      return 'Chemistry';
+    }
+    if (/^(11th|12th)?\s*(maths?|mathematics)(\s*(part|part\s*[-–]?\s*[12]|[-–]?\s*[12iI]+))?(\s*(mp\/tp|curriculum|lecture plan))?$/i.test(s) || /^(subject\s*[:\-])?\s*(maths?|mathematics)$/i.test(s)) {
+      return 'Mathematics';
+    }
+    if (/^(11th|12th)?\s*(biology|bio)(\s*(mp\/tp|curriculum|lecture plan))?$/i.test(s) || /^(subject\s*[:\-])?\s*biology$/i.test(s)) {
+      return 'Biology';
+    }
+    return null;
+  };
+
+  // Helper to detect subject from chapter title keywords as a secondary fallback
+  const detectSubjectFromChapterTitle = (title = '') => {
+    const t = String(title).toLowerCase();
+    // Biology keywords
+    if (/reproduction|inheritance|molecular basis|origin and evalution|origin and evolution|water relation|plant growth|respiration|circulation|control and co-ordination|human health|food production|biotechnology|organisms and populations|ecosystems|biodiversity|botany|zoology/.test(t)) {
+      return 'Biology';
+    }
+    // Chemistry keywords
+    if (/solid state|solutions|ionic equilibria|chemical thermodynamics|electrochemistry|chemical kinetics|groups 16|transition|coordination compounds|halogen|alcohols|aldehydes|corboxylic|amines|biomolecules|polymer chemistry|green chemistry/.test(t)) {
+      return 'Chemistry';
+    }
+    // Physics keywords
+    if (/rotational dynamics|mechanical properties|kinetic theory|radiation|oscillations|superposition|waves optics|wave optics|electrostatics|current electricity|magnetic fields|magnetic materials|electromagnetic|electromegnetic|ac circuits|atoms and nuclei|semiconductor/.test(t)) {
+      return 'Physics';
+    }
+    // Mathematics keywords
+    if (/mathematical logic|matrices|trigonometric|trignometric|straight lines|vectors|line and plane|linear programming|differentiation|applications of derivatives|integration|integrations|differential equations|probability distributions|binomial/.test(t)) {
+      return 'Mathematics';
+    }
+    return null;
+  };
+
+  // Smart Multi-Subject Parser for Syllabus Excel Sheets (Handles single-sheet stacked & multi-sheet files)
+  const processSyllabusWorkbook = async (workbook, shouldSwitchTab = true) => {
+    let totalImportedChapters = 0;
+    const chaptersBySubject = {
+      'Physics': [],
+      'Chemistry': [],
+      'Mathematics': [],
+      'Biology': []
+    };
+
+    let detectedYear = '2026 – 2027';
+    let detectedStandard = '12th';
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rawRows || rawRows.length === 0) continue;
+
+      let sheetDefaultSubject = isSubjectBannerText(sheetName);
+      let currentSubject = sheetDefaultSubject || (syllabusSubject !== 'All' ? syllabusSubject : 'Physics');
+      let colIndexMap = { sr: 0, title: 1, boards: 2, entrance: 3 };
+
+      for (let r = 0; r < rawRows.length; r++) {
+        const row = rawRows[r];
+        if (!row || row.length === 0) continue;
+
+        const rowCleanStr = row.map(c => String(c).trim()).filter(Boolean).join(' ').toLowerCase();
+        if (!rowCleanStr) continue;
+
+        // Check for 12th 2026 - 2027 academic year header
+        if (rowCleanStr.includes('2026') || rowCleanStr.includes('2027')) {
+          const match = rowCleanStr.match(/(11th|12th)?.*?(202[4-9]\s*[-–]\s*202[5-9])/i);
+          if (match) {
+            if (match[1]) detectedStandard = match[1];
+            if (match[2]) detectedYear = match[2].replace('-', '–');
+          }
+          continue; // Skip the top year banner
+        }
+
+        // Check if this row is a Table Column Header Row (Sr.no, Title, Boards, Entrance)
+        let headerMatches = 0;
+        const tempMap = { ...colIndexMap };
+        row.forEach((cell, cIdx) => {
+          if (isSrHeader(cell)) {
+            tempMap.sr = cIdx;
+            headerMatches++;
+          } else if (isTitleHeader(cell)) {
+            tempMap.title = cIdx;
+            headerMatches++;
+          } else if (isBoardsHeader(cell)) {
+            tempMap.boards = cIdx;
+            headerMatches++;
+          } else if (isEntranceHeader(cell)) {
+            tempMap.entrance = cIdx;
+            headerMatches++;
+          }
+        });
+        if (headerMatches >= 2) {
+          colIndexMap = tempMap;
+          continue; // Skip the column header row itself
+        }
+
+        // Check if this row is a Subject Section Header (e.g. "Physics", "Chemistry", "Maths 1", "Biology")
+        let foundSubjectInRow = null;
+        for (const cell of row) {
+          const sub = isSubjectBannerText(cell);
+          if (sub) {
+            foundSubjectInRow = sub;
+            break;
+          }
+        }
+        if (foundSubjectInRow) {
+          currentSubject = foundSubjectInRow;
+          continue; // It's a subject banner row, not a chapter!
+        }
+
+        // Skip banner text rows like "No of lec for mp/tp" or pure year headers
+        if (rowCleanStr.includes('no of lec') || rowCleanStr.includes('target completion')) {
+          continue;
+        }
+
+        // Now inspect the Chapter Title
+        const rawTitle = String(row[colIndexMap.title] || row[1] || '').trim();
+        if (!rawTitle || /^(title|total|grand total|sub total|target|remark|remarks|no of lec|sr\.?\s*no)/i.test(rawTitle)) {
+          continue;
+        }
+
+        // If the title itself is just a subject name banner, switch subject and skip row
+        const titleAsSubject = isSubjectBannerText(rawTitle);
+        if (titleAsSubject) {
+          currentSubject = titleAsSubject;
+          continue;
+        }
+
+        // Determine correct subject for chapter (using currentSubject or title keyword fallback)
+        let finalSubject = currentSubject;
+        const keywordSubject = detectSubjectFromChapterTitle(rawTitle);
+        if (keywordSubject) {
+          finalSubject = keywordSubject;
+          currentSubject = keywordSubject; // Lock on to this subject for subsequent rows
+        }
+
+        // Parse numerical columns
+        const rawSr = parseInt(row[colIndexMap.sr], 10);
+        const boardsVal = parseInt(row[colIndexMap.boards], 10) || 0;
+        const entranceVal = parseInt(row[colIndexMap.entrance], 10) || 0;
+        const totalVal = boardsVal + entranceVal;
+
+        if (!chaptersBySubject[finalSubject]) {
+          chaptersBySubject[finalSubject] = [];
+        }
+
+        const srVal = !isNaN(rawSr) && rawSr > 0 ? rawSr : (chaptersBySubject[finalSubject].length + 1);
+
+        chaptersBySubject[finalSubject].push({
+          sr_no: srVal,
+          title: rawTitle,
+          boards_lectures: boardsVal,
+          entrance_lectures: entranceVal,
+          total_lectures: totalVal
+        });
+      }
+    }
+
+    // Now save each subject's chapters to MongoDB
+    const importedSummary = [];
+    let firstImportedSubject = null;
+
+    for (const [sub, chapters] of Object.entries(chaptersBySubject)) {
+      if (chapters.length > 0) {
+        await curriculumService.saveBulkSyllabusPlan({
+          subject: sub,
+          standard: detectedStandard,
+          academic_year: detectedYear,
+          branch_scope: 'mp/tp',
+          chapters
+        });
+        totalImportedChapters += chapters.length;
+        importedSummary.push(`${sub}: ${chapters.length}`);
+        if (!firstImportedSubject) {
+          firstImportedSubject = sub;
+        }
+      }
+    }
+
+    if (totalImportedChapters > 0) {
+      toast.success(`Successfully imported ${totalImportedChapters} chapters! (${importedSummary.join(', ')})`);
+      if (importedSummary.length === 1 && firstImportedSubject) {
+        setSyllabusSubject(firstImportedSubject);
+      } else {
+        setSyllabusSubject('All');
+      }
+      if (shouldSwitchTab) {
+        setActiveTab('syllabus');
+      }
+      await loadSyllabusData();
+      return { success: true, chaptersBySubject, totalImportedChapters };
+    }
+    return { success: false, chaptersBySubject: {}, totalImportedChapters: 0 };
+  };
+
+  const handleTriggerSyllabusExcel = () => {
+    if (syllabusExcelInputRef.current) {
+      syllabusExcelInputRef.current.value = '';
+      syllabusExcelInputRef.current.click();
+    }
+  };
+
+  const handleSyllabusExcelUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const binaryString = evt.target.result;
+        const workbook = XLSX.read(binaryString, { type: 'binary' });
+        const result = await processSyllabusWorkbook(workbook, true);
+        if (!result?.success) {
+          toast.warning('No valid chapter records found. Please check columns: Sr.no, Title, Boards, Entrance.');
+        }
+      } catch (err) {
+        console.error('Failed to parse syllabus Excel:', err);
+        toast.error('Failed to parse Excel file. Please use a valid .xlsx or .xls file.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleExportSyllabusExcel = () => {
+    if (!filteredSyllabusList || filteredSyllabusList.length === 0) {
+      toast.warning('No syllabus data available to export.');
+      return;
+    }
+
+    const wsData = [
+      ['', `${syllabusStandard} ${syllabusAcademicYear}`, '', ''],
+      ['', syllabusSubject, 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance', 'Total']
+    ];
+
+    let totalBoards = 0;
+    let totalEntrance = 0;
+
+    filteredSyllabusList.forEach((item, idx) => {
+      const b = item.boards_lectures || 0;
+      const e = item.entrance_lectures || 0;
+      totalBoards += b;
+      totalEntrance += e;
+      wsData.push([item.sr_no || idx + 1, item.title, b, e, b + e]);
+    });
+
+    wsData.push(['', 'Total Lectures', totalBoards, totalEntrance, totalBoards + totalEntrance]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, syllabusSubject);
+    XLSX.writeFile(wb, `${syllabusSubject}_${syllabusStandard}_${syllabusAcademicYear.replace(/\s+/g, '')}_Lecture_Plan.xlsx`);
+    toast.success(`Exported ${syllabusSubject} lecture plan to Excel!`);
+  };
+
+  const handleDownloadSyllabusTemplate = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Physics Sheet
+    const physicsData = [
+      ['', '12th 2026 – 2027', '', ''],
+      ['', 'Physics', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Rotational Dynamics', 7, 3],
+      [2, 'Mechanical Properties of Fluids', 7, 3],
+      [3, 'Kinetic Theory of Gases and Radiation', 5, 2],
+      [4, 'Thermodynamics', 7, 3],
+      [5, 'Oscillations', 6, 3],
+      [6, 'Superposition of waves', 6, 2],
+      [7, 'Waves Optics', 7, 2],
+      [8, 'Electrostatics', 7, 3],
+      [9, 'Current Electricity', 6, 2],
+      [10, 'Magnetic fields due to Electric Current', 6, 2],
+      [11, 'Magnetic Materials', 5, 1],
+      [12, 'Electromagnetic Induction', 6, 2],
+      [13, 'AC circuits', 6, 2],
+      [14, 'Dual Nature of Radiation and Matter', 3, 1],
+      [15, 'Structure of Atoms and Nuclei', 5, 2],
+      [16, 'Semiconductor Devices', 5, 1]
+    ];
+    const wsPhysics = XLSX.utils.aoa_to_sheet(physicsData);
+    wsPhysics['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsPhysics, 'Physics');
+
+    // Chemistry Sheet
+    const chemData = [
+      ['', '12th 2026 – 2027', '', ''],
+      ['', 'Chemistry', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Solid State', 6, 3],
+      [2, 'Solutions', 7, 3],
+      [3, 'Ionic Equilibria', 6, 2],
+      [4, 'Chemical Thermodynamics', 7, 3],
+      [5, 'Electrochemistry', 5, 3],
+      [6, 'Chemical Kinetics', 6, 3],
+      [7, 'Elements of groups 16, 17 and 18', 8, 3],
+      [8, 'Transition and Inner transition Elements', 5, 3],
+      [9, 'Coordination Compounds', 5, 3],
+      [10, 'Halogen Derivatives', 6, 3],
+      [11, 'Alcohols, Phenols and Ethers', 6, 3],
+      [12, 'Aldehydes, Ketones and Carboxylic Acids', 8, 3],
+      [13, 'Amines', 4, 2],
+      [14, 'Biomolecules', 5, 3],
+      [15, 'Introduction to Polymer Chemistry', 4, 2],
+      [16, 'Green Chemistry and Nano Chemistry', 3, 1]
+    ];
+    const wsChem = XLSX.utils.aoa_to_sheet(chemData);
+    wsChem['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsChem, 'Chemistry');
+
+    // Mathematics Sheet
+    const mathData = [
+      ['', '12th 2026 – 2027', '', ''],
+      ['', 'Mathematics', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Mathematical Logic', 11, 2],
+      [2, 'Matrices', 7, 2],
+      [3, 'Trigonometric Functions', 11, 2],
+      [4, 'Pair of Straight Lines', 6, 2],
+      [5, 'Vectors', 5, 4],
+      [6, 'Line and Plane', 5, 3],
+      [7, 'Linear Programming', 4, 2],
+      [8, 'Differentiation', 15, 3],
+      [9, 'Applications of Derivatives', 12, 2],
+      [10, 'Indefinite Integration', 16, 3],
+      [11, 'Definite Integration', 9, 2],
+      [12, 'Applications of Definite Integration', 4, 2],
+      [13, 'Differential Equations', 9, 2],
+      [14, 'Probability Distributions', 5, 2],
+      [15, 'Binomial Distribution', 4, 2]
+    ];
+    const wsMath = XLSX.utils.aoa_to_sheet(mathData);
+    wsMath['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMath, 'Mathematics');
+
+    // Biology Sheet
+    const bioData = [
+      ['', '12th 2026 – 2027', '', ''],
+      ['', 'Biology', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Reproduction in Lower and Higher Plants', 8, 2],
+      [2, 'Reproduction in Lower and Higher Animals', 8, 2],
+      [3, 'Inheritance and Variation', 6, 2],
+      [4, 'Molecular Basis of Inheritance', 10, 3],
+      [5, 'Origin and Evolution of Life', 6, 2],
+      [6, 'Plant Water Relation', 6, 2],
+      [7, 'Plant Growth and Mineral Nutrition', 6, 2],
+      [8, 'Respiration and Circulation', 10, 3],
+      [9, 'Control and Co-ordination', 12, 3],
+      [10, 'Human Health and Diseases', 6, 2],
+      [11, 'Enhancement of Food Production', 5, 2],
+      [12, 'Biotechnology', 8, 2],
+      [13, 'Organisms and Populations', 4, 1],
+      [14, 'Ecosystems and Energy Flow', 4, 1],
+      [15, 'Biodiversity, Conservation and Environmental Issues', 6, 2]
+    ];
+    const wsBio = XLSX.utils.aoa_to_sheet(bioData);
+    wsBio['!merges'] = [
+      { s: { r: 0, c: 1 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsBio, 'Biology');
+
+    XLSX.writeFile(wb, 'Shubham_Academy_Syllabus_Plan_Template.xlsx');
+    toast.success('Downloaded complete 4-subject syllabus template (Physics, Chemistry, Maths, Biology)!');
+  };
+
+  const handleOpenAddChapterModal = () => {
+    setEditingChapterId(null);
+    setChapterForm({
+      sr_no: String(filteredSyllabusList.length + 1),
+      title: '',
+      boards_lectures: 6,
+      entrance_lectures: 2,
+      subject: syllabusSubject === 'All' ? 'Physics' : syllabusSubject,
+      standard: syllabusStandard,
+      academic_year: syllabusAcademicYear,
+      branch_scope: 'mp/tp'
+    });
+    setIsChapterModalOpen(true);
+  };
+
+  const handleOpenEditChapterModal = (chapter) => {
+    setEditingChapterId(chapter.id || chapter.topic_id);
+    setChapterForm({
+      sr_no: String(chapter.sr_no || ''),
+      title: chapter.title || chapter.topic_name || '',
+      boards_lectures: chapter.boards_lectures || 0,
+      entrance_lectures: chapter.entrance_lectures || 0,
+      subject: chapter.subject || syllabusSubject,
+      standard: chapter.standard || syllabusStandard,
+      academic_year: chapter.academic_year || syllabusAcademicYear,
+      branch_scope: chapter.branch_scope || 'mp/tp'
+    });
+    setIsChapterModalOpen(true);
+  };
+
+  const handleSaveChapterForm = async (e) => {
+    e.preventDefault();
+    if (!chapterForm.title.trim()) {
+      toast.warning('Please enter a chapter title.');
+      return;
+    }
+
+    try {
+      const bLec = parseInt(chapterForm.boards_lectures, 10) || 0;
+      const eLec = parseInt(chapterForm.entrance_lectures, 10) || 0;
+      const tLec = bLec + eLec;
+
+      if (editingChapterId) {
+        await curriculumService.updateTopicDuration(editingChapterId, {
+          title: chapterForm.title,
+          chapter: chapterForm.title,
+          topic_name: chapterForm.title,
+          sr_no: parseInt(chapterForm.sr_no, 10) || 1,
+          boards_lectures: bLec,
+          entrance_lectures: eLec,
+          total_lectures: tLec,
+          required_periods: tLec,
+          subject: chapterForm.subject,
+          standard: chapterForm.standard,
+          academic_year: chapterForm.academic_year,
+          branch_scope: chapterForm.branch_scope
+        });
+        toast.success(`Updated chapter: ${chapterForm.title}`);
+      } else {
+        await curriculumService.saveBulkSyllabusPlan({
+          subject: chapterForm.subject,
+          standard: chapterForm.standard,
+          academic_year: chapterForm.academic_year,
+          branch_scope: chapterForm.branch_scope,
+          chapters: [
+            {
+              sr_no: parseInt(chapterForm.sr_no, 10) || (filteredSyllabusList.length + 1),
+              title: chapterForm.title,
+              boards_lectures: bLec,
+              entrance_lectures: eLec,
+              total_lectures: tLec
+            }
+          ]
+        });
+        toast.success(`Added chapter: ${chapterForm.title}`);
+      }
+      setIsChapterModalOpen(false);
+      loadSyllabusData(chapterForm.subject);
+    } catch (err) {
+      console.error('Failed to save chapter:', err);
+      toast.error('Failed to save chapter.');
+    }
+  };
+
+  const handleDeleteChapter = async (chapter) => {
+    const isOk = await confirm({
+      title: 'Delete Chapter',
+      message: `Are you sure you want to remove "${chapter.title}" from the ${chapter.subject} syllabus plan?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!isOk) return;
+
+    try {
+      await curriculumService.deleteTopicDuration(chapter.id || chapter.topic_id);
+      toast.success(`Deleted chapter: ${chapter.title}`);
+      loadSyllabusData(chapter.subject || syllabusSubject);
+    } catch (err) {
+      console.error('Failed to delete chapter:', err);
+      toast.error('Failed to delete chapter.');
+    }
+  };
 
   // -------------------------------------------------------------
   // TAB 1: DAILY ACTIVITIES LOGIC & EXCEL IMPORT
@@ -359,10 +923,52 @@ export default function ActivityTimetableManagement() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const binaryString = evt.target.result;
         const workbook = XLSX.read(binaryString, { type: 'binary' });
+
+        // Auto-detect if this is the Syllabus / Lecture Plan format (Boards vs Entrance for mp/tp)
+        const firstSheetName = workbook.SheetNames[0];
+        const sheetDump = JSON.stringify(workbook.Sheets[firstSheetName] || {}).toLowerCase();
+        const isSyllabusSheet = (sheetDump.includes('entrance') && (sheetDump.includes('boards') || sheetDump.includes('mp/tp') || sheetDump.includes('rotational') || sheetDump.includes('solid state')));
+
+        if (isSyllabusSheet) {
+          // Sync syllabus plan in background without switching tabs away from Daily Logs!
+          const syllabusResult = await processSyllabusWorkbook(workbook, false);
+          const syllabusDailyRows = [];
+
+          if (syllabusResult?.success && syllabusResult.chaptersBySubject) {
+            for (const [sub, chapters] of Object.entries(syllabusResult.chaptersBySubject)) {
+              chapters.forEach(ch => {
+                syllabusDailyRows.push({
+                  branch: 'Tarabai Park',
+                  activity: 'Classroom Lecture & Theory',
+                  subject: sub,
+                  teacherName: defaultFacultyBySubject[sub] || 'More A.D',
+                  batch: '12th pcm tarabai park',
+                  chapter: ch.title,
+                  topicTaught: ch.title,
+                  timeSlot: '09:00 AM - 10:00 AM',
+                  periods: 1,
+                  totalPlannedPeriods: ch.total_lectures || ch.boards_lectures || 2,
+                  hours: 1.5,
+                  targetDate: '2026-10-25',
+                  status: 'In Progress',
+                  remarks: `Boards: ${ch.boards_lectures || 0} lec, Entrance: ${ch.entrance_lectures || 0} lec`
+                });
+              });
+            }
+          }
+
+          if (syllabusDailyRows.length > 0) {
+            setDailyParsedData(syllabusDailyRows);
+            setIsDailyImportModalOpen(true);
+            toast.info(`Parsed ${syllabusDailyRows.length} activities from syllabus plan. Kept on Daily Logs page.`);
+            return;
+          }
+        }
+
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const rawData = XLSX.utils.sheet_to_json(sheet);
@@ -396,7 +1002,7 @@ export default function ActivityTimetableManagement() {
 
           const batch = batchStr || (branch === 'Mangalwar Peth' ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park');
           const chapter = String(norm['chapter'] || norm['unit'] || norm['chaptername'] || 'Curriculum Module').trim();
-          const topicTaught = String(norm['topictaught'] || norm['topictaughtsyllabuscovered'] || norm['topic'] || norm['syllabus'] || '').trim();
+          const topicTaught = String(norm['topictaught'] || norm['topictaughtsyllabuscovered'] || norm['topic'] || norm['syllabus'] || norm['title'] || '').trim();
           const timeSlot = String(norm['timeslot'] || norm['time'] || norm['slot'] || '03:00 PM - 04:00 PM').trim();
           const periods = parseInt(norm['periodstaken'] || norm['periods'] || norm['period'] || 1, 10);
           const totalPlannedPeriods = parseInt(norm['totalplannedperiods'] || norm['plannedperiods'] || norm['totalperiods'] || 2, 10);
@@ -427,7 +1033,7 @@ export default function ActivityTimetableManagement() {
             status,
             remarks
           };
-        }).filter(item => item.topicTaught.length > 0 || item.subject.length > 0);
+        }).filter(item => item.topicTaught.length > 0 || item.subject.length > 0 || item.chapter.length > 0);
 
         if (parsed.length === 0) {
           toast.warning('No valid rows found in Excel. Please check columns.');
@@ -451,20 +1057,20 @@ export default function ActivityTimetableManagement() {
 
     try {
       const payloadList = dailyParsedData.map(item => ({
-        branch: item.branch,
-        activity: item.activity,
-        subject: item.subject,
-        batch: item.batch,
-        chapter: item.chapter,
-        topic_taught: item.topicTaught,
-        time_slot: item.timeSlot,
-        periods: item.periods,
-        total_planned_periods: item.totalPlannedPeriods,
-        hours: item.hours,
-        target_date: item.targetDate,
-        status: item.status,
-        teacher_name: item.teacherName,
-        remarks: item.remarks,
+        branch: item.branch || 'Tarabai Park',
+        activity: item.activity || 'Classroom Lecture & Theory',
+        subject: item.subject || 'Physics',
+        batch: item.batch || '12th pcm tarabai park',
+        chapter: item.chapter || item.topicTaught || 'Curriculum Module',
+        topic_taught: item.topicTaught || item.chapter || 'Lecture Activity',
+        time_slot: item.timeSlot || '09:00 AM - 10:00 AM',
+        periods: parseInt(item.periods || 1, 10),
+        total_planned_periods: parseInt(item.totalPlannedPeriods || 2, 10),
+        hours: parseFloat(item.hours || 1.0),
+        target_date: item.targetDate || new Date().toISOString().split('T')[0],
+        status: item.status || 'Completed',
+        teacher_name: item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D',
+        remarks: item.remarks || '',
         frequency: 'Daily',
         activity_date: new Date().toISOString().split('T')[0]
       }));
@@ -475,21 +1081,21 @@ export default function ActivityTimetableManagement() {
 
       // Auto-sync daily activities with schedule into batch timetable
       try {
-        const slotsToSync = dailyParsedData
-          .filter(item => item.timeSlot && item.subject)
+        const slotsToSync = payloadList
+          .filter(item => item.time_slot && item.subject)
           .map(item => {
             let day = 'Monday';
-            if (item.targetDate) {
-              const d = new Date(item.targetDate + 'T00:00:00');
+            if (item.target_date) {
+              const d = new Date(item.target_date + 'T00:00:00');
               if (!isNaN(d.getTime())) {
                 day = d.toLocaleDateString('en-US', { weekday: 'long' });
               }
             }
             return {
               day,
-              time: item.timeSlot,
+              time: item.time_slot,
               subject: item.subject,
-              teacher_name: item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D',
+              teacher_name: item.teacher_name || defaultFacultyBySubject[item.subject] || 'More A.D',
               batch: item.batch,
               branch: item.branch || 'Tarabai Park',
               room: 'Room 201'
@@ -503,10 +1109,34 @@ export default function ActivityTimetableManagement() {
         console.warn('Auto-sync daily import to timetable failed:', syncErr);
       }
 
+      // Optimistically add imported items into dailyActivities so they are immediately visible on the Daily Logs table
+      const newItemsWithIds = payloadList.map((item, idx) => ({
+        id: `ACT-IMP-${Date.now()}-${idx}`,
+        ...item,
+        topicTaught: item.topic_taught,
+        timeSlot: item.time_slot,
+        totalPlannedPeriods: item.total_planned_periods,
+        targetDate: item.target_date,
+        teacherName: item.teacher_name
+      }));
+
+      setDailyActivities(prev => [...newItemsWithIds, ...(prev || [])]);
+
+      // Reset filters on Daily Logs page so newly imported items are immediately visible and not hidden by filters!
+      setDailyBranchFilter('All');
+      setDailySubjectFilter('All');
+      setDailyTeacherFilter('All');
+      setDailyBatchFilter('All');
+      setDailyStatusFilter('All');
+      setDailySearch('');
+
+      // Keep user on the Daily Logs page!
+      setActiveTab('daily');
+
       // Trigger update event across app
       window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
-      toast.success(`Successfully imported ${payloadList.length} daily activities! Assigned to respective teachers & synced to timetable.`);
-      loadData();
+      toast.success(`Successfully imported ${payloadList.length} daily activities! Kept on Daily Logs page.`);
+      await loadData();
     } catch (err) {
       console.error('Failed to import activities:', err);
       toast.error('Error importing activities to backend.');
@@ -1164,6 +1794,38 @@ export default function ActivityTimetableManagement() {
               {allTimetableSlots.length}
             </span>
           </button>
+
+          {/* Tab 3: Syllabus & Lecture Plan (mp/tp) */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('syllabus');
+              loadSyllabusData(syllabusSubject);
+            }}
+            className={`btn btn-sm d-flex align-items-center gap-2 px-3 fw-semibold transition-all ${
+              activeTab === 'syllabus' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+            }`}
+            style={{
+              backgroundColor: activeTab === 'syllabus' ? '#8B1216' : 'transparent',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <BookOpen size={14} />
+            <span>Syllabus & Lecture Plan (mp/tp)</span>
+            <span
+              className="badge rounded-pill"
+              style={{
+                backgroundColor: activeTab === 'syllabus' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
+                color: activeTab === 'syllabus' ? '#FFFFFF' : '#475569',
+                fontSize: '10.5px'
+              }}
+            >
+              {syllabusList.length}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1176,26 +1838,32 @@ export default function ActivityTimetableManagement() {
           >
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-sa-muted fw-semibold" style={{ fontSize: '12px' }}>
-                {activeTab === 'timetable' ? 'Weekly Lecture Slots' : 'Total Teaching Hours'}
+                {activeTab === 'timetable' ? 'Weekly Lecture Slots' : activeTab === 'syllabus' ? 'Total Chapters Planned' : 'Total Teaching Hours'}
               </span>
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center"
                 style={{ width: '34px', height: '34px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
               >
-                {activeTab === 'timetable' ? <CalendarCheck size={17} /> : <Clock size={17} />}
+                {activeTab === 'timetable' ? <CalendarCheck size={17} /> : activeTab === 'syllabus' ? <BookOpen size={17} /> : <Clock size={17} />}
               </div>
             </div>
             <div>
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
                 {activeTab === 'timetable'
                   ? allTimetableSlots.length
+                  : activeTab === 'syllabus'
+                  ? totalSyllabusChapters
                   : dailyActivities.reduce((acc, a) => acc + (parseFloat(a.hours) || 0), 0).toFixed(1)}{' '}
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748B' }}>
-                  {activeTab === 'timetable' ? 'slots' : 'hrs'}
+                  {activeTab === 'timetable' ? 'slots' : activeTab === 'syllabus' ? 'chapters' : 'hrs'}
                 </span>
               </div>
               <span className="text-sa-muted mt-1 d-block" style={{ fontSize: '11px' }}>
-                {activeTab === 'timetable' ? 'Across all batches & faculty' : 'Logged across all faculty today'}
+                {activeTab === 'timetable'
+                  ? 'Across all batches & faculty'
+                  : activeTab === 'syllabus'
+                  ? `${syllabusSubject} (${syllabusStandard} ${syllabusAcademicYear})`
+                  : 'Logged across all faculty today'}
               </span>
             </div>
           </div>
@@ -1208,7 +1876,7 @@ export default function ActivityTimetableManagement() {
           >
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-sa-muted fw-semibold" style={{ fontSize: '12px' }}>
-                {activeTab === 'timetable' ? 'Tarabai Park Slots' : 'Daily Topics Covered'}
+                {activeTab === 'timetable' ? 'Tarabai Park Slots' : activeTab === 'syllabus' ? 'Boards Lectures' : 'Daily Topics Covered'}
               </span>
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center"
@@ -1221,13 +1889,15 @@ export default function ActivityTimetableManagement() {
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
                 {activeTab === 'timetable'
                   ? allTimetableSlots.filter(s => s.branch === 'Tarabai Park').length
+                  : activeTab === 'syllabus'
+                  ? totalBoardsLec
                   : dailyActivities.filter(a => a.topicTaught).length}{' '}
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748B' }}>
-                  {activeTab === 'timetable' ? 'slots' : 'topics'}
+                  {activeTab === 'timetable' ? 'slots' : activeTab === 'syllabus' ? 'lectures' : 'topics'}
                 </span>
               </div>
               <span className="text-success fw-semibold mt-1 d-block" style={{ fontSize: '11px' }}>
-                ✓ Synced to Teacher Portals
+                {activeTab === 'syllabus' ? 'State Board Syllabus (mp/tp)' : '✓ Synced to Teacher Portals'}
               </span>
             </div>
           </div>
@@ -1240,7 +1910,7 @@ export default function ActivityTimetableManagement() {
           >
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-sa-muted fw-semibold" style={{ fontSize: '12px' }}>
-                {activeTab === 'timetable' ? 'Mangalwar Peth Slots' : 'Active Classes & Batches'}
+                {activeTab === 'timetable' ? 'Mangalwar Peth Slots' : activeTab === 'syllabus' ? 'Entrance Lectures' : 'Active Classes & Batches'}
               </span>
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center"
@@ -1253,13 +1923,15 @@ export default function ActivityTimetableManagement() {
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
                 {activeTab === 'timetable'
                   ? allTimetableSlots.filter(s => s.branch === 'Mangalwar Peth').length
+                  : activeTab === 'syllabus'
+                  ? totalEntranceLec
                   : new Set(dailyActivities.map(a => a.batch).filter(Boolean)).size}{' '}
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748B' }}>
-                  {activeTab === 'timetable' ? 'slots' : 'batches'}
+                  {activeTab === 'timetable' ? 'slots' : activeTab === 'syllabus' ? 'lectures' : 'batches'}
                 </span>
               </div>
               <span className="text-sa-muted mt-1 d-block" style={{ fontSize: '11px' }}>
-                {activeTab === 'timetable' ? 'Campus scheduled slots' : 'Batches with daily activity logs'}
+                {activeTab === 'timetable' ? 'Campus scheduled slots' : activeTab === 'syllabus' ? 'CET / JEE / NEET breakdown' : 'Batches with daily activity logs'}
               </span>
             </div>
           </div>
@@ -1272,7 +1944,7 @@ export default function ActivityTimetableManagement() {
           >
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-sa-muted fw-semibold" style={{ fontSize: '12px' }}>
-                {activeTab === 'timetable' ? 'Scheduled Faculty' : 'Active Faculty'}
+                {activeTab === 'timetable' ? 'Scheduled Faculty' : activeTab === 'syllabus' ? 'Total mp/tp Lectures' : 'Active Faculty'}
               </span>
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center"
@@ -1285,13 +1957,15 @@ export default function ActivityTimetableManagement() {
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
                 {activeTab === 'timetable'
                   ? new Set(allTimetableSlots.map(s => s.teacher_name).filter(Boolean)).size
+                  : activeTab === 'syllabus'
+                  ? totalAllLec
                   : new Set(dailyActivities.map(a => a.teacherName).filter(Boolean)).size}{' '}
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748B' }}>
-                  {activeTab === 'timetable' ? 'Teachers' : 'Teachers'}
+                  {activeTab === 'syllabus' ? 'total' : 'Teachers'}
                 </span>
               </div>
               <span className="text-sa-muted mt-1 d-block" style={{ fontSize: '11px' }}>
-                {activeTab === 'timetable' ? 'Assigned weekly lecture periods' : 'Teachers with daily activity logs'}
+                {activeTab === 'syllabus' ? 'Boards + Entrance planned' : 'Teachers with daily activity logs'}
               </span>
             </div>
           </div>
@@ -2420,8 +3094,552 @@ export default function ActivityTimetableManagement() {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 1: EXCEL DAILY ACTIVITIES IMPORT PREVIEW */}
+      {/* SECTION 3: SYLLABUS & LECTURE BREAKDOWN PLAN (EXCEL VIEW) */}
       {/* ========================================================= */}
+      {activeTab === 'syllabus' && (
+        <div
+          className="sa-card bg-white border rounded-4 p-4 shadow-xs d-flex flex-column gap-3.5"
+          style={{ borderColor: '#E2E8F0' }}
+        >
+          {/* Action Buttons Toolbar */}
+          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pb-3 border-bottom">
+            <div>
+              <div className="d-flex align-items-center gap-2">
+                <h2 className="brand-font fw-bold m-0" style={{ fontSize: '18px', color: '#0F172A' }}>
+                  Syllabus Breakdown & Lecture Plan (mp/tp)
+                </h2>
+                <span
+                  className="badge rounded-pill fw-semibold"
+                  style={{ backgroundColor: '#FDF2F2', color: '#8B1216', border: '1px solid #FECACA', fontSize: '11px', padding: '4px 10px' }}
+                >
+                  Mangalwar Peth & Tarabai Park
+                </span>
+              </div>
+              <span className="text-sa-muted small" style={{ fontSize: '12.5px' }}>
+                Upload and view curriculum chapters with Boards and Entrance lecture allocations exactly as structured in the academic master sheet.
+              </span>
+            </div>
+
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              {/* Hidden File Input for Syllabus Excel Import */}
+              <input
+                type="file"
+                ref={syllabusExcelInputRef}
+                accept=".xlsx, .xls"
+                style={{ display: 'none' }}
+                onChange={handleSyllabusExcelUpload}
+              />
+
+              <button
+                type="button"
+                onClick={handleTriggerSyllabusExcel}
+                className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{
+                  height: '38px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  padding: '0 15px',
+                  backgroundColor: '#168554',
+                  borderColor: '#168554',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer'
+                }}
+                title="Upload Excel with chapters and lecture allocations (Boards vs Entrance)"
+              >
+                <FileSpreadsheet size={15} />
+                <span>Upload Syllabus Excel (.xlsx)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportSyllabusExcel}
+                className="btn btn-sm btn-white border d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{
+                  height: '38px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  padding: '0 14px',
+                  color: '#475569',
+                  borderColor: '#CBD5E1',
+                  whiteSpace: 'nowrap',
+                  backgroundColor: '#FFFFFF',
+                  cursor: 'pointer'
+                }}
+                title="Export current subject plan to Excel"
+              >
+                <Download size={15} />
+                <span>Export to Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadSyllabusTemplate}
+                className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{
+                  height: '38px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  padding: '0 14px',
+                  color: '#334155',
+                  borderColor: '#E2E8F0',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer'
+                }}
+                title="Download standard template with Physics and Chemistry pre-filled"
+              >
+                <Download size={15} />
+                <span>Sample Template</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenAddChapterModal}
+                className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{
+                  height: '38px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  padding: '0 15px',
+                  backgroundColor: '#8B1216',
+                  borderColor: '#8B1216',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer'
+                }}
+              >
+                <Plus size={15} />
+                <span>+ Add Chapter</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Subject Navigation Tabs & Search Controls */}
+          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 flex-wrap">
+            {/* Subject Tabs */}
+            <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap" style={{ borderColor: '#E2E8F0' }}>
+              {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
+                const count = sub === 'All'
+                  ? syllabusList.length
+                  : syllabusList.filter((s) => s.subject && s.subject.toLowerCase() === sub.toLowerCase()).length;
+                const isSelected = syllabusSubject === sub;
+                return (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => {
+                      setSyllabusSubject(sub);
+                      loadSyllabusData(sub);
+                    }}
+                    className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold transition-all px-3 py-1.5`}
+                    style={{
+                      backgroundColor: isSelected ? '#8B1216' : 'transparent',
+                      color: isSelected ? '#FFFFFF' : '#475569',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>{sub}</span>
+                    <span
+                      className="badge rounded-pill"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        fontSize: '10px'
+                      }}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chapter Search Filter */}
+            <div className="d-flex align-items-center gap-2" style={{ minWidth: '260px' }}>
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-white border-end-0" style={{ borderColor: '#CBD5E1', color: '#64748B' }}>
+                  <Search size={14} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search chapter title or sr.no..."
+                  className="form-control border-start-0"
+                  style={{ borderColor: '#CBD5E1', fontSize: '12.5px', height: '36px' }}
+                  value={syllabusSearch}
+                  onChange={(e) => setSyllabusSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* EXACT EXCEL FORMAT DISPLAY CONTAINER */}
+          <div
+            className="border rounded-3 overflow-hidden shadow-xs"
+            style={{ borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' }}
+          >
+            {/* Top Sheet Header Bar */}
+            <div
+              className="py-2.5 px-3 border-bottom text-center fw-bold"
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#DC2626',
+                fontSize: '16px',
+                letterSpacing: '0.5px'
+              }}
+            >
+              12th 2026 – 2027
+            </div>
+
+            {/* Sub-Header Row: Subject & No of lec for mp/tp */}
+            <div
+              className="row g-0 border-bottom text-center align-items-center"
+              style={{ backgroundColor: '#FFFFFF', minHeight: '38px' }}
+            >
+              <div
+                className="col-6 col-md-7 py-2 px-3 text-center fw-bold border-end"
+                style={{ color: '#DC2626', fontSize: '15px' }}
+              >
+                {syllabusSubject === 'All' ? 'All Subjects (Physics, Chemistry, Mathematics, Biology)' : syllabusSubject}
+              </div>
+              <div
+                className="col-6 col-md-5 py-2 px-3 text-center fw-bold"
+                style={{ color: '#DC2626', fontSize: '15px' }}
+              >
+                No of lec for mp/tp
+              </div>
+            </div>
+
+            {/* The Excel Table Structure */}
+            <div className="table-responsive m-0">
+              <table
+                className="table table-bordered align-middle m-0"
+                style={{
+                  borderColor: '#CBD5E1',
+                  borderCollapse: 'collapse',
+                  fontSize: '13px'
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: '#F8FAFC' }}>
+                    <th
+                      style={{
+                        width: '70px',
+                        textAlign: 'center',
+                        color: '#1D4ED8',
+                        textDecoration: 'underline',
+                        fontWeight: 700,
+                        padding: '10px 8px',
+                        borderColor: '#CBD5E1',
+                        backgroundColor: '#F8FAFC'
+                      }}
+                    >
+                      Sr.no
+                    </th>
+                    <th
+                      style={{
+                        textAlign: 'left',
+                        fontWeight: 700,
+                        color: '#0F172A',
+                        padding: '10px 16px',
+                        borderColor: '#CBD5E1',
+                        backgroundColor: '#F8FAFC'
+                      }}
+                    >
+                      Title
+                    </th>
+                    <th
+                      style={{
+                        width: '130px',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        color: '#1E3A8A',
+                        padding: '10px 8px',
+                        backgroundColor: '#D9E1F2',
+                        borderColor: '#CBD5E1'
+                      }}
+                    >
+                      Boards
+                    </th>
+                    <th
+                      style={{
+                        width: '130px',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        color: '#0F172A',
+                        padding: '10px 8px',
+                        backgroundColor: '#F8FAFC',
+                        borderColor: '#CBD5E1'
+                      }}
+                    >
+                      Entrance
+                    </th>
+                    <th
+                      style={{
+                        width: '100px',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        color: '#475569',
+                        padding: '10px 8px',
+                        backgroundColor: '#F8FAFC',
+                        borderColor: '#CBD5E1'
+                      }}
+                    >
+                      Total
+                    </th>
+                    <th
+                      style={{
+                        width: '90px',
+                        textAlign: 'center',
+                        fontWeight: 600,
+                        color: '#64748B',
+                        padding: '10px 8px',
+                        backgroundColor: '#F8FAFC',
+                        borderColor: '#CBD5E1'
+                      }}
+                    >
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSyllabusList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-5 text-sa-muted">
+                        <div className="d-flex flex-column align-items-center justify-content-center gap-2">
+                          <FileSpreadsheet size={36} color="#94A3B8" />
+                          <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '14px' }}>
+                            No syllabus chapters found for {syllabusSubject}
+                          </span>
+                          <span className="small text-muted" style={{ maxWidth: '400px' }}>
+                            Upload the Excel file with columns <code>Sr.no</code>, <code>Title</code>, <code>Boards</code>, and <code>Entrance</code> to view the layout here immediately.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleTriggerSyllabusExcel}
+                            className="btn btn-sm text-white mt-2 px-3 py-1.5 fw-semibold"
+                            style={{ backgroundColor: '#168554', borderRadius: '6px', fontSize: '12px' }}
+                          >
+                            <FileSpreadsheet size={14} className="me-1" />
+                            Upload Excel Now
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSyllabusList.map((chapter, idx) => {
+                      const boards = chapter.boards_lectures || 0;
+                      const entrance = chapter.entrance_lectures || 0;
+                      const total = boards + entrance;
+
+                      return (
+                        <tr
+                          key={chapter.id || chapter.topic_id || idx}
+                          style={{
+                            backgroundColor: idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
+                            transition: 'background-color 0.15s ease'
+                          }}
+                        >
+                          {/* 1. Sr.no */}
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              color: '#334155',
+                              padding: '9px 8px',
+                              borderColor: '#CBD5E1'
+                            }}
+                          >
+                            {chapter.sr_no || idx + 1}
+                          </td>
+
+                          {/* 2. Chapter Title */}
+                          <td
+                            style={{
+                              padding: '9px 16px',
+                              fontWeight: 500,
+                              color: '#0F172A',
+                              borderColor: '#CBD5E1'
+                            }}
+                          >
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span>{chapter.title || chapter.topic_name}</span>
+                              {chapter.subject && syllabusSubject === 'All' && (
+                                <span
+                                  className="badge ms-2"
+                                  style={{
+                                    backgroundColor: facultyColorMap[chapter.subject] || '#475569',
+                                    color: '#FFFFFF',
+                                    fontSize: '10px'
+                                  }}
+                                >
+                                  {chapter.subject}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* 3. Boards Lectures (Excel blue shading #D9E1F2) */}
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              color: '#0F172A',
+                              padding: '9px 8px',
+                              backgroundColor: '#D9E1F2',
+                              borderColor: '#CBD5E1',
+                              fontSize: '13.5px'
+                            }}
+                          >
+                            {boards}
+                          </td>
+
+                          {/* 4. Entrance Lectures */}
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              color: '#0F172A',
+                              padding: '9px 8px',
+                              borderColor: '#CBD5E1',
+                              fontSize: '13.5px'
+                            }}
+                          >
+                            {entrance}
+                          </td>
+
+                          {/* 5. Total Lectures */}
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              padding: '9px 8px',
+                              borderColor: '#CBD5E1'
+                            }}
+                          >
+                            <span
+                              className="badge rounded-pill fw-semibold"
+                              style={{
+                                backgroundColor: '#F1F5F9',
+                                color: '#1E293B',
+                                fontSize: '11px',
+                                padding: '4px 8px'
+                              }}
+                            >
+                              {total} lec
+                            </span>
+                          </td>
+
+                          {/* 6. Action */}
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              padding: '9px 8px',
+                              borderColor: '#CBD5E1'
+                            }}
+                          >
+                            <div className="d-inline-flex align-items-center justify-content-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditChapterModal(chapter)}
+                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#EFF6FF',
+                                  color: '#2563EB',
+                                  border: '1px solid #BFDBFE',
+                                  cursor: 'pointer'
+                                }}
+                                title="Edit Chapter"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteChapter(chapter)}
+                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#FEF2F2',
+                                  color: '#DC2626',
+                                  border: '1px solid #FECACA',
+                                  cursor: 'pointer'
+                                }}
+                                title="Delete Chapter"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+
+                  {/* Summary Footer Row */}
+                  {filteredSyllabusList.length > 0 && (
+                    <tr
+                      style={{
+                        backgroundColor: '#F8FAFC',
+                        fontWeight: 700,
+                        borderTop: '2px solid #94A3B8'
+                      }}
+                    >
+                      <td style={{ borderColor: '#CBD5E1', textAlign: 'center', color: '#64748B' }}>
+                        —
+                      </td>
+                      <td style={{ borderColor: '#CBD5E1', padding: '11px 16px', color: '#0F172A' }}>
+                        Total Planned Lectures for {syllabusSubject}
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          backgroundColor: '#D9E1F2',
+                          borderColor: '#CBD5E1',
+                          color: '#1E3A8A',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          padding: '11px 8px'
+                        }}
+                      >
+                        {totalBoardsLec}
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          borderColor: '#CBD5E1',
+                          color: '#0F172A',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          padding: '11px 8px'
+                        }}
+                      >
+                        {totalEntranceLec}
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          borderColor: '#CBD5E1',
+                          color: '#8B1216',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          padding: '11px 8px'
+                        }}
+                      >
+                        {totalAllLec}
+                      </td>
+                      <td style={{ borderColor: '#CBD5E1' }}></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
       <Modal
         isOpen={isDailyImportModalOpen}
         onClose={() => {
@@ -3084,6 +4302,150 @@ export default function ActivityTimetableManagement() {
             >
               <Check size={14} />
               <span>{editingTimetableSlot ? "Update & Sync Slot" : "Save & Sync to Teacher's My Classes"}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 4: ADD / EDIT SYLLABUS CHAPTER PLAN */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={isChapterModalOpen}
+        onClose={() => {
+          setIsChapterModalOpen(false);
+          setEditingChapterId(null);
+        }}
+        title={editingChapterId ? "Edit Syllabus Chapter" : "Add Chapter Lecture Allocation"}
+      >
+        <form onSubmit={handleSaveChapterForm} className="d-flex flex-column gap-3">
+          <div className="row g-2.5">
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Subject</label>
+              <select
+                className="form-select form-select-sm border shadow-xs"
+                value={chapterForm.subject}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, subject: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              >
+                <option value="Physics">Physics</option>
+                <option value="Chemistry">Chemistry</option>
+                <option value="Mathematics">Mathematics</option>
+                <option value="Biology">Biology</option>
+              </select>
+            </div>
+
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Sr. No</label>
+              <input
+                type="number"
+                min="1"
+                required
+                className="form-control form-control-sm border shadow-xs"
+                value={chapterForm.sr_no}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, sr_no: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label text-sa-muted small fw-semibold mb-1">
+              Chapter Title / Module <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Rotational Dynamics"
+              className="form-control form-control-sm border shadow-xs"
+              value={chapterForm.title}
+              onChange={(e) => setChapterForm(prev => ({ ...prev, title: e.target.value }))}
+              style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+            />
+          </div>
+
+          <div className="row g-2.5">
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">
+                Boards Lectures (mp/tp) <span className="text-danger">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                className="form-control form-control-sm border shadow-xs"
+                value={chapterForm.boards_lectures}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, boards_lectures: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">
+                Entrance Lectures (CET / JEE / NEET) <span className="text-danger">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                className="form-control form-control-sm border shadow-xs"
+                value={chapterForm.entrance_lectures}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, entrance_lectures: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+          </div>
+
+          <div className="row g-2.5">
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Standard</label>
+              <input
+                type="text"
+                className="form-control form-control-sm border shadow-xs"
+                value={chapterForm.standard}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, standard: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div className="col-12 col-sm-6">
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Academic Year</label>
+              <input
+                type="text"
+                className="form-control form-control-sm border shadow-xs"
+                value={chapterForm.academic_year}
+                onChange={(e) => setChapterForm(prev => ({ ...prev, academic_year: e.target.value }))}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+            <span className="small text-sa-muted">Calculated Total Lectures:</span>
+            <span className="fw-bold text-sa-charcoal" style={{ fontSize: '14px' }}>
+              {(parseInt(chapterForm.boards_lectures, 10) || 0) + (parseInt(chapterForm.entrance_lectures, 10) || 0)} lectures
+            </span>
+          </div>
+
+          <div className="d-flex justify-content-end align-items-center gap-2 pt-2 border-top">
+            <button
+              type="button"
+              onClick={() => {
+                setIsChapterModalOpen(false);
+                setEditingChapterId(null);
+              }}
+              className="btn btn-sm btn-light border px-3 py-1.5 fw-medium"
+              style={{ borderRadius: '6px', fontSize: '12px' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-sm text-white px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+              style={{ backgroundColor: '#8B1216', borderRadius: '6px', fontSize: '12.5px', border: 'none', cursor: 'pointer' }}
+            >
+              <Check size={14} />
+              <span>{editingChapterId ? "Update Chapter Plan" : "Add to Syllabus Plan"}</span>
             </button>
           </div>
         </form>

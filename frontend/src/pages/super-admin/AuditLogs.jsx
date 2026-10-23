@@ -6,7 +6,7 @@ import { ShieldCheck, Download } from 'lucide-react';
 
 export default function AuditLogs() {
   const logs = [
-    { id: 'LOG-8812', timestamp: '2026-09-19 08:14:02', user: 'RFID Gate 1 Sensor', event: 'Card Tap Verified (STU-001 / Aarav)', ip: '192.168.1.104', status: 'Success' },
+    { id: 'LOG-8812', timestamp: '2026-09-19 08:14:02', user: 'Gate 1 Sensor', event: 'Card Tap Verified (STU-001 / Aarav)', ip: '192.168.1.104', status: 'Success' },
     { id: 'LOG-8811', timestamp: '2026-09-19 08:10:45', user: 'admin@shubham.edu', event: 'User Login Authenticated (JWT Issued)', ip: '49.36.110.22', status: 'Success' },
     { id: 'LOG-8810', timestamp: '2026-09-18 16:40:12', user: 'admin@shubham.edu', event: 'Fee Receipt REC-99120 Dispatched to SMS Gateway', ip: '49.36.110.22', status: 'Success' },
     { id: 'LOG-8809', timestamp: '2026-09-18 14:15:30', user: 'priya.k@shubham.edu', event: 'Marks Entry Submitted: Unit Test 1', ip: '103.22.44.11', status: 'Success' },

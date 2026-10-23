@@ -240,7 +240,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
   const studentSearchRoutes = [
     { title: 'My Classes & Timetable', path: '/student/classes', keywords: ['classes', 'timetable', 'schedule', 'lectures'] },
-    { title: 'Attendance Records', path: '/student/attendance', keywords: ['attendance', 'rfid', 'presence'] },
+    { title: 'Attendance Records', path: '/student/attendance', keywords: ['attendance', 'gate', 'presence', 'card'] },
     { title: 'Fee Details & Receipts', path: '/student/fees', keywords: ['fees', 'receipt', 'dues', 'payments'] },
     { title: 'Examination Timetable', path: '/student/exams', keywords: ['exams', 'examination', 'hall ticket'] },
     { title: 'Academic Results & Rank', path: '/student/results', keywords: ['results', 'marks', 'report card', 'rank'] },

@@ -24,7 +24,10 @@ class StudentBase(BaseModel):
     parent_occupation: Optional[str] = None
     standard: Optional[str] = None
     batch: Optional[str] = None
-    branch: Optional[str] = "Kolhapur Main Branch"
+    academic_batch: Optional[str] = None
+    academicBatch: Optional[str] = None
+    session: Optional[str] = None
+    branch: Optional[str] = "Tarabai Park"
     academic_year: Optional[str] = "2025-2026"
     previous_school: Optional[str] = None
     rfid_tag: Optional[str] = None
@@ -67,6 +70,10 @@ class StudentAdminCreate(BaseModel):
     password: Optional[str] = None
     email: Optional[str] = None
     batch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    academicBatch: Optional[str] = None
+    session: Optional[str] = None
+    branch: Optional[str] = "Tarabai Park"
     standard: Optional[str] = None
     admission_date: Optional[Any] = None
     rfid_tag: Optional[str] = None

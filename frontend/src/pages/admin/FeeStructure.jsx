@@ -40,14 +40,12 @@ const CAMPUS_INFO = {
     colorTheme: '#8B1216', // Primary burgundy
     badgeClass: 'bg-danger bg-opacity-10 text-danger border-danger border-opacity-25',
     defaultBatches: [
-      '11th pcm tarabai park',
-      '11th pcb tarabai park',
-      '11th pcmb tarabai park',
-      '12th pcm tarabai park',
-      '12th pcb tarabai park',
-      '12th pcmb tarabai park',
-      'Tarabai Park Rankers Batch',
-      'Tarabai Park Intensive Batch'
+      '11th PCM',
+      '11th PCB',
+      '11th PCMB',
+      '12th PCM',
+      '12th PCB',
+      '12th PCMB'
     ]
   },
   'Mangalwar Peth': {
@@ -58,14 +56,18 @@ const CAMPUS_INFO = {
     colorTheme: '#0F52BA', // Royal Sapphire
     badgeClass: 'bg-primary bg-opacity-10 text-primary border-primary border-opacity-25',
     defaultBatches: [
-      '11th pcm mangalvar peth',
-      '11th pcb mangalvar peth',
-      '11th pcmb mangalvar peth',
-      '12th pcm mangalvar peth',
-      '12th pcb mangalvar peth',
-      '12th pcmb mangalvar peth',
-      'Mangalwar Peth Morning Batch',
-      'Mangalwar Peth Fast Track'
+      'Morning - 11th PCM',
+      'Morning - 11th PCB',
+      'Morning - 11th PCMB',
+      'Morning - 12th PCM',
+      'Morning - 12th PCB',
+      'Morning - 12th PCMB',
+      'Afternoon - 11th PCM',
+      'Afternoon - 11th PCB',
+      'Afternoon - 11th PCMB',
+      'Afternoon - 12th PCM',
+      'Afternoon - 12th PCB',
+      'Afternoon - 12th PCMB'
     ]
   }
 };

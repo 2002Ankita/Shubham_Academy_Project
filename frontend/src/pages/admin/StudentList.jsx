@@ -27,6 +27,11 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  formatStudentBatchDisplay,
+  matchesStudentFilters
+} from '../../config/branchBatchConfig';
 
 export default function StudentList() {
   const navigate = useNavigate();
@@ -41,6 +46,11 @@ export default function StudentList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importedFile, setImportedFile] = useState(null);
+
+  // Standardized Branch & Batch Filters
+  const [filterBranch, setFilterBranch] = useState('');
+  const [filterSession, setFilterSession] = useState('');
+  const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -121,7 +131,7 @@ export default function StudentList() {
       toast.warning('No student records available to export.');
       return;
     }
-    const headers = ['Roll Number', 'Student Name', 'Email', 'Class/Standard', 'Phone', 'Parent Phone', 'RFID UID', 'Attendance %', 'Fee Status'];
+    const headers = ['Roll Number', 'Student Name', 'Email', 'Class/Standard', 'Phone', 'Parent Phone', 'Card UID', 'Attendance %', 'Fee Status'];
     const rows = filtered.map(s => [
       `"${s.rollNumber || ''}"`,
       `"${s.name || ''}"`,
@@ -147,7 +157,7 @@ export default function StudentList() {
 
   // Download Sample Template for import
   const handleDownloadTemplate = () => {
-    const headers = ['Roll Number', 'Full Name', 'Class / Standard', 'Email', 'Student Mobile', 'Parent Mobile', 'RFID UID'];
+    const headers = ['Roll Number', 'Full Name', 'Class / Standard', 'Email', 'Student Mobile', 'Parent Mobile', 'Card UID'];
     const sample = [
       ['STD-101', 'Aarav Sharma', '11th Science', 'aarav.sharma@example.com', '+91 98220 11111', '+91 98220 22222', 'RF-90412'],
       ['STD-102', 'Ananya Deshmukh', '12th Science', 'ananya.d@example.com', '+91 98220 33333', '+91 98220 44444', 'RF-90413']
@@ -305,8 +315,15 @@ export default function StudentList() {
   const pendingDiscountsCount = students.filter((s) => s.discountStatus === 'PENDING').length;
 
   const filteredDiscounts = discountStudents.filter((s) => {
+    const matchesPlacement = matchesStudentFilters(s, {
+      branch: filterBranch,
+      session: filterSession,
+      academicBatch: filterAcademicBatch
+    });
+    if (!matchesPlacement) return false;
     const matchesFilter = discountFilter === 'ALL' || s.discountStatus === discountFilter;
     const matchesSearch =
+      !search.trim() ||
       (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
       (s.rollNumber || '').toLowerCase().includes(search.toLowerCase()) ||
       (s.discountReason || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -315,12 +332,24 @@ export default function StudentList() {
     return matchesFilter && matchesSearch;
   });
 
-  const filtered = students.filter(s =>
-    (s.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (s.rollNumber || '').toLowerCase().includes(search.toLowerCase()) ||
-    (s.rfidCard || '').toLowerCase().includes(search.toLowerCase()) ||
-    (s.standard || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = students.filter(s => {
+    const matchesPlacement = matchesStudentFilters(s, {
+      branch: filterBranch,
+      session: filterSession,
+      academicBatch: filterAcademicBatch
+    });
+    if (!matchesPlacement) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.rollNumber || '').toLowerCase().includes(q) ||
+      (s.rfidCard || '').toLowerCase().includes(q) ||
+      (s.standard || '').toLowerCase().includes(q) ||
+      (s.branch || '').toLowerCase().includes(q) ||
+      (s.batch || '').toLowerCase().includes(q)
+    );
+  });
 
   const PAGE_SIZE = 10;
   const paginatedStudents = useMemo(() => {
@@ -343,7 +372,7 @@ export default function StudentList() {
             Student Directory & Discount Management
           </h3>
           <span className="small text-sa-muted">
-            Manage student enrollments, RFID allocations, fee concessions, and Superadmin discount approvals
+            Manage student enrollments, card allocations, fee concessions, and Superadmin discount approvals
           </span>
         </div>
 
@@ -438,11 +467,44 @@ export default function StudentList() {
       {/* VIEW 1: ALL STUDENTS */}
       {activeTab === 'all' && (
         <div className="sa-card p-4">
+          {/* Standardized Branch & Batch Filters */}
+          <div className="mb-3 p-3 bg-light rounded-3 border">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <span className="small fw-bold text-sa-charcoal">
+                Filter by Admission Branch & Batch:
+              </span>
+              {(filterBranch || filterSession || filterAcademicBatch) && (
+                <button
+                  type="button"
+                  className="btn btn-xs btn-outline-secondary py-0.5 px-2"
+                  style={{ fontSize: '11px' }}
+                  onClick={() => {
+                    setFilterBranch('');
+                    setFilterSession('');
+                    setFilterAcademicBatch('');
+                  }}
+                >
+                  Reset Branch Filters
+                </button>
+              )}
+            </div>
+            <BranchBatchSelector
+              branch={filterBranch}
+              onBranchChange={setFilterBranch}
+              session={filterSession}
+              onSessionChange={setFilterSession}
+              academicBatch={filterAcademicBatch}
+              onAcademicBatchChange={setFilterAcademicBatch}
+              showAllOption={true}
+              layout="grid"
+            />
+          </div>
+
           <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Search by name, roll no, RFID card or class..."
+              placeholder="Search by name, roll no, card UID or class..."
               className="flex-grow-1"
             />
             <div className="d-flex align-items-center gap-2">
@@ -469,10 +531,24 @@ export default function StudentList() {
                   </div>
                 )
               },
-              { key: 'standard', title: 'Class / Stream' },
+              {
+                key: 'branchBatch',
+                title: 'Branch / Batch',
+                render: (_, row) => (
+                  <div>
+                    <span className="badge bg-light text-dark border d-inline-block fw-semibold mb-1">
+                      {row.branch || 'Tarabai Park'}
+                    </span>
+                    <span className="d-block small text-sa-charcoal fw-bold">
+                      {row.academicBatch || row.academic_batch || row.batch || row.standard || '11th PCM'}
+                      {row.session ? ` • ${row.session}` : ''}
+                    </span>
+                  </div>
+                )
+              },
               {
                 key: 'rfidCard',
-                title: 'RFID Badge UID',
+                title: 'Card UID',
                 render: (val) => <span className="badge bg-light text-dark border">{val}</span>
               },
               {
@@ -939,7 +1015,7 @@ export default function StudentList() {
 
                 {/* Instructions */}
                 <div className="small text-muted" style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                  <strong className="text-sa-charcoal">Expected Column Headers:</strong> Roll Number, Full Name, Class / Standard, Email, Student Mobile, Parent Mobile, RFID UID.
+                  <strong className="text-sa-charcoal">Expected Column Headers:</strong> Roll Number, Full Name, Class / Standard, Email, Student Mobile, Parent Mobile, Card UID.
                 </div>
               </div>
 

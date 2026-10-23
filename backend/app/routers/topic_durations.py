@@ -8,7 +8,9 @@ from app.schemas.topic_duration import (
     TopicDurationCreate,
     TopicDurationUpdate,
     TopicDurationResponse,
-    TopicDurationMatrixSummary
+    TopicDurationMatrixSummary,
+    SyllabusChapterPlanItem,
+    SyllabusPlanBulkSaveRequest
 )
 from fastapi.security import OAuth2PasswordBearer
 from app.services.auth_service import get_current_user
@@ -16,6 +18,181 @@ from app.services.auth_service import get_current_user
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/token", auto_error=False)
 
 router = APIRouter(prefix="/topic-durations", tags=["Topic Durations & Curriculum Matrix"])
+
+DEFAULT_SYLLABUS_PLANS = [
+    # 1. Physics - 12th 2026 - 2027 (16 Chapters)
+    {"sr_no": 1, "title": "Rotational Dynamics", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Mechanical Properties of Fluids", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Kinetic Theory of Gases and Radiation", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Thermodynamics", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Oscillations", "boards_lectures": 6, "entrance_lectures": 3, "total_lectures": 9, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Superposition of waves", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Waves Optics", "boards_lectures": 7, "entrance_lectures": 2, "total_lectures": 9, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Electrostatics", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Current Electricity", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Magnetic fields due to Electric Current", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Magnetic Materials", "boards_lectures": 5, "entrance_lectures": 1, "total_lectures": 6, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Electromagnetic Induction", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "AC circuits", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Dual Nature of Radiation and Matter", "boards_lectures": 3, "entrance_lectures": 1, "total_lectures": 4, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Structure of Atoms and Nuclei", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 16, "title": "Semiconductor Devices", "boards_lectures": 5, "entrance_lectures": 1, "total_lectures": 6, "subject": "Physics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 2. Chemistry - 12th 2026 - 2027 (16 Chapters)
+    {"sr_no": 1, "title": "Solid State", "boards_lectures": 6, "entrance_lectures": 3, "total_lectures": 9, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Solutions", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Ionic Equilibria", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Chemical Thermodynamics", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Electrochemistry", "boards_lectures": 5, "entrance_lectures": 3, "total_lectures": 8, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Chemical Kinetics", "boards_lectures": 6, "entrance_lectures": 3, "total_lectures": 9, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Elements of groups 16, 17 and 18", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Transition and Inner transition Elements", "boards_lectures": 5, "entrance_lectures": 3, "total_lectures": 8, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Coordination Compounds", "boards_lectures": 5, "entrance_lectures": 3, "total_lectures": 8, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Halogen Derivatives", "boards_lectures": 6, "entrance_lectures": 3, "total_lectures": 9, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Alcohols, Phenols and Ethers", "boards_lectures": 6, "entrance_lectures": 3, "total_lectures": 9, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Aldehydes, Ketones and Carboxylic Acids", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Amines", "boards_lectures": 4, "entrance_lectures": 2, "total_lectures": 6, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Biomolecules", "boards_lectures": 5, "entrance_lectures": 3, "total_lectures": 8, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Introduction to Polymer Chemistry", "boards_lectures": 4, "entrance_lectures": 2, "total_lectures": 6, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 16, "title": "Green Chemistry and Nano Chemistry", "boards_lectures": 3, "entrance_lectures": 1, "total_lectures": 4, "subject": "Chemistry", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 3. Mathematics - 12th 2026 - 2027 (15 Chapters)
+    {"sr_no": 1, "title": "Mathematical Logic", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Matrices", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Trigonometric Functions", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Pair of Straight Lines", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Vectors", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Line and Plane", "boards_lectures": 7, "entrance_lectures": 2, "total_lectures": 9, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Linear Programming", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Differentiation", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Applications of Derivatives", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Indefinite Integration", "boards_lectures": 9, "entrance_lectures": 3, "total_lectures": 12, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Definite Integration", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Application of Definite Integration", "boards_lectures": 4, "entrance_lectures": 2, "total_lectures": 6, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Differential Equations", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Probability Distributions", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Binomial Distribution", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Mathematics", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 4. Biology - 12th 2026 - 2027 (15 Chapters)
+    {"sr_no": 1, "title": "Reproduction in Lower and Higher Plants", "boards_lectures": 8, "entrance_lectures": 2, "total_lectures": 10, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Reproduction in Lower and Higher Animals", "boards_lectures": 8, "entrance_lectures": 2, "total_lectures": 10, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Inheritance and Variation", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Molecular Basis of Inheritance", "boards_lectures": 10, "entrance_lectures": 3, "total_lectures": 13, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Origin and Evalution of Life", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Plant Water Relation", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Plant Growth and Mineral Nutrition", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Respiration and Circulation", "boards_lectures": 10, "entrance_lectures": 3, "total_lectures": 13, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Control and Co-ordination", "boards_lectures": 12, "entrance_lectures": 3, "total_lectures": 15, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Human Health and Diseases", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Enhancement of Food Production", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Biotechnology", "boards_lectures": 8, "entrance_lectures": 2, "total_lectures": 10, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Organisms and Populations", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Ecosystems and Energy Flow", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Biodiversity, Conservations and Environmental Issues", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"}
+]
+
+@router.get("/syllabus-plan")
+async def get_syllabus_plan(
+    subject: Optional[str] = None,
+    standard: Optional[str] = "12th",
+    academic_year: Optional[str] = "2026 - 2027"
+):
+    """Retrieve syllabus & lecture breakdown for mp/tp (Boards vs Entrance)"""
+    # Seed default plans if none exist for branch_scope
+    count_existing = await TopicDuration.find({"branch_scope": "mp/tp"}).count()
+    if count_existing == 0:
+        for plan in DEFAULT_SYLLABUS_PLANS:
+            doc = TopicDuration(
+                topic_id=f"SYL-{plan['subject'][:3].upper()}-{plan['sr_no']:02d}",
+                standard=plan.get("standard", "12th"),
+                branch="Tarabai Park",
+                batch=f"{plan['standard']} Science mp/tp",
+                subject=plan["subject"],
+                teacher_name="Senior Faculty",
+                chapter=plan["title"],
+                topic_name=plan["title"],
+                title=plan["title"],
+                sr_no=plan["sr_no"],
+                boards_lectures=plan["boards_lectures"],
+                entrance_lectures=plan["entrance_lectures"],
+                total_lectures=plan["total_lectures"],
+                required_periods=plan["total_lectures"],
+                branch_scope=plan.get("branch_scope", "mp/tp"),
+                academic_year=plan.get("academic_year", "2026 - 2027"),
+                status="In Progress"
+            )
+            await doc.insert()
+
+    query = {"branch_scope": "mp/tp"}
+    if subject and subject.strip().lower() != "all":
+        query["subject"] = {"$regex": f"^{subject.strip()}$", "$options": "i"}
+
+    existing = await TopicDuration.find(query).sort("subject", "sr_no").to_list()
+    res = []
+    for doc in existing:
+        res.append({
+            "id": str(doc.id),
+            "topic_id": doc.topic_id or str(doc.id),
+            "sr_no": doc.sr_no or (len(res) + 1),
+            "title": doc.title or doc.topic_name or doc.chapter,
+            "boards_lectures": doc.boards_lectures or 0,
+            "entrance_lectures": doc.entrance_lectures or 0,
+            "total_lectures": doc.total_lectures or ((doc.boards_lectures or 0) + (doc.entrance_lectures or 0)),
+            "subject": doc.subject or "Physics",
+            "standard": doc.standard or "12th",
+            "academic_year": doc.academic_year or "2026 - 2027",
+            "branch_scope": doc.branch_scope or "mp/tp"
+        })
+    return res
+
+@router.post("/syllabus-plan/bulk")
+async def save_bulk_syllabus_plan(payload: SyllabusPlanBulkSaveRequest):
+    """Save/update entire syllabus lecture plan items for a subject/standard"""
+    academic_year = payload.academic_year or "2026 - 2027"
+    standard = payload.standard or "12th"
+    subject = payload.subject or "Physics"
+    branch_scope = payload.branch_scope or "mp/tp"
+
+    # Cleanly remove old syllabus records for this subject under branch_scope to avoid ghost rows
+    await TopicDuration.find({
+        "subject": {"$regex": f"^{subject}$", "$options": "i"},
+        "branch_scope": branch_scope
+    }).delete()
+
+    saved_count = 0
+    for idx, item in enumerate(payload.chapters):
+        if not item.title or not item.title.strip():
+            continue
+        sr = item.sr_no or (idx + 1)
+        tot = item.total_lectures or (item.boards_lectures + item.entrance_lectures)
+        doc = TopicDuration(
+            topic_id=f"SYL-{subject[:3].upper()}-{sr:02d}",
+            standard=standard,
+            branch="Tarabai Park",
+            batch=f"{standard} Science mp/tp",
+            subject=subject,
+            teacher_name="Senior Faculty",
+            chapter=item.title.strip(),
+            topic_name=item.title.strip(),
+            title=item.title.strip(),
+            sr_no=sr,
+            boards_lectures=item.boards_lectures,
+            entrance_lectures=item.entrance_lectures,
+            total_lectures=tot,
+            required_periods=tot,
+            branch_scope=branch_scope,
+            academic_year=academic_year,
+            status="In Progress",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        await doc.insert()
+        saved_count += 1
+    return {
+        "success": True,
+        "message": f"Successfully saved {saved_count} chapters for {subject} ({standard}) in MongoDB",
+        "saved_count": saved_count
+    }
 
 
 async def find_topic_duration(id_str: str) -> Optional[TopicDuration]:
@@ -35,6 +212,7 @@ async def find_topic_duration(id_str: str) -> Optional[TopicDuration]:
     return topic
 
 @router.get("", response_model=List[TopicDurationResponse])
+
 async def list_topic_durations(
     subject: Optional[str] = None,
     teacher: Optional[str] = None,

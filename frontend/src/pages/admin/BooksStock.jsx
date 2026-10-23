@@ -31,6 +31,13 @@ import inventoryService from '../../services/inventoryService';
 import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  matchesStudentFilters,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 
 export default function BooksStock() {
   const { user } = useAuth();
@@ -67,6 +74,21 @@ export default function BooksStock() {
   const [searchHandover, setSearchHandover] = useState('');
   const [selectedHandoverStatus, setSelectedHandoverStatus] = useState('All');
   const [selectedHandoverFaculty, setSelectedHandoverFaculty] = useState('All');
+
+  // Branch & Batch selection state for Handover modal
+  const [handoverBranch, setHandoverBranch] = useState(BRANCH_TARABAI);
+  const [handoverSession, setHandoverSession] = useState('');
+  const [handoverAcademicBatch, setHandoverAcademicBatch] = useState('11th PCM');
+
+  const eligibleHandoverStudents = React.useMemo(() => {
+    return students.filter(s =>
+      matchesStudentFilters(s, {
+        branch: handoverBranch,
+        session: handoverSession,
+        academicBatch: handoverAcademicBatch
+      })
+    );
+  }, [students, handoverBranch, handoverSession, handoverAcademicBatch]);
 
   // Modals state
   const [handoverModalOpen, setHandoverModalOpen] = useState(false);
@@ -137,6 +159,9 @@ export default function BooksStock() {
 
   const openHandoverModal = (preselectedItemId = '') => {
     const defaultStaff = user?.name || user?.full_name || (user?.role === 'teacher' ? 'Faculty Member' : 'Academic Admin Desk');
+    setHandoverBranch(BRANCH_TARABAI);
+    setHandoverSession('');
+    setHandoverAcademicBatch('11th PCM');
     setHandoverForm({
       inventoryItemId: preselectedItemId || (stock[0]?.id || ''),
       studentId: '', // Clean empty default so user can easily search and select
@@ -188,6 +213,10 @@ export default function BooksStock() {
     let studentName = handoverForm.manualStudentName;
     let rollNo = handoverForm.manualRollNo;
     let standard = item.standard;
+    let branch = handoverBranch;
+    let academicBatch = handoverAcademicBatch;
+    let session = handoverSession;
+    let batch = `${handoverAcademicBatch} ${handoverBranch}`;
 
     if (handoverForm.studentId) {
       const selectedStudent = students.find(s => String(s.id || s._id || s.student_id) === String(handoverForm.studentId));
@@ -195,6 +224,10 @@ export default function BooksStock() {
         studentName = selectedStudent.name;
         rollNo = selectedStudent.rollNumber || selectedStudent.student_id;
         standard = selectedStudent.standard || item.standard;
+        branch = selectedStudent.branch || branch;
+        academicBatch = selectedStudent.academic_batch || selectedStudent.academicBatch || academicBatch;
+        session = selectedStudent.session || session;
+        batch = selectedStudent.batch || batch;
       }
     }
 
@@ -211,6 +244,10 @@ export default function BooksStock() {
         handed_over_to: studentName,
         student_roll_no: rollNo || 'N/A',
         standard: standard,
+        branch: branch,
+        academic_batch: academicBatch,
+        session: session,
+        batch: batch,
         quantity: qty,
         status: handoverForm.status,
         remarks: handoverForm.remarks
@@ -1018,29 +1055,70 @@ export default function BooksStock() {
             />
           </div>
 
-          <div>
+          <div className="d-flex flex-column gap-2">
+            <div className="p-3 bg-light rounded-2 border">
+              <div className="small fw-bold text-sa-charcoal mb-2 d-flex align-items-center justify-content-between">
+                <span>Filter by Admission Branch & Batch:</span>
+                <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: '0.75rem' }}>
+                  {eligibleHandoverStudents.length} Students in this Batch
+                </span>
+              </div>
+              <BranchBatchSelector
+                branch={handoverBranch}
+                session={handoverSession}
+                academicBatch={handoverAcademicBatch}
+                onBranchChange={(b) => {
+                  setHandoverBranch(b);
+                  setHandoverForm(prev => ({ ...prev, studentId: '', manualStudentName: '' }));
+                }}
+                onSessionChange={(s) => {
+                  setHandoverSession(s);
+                  setHandoverForm(prev => ({ ...prev, studentId: '', manualStudentName: '' }));
+                }}
+                onBatchChange={(b) => {
+                  setHandoverAcademicBatch(b);
+                  setHandoverForm(prev => ({ ...prev, studentId: '', manualStudentName: '' }));
+                }}
+                size="sm"
+                showAllOption={false}
+              />
+            </div>
+
             <SearchableSelect
               id="handover-student-select"
-              label="To Whom Handed Over (Select Student)"
+              label="To Whom Handed Over (Select Student from Enrolled Batch)"
               required={!handoverForm.manualStudentName}
-              options={students.map(s => {
+              options={eligibleHandoverStudents.map(s => {
                 const id = s.id || s._id || s.student_id;
                 const roll = s.rollNumber || s.student_id || 'N/A';
-                const std = s.standard || '12th';
+                const assignment = formatStudentBatchDisplay(s);
                 return {
                   value: id,
                   label: s.name,
                   badge: `Roll: ${roll}`,
-                  sublabel: `Class: ${std}${s.batch ? ` • Batch: ${s.batch}` : ''}`,
-                  keywords: [s.name, roll, std, s.batch, s.phone, s.contact]
+                  sublabel: assignment,
+                  keywords: [s.name, roll, s.standard, s.batch, s.branch, s.academic_batch]
                 };
               })}
               value={handoverForm.studentId}
               onChange={(val) => setHandoverForm({ ...handoverForm, studentId: val })}
-              placeholder="-- Choose Student from Directory --"
+              placeholder={eligibleHandoverStudents.length === 0 ? '-- No students in this batch --' : '-- Choose Student from Selected Batch --'}
               searchPlaceholder="Search student by name, roll number, or class..."
               helperText="Search by name, roll number or stream. Or enter manual recipient below if not found in directory:"
             />
+
+            {handoverForm.studentId && (() => {
+              const sel = students.find(s => String(s.id || s._id || s.student_id) === String(handoverForm.studentId));
+              if (sel) {
+                return (
+                  <div className="p-2 rounded bg-success-subtle text-success border border-success-subtle small d-flex align-items-center justify-content-between">
+                    <span>Admission Record Verified:</span>
+                    <span className="fw-bold">{formatStudentBatchDisplay(sel)}</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           {!handoverForm.studentId && (
@@ -1109,7 +1187,7 @@ export default function BooksStock() {
                 name="remarks"
                 value={handoverForm.remarks}
                 onChange={(e) => setHandoverForm({ ...handoverForm, remarks: e.target.value })}
-                placeholder="e.g. RFID scanned, signed slip"
+                placeholder="e.g. Card scanned, signed slip"
               />
             </div>
           </div>

@@ -28,6 +28,14 @@ import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  matchesStudentFilters,
+  formatStudentBatchDisplay,
+  getStudentAssignment
+} from '../../config/branchBatchConfig';
 
 // Helper to get local ISO string for datetime-local input (YYYY-MM-DDTHH:mm)
 const getCurrentLocalDateTime = () => {
@@ -64,6 +72,14 @@ export default function BooksDelivery() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [subjectFilter, setSubjectFilter] = useState('All');
   const [recipientFilter, setRecipientFilter] = useState('All');
+  const [filterBranch, setFilterBranch] = useState('');
+  const [filterSession, setFilterSession] = useState('');
+  const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
+
+  // Handover Modal Branch & Batch Selection State
+  const [modalBranch, setModalBranch] = useState(BRANCH_TARABAI);
+  const [modalSession, setModalSession] = useState('');
+  const [modalAcademicBatch, setModalAcademicBatch] = useState('11th PCM');
 
   // Modal States
   const [modalOpen, setModalOpen] = useState(false);
@@ -133,8 +149,22 @@ export default function BooksDelivery() {
 
   const selectedItemStock = getSelectedBookItem(newDelivery.category, newDelivery.subject);
 
+  // Filter students based on modal selection
+  const eligibleStudents = React.useMemo(() => {
+    return students.filter(s =>
+      matchesStudentFilters(s, {
+        branch: modalBranch,
+        session: modalSession,
+        academicBatch: modalAcademicBatch
+      })
+    );
+  }, [students, modalBranch, modalSession, modalAcademicBatch]);
+
   // Open Log Modal with fresh current time
   const handleOpenAddModal = () => {
+    setModalBranch(BRANCH_TARABAI);
+    setModalSession('');
+    setModalAcademicBatch('11th PCM');
     setNewDelivery({
       recipientType: 'Student',
       recipientId: '',
@@ -216,8 +246,9 @@ export default function BooksDelivery() {
 
     try {
       let resolvedName = newDelivery.recipientName;
+      let sObj = null;
       if (newDelivery.recipientType === 'Student' && newDelivery.recipientId) {
-        const sObj = students.find(s => String(s.id || s._id || s.student_id) === String(newDelivery.recipientId));
+        sObj = students.find(s => String(s.id || s._id || s.student_id) === String(newDelivery.recipientId));
         if (sObj) resolvedName = sObj.name;
       } else if (newDelivery.recipientType === 'Teacher' && newDelivery.recipientId) {
         const tObj = teachers.find(t => String(t.id || t._id) === String(newDelivery.recipientId));
@@ -239,6 +270,11 @@ export default function BooksDelivery() {
         date: newDelivery.date ? new Date(newDelivery.date).toISOString() : new Date().toISOString(),
         handed_over_by: newDelivery.handedOverBy || currentStaffName,
         verified_by: newDelivery.handedOverBy || currentStaffName,
+        branch: sObj ? sObj.branch : (newDelivery.recipientType === 'Student' ? modalBranch : null),
+        academic_batch: sObj ? (sObj.academic_batch || sObj.academicBatch) : (newDelivery.recipientType === 'Student' ? modalAcademicBatch : null),
+        session: sObj ? sObj.session : (newDelivery.recipientType === 'Student' ? modalSession : null),
+        batch: sObj ? sObj.batch : (newDelivery.recipientType === 'Student' ? `${modalAcademicBatch} ${modalBranch}` : null),
+        standard: sObj ? sObj.standard : (modalAcademicBatch.startsWith('12th') ? '12th Science' : '11th Science'),
         remarks: newDelivery.remarks
       };
 
@@ -328,6 +364,15 @@ export default function BooksDelivery() {
     const matchesCat = categoryFilter === 'All' || (d.category || '').toLowerCase() === categoryFilter.toLowerCase();
     const matchesSubj = subjectFilter === 'All' || (d.subject || '').toLowerCase() === subjectFilter.toLowerCase();
     const matchesRecipient = recipientFilter === 'All' || (d.recipientType || 'Student').toLowerCase() === recipientFilter.toLowerCase();
+
+    // Branch & batch filtering
+    if (filterBranch || filterAcademicBatch || filterSession) {
+      if ((d.recipientType || 'Student').toLowerCase() === 'student') {
+        if (!matchesStudentFilters(d, { branch: filterBranch, session: filterSession, academicBatch: filterAcademicBatch })) {
+          return false;
+        }
+      }
+    }
     
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery = !q || 
@@ -427,7 +472,40 @@ export default function BooksDelivery() {
       </div>
 
       {/* 3. Filters Toolbar */}
-      <div className="sa-card p-3 bg-white border">
+      <div className="sa-card p-3 bg-white border d-flex flex-column gap-3">
+        {/* Standardized Branch & Batch Filter */}
+        <div className="p-2.5 bg-light rounded-2 border">
+          <div className="small fw-semibold text-sa-muted mb-1.5 d-flex align-items-center justify-content-between">
+            <span className="d-flex align-items-center gap-1.5">
+              <span>Standardized Branch & Academic Batch Filter</span>
+            </span>
+            {(filterBranch || filterAcademicBatch || filterSession) && (
+              <button
+                type="button"
+                className="btn btn-link btn-sm p-0 text-decoration-none text-danger small fw-semibold"
+                onClick={() => {
+                  setFilterBranch('');
+                  setFilterSession('');
+                  setFilterAcademicBatch('');
+                }}
+              >
+                Clear Branch Filters
+              </button>
+            )}
+          </div>
+          <BranchBatchSelector
+            branch={filterBranch}
+            session={filterSession}
+            academicBatch={filterAcademicBatch}
+            onBranchChange={setFilterBranch}
+            onSessionChange={setFilterSession}
+            onBatchChange={setFilterAcademicBatch}
+            showAllOption={true}
+            allOptionLabel="All"
+            size="sm"
+          />
+        </div>
+
         <div className="row g-2 align-items-center">
           {/* Search */}
           <div className="col-12 col-md-3 position-relative">
@@ -534,6 +612,22 @@ export default function BooksDelivery() {
                       </div>
                     </div>
                   </div>
+                );
+              }
+            },
+            {
+              key: 'branch',
+              title: 'Branch / Batch',
+              render: (_, row) => {
+                const isTeacher = (row.recipientType || '').toLowerCase() === 'teacher' || row.rollNumber === 'Faculty Staff';
+                if (isTeacher) {
+                  return <span className="badge bg-light text-secondary border">Faculty</span>;
+                }
+                const display = formatStudentBatchDisplay(row);
+                return (
+                  <span className="badge py-1 px-2 rounded-pill fw-semibold bg-light text-sa-charcoal border" style={{ fontSize: '0.72rem' }}>
+                    {display}
+                  </span>
                 );
               }
             },
@@ -693,35 +787,79 @@ export default function BooksDelivery() {
               </button>
             </div>
 
-            {/* Recipient Searchable Select */}
+            {/* Recipient Selection */}
             {newDelivery.recipientType === 'Student' ? (
-              <SearchableSelect
-                id="delivery-student-select"
-                label="Student Recipient"
-                required
-                options={students.map(s => {
-                  const id = s.id || s._id || s.student_id;
-                  const roll = s.rollNumber || s.student_id || 'N/A';
-                  const std = s.standard || 'General';
-                  return {
-                    value: id,
-                    label: s.name,
-                    badge: `Roll: ${roll}`,
-                    sublabel: `Class: ${std}${s.batch ? ` • ${s.batch}` : ''}`,
-                    keywords: [s.name, roll, std, s.batch]
-                  };
-                })}
-                value={newDelivery.recipientId}
-                onChange={(val, opt) => {
-                  setNewDelivery({
-                    ...newDelivery,
-                    recipientId: val,
-                    recipientName: opt ? opt.label : ''
-                  });
-                }}
-                placeholder="-- Choose Student from Database --"
-                searchPlaceholder="Search student by name, roll no, or stream..."
-              />
+              <div className="d-flex flex-column gap-2 mb-2">
+                {/* Branch, Session & Academic Batch Selection */}
+                <div className="p-3 bg-light rounded-2 border">
+                  <div className="small fw-bold text-sa-charcoal mb-2 d-flex align-items-center justify-content-between">
+                    <span>1. Filter by Admission Branch & Batch:</span>
+                    <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: '0.75rem' }}>
+                      {eligibleStudents.length} Students in this Batch
+                    </span>
+                  </div>
+                  <BranchBatchSelector
+                    branch={modalBranch}
+                    session={modalSession}
+                    academicBatch={modalAcademicBatch}
+                    onBranchChange={(b) => {
+                      setModalBranch(b);
+                      setNewDelivery(prev => ({ ...prev, recipientId: '', recipientName: '' }));
+                    }}
+                    onSessionChange={(s) => {
+                      setModalSession(s);
+                      setNewDelivery(prev => ({ ...prev, recipientId: '', recipientName: '' }));
+                    }}
+                    onBatchChange={(b) => {
+                      setModalAcademicBatch(b);
+                      setNewDelivery(prev => ({ ...prev, recipientId: '', recipientName: '' }));
+                    }}
+                    size="sm"
+                    showAllOption={false}
+                  />
+                </div>
+
+                <SearchableSelect
+                  id="delivery-student-select"
+                  label="2. Choose Student Recipient from Batch"
+                  required
+                  options={eligibleStudents.map(s => {
+                    const id = s.id || s._id || s.student_id;
+                    const roll = s.rollNumber || s.student_id || 'N/A';
+                    const assignment = formatStudentBatchDisplay(s);
+                    return {
+                      value: id,
+                      label: s.name,
+                      badge: `Roll: ${roll}`,
+                      sublabel: assignment,
+                      keywords: [s.name, roll, s.standard, s.batch, s.branch, s.academic_batch]
+                    };
+                  })}
+                  value={newDelivery.recipientId}
+                  onChange={(val, opt) => {
+                    setNewDelivery({
+                      ...newDelivery,
+                      recipientId: val,
+                      recipientName: opt ? opt.label : ''
+                    });
+                  }}
+                  placeholder={eligibleStudents.length === 0 ? '-- No students registered in this batch --' : '-- Choose Student from Selected Batch --'}
+                  searchPlaceholder="Search student by name or roll no..."
+                />
+
+                {newDelivery.recipientId && (() => {
+                  const sel = students.find(s => String(s.id || s._id || s.student_id) === String(newDelivery.recipientId));
+                  if (sel) {
+                    return (
+                      <div className="p-2 rounded bg-success-subtle text-success border border-success-subtle small d-flex align-items-center justify-content-between">
+                        <span>Admission Record Verified:</span>
+                        <span className="fw-bold">{formatStudentBatchDisplay(sel)}</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             ) : (
               <SearchableSelect
                 id="delivery-teacher-select"

@@ -11,7 +11,8 @@ from app.schemas.inventory import (
 from fastapi import HTTPException
 from bson import ObjectId
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from app.core.branch_config import student_matches_filters
 
 DEFAULT_BOOKS = [
     # Theory Books
@@ -227,6 +228,12 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
         date_str = delivery.created_at.strftime("%Y-%m-%d %H:%M") if delivery.created_at else "--"
         raw_date_iso = delivery.created_at.isoformat() if delivery.created_at else None
 
+    branch = getattr(delivery, "branch", None) or (getattr(student_obj, "branch", None) if student_obj else None)
+    academic_batch = getattr(delivery, "academic_batch", None) or (getattr(student_obj, "academic_batch", None) if student_obj else None)
+    session = getattr(delivery, "session", None) or (getattr(student_obj, "session", None) if student_obj else None)
+    batch = getattr(delivery, "batch", None) or (getattr(student_obj, "batch", None) if student_obj else None)
+    standard = getattr(delivery, "standard", None) or (getattr(student_obj, "standard", None) if student_obj else None)
+
     return {
         "id": str(delivery.id),
         "recipient_type": recipient_type,
@@ -247,6 +254,12 @@ async def _format_delivery(delivery: InventoryDelivery) -> dict:
         "handed_over_by": handed_over_by,
         "handed_over_to": delivery.handed_over_to or recipient_name,
         "verified_by": handed_over_by,
+        "branch": branch,
+        "academic_batch": academic_batch,
+        "academicBatch": academic_batch,
+        "session": session,
+        "batch": batch,
+        "standard": standard,
         "remarks": delivery.remarks or ""
     }
 
@@ -332,6 +345,20 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     if not handover_date and status in ["Delivered", "Handed Over"]:
         handover_date = datetime.utcnow()
 
+    # Inherit branch, academic_batch, session from student admission record
+    branch = delivery_in.branch
+    academic_batch = delivery_in.academic_batch
+    session = delivery_in.session
+    batch = delivery_in.batch
+    standard = delivery_in.standard
+
+    if student:
+        branch = branch or getattr(student, "branch", None)
+        academic_batch = academic_batch or getattr(student, "academic_batch", None)
+        session = session or getattr(student, "session", None)
+        batch = batch or getattr(student, "batch", None)
+        standard = standard or getattr(student, "standard", None)
+
     delivery = InventoryDelivery(
         student=student,
         inventory_item=item,
@@ -348,6 +375,11 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         verified_by=handed_by,
         handed_over_to=recipient_name,
         student_roll_no=roll_no,
+        branch=branch,
+        academic_batch=academic_batch,
+        session=session,
+        batch=batch,
+        standard=standard,
         remarks=delivery_in.remarks
     )
     await delivery.insert()
@@ -519,7 +551,12 @@ async def delete_delivery(id: str) -> dict:
     await delivery.delete()
     return {"message": "Delivery record removed successfully", "id": id}
 
-async def get_deliveries(student_id: Optional[str] = None) -> list[dict]:
+async def get_deliveries(
+    student_id: Optional[str] = None,
+    branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    session: Optional[str] = None
+) -> list[dict]:
     if student_id:
         from app.services.student_service import resolve_student
         student = await resolve_student(student_id)
@@ -530,7 +567,18 @@ async def get_deliveries(student_id: Optional[str] = None) -> list[dict]:
     deliveries = await InventoryDelivery.find_all().to_list()
     # Sort latest first
     deliveries.sort(key=lambda d: d.created_at or datetime.min, reverse=True)
-    return [await _format_delivery(d) for d in deliveries]
+    formatted = [await _format_delivery(d) for d in deliveries]
+
+    if branch or academic_batch or session:
+        filtered = []
+        for d in formatted:
+            if d.get("recipient_type") == "Student":
+                if not student_matches_filters(d, branch_filter=branch, academic_batch_filter=academic_batch, session_filter=session):
+                    continue
+            filtered.append(d)
+        return filtered
+
+    return formatted
 
 async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
     """

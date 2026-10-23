@@ -22,20 +22,22 @@ import batchService from '../../services/batchService';
 import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  ACADEMIC_BATCHES,
+  isSessionRequired,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 
 export const STANDARD_BATCHES = [
-  '11th pcm tarabai park',
-  '11th pcb tarabai park',
-  '11th pcmb tarabai park',
-  '12th pcm tarabai park',
-  '12th pcb tarabai park',
-  '12th pcmb tarabai park',
-  '11th pcm Mangalvar Peth',
-  '11th pcb Mangalvar Peth',
-  '11th pcmb Mangalvar Peth',
-  '12th pcm Mangalvar Peth',
-  '12th pcb Mangalvar Peth',
-  '12th pcmb Mangalvar Peth'
+  '11th PCM',
+  '11th PCB',
+  '11th PCMB',
+  '12th PCM',
+  '12th PCB',
+  '12th PCMB'
 ];
 
 export default function StudentRegistration() {
@@ -43,19 +45,21 @@ export default function StudentRegistration() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
-  const [loadingBatches, setLoadingBatches] = useState(true);
+  const [loadingBatches, setLoadingBatches] = useState(false);
   const [feeStructures, setFeeStructures] = useState([]);
 
   // Admin Role-Based Form State:
-  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Standard, Batch, Branch, Fee Details (Total, Concession, Paid, Remaining)
+  // Admin fills: Student Name, Student Email ID, Student Mobile, Parent Mobile, Branch, Session, Academic Batch, Fee Details
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     mobileNumber: '',
     parentPhone: '',
+    branch: BRANCH_TARABAI,
+    session: '',
+    academicBatch: '11th PCM',
     standard: '11th Science',
-    batch: '',
-    branch: 'Tarabai Park',
+    batch: '11th PCM Tarabai Park',
     originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
@@ -69,47 +73,10 @@ export default function StudentRegistration() {
 
   const [errors, setErrors] = useState({});
 
-  const batchList = useMemo(() => {
-    const list = [...STANDARD_BATCHES];
-    if (Array.isArray(batches)) {
-      batches.forEach((b) => {
-        if (b?.name && !list.some((item) => item.toLowerCase() === b.name.toLowerCase())) {
-          list.push(b.name);
-        }
-      });
-    }
-    return list;
-  }, [batches]);
-
   useEffect(() => {
     feeService.getStructures().then((data) => {
       if (Array.isArray(data)) setFeeStructures(data);
     }).catch((err) => console.warn('Could not load fee structures:', err));
-  }, []);
-
-  useEffect(() => {
-    batchService.getBatches()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setBatches(data);
-          // Auto-select first batch if none chosen
-          if (!formData.batch) {
-            const firstBatch = data[0].name;
-            const is12th = firstBatch.toLowerCase().includes('12th');
-            setFormData((prev) => ({
-              ...prev,
-              batch: firstBatch,
-              standard: data[0].standard || (is12th ? '12th Science' : '11th Science')
-            }));
-          }
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not load batches list:', err);
-      })
-      .finally(() => {
-        setLoadingBatches(false);
-      });
   }, []);
 
   const handleInputChange = (e) => {
@@ -141,34 +108,18 @@ export default function StudentRegistration() {
     }
   };
 
-  const handleBatchChange = (e) => {
-    const selectedBatch = e.target.value;
-    const found = batches.find((b) => (b.name || '').toLowerCase() === (selectedBatch || '').toLowerCase());
-    let std = found?.standard;
-    if (!std && selectedBatch) {
-      if (selectedBatch.toLowerCase().includes('11th')) {
-        std = '11th Science';
-      } else if (selectedBatch.toLowerCase().includes('12th')) {
-        std = '12th Science';
-      }
-    }
-    if (!std) std = formData.standard || '11th Science';
+  const handleBranchChange = (newBranch) => {
+    const sessionNeeded = isSessionRequired(newBranch);
+    const newSession = sessionNeeded ? (formData.session || 'Morning') : '';
+    const currentAcademic = formData.academicBatch || '11th PCM';
+    const std = currentAcademic.startsWith('12th') ? '12th Science' : '11th Science';
+    const fullBatch = `${currentAcademic} ${newBranch}${newSession ? ` (${newSession})` : ''}`;
 
-    // Auto-detect branch based on batch naming
-    let detectedBranch = formData.branch;
-    const bLower = (selectedBatch || '').toLowerCase();
-    if (bLower.includes('tarabai')) {
-      detectedBranch = 'Tarabai Park';
-    } else if (bLower.includes('mangal')) {
-      detectedBranch = 'Mangalwar Peth';
-    }
-
-    // Auto-lookup matching fee structure
     let newOriginalFee = formData.originalFees;
     if (feeStructures && feeStructures.length > 0) {
-      const match = feeStructures.find((s) =>
-        (s.batch && s.batch.toLowerCase() === selectedBatch.toLowerCase()) ||
-        (s.branch === detectedBranch && s.standard === std)
+      const match = feeStructures.find(
+        (s) => (s.branch === newBranch && s.standard === std) ||
+               (s.batch && s.batch.toLowerCase().includes(currentAcademic.toLowerCase()))
       );
       if (match && match.total_fee > 0) {
         newOriginalFee = match.total_fee;
@@ -181,16 +132,60 @@ export default function StudentRegistration() {
 
     setFormData((prev) => ({
       ...prev,
-      batch: selectedBatch,
+      branch: newBranch,
+      session: newSession,
+      academicBatch: currentAcademic,
+      batch: fullBatch,
       standard: std,
-      branch: detectedBranch,
       originalFees: newOriginalFee,
       totalFees: netTotal,
       remainingFees: Math.max(0, netTotal - paid)
     }));
-    if (errors.batch) {
-      setErrors((prev) => ({ ...prev, batch: '' }));
+
+    setErrors((prev) => ({ ...prev, branch: '', session: '', academicBatch: '' }));
+  };
+
+  const handleSessionChange = (newSession) => {
+    const currentAcademic = formData.academicBatch || '11th PCM';
+    const fullBatch = `${currentAcademic} ${formData.branch}${newSession ? ` (${newSession})` : ''}`;
+    setFormData((prev) => ({
+      ...prev,
+      session: newSession,
+      batch: fullBatch
+    }));
+    setErrors((prev) => ({ ...prev, session: '' }));
+  };
+
+  const handleAcademicBatchChange = (newAcademicBatch) => {
+    const std = newAcademicBatch.startsWith('12th') ? '12th Science' : '11th Science';
+    const fullBatch = `${newAcademicBatch} ${formData.branch}${formData.session ? ` (${formData.session})` : ''}`;
+
+    let newOriginalFee = formData.originalFees;
+    if (feeStructures && feeStructures.length > 0) {
+      const match = feeStructures.find(
+        (s) => (s.branch === formData.branch && s.standard === std) ||
+               (s.batch && s.batch.toLowerCase().includes(newAcademicBatch.toLowerCase()))
+      );
+      if (match && match.total_fee > 0) {
+        newOriginalFee = match.total_fee;
+      }
     }
+
+    const disc = Number(formData.discountAmount) || 0;
+    const netTotal = Math.max(0, newOriginalFee - disc);
+    const paid = Number(formData.paidFees) || 0;
+
+    setFormData((prev) => ({
+      ...prev,
+      academicBatch: newAcademicBatch,
+      batch: fullBatch,
+      standard: std,
+      originalFees: newOriginalFee,
+      totalFees: netTotal,
+      remainingFees: Math.max(0, netTotal - paid)
+    }));
+
+    setErrors((prev) => ({ ...prev, academicBatch: '', batch: '' }));
   };
 
   const validate = () => {
@@ -219,6 +214,16 @@ export default function StudentRegistration() {
       errs.parentPhone = 'Must be a valid 10-digit mobile number';
     } else if (cleanMobile && cleanMobile === cleanParentMobile) {
       errs.parentPhone = 'Parent mobile must be different from student mobile';
+    }
+
+    if (!formData.branch) {
+      errs.branch = 'Please select a branch';
+    }
+    if (isSessionRequired(formData.branch) && !formData.session) {
+      errs.session = 'Please select Morning or Afternoon session';
+    }
+    if (!formData.academicBatch) {
+      errs.academicBatch = 'Please select an academic batch';
     }
 
     const orig = Number(formData.originalFees);
@@ -273,9 +278,12 @@ export default function StudentRegistration() {
         mobile_number: cleanMobile,
         parentPhone: cleanParentMobile,
         parent_mobile: cleanParentMobile,
+        branch: formData.branch,
+        session: formData.session || undefined,
+        academic_batch: formData.academicBatch,
+        academicBatch: formData.academicBatch,
         standard: formData.standard || undefined,
-        batch: formData.batch || undefined,
-        branch: formData.branch || (formData.batch?.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park'),
+        batch: formData.batch || `${formData.academicBatch} ${formData.branch}`,
         totalFees: effectiveTotalFees,
         total_fees: effectiveTotalFees,
         original_fees: origFees,
@@ -541,12 +549,12 @@ export default function StudentRegistration() {
                     {errors.parentPhone && <div className="invalid-feedback">{errors.parentPhone}</div>}
                   </div>
                   <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Used for RFID entry notifications and fee reminder SMS.
+                    Used for gate entry notifications and fee reminder SMS.
                   </span>
                 </div>
               </div>
 
-              {/* Section 2: Academic Class & Batch Allocation */}
+              {/* Section 2: Academic Class & Batch Allocation (Admission Source of Truth) */}
               <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                 <div
                   className="rounded-circle d-flex align-items-center justify-content-center"
@@ -555,71 +563,45 @@ export default function StudentRegistration() {
                   <GraduationCap size={18} />
                 </div>
                 <div>
-                  <h6 className="fw-bold m-0 text-sa-charcoal">2. Academic Class & Batch Allocation</h6>
+                  <h6 className="fw-bold m-0 text-sa-charcoal">2. Branch & Batch Allocation (Admission Source of Truth)</h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                    Assign student to their study batch and curriculum standard
+                    Select Branch first, followed by Session (if Mangalwar Peth) and Academic Batch
                   </span>
                 </div>
               </div>
 
-              <div className="row g-3 mb-4">
-                {/* Standard / Class */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Enrolled Class / Standard
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
-                      <GraduationCap size={16} />
-                    </span>
-                    <select
-                      name="standard"
-                      value={formData.standard}
-                      onChange={handleInputChange}
-                      className={`form-select ${errors.standard ? 'is-invalid' : ''}`}
-                      disabled={loading}
-                    >
-                      <option value="11th Science">11th Science</option>
-                      <option value="12th Science">12th Science</option>
-                      <option value="11th Commerce">11th Commerce</option>
-                      <option value="12th Commerce">12th Commerce</option>
-                      <option value="Foundation (8th-10th)">Foundation (8th-10th)</option>
-                    </select>
-                    {errors.standard && <div className="invalid-feedback">{errors.standard}</div>}
-                  </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Curriculum stream for course syllabus.
-                  </span>
-                </div>
+              <div className="p-3 bg-light rounded-3 border mb-4">
+                <BranchBatchSelector
+                  branch={formData.branch}
+                  session={formData.session}
+                  academicBatch={formData.academicBatch}
+                  onBranchChange={handleBranchChange}
+                  onSessionChange={handleSessionChange}
+                  onBatchChange={handleAcademicBatchChange}
+                  required={true}
+                  disabled={loading}
+                  showAllOption={false}
+                />
 
-                {/* Study Batch */}
-                <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Allocated Study Batch
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
-                      <Users size={16} />
-                    </span>
-                    <select
-                      name="batch"
-                      value={formData.batch}
-                      onChange={handleBatchChange}
-                      className={`form-select ${errors.batch ? 'is-invalid' : ''}`}
-                      disabled={loading}
-                    >
-                      <option value="">-- Select Study Batch --</option>
-                      {batchList.map((batchName) => (
-                        <option key={batchName} value={batchName}>
-                          {batchName}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.batch && <div className="invalid-feedback">{errors.batch}</div>}
+                {(errors.branch || errors.session || errors.academicBatch) && (
+                  <div className="text-danger small mt-2">
+                    {errors.branch || errors.session || errors.academicBatch}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Student will be enrolled directly into this batch schedule.
-                  </span>
+                )}
+
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
+                  <div className="small text-sa-charcoal">
+                    <span className="text-muted">Enrolled Standard:</span>{' '}
+                    <span className="badge bg-white text-dark border px-2 py-1 fw-bold">
+                      {formData.standard}
+                    </span>
+                  </div>
+                  <div className="small text-sa-charcoal">
+                    <span className="text-muted">Master Placement:</span>{' '}
+                    <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
+                      {formData.branch} • {formData.session ? `${formData.session} • ` : ''}{formData.academicBatch}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -931,9 +913,25 @@ export default function StudentRegistration() {
               </div>
 
               <div className="d-flex justify-content-between border-bottom pb-2">
-                <span className="text-muted">Assigned Batch:</span>
-                <span className="fw-bold text-sa-primary text-end text-truncate" style={{ maxWidth: '170px' }} title={formData.batch}>
-                  {formData.batch || <em className="text-muted fw-normal">Not selected</em>}
+                <span className="text-muted">Branch:</span>
+                <span className="fw-bold text-sa-charcoal">
+                  {formData.branch}
+                </span>
+              </div>
+
+              {formData.session ? (
+                <div className="d-flex justify-content-between border-bottom pb-2">
+                  <span className="text-muted">Session:</span>
+                  <span className="badge bg-primary-subtle text-primary border">
+                    {formData.session}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="d-flex justify-content-between border-bottom pb-2">
+                <span className="text-muted">Academic Batch:</span>
+                <span className="fw-bold text-sa-primary">
+                  {formData.academicBatch}
                 </span>
               </div>
 

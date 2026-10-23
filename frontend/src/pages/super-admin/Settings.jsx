@@ -597,7 +597,7 @@ export default function SuperAdminProfile() {
             </div>
             <div className="col-12 col-md-6">
               <Input
-                label="RFID Attendance Gateway IP"
+                label="Attendance Gateway IP"
                 name="rfidGatewayIp"
                 value={systemSettings.rfidGatewayIp}
                 onChange={(e) => setSystemSettings({ ...systemSettings, rfidGatewayIp: e.target.value })}

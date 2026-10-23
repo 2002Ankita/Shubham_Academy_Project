@@ -24,6 +24,13 @@ import {
   Upload
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  ACADEMIC_BATCHES,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 
 export default function AttendanceReport() {
   const navigate = useNavigate();
@@ -31,8 +38,10 @@ export default function AttendanceReport() {
   // Active Report View: 'batch', 'date', 'student'
   const [activeTab, setActiveTab] = useState('batch');
 
-  // Filter States
-  const [batch, setBatch] = useState('11th pcm tarabai park');
+  // Standardized Filter States
+  const [reportBranch, setReportBranch] = useState(BRANCH_TARABAI);
+  const [reportSession, setReportSession] = useState('');
+  const [reportAcademicBatch, setReportAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
@@ -44,21 +53,11 @@ export default function AttendanceReport() {
   const [studentData, setStudentData] = useState(null);
   const [allStudents, setAllStudents] = useState([]);
 
-  const batches = [
-    'All Batches',
-    '11th pcm tarabai park',
-    '11th pcb tarabai park',
-    '11th pcmb tarabai park',
-    '12th pcm tarabai park',
-    '12th pcb tarabai park',
-    '12th pcmb tarabai park',
-    '11th pcm Mangalvar peth',
-    '11th pcb Mangalvar peth',
-    '11th pcmb Mangalvar peth',
-    '12th pcm Mangalvar peth',
-    '12th pcb Mangalvar peth',
-    '12th pcmb Mangalvar peth'
-  ];
+  const reportBatchLabel = formatStudentBatchDisplay({
+    branch: reportBranch,
+    session: reportSession,
+    academicBatch: reportAcademicBatch
+  });
 
   // Load students for autocomplete
   useEffect(() => {
@@ -82,13 +81,17 @@ export default function AttendanceReport() {
     try {
       if (activeTab === 'batch') {
         const res = await attendanceService.getBatchReport({
-          batch: batch === 'All Batches' ? undefined : batch
+          branch: reportBranch,
+          session: reportSession,
+          academicBatch: reportAcademicBatch
         });
         setBatchData(res);
       } else if (activeTab === 'date') {
         const res = await attendanceService.getDateReport({
           date: selectedDate,
-          batch: batch === 'All Batches' ? undefined : batch
+          branch: reportBranch,
+          session: reportSession,
+          academicBatch: reportAcademicBatch
         });
         setDateData(res);
       } else if (activeTab === 'student') {
@@ -105,7 +108,7 @@ export default function AttendanceReport() {
 
   useEffect(() => {
     fetchReport();
-  }, [activeTab, batch, selectedDate, selectedStudentId]);
+  }, [activeTab, reportBranch, reportSession, reportAcademicBatch, selectedDate, selectedStudentId]);
 
   // Export to Excel client-side using XLSX
   const handleExportExcel = () => {
@@ -114,7 +117,7 @@ export default function AttendanceReport() {
       let filename = 'Attendance_Report.xlsx';
 
       if (activeTab === 'batch') {
-        filename = `Batch_Attendance_${batch.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        filename = `Batch_Attendance_${reportBatchLabel.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
         exportRows = (batchData?.students || []).map(s => ({
           'Roll Number': s.roll_number,
           'Student Name': s.student_name,
@@ -131,7 +134,7 @@ export default function AttendanceReport() {
           'Status': s.status
         }));
       } else if (activeTab === 'date') {
-        filename = `Date_Attendance_${selectedDate}_${batch.replace(/\s+/g, '_')}.xlsx`;
+        filename = `Date_Attendance_${selectedDate}_${reportBatchLabel.replace(/\s+/g, '_')}.xlsx`;
         exportRows = (dateData?.records || []).map(r => ({
           'Roll Number': r.roll_number,
           'Student Name': r.student_name,
@@ -275,23 +278,22 @@ export default function AttendanceReport() {
 
       {/* FILTER CONTROLS BAR */}
       <div className="sa-card p-3.5 bg-white">
-        <div className="row g-3 align-items-center">
-          {/* Batch Selector (For Batch & Date view) */}
-          {activeTab !== 'student' && (
-            <div className="col-12 col-md-5">
-              <label className="small text-muted fw-semibold mb-1 d-block">Academic Batch</label>
-              <select
-                className="form-select form-select-sm"
-                value={batch}
-                onChange={(e) => setBatch(e.target.value)}
-              >
-                {batches.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-          )}
+        {activeTab !== 'student' && (
+          <div className="mb-3">
+            <BranchBatchSelector
+              branch={reportBranch}
+              onBranchChange={setReportBranch}
+              session={reportSession}
+              onSessionChange={setReportSession}
+              academicBatch={reportAcademicBatch}
+              onAcademicBatchChange={setReportAcademicBatch}
+              showAllOption={true}
+              layout="grid"
+            />
+          </div>
+        )}
 
+        <div className="row g-3 align-items-center">
           {/* Date Selector (For Date view) */}
           {activeTab === 'date' && (
             <div className="col-12 col-md-4">
@@ -307,24 +309,22 @@ export default function AttendanceReport() {
 
           {/* Student Selector (For Student view) */}
           {activeTab === 'student' && (
-            <>
-              <div className="col-12 col-md-5">
-                <label className="small text-muted fw-semibold mb-1 d-block">Search / Select Student</label>
-                <div className="position-relative">
-                  <select
-                    className="form-select form-select-sm"
-                    value={selectedStudentId}
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                  >
-                    {allStudents.map(s => (
-                      <option key={s.id} value={s.student_id || s.id}>
-                        {s.student_id ? `[${s.student_id}] ` : ''}{s.full_name || s.name} ({s.batch || 'General'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="col-12 col-md-8">
+              <label className="small text-muted fw-semibold mb-1 d-block">Search / Select Student (Filtered by Admission Placement)</label>
+              <div className="position-relative">
+                <select
+                  className="form-select form-select-sm"
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                >
+                  {allStudents.map(s => (
+                    <option key={s.id} value={s.student_id || s.id}>
+                      {s.student_id ? `[${s.student_id}] ` : ''}{s.full_name || s.name} • {formatStudentBatchDisplay(s)}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </>
+            </div>
           )}
 
           <div className="col-12 col-md-2 d-flex align-items-end ms-auto">
@@ -354,7 +354,7 @@ export default function AttendanceReport() {
                   {batchData?.total_students || 0}
                 </h3>
                 <span className="small text-muted d-block mt-1" style={{ fontSize: '11px' }}>
-                  Batch: {batch}
+                  Batch: {reportBatchLabel}
                 </span>
               </div>
             </div>

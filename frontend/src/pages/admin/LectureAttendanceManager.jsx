@@ -19,55 +19,73 @@ import {
   BarChart3,
   Bell,
   RefreshCw,
+  Save,
+  Check,
+  CheckCheck,
   X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
+  ACADEMIC_BATCHES,
+  formatStudentBatchDisplay,
+  matchesStudentFilters
+} from '../../config/branchBatchConfig';
 
 export default function LectureAttendanceManager() {
   const navigate = useNavigate();
-  const [selectedBatch, setSelectedBatch] = useState('11th pcm tarabai park');
+  // Standardized Branch & Batch selection (Step 1: Branch -> Step 2: Session if Mangalwar Peth -> Step 3: Academic Batch)
+  const [selectedBranch, setSelectedBranch] = useState(BRANCH_TARABAI);
+  const [selectedSession, setSelectedSession] = useState('');
+  const [selectedAcademicBatch, setSelectedAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState('all'); // 'all', '1', '2'
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
-  const [allStudents, setAllStudents] = useState([]);
+  const [attendanceRows, setAttendanceRows] = useState([]);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [parsedRows, setParsedRows] = useState([]);
   const [uploadSlot, setUploadSlot] = useState(1);
-  const [uploadBatch, setUploadBatch] = useState('11th pcm tarabai park');
+  const [uploadBranch, setUploadBranch] = useState(BRANCH_TARABAI);
+  const [uploadSession, setUploadSession] = useState('');
+  const [uploadAcademicBatch, setUploadAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [uploadSubject, setUploadSubject] = useState('Physics');
   const [uploadDate, setUploadDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [uploadChannels, setUploadChannels] = useState('both'); // 'both', 'whatsapp', 'sms'
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
 
-  const batches = [
-    '11th pcm tarabai park',
-    '11th pcb tarabai park',
-    '11th pcmb tarabai park',
-    '12th pcm tarabai park',
-    '12th pcb tarabai park',
-    '12th pcmb tarabai park',
-    '11th pcm Mangalvar peth',
-    '11th pcb Mangalvar peth',
-    '11th pcmb Mangalvar peth',
-    '12th pcm Mangalvar peth',
-    '12th pcb Mangalvar peth',
-    '12th pcmb Mangalvar peth'
-  ];
+  const selectedBatchLabel = formatStudentBatchDisplay({
+    branch: selectedBranch,
+    session: selectedSession,
+    academicBatch: selectedAcademicBatch
+  });
+
+  const uploadBatchLabel = formatStudentBatchDisplay({
+    branch: uploadBranch,
+    session: uploadSession,
+    academicBatch: uploadAcademicBatch
+  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [dateRep, stList] = await Promise.all([
-        attendanceService.getDateReport({ date: selectedDate, batch: selectedBatch }),
-        studentService.getAll()
-      ]);
+      const dateRep = await attendanceService.getDateReport({
+        date: selectedDate,
+        branch: selectedBranch,
+        session: selectedSession,
+        academicBatch: selectedAcademicBatch
+      });
       setReportData(dateRep);
-      setAllStudents(stList || []);
+      setAttendanceRows(dateRep?.records || []);
+      setHasUnsavedChanges(false);
     } catch (err) {
       console.warn('Failed to fetch attendance data:', err);
     } finally {
@@ -77,7 +95,99 @@ export default function LectureAttendanceManager() {
 
   useEffect(() => {
     fetchData();
-  }, [selectedDate, selectedBatch]);
+  }, [selectedDate, selectedBranch, selectedSession, selectedAcademicBatch]);
+
+  // Mark single student slot status manually (Present / Absent)
+  const handleMarkStatus = (studentId, slotNumber, newStatus) => {
+    setAttendanceRows(prev =>
+      prev.map(row => {
+        if (row.id === studentId || row.student_id === studentId) {
+          const slotKey = slotNumber === 1 ? 'lecture_1' : 'lecture_2';
+          const oldSlot = row[slotKey] || {};
+          return {
+            ...row,
+            [slotKey]: {
+              ...oldSlot,
+              status: newStatus,
+              notification_sent: newStatus === 'Absent' ? oldSlot.notification_sent : false
+            }
+          };
+        }
+        return row;
+      })
+    );
+    setHasUnsavedChanges(true);
+  };
+
+  // Bulk mark all students in the batch for Lecture 1, Lecture 2, or Both
+  const handleMarkAll = (slotType, targetStatus = 'Present') => {
+    if (attendanceRows.length === 0) {
+      toast.warning('No students found in this batch to mark.');
+      return;
+    }
+
+    setAttendanceRows(prev =>
+      prev.map(row => {
+        const newRow = { ...row };
+        if (slotType === 'all' || slotType === 1) {
+          newRow.lecture_1 = {
+            ...(row.lecture_1 || {}),
+            status: targetStatus,
+            notification_sent: targetStatus === 'Absent'
+          };
+        }
+        if (slotType === 'all' || slotType === 2) {
+          newRow.lecture_2 = {
+            ...(row.lecture_2 || {}),
+            status: targetStatus,
+            notification_sent: targetStatus === 'Absent'
+          };
+        }
+        return newRow;
+      })
+    );
+    setHasUnsavedChanges(true);
+    const slotLabel = slotType === 'all' ? 'Both Lectures' : `Lecture ${slotType}`;
+    toast.success(`Marked all ${attendanceRows.length} students as ${targetStatus} for ${slotLabel}! Click 'Save Attendance to MongoDB' to persist.`);
+  };
+
+  // Save modified attendance records to MongoDB
+  const handleSaveAttendance = async () => {
+    if (attendanceRows.length === 0) {
+      toast.warning('No student records to save for this batch.');
+      return;
+    }
+
+    setSavingAttendance(true);
+    try {
+      const payloadRecords = attendanceRows.map(r => ({
+        student_id: r.id || r.student_id,
+        lecture_1_status: r.lecture_1?.status || 'Not Marked',
+        lecture_1_subject: r.lecture_1?.subject || 'Physics',
+        lecture_2_status: r.lecture_2?.status || 'Not Marked',
+        lecture_2_subject: r.lecture_2?.subject || 'Mathematics',
+        remarks: r.remarks || ''
+      }));
+
+      const res = await attendanceService.saveLedgerAttendance({
+        date: selectedDate,
+        branch: selectedBranch,
+        academicBatch: selectedAcademicBatch,
+        session: selectedSession,
+        records: payloadRecords
+      });
+
+      setHasUnsavedChanges(false);
+      toast.success(res?.message || `Saved attendance for ${attendanceRows.length} students to MongoDB for ${selectedDate}!`);
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to save attendance:', err);
+      toast.error(err?.response?.data?.detail || 'Failed to save attendance to MongoDB');
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
+
 
   // Client-side sample template generator (.xlsx)
   const handleDownloadTemplate = () => {
@@ -86,7 +196,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1001',
           'Student Name': 'Aarav Sharma',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 1',
           'Subject': 'Physics',
@@ -96,7 +206,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1001',
           'Student Name': 'Aarav Sharma',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',
           'Subject': 'Mathematics',
@@ -106,7 +216,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1002',
           'Student Name': 'Diya Patil',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 1',
           'Subject': 'Physics',
@@ -116,7 +226,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1002',
           'Student Name': 'Diya Patil',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',
           'Subject': 'Mathematics',
@@ -126,7 +236,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1003',
           'Student Name': 'Rohan Deshmukh',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 1',
           'Subject': 'Physics',
@@ -136,7 +246,7 @@ export default function LectureAttendanceManager() {
         {
           'Roll Number': 'SA-1003',
           'Student Name': 'Rohan Deshmukh',
-          'Batch': selectedBatch,
+          'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',
           'Subject': 'Mathematics',
@@ -158,7 +268,7 @@ export default function LectureAttendanceManager() {
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Attendance Import');
-      XLSX.writeFile(wb, `Shubham_Academy_Attendance_Template_${selectedBatch.replace(/\s+/g, '_')}.xlsx`);
+      XLSX.writeFile(wb, `Shubham_Academy_Attendance_Template_${selectedBatchLabel.replace(/\s+/g, '_')}.xlsx`);
       toast.success('Sample Excel template downloaded successfully!');
     } catch (err) {
       console.error('Download template error:', err);
@@ -220,7 +330,10 @@ export default function LectureAttendanceManager() {
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
-      formData.append('batch', uploadBatch);
+      formData.append('batch', uploadBatchLabel);
+      formData.append('branch', uploadBranch);
+      formData.append('session', uploadSession);
+      formData.append('academic_batch', uploadAcademicBatch);
       formData.append('lecture_number', String(uploadSlot));
       formData.append('lecture_date', uploadDate);
       formData.append('subject', uploadSubject);
@@ -247,7 +360,7 @@ export default function LectureAttendanceManager() {
           rollNumber: roll,
           studentName: name,
           parentMobile: row['Parent Mobile'] || '+91 98220 33445',
-          batch: uploadBatch,
+          batch: uploadBatchLabel,
           subject: row['Subject'] || uploadSubject,
           lectureNumber: slotFromRow,
           lectureDate: uploadDate,
@@ -295,7 +408,7 @@ export default function LectureAttendanceManager() {
           rollNumber: roll,
           studentName: name,
           parentMobile: row['Parent Mobile'] || '+91 98220 33445',
-          batch: uploadBatch,
+          batch: uploadBatchLabel,
           subject: row['Subject'] || uploadSubject,
           lectureNumber: slotFromRow,
           lectureDate: uploadDate,
@@ -329,17 +442,17 @@ export default function LectureAttendanceManager() {
     }
   };
 
+  // Live KPI counts derived from mutable attendanceRows
+  const totalEnrolled = attendanceRows.length;
+  const l1Present = attendanceRows.filter(r => r.lecture_1?.status === 'Present').length;
+  const l1Absent = attendanceRows.filter(r => r.lecture_1?.status === 'Absent').length;
+  const l2Present = attendanceRows.filter(r => r.lecture_2?.status === 'Present').length;
+  const l2Absent = attendanceRows.filter(r => r.lecture_2?.status === 'Absent').length;
+  const l1Rate = totalEnrolled > 0 ? Math.round((l1Present / totalEnrolled) * 100) : 0;
+  const l2Rate = totalEnrolled > 0 ? Math.round((l2Present / totalEnrolled) * 100) : 0;
+
   // Filter records based on selectedSlot
-  const allRecords = reportData?.records || [];
-  const filteredRecords = allRecords.filter(row => {
-    if (selectedSlot === '1') {
-      return row.lecture_1?.status && row.lecture_1?.status !== 'Not Marked';
-    }
-    if (selectedSlot === '2') {
-      return row.lecture_2?.status && row.lecture_2?.status !== 'Not Marked';
-    }
-    return true;
-  });
+  const filteredRecords = attendanceRows;
 
   return (
     <div className="d-flex flex-column gap-4 w-100">
@@ -348,14 +461,14 @@ export default function LectureAttendanceManager() {
         <div>
           <div className="d-flex align-items-center gap-2">
             <h4 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-5">
-              Lecture Attendance & Excel Data Import
+              Lecture Attendance & Data Ledger
             </h4>
             <span className="badge bg-danger-subtle text-danger border border-danger-subtle">
               2 Lectures / Day Multi-Slot
             </span>
           </div>
           <p className="text-sa-muted small m-0 mt-1">
-            Import bulk attendance from Excel, record separate lectures per day, and automatically dispatch SMS notifications to parents for absentees.
+            Manual attendance marking for specific batch, bulk 'Select All & Present', persistent MongoDB storage by date, and parent absence alerts.
           </p>
         </div>
 
@@ -379,7 +492,7 @@ export default function LectureAttendanceManager() {
           </Button>
 
           <Button
-            variant="primary"
+            variant="outline"
             icon={Upload}
             onClick={() => {
               setUploadResult(null);
@@ -390,6 +503,17 @@ export default function LectureAttendanceManager() {
           >
             Upload Excel Sheet
           </Button>
+
+          <Button
+            variant={hasUnsavedChanges ? 'primary' : 'outline'}
+            icon={Save}
+            loading={savingAttendance}
+            onClick={handleSaveAttendance}
+            disabled={attendanceRows.length === 0}
+            title="Save attendance records into MongoDB for the selected date"
+          >
+            Save Attendance to MongoDB
+          </Button>
         </div>
       </div>
 
@@ -397,15 +521,15 @@ export default function LectureAttendanceManager() {
       <div className="row g-3">
         <div className="col-12 col-sm-6 col-lg-3">
           <div className="sa-card p-3.5 bg-white h-100">
-            <span className="small text-sa-muted d-block fw-medium">Target Batch Enrolled</span>
+            <span className="small text-sa-muted d-block fw-medium">Batch Enrolled Students</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
               <h3 className="brand-font fw-extrabold text-sa-charcoal m-0">
-                {reportData?.total_enrolled || allStudents.length || 0}
+                {totalEnrolled}
               </h3>
               <span className="small text-muted">Students</span>
             </div>
             <span className="small text-muted d-block mt-1" style={{ fontSize: '11px' }}>
-              Batch: {selectedBatch}
+              Batch: {selectedBatchLabel}
             </span>
           </div>
         </div>
@@ -415,12 +539,12 @@ export default function LectureAttendanceManager() {
             <span className="small text-sa-muted d-block fw-medium">Lecture 1 (Morning Slot)</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
               <h3 className="brand-font fw-extrabold text-success m-0">
-                {reportData?.lecture_1_summary?.present || 0}
+                {l1Present}
               </h3>
-              <span className="small text-muted">Present ({reportData?.lecture_1_summary?.rate || 0}%)</span>
+              <span className="small text-muted">Present ({l1Rate}%)</span>
             </div>
             <span className="small text-danger fw-medium d-block mt-1" style={{ fontSize: '11px' }}>
-              {reportData?.lecture_1_summary?.absent || 0} Absentees (Alerted via SMS)
+              {l1Absent} Absentees (Alerts Ready)
             </span>
           </div>
         </div>
@@ -430,27 +554,30 @@ export default function LectureAttendanceManager() {
             <span className="small text-sa-muted d-block fw-medium">Lecture 2 (Afternoon Slot)</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
               <h3 className="brand-font fw-extrabold text-primary m-0">
-                {reportData?.lecture_2_summary?.present || 0}
+                {l2Present}
               </h3>
-              <span className="small text-muted">Present ({reportData?.lecture_2_summary?.rate || 0}%)</span>
+              <span className="small text-muted">Present ({l2Rate}%)</span>
             </div>
             <span className="small text-danger fw-medium d-block mt-1" style={{ fontSize: '11px' }}>
-              {reportData?.lecture_2_summary?.absent || 0} Absentees (Alerted via SMS)
+              {l2Absent} Absentees (Alerts Ready)
             </span>
           </div>
         </div>
 
         <div className="col-12 col-sm-6 col-lg-3">
           <div className="sa-card p-3.5 bg-white h-100 border-start border-4 border-warning">
-            <span className="small text-sa-muted d-block fw-medium">Parent Absence SMS Gateway</span>
+            <span className="small text-sa-muted d-block fw-medium">MongoDB Persistence Status</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
-              <h3 className="brand-font fw-extrabold text-dark m-0">
-                {(reportData?.lecture_1_summary?.absent || 0) + (reportData?.lecture_2_summary?.absent || 0)}
-              </h3>
-              <span className="small text-muted">Sent Today</span>
+              <h4 className="brand-font fw-bold m-0 fs-6">
+                {hasUnsavedChanges ? (
+                  <span className="text-warning">⚠️ Unsaved Changes</span>
+                ) : (
+                  <span className="text-success">✅ Fixed in DB</span>
+                )}
+              </h4>
             </div>
-            <span className="small text-success d-flex align-items-center gap-1 mt-1" style={{ fontSize: '11px' }}>
-              <CheckCircle2 size={12} /> Auto Deduplication Protected
+            <span className="small text-muted d-block mt-1" style={{ fontSize: '11px' }}>
+              Date: {selectedDate} ({totalEnrolled} students)
             </span>
           </div>
         </div>
@@ -458,22 +585,20 @@ export default function LectureAttendanceManager() {
 
       {/* Filter Toolbar */}
       <div className="sa-card p-3 bg-white">
-        <div className="row g-2 align-items-center">
-          <div className="col-12 col-md-4">
-            <label className="small text-muted fw-semibold mb-1 d-block">Filter Batch</label>
-            <select
-              className="form-select form-select-sm"
-              value={selectedBatch}
-              onChange={(e) => setSelectedBatch(e.target.value)}
-            >
-              {batches.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="col-12 col-md-3">
-            <label className="small text-muted fw-semibold mb-1 d-block">Attendance Date</label>
+        <div className="mb-2">
+          <BranchBatchSelector
+            branch={selectedBranch}
+            onBranchChange={setSelectedBranch}
+            session={selectedSession}
+            onSessionChange={setSelectedSession}
+            academicBatch={selectedAcademicBatch}
+            onAcademicBatchChange={setSelectedAcademicBatch}
+            layout="grid"
+          />
+        </div>
+        <div className="row g-2 align-items-center pt-2 border-top">
+          <div className="col-12 col-md-5">
+            <label className="small text-muted fw-semibold mb-1 d-block">Attendance Date (Fixed & Stored per Date)</label>
             <input
               type="date"
               className="form-control form-control-sm"
@@ -482,7 +607,7 @@ export default function LectureAttendanceManager() {
             />
           </div>
 
-          <div className="col-12 col-md-3">
+          <div className="col-12 col-md-5">
             <label className="small text-muted fw-semibold mb-1 d-block">Lecture Slot View</label>
             <select
               className="form-select form-select-sm"
@@ -508,15 +633,96 @@ export default function LectureAttendanceManager() {
         </div>
       </div>
 
+      {/* Quick Attendance Marking Action Bar */}
+      <div className="sa-card p-3 bg-white border border-secondary-subtle shadow-2xs">
+        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <span className="small fw-bold text-sa-charcoal d-flex align-items-center gap-1.5 me-1">
+              <CheckCircle2 size={16} className="text-success" />
+              <span>Quick Actions:</span>
+            </span>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-success fw-bold text-white d-inline-flex align-items-center gap-1.5 shadow-2xs px-3"
+              onClick={() => handleMarkAll('all', 'Present')}
+              disabled={attendanceRows.length === 0}
+              title="Mark all students in this batch as Present for both lectures"
+            >
+              <CheckCheck size={15} />
+              <span>Select All and Present</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              onClick={() => handleMarkAll(1, 'Present')}
+              disabled={attendanceRows.length === 0}
+              title="Mark all students Present for Lecture 1 (Morning)"
+            >
+              <Check size={13} />
+              <span>Mark All Present (L1)</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              onClick={() => handleMarkAll(2, 'Present')}
+              disabled={attendanceRows.length === 0}
+              title="Mark all students Present for Lecture 2 (Afternoon)"
+            >
+              <Check size={13} />
+              <span>Mark All Present (L2)</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-danger bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              onClick={() => handleMarkAll('all', 'Absent')}
+              disabled={attendanceRows.length === 0}
+              title="Mark all students as Absent"
+            >
+              <X size={13} />
+              <span>Mark All Absent</span>
+            </button>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            {hasUnsavedChanges ? (
+              <span className="badge bg-warning-subtle text-dark border border-warning-subtle py-1.5 px-2.5 d-inline-flex align-items-center gap-1">
+                <AlertCircle size={12} className="text-warning" />
+                <span>Unsaved Changes</span>
+              </span>
+            ) : (
+              <span className="badge bg-success-subtle text-success border border-success-subtle py-1.5 px-2.5 d-inline-flex align-items-center gap-1">
+                <CheckCircle2 size={12} />
+                <span>Saved & Fixed ({selectedDate})</span>
+              </span>
+            )}
+
+            <Button
+              variant={hasUnsavedChanges ? 'primary' : 'outline'}
+              icon={Save}
+              loading={savingAttendance}
+              onClick={handleSaveAttendance}
+              disabled={attendanceRows.length === 0}
+              title="Save all lecture attendance records into MongoDB database"
+            >
+              Save Attendance to MongoDB
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Attendance Ledger Table */}
       <div className="sa-card p-4 bg-white">
         <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
           <div>
             <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
-              Daily Lecture Attendance Ledger ({filteredRecords.length} Students)
+              Daily Lecture Attendance Ledger ({filteredRecords.length} Students in Batch)
             </h5>
             <span className="small text-muted">
-              {reportData?.formatted_date || selectedDate} — Students may attend 2 separate lectures daily.
+              {reportData?.formatted_date || selectedDate} — Students may attend 2 separate lectures daily. Click 'Present' or 'Absent' to mark individually.
             </span>
           </div>
 
@@ -568,25 +774,65 @@ export default function LectureAttendanceManager() {
             },
             {
               key: 'lecture_1',
-              title: 'Lecture 1 (Morning)',
-              render: (val) => {
-                const st = val?.status || 'Not Marked';
+              title: (
+                <div className="d-flex align-items-center justify-content-between gap-2">
+                  <span>Lecture 1 (Morning)</span>
+                  <button
+                    type="button"
+                    className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-1.5 rounded-1"
+                    style={{ fontSize: '10px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAll(1, 'Present');
+                    }}
+                    title="Mark all students Present for Lecture 1"
+                  >
+                    All Present
+                  </button>
+                </div>
+              ),
+              render: (val, row) => {
+                const st = row.lecture_1?.status || val?.status || 'Not Marked';
+                const isPresent = st === 'Present';
+                const isAbsent = st === 'Absent';
                 return (
-                  <div>
-                    <span
-                      className={`badge ${
-                        st === 'Present'
-                          ? 'bg-success text-white'
-                          : st === 'Absent'
-                            ? 'bg-danger text-white'
-                            : 'bg-light text-muted border'
-                      }`}
-                    >
-                      {st}
-                    </span>
-                    {st === 'Absent' && (
-                      <span className="d-block small text-success mt-1 d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
-                        <Send size={10} /> Parent Notified
+                  <div className="d-flex flex-column gap-1">
+                    <div className="btn-group btn-group-sm" role="group" aria-label="Mark Lecture 1">
+                      <button
+                        type="button"
+                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
+                          isPresent
+                            ? 'btn-success text-white shadow-2xs'
+                            : 'btn-outline-success bg-white text-success'
+                        }`}
+                        style={{ fontSize: '11px', minWidth: '66px' }}
+                        onClick={() => handleMarkStatus(row.id || row.student_id, 1, 'Present')}
+                        title="Mark Present for Lecture 1"
+                      >
+                        ✓ Present
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
+                          isAbsent
+                            ? 'btn-danger text-white shadow-2xs'
+                            : 'btn-outline-danger bg-white text-danger'
+                        }`}
+                        style={{ fontSize: '11px', minWidth: '66px' }}
+                        onClick={() => handleMarkStatus(row.id || row.student_id, 1, 'Absent')}
+                        title="Mark Absent for Lecture 1"
+                      >
+                        ✕ Absent
+                      </button>
+                    </div>
+                    {isAbsent && (
+                      <span className="small text-danger fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
+                        <AlertCircle size={11} /> Absent Marked
+                      </span>
+                    )}
+                    {!isPresent && !isAbsent && (
+                      <span className="small text-muted" style={{ fontSize: '10px' }}>
+                        ⚪ Not Marked
                       </span>
                     )}
                   </div>
@@ -595,25 +841,65 @@ export default function LectureAttendanceManager() {
             },
             {
               key: 'lecture_2',
-              title: 'Lecture 2 (Afternoon)',
-              render: (val) => {
-                const st = val?.status || 'Not Marked';
+              title: (
+                <div className="d-flex align-items-center justify-content-between gap-2">
+                  <span>Lecture 2 (Afternoon)</span>
+                  <button
+                    type="button"
+                    className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-1.5 rounded-1"
+                    style={{ fontSize: '10px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAll(2, 'Present');
+                    }}
+                    title="Mark all students Present for Lecture 2"
+                  >
+                    All Present
+                  </button>
+                </div>
+              ),
+              render: (val, row) => {
+                const st = row.lecture_2?.status || val?.status || 'Not Marked';
+                const isPresent = st === 'Present';
+                const isAbsent = st === 'Absent';
                 return (
-                  <div>
-                    <span
-                      className={`badge ${
-                        st === 'Present'
-                          ? 'bg-success text-white'
-                          : st === 'Absent'
-                            ? 'bg-danger text-white'
-                            : 'bg-light text-muted border'
-                      }`}
-                    >
-                      {st}
-                    </span>
-                    {st === 'Absent' && (
-                      <span className="d-block small text-success mt-1 d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
-                        <Send size={10} /> Parent Notified
+                  <div className="d-flex flex-column gap-1">
+                    <div className="btn-group btn-group-sm" role="group" aria-label="Mark Lecture 2">
+                      <button
+                        type="button"
+                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
+                          isPresent
+                            ? 'btn-success text-white shadow-2xs'
+                            : 'btn-outline-success bg-white text-success'
+                        }`}
+                        style={{ fontSize: '11px', minWidth: '66px' }}
+                        onClick={() => handleMarkStatus(row.id || row.student_id, 2, 'Present')}
+                        title="Mark Present for Lecture 2"
+                      >
+                        ✓ Present
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
+                          isAbsent
+                            ? 'btn-danger text-white shadow-2xs'
+                            : 'btn-outline-danger bg-white text-danger'
+                        }`}
+                        style={{ fontSize: '11px', minWidth: '66px' }}
+                        onClick={() => handleMarkStatus(row.id || row.student_id, 2, 'Absent')}
+                        title="Mark Absent for Lecture 2"
+                      >
+                        ✕ Absent
+                      </button>
+                    </div>
+                    {isAbsent && (
+                      <span className="small text-danger fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
+                        <AlertCircle size={11} /> Absent Marked
+                      </span>
+                    )}
+                    {!isPresent && !isAbsent && (
+                      <span className="small text-muted" style={{ fontSize: '10px' }}>
+                        ⚪ Not Marked
                       </span>
                     )}
                   </div>
@@ -660,6 +946,23 @@ export default function LectureAttendanceManager() {
           data={filteredRecords}
           loading={loading}
         />
+
+        {hasUnsavedChanges && (
+          <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-3 mt-3 bg-warning-subtle border border-warning rounded-3 gap-2">
+            <span className="small text-dark fw-bold d-flex align-items-center gap-1.5">
+              <AlertCircle size={16} className="text-warning" />
+              You have unsaved attendance modifications for {selectedDate}. Click Save to commit them to MongoDB.
+            </span>
+            <Button
+              variant="primary"
+              icon={Save}
+              loading={savingAttendance}
+              onClick={handleSaveAttendance}
+            >
+              Save Attendance to MongoDB
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* UPLOAD EXCEL SHEET MODAL */}
@@ -697,17 +1000,16 @@ export default function LectureAttendanceManager() {
 
             <form onSubmit={handleUploadSubmit} className="d-flex flex-column gap-3">
               <div className="row g-2">
-                <div className="col-12 col-md-6">
-                  <label className="small text-muted fw-semibold mb-1 d-block">Target Batch</label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={uploadBatch}
-                    onChange={(e) => setUploadBatch(e.target.value)}
-                  >
-                    {batches.map(b => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
+                <div className="col-12">
+                  <BranchBatchSelector
+                    branch={uploadBranch}
+                    onBranchChange={setUploadBranch}
+                    session={uploadSession}
+                    onSessionChange={setUploadSession}
+                    academicBatch={uploadAcademicBatch}
+                    onAcademicBatchChange={setUploadAcademicBatch}
+                    layout="grid"
+                  />
                 </div>
 
                 <div className="col-12 col-md-6">

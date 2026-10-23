@@ -35,7 +35,7 @@ import StudentDetails from '../pages/admin/StudentDetails';
 import TeacherList from '../pages/admin/TeacherList';
 import AddTeacher from '../pages/admin/AddTeacher';
 import TeacherSalary from '../pages/admin/TeacherSalary';
-import RFIDAttendance from '../pages/admin/RFIDAttendance';
+import AttendanceManagement from '../pages/admin/RFIDAttendance';
 import TeacherAttendanceTracker from '../pages/admin/TeacherAttendanceTracker';
 import AttendanceReport from '../pages/admin/AttendanceReport';
 import FeeCollection from '../pages/admin/FeeCollection';
@@ -162,7 +162,7 @@ export default function AppRoutes() {
         <Route path="/admin/teachers/attendance" element={<TeacherAttendanceTracker />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
         <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
-        <Route path="/admin/attendance" element={<RFIDAttendance />} />
+        <Route path="/admin/attendance" element={<AttendanceManagement />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
         <Route path="/admin/fees" element={<FeeCollection />} />
         <Route path="/admin/fees/structure" element={<FeeStructure />} />

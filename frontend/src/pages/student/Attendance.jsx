@@ -26,7 +26,7 @@ export default function StudentAttendance() {
       <div>
         <BackButton to="/student/dashboard" label="Back to Dashboard" />
         <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-          My RFID Attendance Records
+          My Attendance Records
         </h3>
         <span className="small text-sa-muted">
           Automated gate card readings and daily attendance verification
@@ -44,8 +44,8 @@ export default function StudentAttendance() {
 
         <div className="col-12 col-md-4">
           <div className="sa-card p-4">
-            <span className="small text-sa-muted fw-semibold">ASSIGNED RFID SMART CARD</span>
-            <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">RFID-984210</h2>
+            <span className="small text-sa-muted fw-semibold">ASSIGNED SMART CARD</span>
+            <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">CARD-984210</h2>
             <span className="small text-success d-flex align-items-center gap-1 mt-1">
               <CheckCircle2 size={14} /> Active & Linked
             </span>

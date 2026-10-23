@@ -54,7 +54,7 @@ export default function AdminProfile() {
     qualification: user?.qualification || 'M.Sc. (Physics), MBA Educational Administration',
     joiningDate: user?.joiningDate || '2021-08-01',
     emergencyContact: user?.emergencyContact || '+91 98220 99999',
-    bio: user?.bio || 'Oversees daily academic operations, student admissions, RFID attendance integration, faculty coordination, and fee collection workflows for Kolhapur campus.',
+    bio: user?.bio || 'Oversees daily academic operations, student admissions, attendance integration, faculty coordination, and fee collection workflows for Kolhapur campus.',
     avatar: user?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
   });
 
@@ -722,9 +722,9 @@ export default function AdminProfile() {
 
           <div className="row g-3">
             {[
-              { title: 'Admissions & Registration', icon: Users, status: 'Full Control', desc: 'Register students, issue RFID cards, manage batches.' },
+              { title: 'Admissions & Registration', icon: Users, status: 'Full Control', desc: 'Register students, issue student cards, manage batches.' },
               { title: 'Student Management', icon: Users, status: 'Full Control', desc: 'Browse student ledgers, profiles, and academic records.' },
-              { title: 'RFID Gate Attendance', icon: ScanLine, status: 'Full Control', desc: 'Monitor live turnstiles, simulate taps, and send SMS alerts.' },
+              { title: 'Gate Attendance', icon: ScanLine, status: 'Full Control', desc: 'Monitor live turnstiles, simulate taps, and send SMS alerts.' },
               { title: 'Fee Collection Counter', icon: CreditCard, status: 'Full Control', desc: 'Collect tuition fees, manage installments, generate GST receipts.' },
               { title: 'Examination Scheduler', icon: FileText, status: 'Full Control', desc: 'Create exams, assign halls, monitor marks entry.' },
               { title: 'Faculty & Payroll', icon: Award, status: 'Manage & Disburse', desc: 'Onboard faculty, track salary drafts, record disbursements.' },

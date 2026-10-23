@@ -58,6 +58,10 @@ class InventoryDeliveryCreate(BaseModel):
     handed_over_to: Optional[str] = None
     student_roll_no: Optional[str] = None
     standard: Optional[str] = None
+    branch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    session: Optional[str] = None
+    batch: Optional[str] = None
     status: Optional[str] = "Handed Over"  # "Handed Over" or "Pending Pickup"
     verified_by: Optional[str] = None
     remarks: Optional[str] = None
@@ -75,6 +79,10 @@ class InventoryDeliveryUpdate(BaseModel):
     date: Optional[datetime] = None
     verified_by: Optional[str] = None
     handed_over_by: Optional[str] = None
+    branch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    session: Optional[str] = None
+    batch: Optional[str] = None
     remarks: Optional[str] = None
 
 class InventoryDeliveryResponse(BaseModel):
@@ -97,4 +105,10 @@ class InventoryDeliveryResponse(BaseModel):
     date: str = ""
     raw_date: Optional[str] = None
     verified_by: Optional[str] = "--"
+    branch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    academicBatch: Optional[str] = None
+    session: Optional[str] = None
+    batch: Optional[str] = None
+    standard: Optional[str] = None
     remarks: Optional[str] = ""

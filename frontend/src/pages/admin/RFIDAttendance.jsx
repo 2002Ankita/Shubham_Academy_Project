@@ -89,7 +89,7 @@ export default function RFIDAttendance() {
           style={{ fontSize: '13px' }}
         >
           <ScanLine size={16} />
-          <span>Student RFID Gate Attendance</span>
+          <span>Student Gate Attendance</span>
         </button>
       </div>
 
@@ -99,20 +99,20 @@ export default function RFIDAttendance() {
       {/* Tab 2: Teacher Check-In & Check-Out Tracking */}
       {activeTab === 'teachers' && <TeacherAttendanceTracker />}
 
-      {/* Tab 3: Student RFID Gate Attendance */}
+      {/* Tab 3: Student Gate Attendance */}
       {activeTab === 'students' && (
 
         <div className="d-flex flex-column gap-4">
           <div>
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-              RFID Gate Attendance Management
+              Student Gate Attendance Management
             </h3>
             <span className="small text-sa-muted">
-              Automated smart card reader monitoring, gate telemetry & parent SMS gateway
+              Automated card reader monitoring, gate telemetry & parent SMS gateway
             </span>
           </div>
 
-          {/* Interactive RFID Terminal Widget */}
+          {/* Interactive Attendance Terminal Widget */}
           <AttendanceForm onScanRfid={handleScanRfid} />
 
           {/* Gate Scans Ledger */}
@@ -121,7 +121,7 @@ export default function RFIDAttendance() {
               <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
                 Today's Gate Access Records
               </h5>
-              <span className="badge bg-success small">RFID Broker Online</span>
+              <span className="badge bg-success small">Terminal Online</span>
             </div>
 
             <Table
@@ -129,7 +129,7 @@ export default function RFIDAttendance() {
                 { key: 'time', title: 'Tap Time', render: (val) => <span className="fw-bold">{val}</span> },
                 { key: 'studentName', title: 'Student Name' },
                 { key: 'rollNumber', title: 'Roll Number' },
-                { key: 'rfidCard', title: 'Badge Card UID', render: (val) => <span className="badge bg-light text-dark border">{val}</span> },
+                { key: 'rfidCard', title: 'Card UID', render: (val) => <span className="badge bg-light text-dark border">{val}</span> },
                 { key: 'gate', title: 'Gate Terminal' },
                 {
                   key: 'status',

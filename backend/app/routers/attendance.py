@@ -6,7 +6,9 @@ from app.schemas.attendance import (
     TeacherAttendanceRecord,
     TeacherAttendanceSummary,
     TeacherManualAttendanceCreate,
-    AttendanceUpdate
+    AttendanceUpdate,
+    BatchAttendanceLedgerResponse,
+    BatchAttendanceLedgerSaveRequest
 )
 from app.services.attendance_service import (
     mark_attendance,
@@ -20,12 +22,44 @@ from app.services.attendance_service import (
     update_attendance_record,
     delete_attendance_record,
     get_all_attendance_logs,
-    scan_rfid_card
+    scan_rfid_card,
+    get_batch_date_attendance,
+    save_batch_date_attendance
 )
 from app.services.auth_service import get_current_user
 from app.routers.auth import oauth2_scheme
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
+
+@router.get("/ledger", response_model=BatchAttendanceLedgerResponse)
+async def get_batch_attendance_ledger(
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    branch: Optional[str] = Query(None, description="Branch (Tarabai Park or Mangalwar Peth)"),
+    academic_batch: Optional[str] = Query(None, description="Academic batch (e.g. 11th PCM)"),
+    session: Optional[str] = Query(None, description="Session (Morning/Afternoon) for Mangalwar Peth"),
+    batch: Optional[str] = Query(None, description="Batch filter fallback"),
+    token: str = Depends(oauth2_scheme)
+):
+    await get_current_user(token)
+    return await get_batch_date_attendance(
+        date_str=date,
+        branch=branch,
+        academic_batch=academic_batch,
+        session=session,
+        batch=batch
+    )
+
+@router.post("/ledger")
+async def save_batch_attendance_ledger(
+    payload: BatchAttendanceLedgerSaveRequest,
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = getattr(user, "role", "").upper().replace("-", "_")
+    if role not in ["ADMIN", "SUPER_ADMIN", "TEACHER"]:
+        raise HTTPException(status_code=403, detail="Not authorized to save attendance ledger")
+    return await save_batch_date_attendance(payload.model_dump())
+
 
 @router.get("/teachers", response_model=List[TeacherAttendanceRecord])
 async def list_teachers_attendance(

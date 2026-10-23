@@ -433,7 +433,7 @@ export default function Contact() {
                   <option value="Admissions & Student Welfare">Admissions & Student Welfare</option>
                   <option value="Accounts & Fee Helpdesk">Accounts & Fee Helpdesk</option>
                   <option value="Examinations & Marks Cell">Examinations & Marks Cell</option>
-                  <option value="RFID Attendance & Technical Support">RFID Attendance & Technical Support</option>
+                  <option value="Attendance & Technical Support">Attendance & Technical Support</option>
                 </select>
               </div>
 

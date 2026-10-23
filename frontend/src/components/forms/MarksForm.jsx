@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Bookmark, Send, BookText, X, Search, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { formatStudentBatchDisplay } from '../../config/branchBatchConfig';
 
 export default function MarksForm({
   students = [],
@@ -461,7 +462,7 @@ export default function MarksForm({
                             {s.name || s.student_id}
                           </span>
                           <span style={{ fontSize: '11px', color: '#64748B' }}>
-                            Roll: {s.rollNumber || s.student_id || 'N/A'} • {s.standard || '12th Science'}
+                            Roll: {s.rollNumber || s.student_id || 'N/A'} • {formatStudentBatchDisplay(s)}
                           </span>
                         </div>
                       </div>
@@ -505,7 +506,7 @@ export default function MarksForm({
                   Roll: {selectedStudent.rollNumber || selectedStudent.student_id || 'N/A'}
                 </span>
                 <span className="text-muted small text-truncate d-none d-sm-inline">
-                  • {selectedStudent.standard || '12th Science'}
+                  • {formatStudentBatchDisplay(selectedStudent)}
                 </span>
               </div>
               <button

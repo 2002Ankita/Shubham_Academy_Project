@@ -140,6 +140,12 @@ async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
     if attendance_in.teacher_id:
         teacher = await resolve_teacher(str(attendance_in.teacher_id))
         
+    # Inherit branch, academic_batch, session from student admission profile
+    b_branch = attendance_in.branch or (student.branch if student else None)
+    b_academic_batch = attendance_in.academic_batch or (student.academic_batch if student else None)
+    b_session = attendance_in.session or (student.session if student else None)
+    b_batch = attendance_in.batch or (student.batch if student else None)
+
     attendance = Attendance(
         student=student,
         teacher=teacher,
@@ -149,7 +155,13 @@ async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
         check_in_time=attendance_in.check_in_time,
         check_out_time=attendance_in.check_out_time,
         total_hours=attendance_in.total_hours,
-        remarks=attendance_in.remarks
+        remarks=attendance_in.remarks,
+        branch=b_branch,
+        academic_batch=b_academic_batch,
+        session=b_session,
+        batch=b_batch,
+        lecture_slot=attendance_in.lecture_slot,
+        subject=attendance_in.subject
     )
     await attendance.insert()
     return attendance
@@ -971,7 +983,11 @@ async def scan_rfid_card(rfid_card: str, gate: str = "Gate 1") -> dict:
         date=now,
         status="Present",
         rfid_scan_time=now,
-        remarks=f"Scanned at {gate}"
+        remarks=f"Scanned at {gate}",
+        branch=student.branch,
+        academic_batch=student.academic_batch,
+        session=student.session,
+        batch=student.batch
     )
     await att.insert()
     
@@ -990,3 +1006,301 @@ async def scan_rfid_card(rfid_card: str, gate: str = "Gate 1") -> dict:
             "status": "Present"
         }
     }
+
+async def get_batch_date_attendance(
+    date_str: Optional[str] = None,
+    branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    session: Optional[str] = None,
+    batch: Optional[str] = None
+) -> dict:
+    from app.core.branch_config import student_matches_filters, parse_student_branch_batch, BRANCH_MANGALWAR
+
+    now = datetime.utcnow()
+    target_date = now
+    if date_str:
+        try:
+            clean_date = date_str.split("T")[0]
+            target_date = datetime.strptime(clean_date, "%Y-%m-%d")
+        except Exception:
+            target_date = now
+
+    date_formatted = target_date.strftime("%Y-%m-%d")
+    pretty_date = target_date.strftime("%d %b %Y")
+
+    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    target_batch = academic_batch or batch
+    all_students = await Student.find_all().to_list()
+    matched_students = []
+
+    for s in all_students:
+        if student_matches_filters(s, branch_filter=branch, academic_batch_filter=target_batch, session_filter=session):
+            matched_students.append(s)
+
+    matched_students.sort(key=lambda s: getattr(s, "student_id", "") or "")
+
+    mongo_id_list = [s.id for s in matched_students]
+
+    existing_attendance = []
+    if mongo_id_list:
+        existing_attendance = await Attendance.find({
+            "$and": [
+                {"date": {"$gte": day_start, "$lte": day_end}},
+                {"$or": [
+                    {"student.$id": {"$in": mongo_id_list}},
+                    {"student.id": {"$in": mongo_id_list}},
+                    {"student": {"$in": mongo_id_list}}
+                ]}
+            ]
+        }).to_list()
+
+    def _extract_sid(student_link) -> Optional[str]:
+        if not student_link:
+            return None
+        if hasattr(student_link, "id"):
+            return str(student_link.id)
+        if hasattr(student_link, "ref") and hasattr(student_link.ref, "id"):
+            return str(student_link.ref.id)
+        if isinstance(student_link, dict) and "$id" in student_link:
+            return str(student_link["$id"])
+        return str(student_link)
+
+    slot_map: Dict[tuple, Attendance] = {}
+    for att in existing_attendance:
+        sid = _extract_sid(att.student)
+        slot = getattr(att, "lecture_slot", 1) or 1
+        if sid:
+            slot_map[(sid, slot)] = att
+
+    records = []
+    l1_present = 0
+    l1_absent = 0
+    l2_present = 0
+    l2_absent = 0
+
+    for s in matched_students:
+        sid_str = str(s.id)
+        st_branch, st_acad_batch, st_session, _ = parse_student_branch_batch(
+            s.branch, s.batch, s.academic_batch, s.session
+        )
+        session_str = f" ({st_session})" if st_session and st_branch == BRANCH_MANGALWAR else ""
+        batch_label = f"{st_branch} • {st_acad_batch}{session_str}"
+
+        st_name = getattr(s, "full_name", None)
+        if not st_name and s.user:
+            try:
+                u = await User.get(s.user.ref.id) if hasattr(s.user, "ref") else s.user
+                if u:
+                    st_name = u.full_name
+            except Exception:
+                pass
+        if not st_name:
+            st_name = s.student_id
+
+        # Slot 1
+        att_slot1 = slot_map.get((sid_str, 1))
+        st1_status = att_slot1.status if att_slot1 else "Not Marked"
+        st1_subject = (att_slot1.subject if att_slot1 and att_slot1.subject else None) or "Physics"
+        st1_id = str(att_slot1.id) if att_slot1 else None
+
+        if st1_status == "Present":
+            l1_present += 1
+        elif st1_status == "Absent":
+            l1_absent += 1
+
+        # Slot 2
+        att_slot2 = slot_map.get((sid_str, 2))
+        st2_status = att_slot2.status if att_slot2 else "Not Marked"
+        st2_subject = (att_slot2.subject if att_slot2 and att_slot2.subject else None) or "Mathematics"
+        st2_id = str(att_slot2.id) if att_slot2 else None
+
+        if st2_status == "Present":
+            l2_present += 1
+        elif st2_status == "Absent":
+            l2_absent += 1
+
+        records.append({
+            "id": sid_str,
+            "student_id": s.student_id,
+            "roll_number": s.student_id,
+            "student_name": st_name,
+            "batch": batch_label,
+            "branch": st_branch,
+            "academic_batch": st_acad_batch,
+            "session": st_session,
+            "parent_mobile": getattr(s, "parent_mobile", None) or getattr(s, "mobile_number", None) or "+91 98220 33445",
+            "lecture_1": {
+                "slot": 1,
+                "subject": st1_subject,
+                "time": "09:00 AM – 10:30 AM",
+                "status": st1_status,
+                "attendance_id": st1_id,
+                "notification_sent": st1_status == "Absent"
+            },
+            "lecture_2": {
+                "slot": 2,
+                "subject": st2_subject,
+                "time": "11:00 AM – 12:30 PM",
+                "status": st2_status,
+                "attendance_id": st2_id,
+                "notification_sent": st2_status == "Absent"
+            }
+        })
+
+    tot = len(records)
+    l1_rate = round((l1_present / tot) * 100) if tot > 0 else 0
+    l2_rate = round((l2_present / tot) * 100) if tot > 0 else 0
+
+    return {
+        "date": date_formatted,
+        "formatted_date": pretty_date,
+        "branch": branch or "All",
+        "academic_batch": academic_batch or "All",
+        "session": session or "",
+        "total_enrolled": tot,
+        "lecture_1_summary": {
+            "present": l1_present,
+            "absent": l1_absent,
+            "rate": l1_rate
+        },
+        "lecture_2_summary": {
+            "present": l2_present,
+            "absent": l2_absent,
+            "rate": l2_rate
+        },
+        "records": records
+    }
+
+async def save_batch_date_attendance(payload: dict) -> dict:
+    from app.services.student_service import resolve_student
+    from app.core.branch_config import parse_student_branch_batch
+
+    date_str = payload.get("date")
+    if not date_str:
+        raise HTTPException(status_code=400, detail="Date is required (YYYY-MM-DD)")
+
+    clean_date = date_str.split("T")[0]
+    target_date = datetime.strptime(clean_date, "%Y-%m-%d")
+    day_start = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    records = payload.get("records") or []
+    if not records:
+        raise HTTPException(status_code=400, detail="No attendance records provided to save")
+
+    saved_count = 0
+    absent_count = 0
+
+    for item in records:
+        student_id_val = item.get("student_id")
+        if not student_id_val:
+            continue
+        student = await resolve_student(str(student_id_val))
+        if not student:
+            continue
+
+        st_branch, st_acad_batch, st_session, _ = parse_student_branch_batch(
+            student.branch, student.batch, student.academic_batch, student.session
+        )
+
+        # Slot 1
+        st1_status = item.get("lecture_1_status")
+        if st1_status and st1_status != "Not Marked":
+            st1_subject = item.get("lecture_1_subject") or "Physics"
+            if st1_status == "Absent":
+                absent_count += 1
+
+            existing_s1 = await Attendance.find_one({
+                "$and": [
+                    {"$or": [
+                        {"student.$id": student.id},
+                        {"student.id": student.id},
+                        {"student": student.id}
+                    ]},
+                    {"date": {"$gte": day_start, "$lte": day_end}},
+                    {"lecture_slot": 1}
+                ]
+            })
+
+            if existing_s1:
+                existing_s1.status = st1_status
+                existing_s1.subject = st1_subject
+                existing_s1.branch = st_branch
+                existing_s1.academic_batch = st_acad_batch
+                existing_s1.session = st_session
+                existing_s1.batch = st_acad_batch
+                if item.get("remarks"):
+                    existing_s1.remarks = item["remarks"]
+                await existing_s1.save()
+            else:
+                att1 = Attendance(
+                    student=student,
+                    date=day_start + timedelta(hours=9),
+                    status=st1_status,
+                    lecture_slot=1,
+                    subject=st1_subject,
+                    branch=st_branch,
+                    academic_batch=st_acad_batch,
+                    session=st_session,
+                    batch=st_acad_batch,
+                    remarks=item.get("remarks")
+                )
+                await att1.insert()
+            saved_count += 1
+
+        # Slot 2
+        st2_status = item.get("lecture_2_status")
+        if st2_status and st2_status != "Not Marked":
+            st2_subject = item.get("lecture_2_subject") or "Mathematics"
+            if st2_status == "Absent":
+                absent_count += 1
+
+            existing_s2 = await Attendance.find_one({
+                "$and": [
+                    {"$or": [
+                        {"student.$id": student.id},
+                        {"student.id": student.id},
+                        {"student": student.id}
+                    ]},
+                    {"date": {"$gte": day_start, "$lte": day_end}},
+                    {"lecture_slot": 2}
+                ]
+            })
+
+            if existing_s2:
+                existing_s2.status = st2_status
+                existing_s2.subject = st2_subject
+                existing_s2.branch = st_branch
+                existing_s2.academic_batch = st_acad_batch
+                existing_s2.session = st_session
+                existing_s2.batch = st_acad_batch
+                if item.get("remarks"):
+                    existing_s2.remarks = item["remarks"]
+                await existing_s2.save()
+            else:
+                att2 = Attendance(
+                    student=student,
+                    date=day_start + timedelta(hours=11),
+                    status=st2_status,
+                    lecture_slot=2,
+                    subject=st2_subject,
+                    branch=st_branch,
+                    academic_batch=st_acad_batch,
+                    session=st_session,
+                    batch=st_acad_batch,
+                    remarks=item.get("remarks")
+                )
+                await att2.insert()
+            saved_count += 1
+
+    return {
+        "success": True,
+        "message": f"Successfully saved {saved_count} lecture attendance record(s) for {clean_date} in MongoDB",
+        "date": clean_date,
+        "saved_count": saved_count,
+        "absent_count": absent_count,
+        "students_processed": len(records)
+    }
+

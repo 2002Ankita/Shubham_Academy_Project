@@ -16,6 +16,11 @@ async def lifespan(app: FastAPI):
         await ensure_default_books()
     except Exception:
         pass
+    try:
+        from app.services.student_service import normalize_all_students
+        await normalize_all_students()
+    except Exception:
+        pass
     from app.core.scheduler import start_scheduler, shutdown_scheduler
     start_scheduler()
     yield

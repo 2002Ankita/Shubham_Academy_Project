@@ -21,9 +21,12 @@ export const studentService = {
         phone: student.mobile_number,
         parentPhone: student.parent_mobile,
         parentName: student.parent_name,
-        standard: student.standard || 'Pending Selection',
-        batch: student.batch || 'Pending Allocation',
-        branch: student.branch || 'Kolhapur Main Branch',
+        standard: student.standard || '11th Science',
+        batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+        academicBatch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+        academic_batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+        session: student.session || null,
+        branch: student.branch || 'Tarabai Park',
         status: student.is_active !== false ? 'Active' : 'Inactive',
         rollNumber: student.student_id || 'N/A',
         totalFees,
@@ -67,9 +70,12 @@ export const studentService = {
       phone: student.mobile_number,
       parentPhone: student.parent_mobile,
       parentName: student.parent_name,
-      standard: student.standard,
-      batch: student.batch,
-      branch: student.branch,
+      standard: student.standard || '11th Science',
+      batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+      academicBatch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+      academic_batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+      session: student.session || null,
+      branch: student.branch || 'Tarabai Park',
       status: student.is_active !== false ? 'Active' : 'Inactive',
       rollNumber: student.student_id || 'N/A',
       totalFees,
@@ -108,6 +114,9 @@ export const studentService = {
     const discReason = data.discount_reason || data.discountReason || (discAmount > 0 ? 'Scholarship / Merit Concession' : '');
     const recommender = data.discount_recommended_by || data.discountRecommendedBy || data.discount_offered_by || data.discountOfferedBy || '';
 
+    const chosenBatch = data.academicBatch || data.academic_batch || data.batch || '11th PCM';
+    const chosenStandard = data.standard || (chosenBatch.startsWith('12') ? '12th Science' : '11th Science');
+
     const payload = {
       student_id: data.rollNumber || data.student_id || undefined,
       full_name: (data.name || data.full_name || data.fullName || '').trim(),
@@ -122,9 +131,11 @@ export const studentService = {
       gender: data.gender || undefined,
       address: data.address || undefined,
       parent_name: data.parentName || data.parent_name || undefined,
-      standard: data.standard || data.course || undefined,
-      batch: data.batch || undefined,
-      branch: data.branch || 'Kolhapur Main Branch',
+      standard: chosenStandard,
+      batch: chosenBatch,
+      academic_batch: chosenBatch,
+      session: data.session || undefined,
+      branch: data.branch || 'Tarabai Park',
       academic_year: data.academic_year || '2025-2026',
       rfid_tag: data.rfidCard || data.rfid_tag || undefined,
       admission_date: data.admission_date || data.admissionDate || new Date().toISOString(),
@@ -152,6 +163,9 @@ export const studentService = {
     if (data.parentName) payload.parent_name = data.parentName;
     if (data.standard) payload.standard = data.standard;
     if (data.batch) payload.batch = data.batch;
+    if (data.academicBatch) payload.academic_batch = data.academicBatch;
+    if (data.academic_batch) payload.academic_batch = data.academic_batch;
+    if (data.session !== undefined) payload.session = data.session;
     if (data.branch) payload.branch = data.branch;
     if (data.dob) payload.date_of_birth = data.dob;
     if (data.totalFees !== undefined) payload.total_fees = Number(data.totalFees);

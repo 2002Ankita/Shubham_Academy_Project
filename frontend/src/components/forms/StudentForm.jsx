@@ -2,15 +2,24 @@ import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
+import BranchBatchSelector from '../common/BranchBatchSelector';
+import {
+  parseLegacyBatch,
+  formatStudentBatchDisplay
+} from '../../config/branchBatchConfig';
 
 export default function StudentForm({ initialData, onSubmit, loading, onCancel }) {
+  const parsed = parseLegacyBatch(initialData?.batch || initialData?.academic_batch || '');
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
     standard: initialData?.standard || '12th Science',
-    batch: initialData?.batch || '11th pcm tarabai park',
-    rfidCard: initialData?.rfidCard || 'RFID-' + Math.floor(100000 + Math.random() * 900000),
+    branch: initialData?.branch || parsed.branch,
+    academicBatch: initialData?.academicBatch || initialData?.academic_batch || parsed.academicBatch,
+    session: initialData?.session || parsed.session,
+    batch: initialData?.batch || formatStudentBatchDisplay(parsed),
+    rfidCard: initialData?.rfidCard || 'CARD-' + Math.floor(100000 + Math.random() * 900000),
     totalFees: initialData?.totalFees || 45000,
     parentName: initialData?.parentName || '',
     parentPhone: initialData?.parentPhone || '',
@@ -120,12 +129,12 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
 
         <div className="col-12 col-md-6">
           <Input
-            label="Assigned RFID Smart Card"
+            label="Assigned Smart Card / UID"
             name="rfidCard"
-            placeholder="RFID-XXXXXX"
+            placeholder="CARD-XXXXXX"
             value={formData.rfidCard}
             onChange={handleChange}
-            helperText="Tap badge on RFID reader or enter code"
+            helperText="Tap card or enter code"
             required
           />
         </div>
@@ -146,26 +155,28 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
           />
         </div>
 
-        <div className="col-12 col-md-6">
-          <Select
-            label="Batch Assignment"
-            name="batch"
-            value={formData.batch}
-            onChange={handleChange}
-            options={[
-              '11th pcm tarabai park',
-              '11th pcb tarabai park',
-              '11th pcmb tarabai park',
-              '12th pcm tarabai park',
-              '12th pcb tarabai park',
-              '12th pcmb tarabai park',
-              '11th pcm Mangalvar peth',
-              '11th pcb Mangalvar peth',
-              '11th pcmb Mangalvar peth',
-              '12th pcm Mangalvar peth',
-              '12th pcb Mangalvar peth',
-              '12th pcmb Mangalvar peth'
-            ]}
+        <div className="col-12">
+          <BranchBatchSelector
+            branch={formData.branch}
+            onBranchChange={(b) => setFormData(prev => ({
+              ...prev,
+              branch: b,
+              batch: formatStudentBatchDisplay({ branch: b, session: prev.session, academicBatch: prev.academicBatch })
+            }))}
+            session={formData.session}
+            onSessionChange={(s) => setFormData(prev => ({
+              ...prev,
+              session: s,
+              batch: formatStudentBatchDisplay({ branch: prev.branch, session: s, academicBatch: prev.academicBatch })
+            }))}
+            academicBatch={formData.academicBatch}
+            onAcademicBatchChange={(ab) => setFormData(prev => ({
+              ...prev,
+              academicBatch: ab,
+              batch: formatStudentBatchDisplay({ branch: prev.branch, session: prev.session, academicBatch: ab }),
+              standard: ab.includes('12th') ? '12th Science' : '11th Science'
+            }))}
+            layout="grid"
           />
         </div>
 
@@ -188,7 +199,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
             value={formData.parentPhone}
             onChange={handleChange}
             error={errors.parentPhone}
-            helperText="RFID gate notifications will be sent to this number"
+            helperText="Attendance gate notifications will be sent to this number"
             required
           />
         </div>

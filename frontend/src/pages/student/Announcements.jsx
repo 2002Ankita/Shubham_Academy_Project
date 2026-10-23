@@ -259,7 +259,7 @@ export default function StudentAnnouncements() {
             Academy Notices & Bulletins
           </h3>
           <span className="small text-sa-muted">
-            Official academy announcements, examination updates, RFID attendance logs, and fee circulars
+            Official academy announcements, examination updates, attendance logs, and fee circulars
           </span>
         </div>
 
