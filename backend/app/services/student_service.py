@@ -744,11 +744,16 @@ async def offer_student_discount(id: str, offer_in: dict, current_user: User) ->
     if not student_name:
         student_name = getattr(student, "full_name", None) or "Student"
 
+    st_branch = getattr(student, "branch", None) or "Tarabai Park"
+    st_batch = getattr(student, "academic_batch", None) or getattr(student, "batch", None) or "General"
+
     approval = DiscountApproval(
         student_id=str(student.id),
         student_name=student_name,
         roll_number=student.student_id,
         standard=student.standard or "General",
+        batch=st_batch,
+        branch=st_branch,
         original_fees=orig_fees,
         discount_amount=disc_amount,
         final_fees=max(0.0, orig_fees - disc_amount),
@@ -840,11 +845,15 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
                 student_name = u_obj.full_name
         if not student_name:
             student_name = getattr(student, "full_name", None) or "Student"
+        st_branch = getattr(student, "branch", None) or "Tarabai Park"
+        st_batch = getattr(student, "academic_batch", None) or getattr(student, "batch", None) or "General"
         approval = DiscountApproval(
             student_id=str(student.id),
             student_name=student_name,
             roll_number=student.student_id,
             standard=student.standard or "General",
+            batch=st_batch,
+            branch=st_branch,
             original_fees=orig_fees,
             discount_amount=disc_amount,
             discount_requested_amount=getattr(student, "discount_requested_amount", disc_amount) or disc_amount,
@@ -898,7 +907,7 @@ async def reject_student_discount(id: str, reason: str, current_user: User) -> d
 
     return await _format_student(student)
 
-async def get_discount_approvals(status: str = None) -> list[dict]:
+async def get_discount_approvals(status: str = None, branch: str = None) -> list[dict]:
     query = {}
     if status and status.upper() != "ALL":
         query = {"status": status.upper()}
@@ -906,12 +915,25 @@ async def get_discount_approvals(status: str = None) -> list[dict]:
     approvals = await DiscountApproval.find(query).sort("-offered_at").to_list()
     res = []
     for a in approvals:
+        a_branch = getattr(a, "branch", None) or ""
+        a_batch = getattr(a, "batch", None) or ""
+        if branch and branch.upper() != "ALL":
+            target = branch.lower().strip()
+            if "tarabai" in target:
+                if "tarabai" not in a_branch.lower() and "tarabai" not in a_batch.lower() and "mangal" in (a_branch + a_batch).lower():
+                    continue
+            elif "mangal" in target:
+                if "mangal" not in a_branch.lower() and "mangal" not in a_batch.lower():
+                    continue
+
         res.append({
             "id": str(a.id),
             "student_id": a.student_id,
             "student_name": a.student_name,
             "roll_number": a.roll_number,
             "standard": a.standard,
+            "batch": a_batch or "General",
+            "branch": a_branch or "Tarabai Park",
             "original_fees": a.original_fees,
             "discount_amount": a.discount_amount,
             "final_fees": a.final_fees,

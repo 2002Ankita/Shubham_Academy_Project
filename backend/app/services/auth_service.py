@@ -14,7 +14,8 @@ async def create_user(user_in: UserCreate) -> User:
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
-        role=user_in.role
+        role=user_in.role,
+        branch=getattr(user_in, "branch", None)
     )
     await user.insert()
     return user
@@ -22,6 +23,9 @@ async def create_user(user_in: UserCreate) -> User:
 async def authenticate(user_in: UserLogin) -> str:
     clean_identifier = user_in.email.strip()
     user = await User.find_one(User.email == clean_identifier)
+    if not user:
+        import re
+        user = await User.find_one({"email": {"$regex": f"^{re.escape(clean_identifier)}$", "$options": "i"}})
     
     from app.models.student import Student
     student = None
@@ -112,26 +116,88 @@ async def get_current_user(token: str) -> User:
 
 
 async def ensure_default_users():
-    """Ensure baseline demo users exist in the database for team testing."""
+    """Ensure baseline admin, superadmin, teacher, and student users exist in the database with correct branch and credentials."""
     from app.models.user import User
-    from app.core.security import get_password_hash
+    from app.core.security import get_password_hash, verify_password
+    import re
+    
     users = [
-        {"email": "superadmin@shubham.edu", "full_name": "Shubham Sharma", "role": "super_admin", "password": "password123"},
-        {"email": "admin@shubham.edu", "full_name": "Rajesh Patil", "role": "admin", "password": "password123"},
-        {"email": "priya.k@shubham.edu", "full_name": "Dr. Priya Kulkarni", "role": "teacher", "password": "password123"},
-        {"email": "aarav.d@shubham.edu", "full_name": "Aarav Deshmukh", "role": "student", "password": "9876500001"}
+        # Mangalvar Peth Campus Admins
+        {
+            "email": "superadmin@shubham.edu",
+            "full_name": "Shubham Sharma",
+            "role": "super_admin",
+            "branch": "Mangalvar Peth",
+            "password": "password123"
+        },
+        {
+            "email": "admin@shubham.edu",
+            "full_name": "Rajesh Patil",
+            "role": "admin",
+            "branch": "Mangalvar Peth",
+            "password": "password123"
+        },
+        # Tarabai Park Campus Admins
+        {
+            "email": "superadmin.tarabai@shubham.edu",
+            "full_name": "Sanjay Shinde",
+            "role": "super_admin",
+            "branch": "Tarabai Park",
+            "password": "password123"
+        },
+        {
+            "email": "admin.tarabai@shubham.edu",
+            "full_name": "Vikram Desai",
+            "role": "admin",
+            "branch": "Tarabai Park",
+            "password": "password123"
+        },
+        # Faculty & Student Defaults
+        {
+            "email": "priya.k@shubham.edu",
+            "full_name": "Dr. Priya Kulkarni",
+            "role": "teacher",
+            "branch": "Tarabai Park",
+            "password": "password123"
+        },
+        {
+            "email": "aarav.d@shubham.edu",
+            "full_name": "Aarav Deshmukh",
+            "role": "student",
+            "branch": "Tarabai Park",
+            "password": "9876500001"
+        }
     ]
+
     for u in users:
         try:
-            exists = await User.find_one(User.email == u["email"])
-            if not exists:
+            existing = await User.find_one({"email": {"$regex": f"^{re.escape(u['email'])}$", "$options": "i"}})
+            if not existing:
                 user = User(
                     email=u["email"],
                     full_name=u["full_name"],
                     role=u["role"],
-                    hashed_password=get_password_hash(u.get("password", "password123"))
+                    branch=u["branch"],
+                    hashed_password=get_password_hash(u.get("password", "password123")),
+                    is_active=True
                 )
                 await user.insert()
-        except Exception:
-            pass
+            else:
+                updated = False
+                if getattr(existing, "branch", None) != u["branch"]:
+                    existing.branch = u["branch"]
+                    updated = True
+                if getattr(existing, "role", None) != u["role"]:
+                    existing.role = u["role"]
+                    updated = True
+                if not getattr(existing, "is_active", True):
+                    existing.is_active = True
+                    updated = True
+                if not verify_password(u.get("password", "password123"), existing.hashed_password):
+                    existing.hashed_password = get_password_hash(u.get("password", "password123"))
+                    updated = True
+                if updated:
+                    await existing.save()
+        except Exception as e:
+            print(f"Error ensuring default user {u['email']}: {e}")
 

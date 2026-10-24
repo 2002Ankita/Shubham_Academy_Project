@@ -154,13 +154,33 @@ def _format_batch(b: Batch) -> dict:
         "status": getattr(b, "status", "Active")
     }
 
-async def get_all_batches(teacher_id: Optional[str] = None, standard: Optional[str] = None) -> List[dict]:
+async def get_all_batches(
+    teacher_id: Optional[str] = None,
+    standard: Optional[str] = None,
+    branch: Optional[str] = None
+) -> List[dict]:
     await ensure_default_batches()
     query = {}
     if standard:
         query["standard"] = standard
 
     batches = await Batch.find(query).to_list()
+
+    if branch and str(branch).upper() != "ALL":
+        target = str(branch).lower().strip()
+        filtered = []
+        for b in batches:
+            b_br = (getattr(b, "branch", "") or "").lower().strip()
+            b_name = (b.name or "").lower().strip()
+            if "tarabai" in target:
+                if "tarabai" in b_br or "tarabai" in b_name:
+                    filtered.append(b)
+            elif "mangal" in target:
+                if "mangal" in b_br or "mangal" in b_name:
+                    filtered.append(b)
+            elif target in b_br or target in b_name:
+                filtered.append(b)
+        batches = filtered
     
     if teacher_id:
         teacher = await resolve_teacher(teacher_id)

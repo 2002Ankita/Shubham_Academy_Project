@@ -8,6 +8,7 @@ class User(Document):
     hashed_password: str
     role: str # SUPER_ADMIN, ADMIN, TEACHER, STUDENT
     full_name: str
+    branch: Optional[str] = None
     is_active: bool = True
     created_at: datetime = datetime.utcnow()
 

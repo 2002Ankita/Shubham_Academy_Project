@@ -13,9 +13,31 @@ async def add_exam(exam_in: ExamCreate, token: str = Depends(oauth2_scheme)):
     return await create_exam(exam_in, user)
 
 @router.get("", response_model=List[ExamResponse])
-async def list_exams(token: str = Depends(oauth2_scheme)):
+async def list_exams(
+    branch: Optional[str] = None,
+    standard: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    token: str = Depends(oauth2_scheme)
+):
     user = await get_current_user(token)
     exams = await get_all_exams()
+
+    if branch and str(branch).upper() != "ALL":
+        target = str(branch).lower().strip()
+        filtered = []
+        for e in exams:
+            e_br = (e.get("branch") or "").lower().strip()
+            e_ba = (e.get("batch") or "").lower().strip()
+            if "tarabai" in target:
+                if "tarabai" in e_br or "tarabai" in e_ba:
+                    filtered.append(e)
+            elif "mangal" in target:
+                if "mangal" in e_br or "mangal" in e_ba:
+                    filtered.append(e)
+            elif target in e_br or target in e_ba:
+                filtered.append(e)
+        exams = filtered
+
     if user.role.upper() == "STUDENT":
         from app.services.student_service import resolve_student
         student = await resolve_student(str(user.id))

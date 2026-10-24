@@ -7,6 +7,8 @@ class DiscountApproval(Document):
     student_name: str
     roll_number: str
     standard: Optional[str] = "General"
+    batch: Optional[str] = None
+    branch: Optional[str] = None
     original_fees: float = 0.0
     discount_amount: float = 0.0
     discount_requested_amount: float = 0.0

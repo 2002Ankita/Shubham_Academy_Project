@@ -66,9 +66,9 @@ async def list_all_fees(
     return await get_all_fee_payments(student_id=student_id, branch=branch, standard=standard)
 
 @router.get("/pending", response_model=List[PendingFeeResponse])
-async def list_pending_fees(token: str = Depends(oauth2_scheme)):
+async def list_pending_fees(branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    return await get_pending_fees()
+    return await get_pending_fees(branch=branch)
 
 @router.get("/{student_id}", response_model=FeeDetailsResponse)
 async def fee_details(

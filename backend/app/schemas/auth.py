@@ -18,12 +18,14 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
     role: str
+    branch: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str
     email: EmailStr
     full_name: str
     role: str
+    branch: Optional[str] = None
     is_active: bool
 
 class UserUpdate(BaseModel):

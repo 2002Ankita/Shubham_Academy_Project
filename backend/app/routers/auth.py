@@ -16,6 +16,7 @@ async def register(user_in: UserCreate):
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
+        "branch": getattr(user, "branch", None),
         "is_active": user.is_active
     }
 
@@ -51,6 +52,7 @@ async def get_me(token: str = Depends(oauth2_scheme)):
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
+        "branch": getattr(user, "branch", None),
         "is_active": user.is_active
     }
 
@@ -64,6 +66,8 @@ async def update_me(user_update: UserUpdate, token: str = Depends(oauth2_scheme)
         user.full_name = user_update.full_name
     if user_update.email is not None:
         user.email = user_update.email
+    if user_update.branch is not None:
+        user.branch = user_update.branch
     if user_update.password is not None and user_update.password != "":
         user.hashed_password = get_password_hash(user_update.password)
         
@@ -73,5 +77,6 @@ async def update_me(user_update: UserUpdate, token: str = Depends(oauth2_scheme)
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
+        "branch": getattr(user, "branch", None),
         "is_active": user.is_active
     }

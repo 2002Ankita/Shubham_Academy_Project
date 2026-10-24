@@ -38,6 +38,7 @@ async def get_batch(id: str, token: str = Depends(oauth2_scheme)):
 async def get_batches(
     teacher_id: Optional[str] = Query(None, description="Filter by teacher ID"),
     standard: Optional[str] = Query(None, description="Filter by standard"),
+    branch: Optional[str] = Query(None, description="Filter by branch"),
     token: str = Depends(oauth2_scheme)
 ):
     current_user = await get_current_user(token)
@@ -47,7 +48,7 @@ async def get_batches(
     if user_role == "TEACHER" and not teacher_id:
         teacher_id = str(current_user.id)
 
-    return await get_all_batches(teacher_id=teacher_id, standard=standard)
+    return await get_all_batches(teacher_id=teacher_id, standard=standard, branch=branch)
 
 @router.post("", response_model=BatchResponse)
 async def create_batch(batch_in: BatchCreate, token: str = Depends(oauth2_scheme)):

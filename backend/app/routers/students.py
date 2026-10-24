@@ -19,10 +19,10 @@ async def add_student(
     return await create_student(student_in, current_user)
 
 @router.get("/discounts/approvals")
-async def list_discount_approvals(status: str = None, token: str = Depends(oauth2_scheme)):
+async def list_discount_approvals(status: Optional[str] = None, branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     from app.services.student_service import get_discount_approvals
-    return await get_discount_approvals(status)
+    return await get_discount_approvals(status=status, branch=branch)
 
 @router.get("", response_model=List[StudentResponse])
 async def list_students(

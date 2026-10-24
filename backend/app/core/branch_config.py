@@ -10,8 +10,8 @@ from typing import Optional, Tuple, List, Dict, Any
 import re
 
 BRANCH_TARABAI = "Tarabai Park"
-BRANCH_MANGALWAR = "Mangalwar Peth"
-BRANCHES = [BRANCH_TARABAI, BRANCH_MANGALWAR]
+BRANCH_MANGALWAR = "Mangalvar Peth"
+BRANCHES = [BRANCH_TARABAI, BRANCH_MANGALWAR, "Mangalwar Peth"]
 
 SESSIONS = ["Morning", "Afternoon"]
 
@@ -36,9 +36,9 @@ def normalize_branch(raw_branch: Optional[str]) -> Optional[str]:
     if not raw_branch:
         return None
     b = str(raw_branch).strip().lower()
-    if "tarabai" in b or "main" in b or "kolhapur" in b:
+    if "tarabai" in b or "main" in b or "kolhapur" in b or b in ["tp", "sa-tp"]:
         return BRANCH_TARABAI
-    if "mangal" in b:
+    if "mangal" in b or b in ["mp", "sa-mp"]:
         return BRANCH_MANGALWAR
     return raw_branch.strip()
 
@@ -122,10 +122,9 @@ def validate_branch_batch_selection(
     Strict validation of branch, academic batch, and session combination.
     Raises ValueError with user-friendly message on mismatch.
     """
-    if not branch or str(branch).strip() not in BRANCHES:
-        raise ValueError(f"Invalid branch '{branch}'. Must be one of: {', '.join(BRANCHES)}")
-
-    norm_branch = str(branch).strip()
+    norm_branch = normalize_branch(branch)
+    if not norm_branch or norm_branch not in [BRANCH_TARABAI, BRANCH_MANGALWAR, "Mangalwar Peth", "Mangalvar Peth"]:
+        raise ValueError(f"Invalid branch '{branch}'. Must be one of: {BRANCH_TARABAI}, {BRANCH_MANGALWAR}")
 
     if not academic_batch or str(academic_batch).strip() not in ACADEMIC_BATCHES:
         raise ValueError(
@@ -134,7 +133,7 @@ def validate_branch_batch_selection(
     norm_batch = str(academic_batch).strip()
 
     norm_session = None
-    if norm_branch == BRANCH_MANGALWAR:
+    if norm_branch == BRANCH_MANGALWAR or "mangal" in norm_branch.lower():
         if not session or str(session).strip() not in SESSIONS:
             raise ValueError(
                 f"Session (Morning or Afternoon) is required for branch '{BRANCH_MANGALWAR}'."
@@ -180,14 +179,15 @@ def student_matches_filters(
     # 1. Branch match
     if b_filter and str(b_filter).strip().upper() not in ["ALL", ""]:
         req_branch = normalize_branch(b_filter)
-        if req_branch and req_branch != st_branch:
+        st_norm_branch = normalize_branch(st_branch)
+        if req_branch and st_norm_branch and req_branch != st_norm_branch:
             return False
 
-    # 2. Session match (only applies when branch is Mangalwar Peth or session is explicitly requested)
+    # 2. Session match (only applies when branch is Mangalvar Peth or session is explicitly requested)
     if s_filter and str(s_filter).strip().upper() not in ["ALL", ""]:
         req_session = normalize_session(s_filter)
         if req_session:
-            if st_branch != BRANCH_MANGALWAR:
+            if normalize_branch(st_branch) != BRANCH_MANGALWAR:
                 return False
             if st_session != req_session:
                 return False

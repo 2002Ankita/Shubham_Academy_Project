@@ -29,22 +29,24 @@ export const authService = {
           let userName = isTarabai
             ? (isSuper ? 'Sanjay Shinde' : 'Vikram Desai')
             : (isSuper ? 'Shubham Sharma' : 'Rajesh Patil');
+          let userId = isTarabai
+            ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01')
+            : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01');
 
-          if (!isTarabai) {
-            try {
-              const meResponse = await api.get('/auth/me', {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              const u = meResponse.data;
-              if (u?.full_name) userName = u.full_name;
-              if (u?.branch) branch = u.branch;
-            } catch (e) {
-              // ignore
-            }
+          try {
+            const meResponse = await api.get('/auth/me', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const u = meResponse.data;
+            if (u?.id) userId = u.id;
+            if (u?.full_name) userName = u.full_name;
+            if (u?.branch) branch = u.branch;
+          } catch (e) {
+            // ignore network/interceptor fallback
           }
 
           const formattedUser = {
-            id: isTarabai ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01') : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01'),
+            id: userId,
             name: userName,
             email: credentials.email,
             role: isSuper ? 'super-admin' : (credentials.role || 'admin'),

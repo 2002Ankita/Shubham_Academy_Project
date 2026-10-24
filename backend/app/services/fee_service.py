@@ -11,7 +11,7 @@ def normalize_branch_name(branch_str: Optional[str], fallback_batch: str = "") -
     if "tarabai" in combined:
         return "Tarabai Park"
     if "mangal" in combined:
-        return "Mangalwar Peth"
+        return "Mangalvar Peth"
     return (branch_str or "Tarabai Park").strip()
 
 async def _format_fee_payment(payment: FeePayment) -> dict:
@@ -146,11 +146,11 @@ DEFAULT_CAMPUS_STRUCTURES = [
         "late_fee": 600.0
     },
 
-    # --- Mangalwar Peth Campus ---
+    # --- Mangalvar Peth Campus ---
     {
         "standard": "12th Science",
         "batch": "12th pcm mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 60000.0,
         "installment_amount": 15000.0,
@@ -161,7 +161,7 @@ DEFAULT_CAMPUS_STRUCTURES = [
     {
         "standard": "12th Science",
         "batch": "12th pcb mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 60000.0,
         "installment_amount": 15000.0,
@@ -172,7 +172,7 @@ DEFAULT_CAMPUS_STRUCTURES = [
     {
         "standard": "12th Science",
         "batch": "12th pcmb mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 68000.0,
         "installment_amount": 17000.0,
@@ -183,7 +183,7 @@ DEFAULT_CAMPUS_STRUCTURES = [
     {
         "standard": "11th Science",
         "batch": "11th pcm mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 52000.0,
         "installment_amount": 13000.0,
@@ -194,7 +194,7 @@ DEFAULT_CAMPUS_STRUCTURES = [
     {
         "standard": "11th Science",
         "batch": "11th pcb mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 52000.0,
         "installment_amount": 13000.0,
@@ -205,7 +205,7 @@ DEFAULT_CAMPUS_STRUCTURES = [
     {
         "standard": "11th Science",
         "batch": "11th pcmb mangalvar peth",
-        "branch": "Mangalwar Peth",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 58000.0,
         "installment_amount": 14500.0,
@@ -215,8 +215,8 @@ DEFAULT_CAMPUS_STRUCTURES = [
     },
     {
         "standard": "10th SSC Foundation",
-        "batch": "Mangalwar Peth Morning Batch",
-        "branch": "Mangalwar Peth",
+        "batch": "Mangalvar Peth Morning Batch",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 38000.0,
         "installment_amount": 9500.0,
@@ -226,8 +226,8 @@ DEFAULT_CAMPUS_STRUCTURES = [
     },
     {
         "standard": "MHT-CET Crash Course",
-        "batch": "Mangalwar Peth Fast Track",
-        "branch": "Mangalwar Peth",
+        "batch": "Mangalvar Peth Fast Track",
+        "branch": "Mangalvar Peth",
         "academic_year": "2025-2026",
         "total_fee": 35000.0,
         "installment_amount": 17500.0,
@@ -295,10 +295,17 @@ async def get_fee_structures(branch: Optional[str] = None) -> list[dict]:
         d = s.dict()
         d["id"] = str(s.id)
         # Filter by branch if requested
-        if branch and branch != "ALL":
-            target = branch.lower().replace(" campus", "").strip()
-            s_branch = (d.get("branch") or "").lower().replace(" campus", "").strip()
-            if target not in s_branch and s_branch not in target:
+        if branch and str(branch).upper() != "ALL":
+            target = str(branch).lower().strip()
+            s_branch = (d.get("branch") or "").lower().strip()
+            s_batch = (d.get("batch") or "").lower().strip()
+            if "tarabai" in target:
+                if "tarabai" not in s_branch and "tarabai" not in s_batch:
+                    continue
+            elif "mangal" in target:
+                if "mangal" not in s_branch and "mangal" not in s_batch:
+                    continue
+            elif target not in s_branch and s_branch not in target:
                 continue
         res.append(d)
     return res
@@ -580,7 +587,7 @@ async def get_fee_details(
         discount_approved_at=getattr(student, "discount_approved_at", None)
     )
 
-async def get_pending_fees() -> list[PendingFeeResponse]:
+async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeResponse]:
     students = await Student.find_all().to_list()
     structures = await FeeStructure.find_all().to_list()
     payments = await FeePayment.find_all().to_list()
@@ -596,6 +603,11 @@ async def get_pending_fees() -> list[PendingFeeResponse]:
             
     pending_list = []
     for student in students:
+        if branch and str(branch).upper() != "ALL":
+            from app.services.student_service import student_matches_branch
+            if not student_matches_branch(student, branch):
+                continue
+
         total_fees = await _lookup_student_fee(student, structures)
         amount_paid = paid_map.get(str(student.id), 0.0)
         pending_fees = max(0.0, total_fees - amount_paid)
