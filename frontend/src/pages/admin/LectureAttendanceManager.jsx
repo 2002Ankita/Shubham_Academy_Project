@@ -148,10 +148,10 @@ export default function LectureAttendanceManager() {
     );
     setHasUnsavedChanges(true);
     const slotLabel = slotType === 'all' ? 'Both Lectures' : `Lecture ${slotType}`;
-    toast.success(`Marked all ${attendanceRows.length} students as ${targetStatus} for ${slotLabel}! Click 'Save Attendance to MongoDB' to persist.`);
+    toast.success(`Marked all ${attendanceRows.length} students as ${targetStatus} for ${slotLabel}! Click 'Save Attendance' to persist.`);
   };
 
-  // Save modified attendance records to MongoDB
+  // Save modified attendance records
   const handleSaveAttendance = async () => {
     if (attendanceRows.length === 0) {
       toast.warning('No student records to save for this batch.');
@@ -161,7 +161,7 @@ export default function LectureAttendanceManager() {
     setSavingAttendance(true);
     try {
       const payloadRecords = attendanceRows.map(r => ({
-        student_id: r.id || r.student_id,
+        student_id: r.student_id || r.id,
         lecture_1_status: r.lecture_1?.status || 'Not Marked',
         lecture_1_subject: r.lecture_1?.subject || 'Physics',
         lecture_2_status: r.lecture_2?.status || 'Not Marked',
@@ -178,11 +178,11 @@ export default function LectureAttendanceManager() {
       });
 
       setHasUnsavedChanges(false);
-      toast.success(res?.message || `Saved attendance for ${attendanceRows.length} students to MongoDB for ${selectedDate}!`);
+      toast.success(res?.message || `Saved attendance for ${attendanceRows.length} students for ${selectedDate}!`);
       await fetchData();
     } catch (err) {
       console.error('Failed to save attendance:', err);
-      toast.error(err?.response?.data?.detail || 'Failed to save attendance to MongoDB');
+      toast.error(err?.response?.data?.detail || 'Failed to save attendance');
     } finally {
       setSavingAttendance(false);
     }
@@ -468,7 +468,7 @@ export default function LectureAttendanceManager() {
             </span>
           </div>
           <p className="text-sa-muted small m-0 mt-1">
-            Manual attendance marking for specific batch, bulk 'Select All & Present', persistent MongoDB storage by date, and parent absence alerts.
+            Manual attendance marking for specific batch, bulk 'Select All & Present', persistent storage by date, and parent absence alerts.
           </p>
         </div>
 
@@ -510,9 +510,9 @@ export default function LectureAttendanceManager() {
             loading={savingAttendance}
             onClick={handleSaveAttendance}
             disabled={attendanceRows.length === 0}
-            title="Save attendance records into MongoDB for the selected date"
+            title="Save attendance records for the selected date"
           >
-            Save Attendance to MongoDB
+            Save Attendance
           </Button>
         </div>
       </div>
@@ -566,13 +566,13 @@ export default function LectureAttendanceManager() {
 
         <div className="col-12 col-sm-6 col-lg-3">
           <div className="sa-card p-3.5 bg-white h-100 border-start border-4 border-warning">
-            <span className="small text-sa-muted d-block fw-medium">MongoDB Persistence Status</span>
+            <span className="small text-sa-muted d-block fw-medium">Attendance Status</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
               <h4 className="brand-font fw-bold m-0 fs-6">
                 {hasUnsavedChanges ? (
                   <span className="text-warning">⚠️ Unsaved Changes</span>
                 ) : (
-                  <span className="text-success">✅ Fixed in DB</span>
+                  <span className="text-success">✅ Saved in Records</span>
                 )}
               </h4>
             </div>
@@ -592,11 +592,12 @@ export default function LectureAttendanceManager() {
             session={selectedSession}
             onSessionChange={setSelectedSession}
             academicBatch={selectedAcademicBatch}
+            onBatchChange={setSelectedAcademicBatch}
             onAcademicBatchChange={setSelectedAcademicBatch}
             layout="grid"
           />
         </div>
-        <div className="row g-2 align-items-center pt-2 border-top">
+        <div className="row g-2 align-items-end pt-2 border-top">
           <div className="col-12 col-md-5">
             <label className="small text-muted fw-semibold mb-1 d-block">Attendance Date (Fixed & Stored per Date)</label>
             <input
@@ -604,6 +605,7 @@ export default function LectureAttendanceManager() {
               className="form-control form-control-sm"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ height: '33px' }}
             />
           </div>
 
@@ -613,6 +615,7 @@ export default function LectureAttendanceManager() {
               className="form-select form-select-sm"
               value={selectedSlot}
               onChange={(e) => setSelectedSlot(e.target.value)}
+              style={{ height: '33px' }}
             >
               <option value="all">All Lectures (Lecture 1 & 2)</option>
               <option value="1">Lecture 1 Only (Morning Session)</option>
@@ -620,13 +623,17 @@ export default function LectureAttendanceManager() {
             </select>
           </div>
 
-          <div className="col-12 col-md-2 d-flex align-items-end">
+          <div className="col-12 col-md-2">
+            <label className="small mb-1 d-none d-md-block opacity-0" style={{ userSelect: 'none' }}>&nbsp;</label>
             <button
               type="button"
               className="btn btn-sm btn-light border w-100 d-inline-flex align-items-center justify-content-center gap-1.5"
               onClick={fetchData}
+              disabled={loading}
+              title="Refresh attendance records for selected date and batch"
+              style={{ height: '33px' }}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={13} className={loading ? 'spin' : ''} />
               <span>Refresh</span>
             </button>
           </div>
@@ -706,9 +713,9 @@ export default function LectureAttendanceManager() {
               loading={savingAttendance}
               onClick={handleSaveAttendance}
               disabled={attendanceRows.length === 0}
-              title="Save all lecture attendance records into MongoDB database"
+              title="Save all lecture attendance records"
             >
-              Save Attendance to MongoDB
+              Save Attendance
             </Button>
           </div>
         </div>
@@ -951,7 +958,7 @@ export default function LectureAttendanceManager() {
           <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-3 mt-3 bg-warning-subtle border border-warning rounded-3 gap-2">
             <span className="small text-dark fw-bold d-flex align-items-center gap-1.5">
               <AlertCircle size={16} className="text-warning" />
-              You have unsaved attendance modifications for {selectedDate}. Click Save to commit them to MongoDB.
+              You have unsaved attendance modifications for {selectedDate}. Click Save Attendance to commit your changes.
             </span>
             <Button
               variant="primary"
@@ -959,7 +966,7 @@ export default function LectureAttendanceManager() {
               loading={savingAttendance}
               onClick={handleSaveAttendance}
             >
-              Save Attendance to MongoDB
+              Save Attendance
             </Button>
           </div>
         )}
@@ -1007,6 +1014,7 @@ export default function LectureAttendanceManager() {
                     session={uploadSession}
                     onSessionChange={setUploadSession}
                     academicBatch={uploadAcademicBatch}
+                    onBatchChange={setUploadAcademicBatch}
                     onAcademicBatchChange={setUploadAcademicBatch}
                     layout="grid"
                   />

@@ -172,6 +172,11 @@ export default function DailyActivityReport() {
   const [selectedBranchFilter, setSelectedBranchFilter] = useState('All');
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+
+  // Date selection state (defaults to today's date)
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateFilterMode, setDateFilterMode] = useState('date'); // 'date' | 'all'
 
   // Modal State (Add & Edit)
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -183,12 +188,13 @@ export default function DailyActivityReport() {
     batch: '12th pcm tarabai park',
     chapter: '',
     topicTaught: '',
-    timeSlot: '03:00 PM - 04:00 PM',
-    hours: '1.0',
+    timeSlot: '08:30 AM - 10:00 AM',
+    hours: '1.5',
     periods: '1',
     totalPlannedPeriods: '2',
     targetDate: new Date().toISOString().split('T')[0],
-    status: 'Completed',
+    activity_date: new Date().toISOString().split('T')[0],
+    status: 'In Progress',
     remarks: ''
   });
 
@@ -467,67 +473,71 @@ export default function DailyActivityReport() {
         return true;
       }
 
-      // 3. Fallback for unassigned or newly imported activities without teacher: match by teacher's subject
-      if (!itemTeacher && !item.teacher_id) {
-        const sub = (item.subject || '').toLowerCase();
-        const tName = currentTeacherName.toLowerCase();
-        if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni') || tName.includes('more') || tName.includes('swami')) && sub.includes('phys')) return true;
-        if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
-        if ((tName.includes('rajesh') || tName.includes('sharma') || tName.includes('veer')) && sub.includes('math')) return true;
-        if ((tName.includes('amit') || tName.includes('sawant') || tName.includes('shri')) && sub.includes('bio')) return true;
-      }
-
       return false;
     });
   }, [dailyActivities, user]);
 
-  // Computed Metrics based on teacher's own activities - Dynamically updates as activities are added/modified
+  // Activities filtered by the selected date (or all dates if dateFilterMode === 'all')
+  const dateActivities = useMemo(() => {
+    if (dateFilterMode === 'all') return myActivities;
+    return myActivities.filter(act => {
+      const actDate = act.activity_date || act.targetDate || '';
+      return actDate === selectedDate;
+    });
+  }, [myActivities, selectedDate, dateFilterMode]);
+
+  // Computed Metrics based on teacher's activities for the selected date
   const totalTeachingHoursToday = useMemo(() => {
-    const total = myActivities.reduce((sum, act) => {
+    const total = dateActivities.reduce((sum, act) => {
       const h = parseFloat(act.hours);
       return sum + (isNaN(h) ? 0 : h);
     }, 0);
     return total.toFixed(1);
-  }, [myActivities]);
+  }, [dateActivities]);
 
-  const completedActivitiesCount = myActivities.filter(a => a.status === 'Completed').length;
-  const uniqueTopicsTaughtCount = myActivities.filter(a => a.topicTaught && a.topicTaught.trim().length > 0).length;
-  const uniqueBatchesCount = new Set(myActivities.map(a => a.batch).filter(Boolean)).size;
+  const completedActivitiesCount = dateActivities.filter(a => a.status === 'Completed').length;
+  const inProgressActivitiesCount = dateActivities.filter(a => a.status === 'In Progress').length;
+  const uniqueTopicsTaughtCount = dateActivities.filter(a => a.topicTaught && a.topicTaught.trim().length > 0).length;
+  const uniqueBatchesCount = new Set(dateActivities.map(a => a.batch).filter(Boolean)).size;
 
   const targetHours = 6.0;
   const progressPercent = Math.min(Math.round((parseFloat(totalTeachingHoursToday) / targetHours) * 100), 100);
 
-  // Filtered Activities
-  const filteredActivities = myActivities.filter(item => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch = searchTerm === '' ||
-      (item.topicTaught && item.topicTaught.toLowerCase().includes(q)) ||
-      (item.chapter && item.chapter.toLowerCase().includes(q)) ||
-      (item.subject && item.subject.toLowerCase().includes(q)) ||
-      (item.batch && item.batch.toLowerCase().includes(q));
+  // Filtered Activities for Table
+  const filteredActivities = useMemo(() => {
+    return dateActivities.filter(item => {
+      const q = searchTerm.toLowerCase();
+      const matchesSearch = searchTerm === '' ||
+        (item.topicTaught && item.topicTaught.toLowerCase().includes(q)) ||
+        (item.chapter && item.chapter.toLowerCase().includes(q)) ||
+        (item.subject && item.subject.toLowerCase().includes(q)) ||
+        (item.batch && item.batch.toLowerCase().includes(q));
 
-    const matchesBranch = selectedBranchFilter === 'All' || item.branch === selectedBranchFilter;
-    const matchesActivity = selectedActivityFilter === 'All' || item.activity === selectedActivityFilter;
-    const matchesBatch = selectedBatchFilter === 'All' || item.batch === selectedBatchFilter;
+      const matchesBranch = selectedBranchFilter === 'All' || item.branch === selectedBranchFilter;
+      const matchesActivity = selectedActivityFilter === 'All' || item.activity === selectedActivityFilter;
+      const matchesBatch = selectedBatchFilter === 'All' || item.batch === selectedBatchFilter;
+      const matchesStatus = selectedStatusFilter === 'All' || item.status === selectedStatusFilter;
 
-    return matchesSearch && matchesBranch && matchesActivity && matchesBatch;
-  });
+      return matchesSearch && matchesBranch && matchesActivity && matchesBatch && matchesStatus;
+    });
+  }, [dateActivities, searchTerm, selectedBranchFilter, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter]);
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
     setNewActivity({
       branch: 'Tarabai Park',
       activity: 'Classroom Lecture & Theory',
-      subject: 'Physics',
+      subject: (user?.subject || 'Physics'),
       batch: '12th pcm tarabai park',
       chapter: '',
       topicTaught: '',
-      timeSlot: '03:00 PM - 04:00 PM',
-      hours: '1.0',
+      timeSlot: '08:30 AM - 10:00 AM',
+      hours: '1.5',
       periods: '1',
       totalPlannedPeriods: '2',
-      targetDate: new Date().toISOString().split('T')[0],
-      status: 'Completed',
+      targetDate: selectedDate,
+      activity_date: selectedDate,
+      status: 'In Progress',
       remarks: ''
     });
     setIsActivityModalOpen(true);
@@ -542,12 +552,13 @@ export default function DailyActivityReport() {
       batch: act.batch || '12th pcm tarabai park',
       chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
-      timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
-      hours: String(act.hours || '1.0'),
+      timeSlot: act.timeSlot || '08:30 AM - 10:00 AM',
+      hours: String(act.hours || '1.5'),
       periods: String(act.periods || '1'),
       totalPlannedPeriods: String(act.totalPlannedPeriods || '2'),
-      targetDate: act.targetDate || new Date().toISOString().split('T')[0],
-      status: act.status || 'Completed',
+      targetDate: act.targetDate || act.activity_date || selectedDate,
+      activity_date: act.activity_date || act.targetDate || selectedDate,
+      status: act.status || 'In Progress',
       remarks: act.remarks || ''
     });
     setIsActivityModalOpen(true);
@@ -575,7 +586,7 @@ export default function DailyActivityReport() {
     // Determine faculty details
     const facultyName = (user?.name || user?.full_name || 'Prof. Shubham Shinde').trim();
     const facultyId = user?.id ? String(user.id) : null;
-    const targetDateVal = newActivity.targetDate || new Date().toISOString().split('T')[0];
+    const targetDateVal = newActivity.activity_date || newActivity.targetDate || selectedDate;
 
     const backendPayload = {
       branch: newActivity.branch || 'Tarabai Park',
@@ -586,11 +597,11 @@ export default function DailyActivityReport() {
       target_date: targetDateVal,
       activity_date: targetDateVal,
       topic_taught: newActivity.topicTaught.trim(),
-      time_slot: newActivity.timeSlot || '03:00 PM - 04:00 PM',
+      time_slot: newActivity.timeSlot || '08:30 AM - 10:00 AM',
       hours: hoursVal,
       periods: periodsVal,
       total_planned_periods: totalPlannedPeriodsVal,
-      status: newActivity.status || 'Completed',
+      status: newActivity.status || 'In Progress',
       remarks: newActivity.remarks || '',
       teacher_name: facultyName,
       teacher_id: facultyId
@@ -751,30 +762,67 @@ export default function DailyActivityReport() {
               <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
                 Teacher Daily Activity Report
               </h1>
-              <span className="badge rounded-pill fw-semibold" style={{ backgroundColor: '#EAF6EF', color: '#168554', fontSize: '11px', border: '1px solid #C6E7D2' }}>
-                Today's Log
+              <span
+                className="badge rounded-pill fw-semibold"
+                style={{
+                  backgroundColor: dateFilterMode === 'all' ? '#EFF6FF' : '#EAF6EF',
+                  color: dateFilterMode === 'all' ? '#1E40AF' : '#168554',
+                  fontSize: '11px',
+                  border: dateFilterMode === 'all' ? '1px solid #BFDBFE' : '1px solid #C6E7D2'
+                }}
+              >
+                {dateFilterMode === 'all' ? 'All Recorded Dates' : selectedDate === new Date().toISOString().split('T')[0] ? "Today's Log" : `Log: ${selectedDate}`}
               </span>
             </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Track completed activities, topics taught, and hours spent teaching today
+              Track completed activities, topics covered, and teaching hours {dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}
             </p>
           </div>
         </div>
 
         <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
+          {/* Interactive Date Picker */}
           <div
-            className="border px-3 d-inline-flex align-items-center gap-1.5 shadow-xs bg-white text-sa-charcoal"
+            className="border px-2.5 d-inline-flex align-items-center gap-2 shadow-xs bg-white text-sa-charcoal"
             style={{
               height: '38px',
               borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 500,
               borderColor: '#CBD5E1',
               whiteSpace: 'nowrap'
             }}
           >
             <Calendar size={15} style={{ color: '#8B1216' }} />
-            <span>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setDateFilterMode('date');
+              }}
+              className="form-control form-control-sm border-0 p-0 fw-semibold text-sa-charcoal bg-transparent"
+              style={{ width: '130px', fontSize: '12.5px', cursor: 'pointer', outline: 'none' }}
+              title="Select date to track activities"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (dateFilterMode === 'date') {
+                  setDateFilterMode('all');
+                } else {
+                  setSelectedDate(new Date().toISOString().split('T')[0]);
+                  setDateFilterMode('date');
+                }
+              }}
+              className={`btn btn-xs fw-semibold px-2 py-0.5 rounded-2 ${
+                dateFilterMode === 'all'
+                  ? 'btn-dark text-white'
+                  : 'btn-light border text-muted'
+              }`}
+              style={{ fontSize: '11px', height: '26px' }}
+              title={dateFilterMode === 'all' ? 'Filter by selected date' : 'Show all recorded dates'}
+            >
+              {dateFilterMode === 'all' ? 'All Dates' : 'Show All'}
+            </button>
           </div>
 
           <button
@@ -915,12 +963,12 @@ export default function DailyActivityReport() {
             </div>
             <div>
               <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
-                {completedActivitiesCount} / {myActivities.length}
+                {completedActivitiesCount} / {dateActivities.length}
               </div>
               <span className="text-warning-emphasis fw-semibold mt-1 d-block" style={{ fontSize: '11px' }}>
-                {myActivities.length > 0
-                  ? `${Math.round((completedActivitiesCount / myActivities.length) * 100)}% on schedule today`
-                  : '100% on schedule today'}
+                {dateActivities.length > 0
+                  ? `${Math.round((completedActivitiesCount / dateActivities.length) * 100)}% completed (${inProgressActivitiesCount} in progress)`
+                  : '0 activities logged'}
               </span>
             </div>
           </div>
@@ -995,7 +1043,7 @@ export default function DailyActivityReport() {
               Student Teaching & Classroom Activity Log
             </h2>
             <span className="text-sa-muted small" style={{ fontSize: '12px' }}>
-              Showing {filteredActivities.length} lecture activities logged for today
+              Showing {filteredActivities.length} lecture activities logged for {dateFilterMode === 'all' ? 'all recorded sessions' : selectedDate}
             </span>
           </div>
 
@@ -1043,7 +1091,7 @@ export default function DailyActivityReport() {
                 className="form-select form-select-sm"
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
               >
                 <option value="All">All Branches</option>
                 <option value="Tarabai Park">Tarabai Park</option>
@@ -1056,7 +1104,7 @@ export default function DailyActivityReport() {
                 className="form-select form-select-sm"
                 value={selectedActivityFilter}
                 onChange={(e) => setSelectedActivityFilter(e.target.value)}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '180px' }}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '165px' }}
               >
                 <option value="All">All Activities</option>
                 <option value="Classroom Lecture & Theory">Classroom Lecture</option>
@@ -1072,7 +1120,7 @@ export default function DailyActivityReport() {
               className="form-select form-select-sm"
               value={selectedBatchFilter}
               onChange={(e) => setSelectedBatchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '190px' }}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '175px' }}
             >
               <option value="All">All Batches</option>
               <option value="11th pcm tarabai park">11th pcm tarabai park</option>
@@ -1088,6 +1136,18 @@ export default function DailyActivityReport() {
               <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
               <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
             </select>
+
+            {/* Status Filter: In Progress vs Completed */}
+            <select
+              className="form-select form-select-sm"
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '145px' }}
+            >
+              <option value="All">All Statuses</option>
+              <option value="In Progress">⏳ In Progress</option>
+              <option value="Completed">✓ Completed</option>
+            </select>
           </div>
         </div>
 
@@ -1096,22 +1156,25 @@ export default function DailyActivityReport() {
           <table className="table table-hover align-middle m-0" style={{ minWidth: '1050px', fontSize: '13px' }}>
             <thead style={{ backgroundColor: '#FFF5F5', borderBottom: '1.5px solid #FEE2E2' }}>
               <tr style={{ height: '42px' }}>
+                {dateFilterMode === 'all' && (
+                  <th style={{ width: '10%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date</th>
+                )}
                 {selectedBranchFilter === 'All' && (
                   <th style={{ width: '11%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Branch</th>
                 )}
                 <th style={{ width: '16%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Activity Type & Subject</th>
-                <th style={{ width: '16%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Class / Batch</th>
-                <th style={{ width: '27%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chapter & Topic Taught</th>
+                <th style={{ width: '15%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Class / Batch</th>
+                <th style={{ width: '25%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chapter & Topic Covered</th>
                 <th style={{ width: '14%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Duration & Time</th>
-                <th style={{ width: '10%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
+                <th style={{ width: '11%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
                 <th style={{ width: '6%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={selectedBranchFilter === 'All' ? 7 : 6} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
-                    No daily activities found matching your filters.
+                  <td colSpan={6 + (dateFilterMode === 'all' ? 1 : 0) + (selectedBranchFilter === 'All' ? 1 : 0)} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
+                    No daily activities found matching your filters for {dateFilterMode === 'all' ? 'any recorded date' : selectedDate}. Click "+ Log Activity / Topic" to record what you taught today!
                   </td>
                 </tr>
               ) : (
@@ -1120,6 +1183,13 @@ export default function DailyActivityReport() {
 
                   return (
                     <tr key={act.id} style={{ height: '58px', borderBottom: '1px solid #F1F5F9' }}>
+                      {dateFilterMode === 'all' && (
+                        <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: '#334155', fontSize: '12px' }}>
+                          <span className="badge bg-light text-dark border">
+                            {act.activity_date || act.targetDate || '—'}
+                          </span>
+                        </td>
+                      )}
                       {selectedBranchFilter === 'All' && (
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
                           <span
@@ -1164,7 +1234,7 @@ export default function DailyActivityReport() {
                         {act.targetDate && (
                           <div className="d-flex align-items-center gap-1 text-sa-maroon fw-semibold mt-1" style={{ fontSize: '11px' }}>
                             <Calendar size={11} />
-                            <span>Complete By: {act.targetDate}</span>
+                            <span>Target: {act.targetDate}</span>
                           </div>
                         )}
                         {act.remarks && (
@@ -1182,9 +1252,46 @@ export default function DailyActivityReport() {
                         </div>
                       </td>
                       <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                        <span className="badge rounded-pill" style={{ backgroundColor: '#EAF6EF', color: '#168554', border: '1px solid #C6E7D2', fontSize: '11px', padding: '4px 10px' }}>
-                          ✓ {act.status}
-                        </span>
+                        {act.status === 'Completed' ? (
+                          <span
+                            className="badge rounded-pill fw-semibold"
+                            style={{
+                              backgroundColor: '#EAF6EF',
+                              color: '#168554',
+                              border: '1px solid #C6E7D2',
+                              fontSize: '11px',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            ✓ Completed
+                          </span>
+                        ) : act.status === 'In Progress' ? (
+                          <span
+                            className="badge rounded-pill fw-semibold"
+                            style={{
+                              backgroundColor: '#FEF8EB',
+                              color: '#D97718',
+                              border: '1px solid #FCD34D',
+                              fontSize: '11px',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            ⏳ In Progress
+                          </span>
+                        ) : (
+                          <span
+                            className="badge rounded-pill fw-semibold"
+                            style={{
+                              backgroundColor: '#EFF6FF',
+                              color: '#2563EB',
+                              border: '1px solid #BFDBFE',
+                              fontSize: '11px',
+                              padding: '4px 10px'
+                            }}
+                          >
+                            {act.status}
+                          </span>
+                        )}
                       </td>
                       {/* Action Column with Edit and Delete buttons */}
                       <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -1328,7 +1435,20 @@ export default function DailyActivityReport() {
             </div>
 
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Target Completion Date ("Complete By")</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Activity Date (Date Covered) <span className="text-danger">*</span>
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={newActivity.activity_date || newActivity.targetDate || selectedDate}
+                onChange={(e) => setNewActivity({ ...newActivity, activity_date: e.target.value, targetDate: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Target Completion Date (Optional)</label>
               <input
                 type="date"
                 className="form-control form-control-sm"
@@ -1344,7 +1464,7 @@ export default function DailyActivityReport() {
                 className="form-control form-control-sm"
                 value={newActivity.timeSlot}
                 onChange={(e) => setNewActivity({ ...newActivity, timeSlot: e.target.value })}
-                placeholder="e.g. 02:00 PM - 03:30 PM"
+                placeholder="e.g. 08:30 AM - 10:00 AM"
                 required
               />
             </div>
@@ -1394,25 +1514,30 @@ export default function DailyActivityReport() {
             </div>
 
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Activity Status</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Topic Status <span className="text-danger">*</span>
+              </label>
               <select
                 className="form-select form-select-sm"
                 value={newActivity.status}
                 onChange={(e) => setNewActivity({ ...newActivity, status: e.target.value })}
+                required
               >
-                <option value="Completed">Completed</option>
-                <option value="In Progress">In Progress</option>
+                <option value="In Progress">⏳ In Progress (Currently Teaching)</option>
+                <option value="Completed">✓ Completed (Topic Finished Today)</option>
               </select>
             </div>
 
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Topic Taught / Syllabus Covered</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Topic Covered Today <span className="text-danger">*</span>
+              </label>
               <input
                 type="text"
                 className="form-control form-control-sm"
                 value={newActivity.topicTaught}
                 onChange={(e) => setNewActivity({ ...newActivity, topicTaught: e.target.value })}
-                placeholder="e.g. Wave Optics - Wavefronts & Interference Formulae"
+                placeholder="e.g. Wave Optics - Wavefronts & Huygens Principle"
                 required
               />
             </div>

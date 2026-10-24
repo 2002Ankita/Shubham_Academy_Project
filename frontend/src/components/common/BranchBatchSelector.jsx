@@ -23,6 +23,7 @@ export default function BranchBatchSelector({
   onBranchChange,
   onSessionChange,
   onBatchChange,
+  onAcademicBatchChange,
   showAllOption = false,
   allOptionLabel = 'All',
   required = false,
@@ -117,7 +118,11 @@ export default function BranchBatchSelector({
           <select
             className={`${selectClass} ${!academicBatch && required ? 'border-warning' : ''}`}
             value={academicBatch || ''}
-            onChange={(e) => onBatchChange && onBatchChange(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (onBatchChange) onBatchChange(val);
+              if (onAcademicBatchChange) onAcademicBatchChange(val);
+            }}
             disabled={isBatchDisabled}
             required={required}
           >

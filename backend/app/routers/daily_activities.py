@@ -67,8 +67,9 @@ async def create_daily_activity(
     if token:
         try:
             user = await get_current_user(token)
-            current_teacher = user.full_name
-            current_teacher_id = str(user.id)
+            if user and str(getattr(user, "role", "")).upper() in ["TEACHER", "FACULTY"]:
+                current_teacher = getattr(user, "full_name", None)
+                current_teacher_id = str(user.id)
         except Exception:
             pass
 
@@ -123,18 +124,7 @@ async def create_daily_activity(
             standard_subj = raw_subj
 
         # 2. Standardize faculty name
-        faculty_name = current_teacher or data.get("teacher_name")
-        if not faculty_name or faculty_name == "Assigned Faculty":
-            if standard_subj == "Physics":
-                faculty_name = "Prof. Shubham Shinde"
-            elif standard_subj == "Chemistry":
-                faculty_name = "Prof. Sunita Patil"
-            elif standard_subj == "Mathematics":
-                faculty_name = "Prof. Rajesh Sharma"
-            elif standard_subj == "Biology":
-                faculty_name = "Prof. Amit Sawant"
-            else:
-                faculty_name = "Prof. Shubham Shinde"
+        faculty_name = current_teacher or data.get("teacher_name") or ""
 
         if topic_title and standard_subj:
             import re
@@ -206,47 +196,31 @@ async def create_bulk_daily_activities(
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Bulk create daily classroom activities from Excel import and route to respective faculty"""
-    current_teacher = None
-    if token:
-        try:
-            user = await get_current_user(token)
-            current_teacher = user.full_name
-        except Exception:
-            pass
-
     created_results = []
     for activity_in in activities_in:
         data = activity_in.dict()
-        raw_subj = (data.get("subject") or "Physics").strip()
-        lower_subj = raw_subj.lower()
-        if "physic" in lower_subj:
-            standard_subj = "Physics"
-        elif "chem" in lower_subj:
-            standard_subj = "Chemistry"
-        elif "math" in lower_subj:
-            standard_subj = "Mathematics"
-        elif "bio" in lower_subj:
-            standard_subj = "Biology"
-        else:
-            standard_subj = raw_subj
+        # Only assign teacher_name if explicitly provided in the uploaded Excel data
+        raw_teacher = (data.get("teacher_name") or "").strip()
+        data["teacher_name"] = raw_teacher if raw_teacher and raw_teacher.lower() not in ["unassigned", "assigned faculty", "none", "null", "—", "-"] else None
 
-        # Assign faculty if not explicitly specified
-        faculty_name = data.get("teacher_name") or current_teacher
-        if not faculty_name or faculty_name in ["Assigned Faculty", ""]:
-            if standard_subj == "Physics":
-                faculty_name = "Dr. Priya Kulkarni"
-            elif standard_subj == "Chemistry":
-                faculty_name = "Prof. Sunita Patil"
-            elif standard_subj == "Mathematics":
-                faculty_name = "Prof. Rajesh Sharma"
-            elif standard_subj == "Biology":
-                faculty_name = "Prof. Amit Sawant"
-            else:
-                faculty_name = "Dr. Priya Kulkarni"
-        data["teacher_name"] = faculty_name
+        # Resolve teacher_id if missing and teacher_name is provided
+        if not data.get("teacher_id") and data.get("teacher_name"):
+            try:
+                from app.models.user import User
+                import re
+                u = await User.find_one({"full_name": {"$regex": f"^{re.escape(data['teacher_name'].strip())}$", "$options": "i"}})
+                if u:
+                    data["teacher_id"] = str(u.id)
+            except Exception:
+                pass
 
         if not data.get("activity_date"):
-            data["activity_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+            data["activity_date"] = data.get("target_date") or datetime.utcnow().strftime("%Y-%m-%d")
+
+        try:
+            data["hours"] = float(data.get("hours") or 1.0)
+        except (ValueError, TypeError):
+            data["hours"] = 1.0
 
         activity = DailyActivity(**data)
         await activity.insert()

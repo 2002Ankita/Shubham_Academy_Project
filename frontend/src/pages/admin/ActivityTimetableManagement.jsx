@@ -54,6 +54,9 @@ export default function ActivityTimetableManagement() {
     return 'daily';
   });
 
+  // View mode for activities: 'excel' (as-it-is spreadsheet structure) or 'logs' (detailed log table)
+  const [dailyViewMode, setDailyViewMode] = useState('excel');
+
   // Track published and requested weeks
   const [publishedWeeks, setPublishedWeeks] = useState(() => {
     try {
@@ -182,78 +185,6 @@ export default function ActivityTimetableManagement() {
   // Branch list
   const branches = ['Tarabai Park', 'Mangalwar Peth'];
 
-  // Default seed daily activities if none exist
-  const defaultDailyActivities = useMemo(() => [
-    {
-      id: 'ACT-DEF-01',
-      branch: 'Tarabai Park',
-      activity: 'Classroom Lecture & Theory',
-      subject: 'Physics',
-      teacherName: 'More A.D',
-      batch: '12th pcm tarabai park',
-      chapter: 'Chapter 7: Wave Optics',
-      topicTaught: 'Wavefronts & Huygens Principle Derivation',
-      timeSlot: '08:30 AM - 10:00 AM',
-      periods: 1,
-      totalPlannedPeriods: 2,
-      hours: 1.0,
-      targetDate: '2026-10-22',
-      status: 'Completed',
-      remarks: 'Derived reflection and refraction laws. Solved Board numericals.'
-    },
-    {
-      id: 'ACT-DEF-02',
-      branch: 'Tarabai Park',
-      activity: 'Classroom Lecture & Theory',
-      subject: 'Chemistry',
-      teacherName: 'More A.D',
-      batch: '12th pcm tarabai park',
-      chapter: 'Chapter 4: Chemical Kinetics',
-      topicTaught: 'Order of Reaction & Arrhenius Rate Equation',
-      timeSlot: '10:00 AM - 11:00 AM',
-      periods: 1,
-      totalPlannedPeriods: 2,
-      hours: 1.0,
-      targetDate: '2026-10-24',
-      status: 'Completed',
-      remarks: 'Solved zero and first order kinetic problems.'
-    },
-    {
-      id: 'ACT-DEF-03',
-      branch: 'Mangalwar Peth',
-      activity: 'Classroom Lecture & Theory',
-      subject: 'Mathematics',
-      teacherName: 'veer 1',
-      batch: '11th pcm Mangalvar Peth',
-      chapter: 'Chapter 3: Trigonometric Functions',
-      topicTaught: 'Compound Angles & Double Angle Formulae',
-      timeSlot: '11:30 AM - 12:30 PM',
-      periods: 1,
-      totalPlannedPeriods: 3,
-      hours: 1.0,
-      targetDate: '2026-10-26',
-      status: 'In Progress',
-      remarks: 'Solved Board exercise 3.1 & 3.2 problems.'
-    },
-    {
-      id: 'ACT-DEF-04',
-      branch: 'Mangalwar Peth',
-      activity: 'Practical Lab Session',
-      subject: 'Biology',
-      teacherName: 'Shri',
-      batch: '12th pcm Mangalvar Peth',
-      chapter: 'Chapter 8: Human Health & Disease',
-      topicTaught: 'Innate & Acquired Immunity, Antibody Structure',
-      timeSlot: '01:30 PM - 03:00 PM',
-      periods: 2,
-      totalPlannedPeriods: 3,
-      hours: 1.5,
-      targetDate: '2026-10-25',
-      status: 'Completed',
-      remarks: 'Observed blood smear slides under microscope with students.'
-    }
-  ], []);
-
   // -------------------------------------------------------------
   // INITIAL FETCH & REALTIME LISTENERS
   // -------------------------------------------------------------
@@ -268,26 +199,25 @@ export default function ActivityTimetableManagement() {
 
       if (Array.isArray(actData) && actData.length > 0) {
         const mapped = actData.map(item => {
-          const rawBatch = (item.batch || '').toLowerCase();
-          const rawBranch = (item.branch || '').toLowerCase();
-          const branch = (rawBatch.includes('mangalwar') || rawBranch.includes('mangalwar'))
-            ? 'Mangalwar Peth'
-            : (rawBatch.includes('tarabai') || rawBranch.includes('tarabai') ? 'Tarabai Park' : (item.branch || 'Tarabai Park'));
-
           return {
             ...item,
-            branch,
-            chapter: item.chapter || (item.topic_taught && item.topic_taught.includes('-') ? item.topic_taught.split('-')[0].trim() : 'Curriculum Module'),
+            id: item.id || String(item._id),
+            branch: item.branch || '',
+            chapter: item.chapter || (item.topic_taught && item.topic_taught.includes('-') ? item.topic_taught.split('-')[0].trim() : (item.topic_taught || 'Curriculum Chapter')),
             topicTaught: item.topic_taught || item.topicTaught || '',
-            timeSlot: item.time_slot || item.timeSlot || '09:00 AM – 10:00 AM',
-            totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods || 2,
-            targetDate: item.target_date || item.targetDate || item.activity_date || '2026-10-25',
-            teacherName: item.teacher_name || item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D'
+            timeSlot: item.time_slot || item.timeSlot || '',
+            periods: parseInt(item.periods || 1, 10),
+            totalPlannedPeriods: item.total_planned_periods || item.totalPlannedPeriods || item.periods || 1,
+            hours: parseFloat(item.hours || 1.0),
+            targetDate: item.target_date || item.targetDate || item.activity_date || '',
+            teacherName: item.teacher_name || item.teacherName || '',
+            batch: item.batch || '',
+            status: item.status || 'Completed'
           };
         });
         setDailyActivities(mapped);
       } else {
-        setDailyActivities(defaultDailyActivities);
+        setDailyActivities([]);
       }
 
       if (Array.isArray(batchData)) {
@@ -362,14 +292,27 @@ export default function ActivityTimetableManagement() {
   }, [activeTab]);
 
   const filteredSyllabusList = useMemo(() => {
-    return syllabusList.filter((item) => {
-      const matchSubject = syllabusSubject === 'All' || !syllabusSubject ||
-        (item.subject && item.subject.toLowerCase() === syllabusSubject.toLowerCase());
-      const matchSearch = !syllabusSearch.trim() ||
-        (item.title && item.title.toLowerCase().includes(syllabusSearch.toLowerCase())) ||
-        String(item.sr_no).includes(syllabusSearch);
-      return matchSubject && matchSearch;
-    });
+    return syllabusList
+      .filter((item) => {
+        const matchSubject = syllabusSubject === 'All' || !syllabusSubject ||
+          (item.subject && item.subject.toLowerCase() === syllabusSubject.toLowerCase());
+        const matchSearch = !syllabusSearch.trim() ||
+          (item.title && item.title.toLowerCase().includes(syllabusSearch.toLowerCase())) ||
+          String(item.sr_no).includes(syllabusSearch);
+        return matchSubject && matchSearch;
+      })
+      .sort((a, b) => {
+        const subA = String(a.subject || '');
+        const subB = String(b.subject || '');
+        if (subA.toLowerCase() !== subB.toLowerCase()) {
+          const order = { physics: 1, chemistry: 2, mathematics: 3, maths: 3, biology: 4 };
+          const ordA = order[subA.toLowerCase()] || 99;
+          const ordB = order[subB.toLowerCase()] || 99;
+          if (ordA !== ordB) return ordA - ordB;
+          return subA.localeCompare(subB);
+        }
+        return (Number(a.sr_no) || 0) - (Number(b.sr_no) || 0);
+      });
   }, [syllabusList, syllabusSubject, syllabusSearch]);
 
   const totalSyllabusChapters = filteredSyllabusList.length;
@@ -437,6 +380,7 @@ export default function ActivityTimetableManagement() {
 
     let detectedYear = '2026 – 2027';
     let detectedStandard = '12th';
+    let detectedScope = 'Mangalwar Peth & Tarabai Park';
 
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
@@ -499,6 +443,15 @@ export default function ActivityTimetableManagement() {
         if (foundSubjectInRow) {
           currentSubject = foundSubjectInRow;
           continue; // It's a subject banner row, not a chapter!
+        }
+
+        // Check for branch scope banner like "No of lec for mp/tp"
+        if (rowCleanStr.includes('mp/tp') || rowCleanStr.includes('mp / tp') || (rowCleanStr.includes('mangalwar') && rowCleanStr.includes('tarabai'))) {
+          detectedScope = 'Mangalwar Peth & Tarabai Park';
+        } else if (rowCleanStr.includes('mangalwar')) {
+          detectedScope = 'Mangalwar Peth';
+        } else if (rowCleanStr.includes('tarabai')) {
+          detectedScope = 'Tarabai Park';
         }
 
         // Skip banner text rows like "No of lec for mp/tp" or pure year headers
@@ -572,18 +525,15 @@ export default function ActivityTimetableManagement() {
 
     if (totalImportedChapters > 0) {
       toast.success(`Successfully imported ${totalImportedChapters} chapters! (${importedSummary.join(', ')})`);
-      if (importedSummary.length === 1 && firstImportedSubject) {
-        setSyllabusSubject(firstImportedSubject);
-      } else {
-        setSyllabusSubject('All');
-      }
+      // Keep Excel sheet view focused on the first imported subject (e.g. Physics) rather than merging into All
+      setSyllabusSubject(firstImportedSubject || 'Physics');
       if (shouldSwitchTab) {
         setActiveTab('syllabus');
       }
       await loadSyllabusData();
-      return { success: true, chaptersBySubject, totalImportedChapters };
+      return { success: true, chaptersBySubject, totalImportedChapters, detectedStandard, detectedYear, detectedScope };
     }
-    return { success: false, chaptersBySubject: {}, totalImportedChapters: 0 };
+    return { success: false, chaptersBySubject: {}, totalImportedChapters: 0, detectedStandard, detectedYear, detectedScope };
   };
 
   const handleTriggerSyllabusExcel = () => {
@@ -772,14 +722,16 @@ export default function ActivityTimetableManagement() {
     toast.success('Downloaded complete 4-subject syllabus template (Physics, Chemistry, Maths, Biology)!');
   };
 
-  const handleOpenAddChapterModal = () => {
+  const handleOpenAddChapterModal = (targetSubject) => {
+    const defaultSub = (targetSubject && targetSubject !== 'All') ? targetSubject : (syllabusSubject === 'All' ? 'Physics' : syllabusSubject);
+    const existingForSub = syllabusList.filter((s) => s.subject && s.subject.toLowerCase() === defaultSub.toLowerCase());
     setEditingChapterId(null);
     setChapterForm({
-      sr_no: String(filteredSyllabusList.length + 1),
+      sr_no: String(existingForSub.length + 1),
       title: '',
       boards_lectures: 6,
       entrance_lectures: 2,
-      subject: syllabusSubject === 'All' ? 'Physics' : syllabusSubject,
+      subject: defaultSub,
       standard: syllabusStandard,
       academic_year: syllabusAcademicYear,
       branch_scope: 'mp/tp'
@@ -880,6 +832,7 @@ export default function ActivityTimetableManagement() {
   // TAB 1: DAILY ACTIVITIES LOGIC & EXCEL IMPORT
   // -------------------------------------------------------------
   const [dailySearch, setDailySearch] = useState('');
+  const [dailyDateFilter, setDailyDateFilter] = useState('');
   const [dailyBranchFilter, setDailyBranchFilter] = useState('All');
   const [dailyTeacherFilter, setDailyTeacherFilter] = useState('All');
   const [dailySubjectFilter, setDailySubjectFilter] = useState('All');
@@ -934,39 +887,9 @@ export default function ActivityTimetableManagement() {
         const isSyllabusSheet = (sheetDump.includes('entrance') && (sheetDump.includes('boards') || sheetDump.includes('mp/tp') || sheetDump.includes('rotational') || sheetDump.includes('solid state')));
 
         if (isSyllabusSheet) {
-          // Sync syllabus plan in background without switching tabs away from Daily Logs!
-          const syllabusResult = await processSyllabusWorkbook(workbook, false);
-          const syllabusDailyRows = [];
-
-          if (syllabusResult?.success && syllabusResult.chaptersBySubject) {
-            for (const [sub, chapters] of Object.entries(syllabusResult.chaptersBySubject)) {
-              chapters.forEach(ch => {
-                syllabusDailyRows.push({
-                  branch: 'Tarabai Park',
-                  activity: 'Classroom Lecture & Theory',
-                  subject: sub,
-                  teacherName: defaultFacultyBySubject[sub] || 'More A.D',
-                  batch: '12th pcm tarabai park',
-                  chapter: ch.title,
-                  topicTaught: ch.title,
-                  timeSlot: '09:00 AM - 10:00 AM',
-                  periods: 1,
-                  totalPlannedPeriods: ch.total_lectures || ch.boards_lectures || 2,
-                  hours: 1.5,
-                  targetDate: '2026-10-25',
-                  status: 'In Progress',
-                  remarks: `Boards: ${ch.boards_lectures || 0} lec, Entrance: ${ch.entrance_lectures || 0} lec`
-                });
-              });
-            }
-          }
-
-          if (syllabusDailyRows.length > 0) {
-            setDailyParsedData(syllabusDailyRows);
-            setIsDailyImportModalOpen(true);
-            toast.info(`Parsed ${syllabusDailyRows.length} activities from syllabus plan. Kept on Daily Logs page.`);
-            return;
-          }
+          // Immediately process syllabus and switch to the exact As-It-Is Excel sheet view
+          await processSyllabusWorkbook(workbook, true);
+          return;
         }
 
         const sheetName = workbook.SheetNames[0];
@@ -985,37 +908,25 @@ export default function ActivityTimetableManagement() {
             norm[cleanKey] = row[k];
           }
 
-          // Branch detection
-          let branch = String(norm['branch'] || norm['branchname'] || norm['location'] || '').trim();
-          const batchStr = String(norm['classbatch'] || norm['batch'] || norm['class'] || '').trim();
-          if (!branch) {
-            if (batchStr.toLowerCase().includes('mangalwar')) branch = 'Mangalwar Peth';
-            else branch = 'Tarabai Park';
-          }
-
+          const branch = String(norm['branch'] || norm['branchname'] || norm['location'] || norm['center'] || norm['campus'] || '').trim();
           const activity = String(norm['activitytype'] || norm['activity'] || norm['type'] || 'Classroom Lecture & Theory').trim();
-          let subject = String(norm['subject'] || norm['sub'] || norm['subjectname'] || 'Physics').trim();
+          let subject = String(norm['subject'] || norm['sub'] || norm['subjectname'] || norm['course'] || '').trim();
           if (subject.toLowerCase().includes('physic')) subject = 'Physics';
           else if (subject.toLowerCase().includes('chem')) subject = 'Chemistry';
           else if (subject.toLowerCase().includes('math')) subject = 'Mathematics';
           else if (subject.toLowerCase().includes('bio')) subject = 'Biology';
 
-          const batch = batchStr || (branch === 'Mangalwar Peth' ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park');
-          const chapter = String(norm['chapter'] || norm['unit'] || norm['chaptername'] || 'Curriculum Module').trim();
-          const topicTaught = String(norm['topictaught'] || norm['topictaughtsyllabuscovered'] || norm['topic'] || norm['syllabus'] || norm['title'] || '').trim();
-          const timeSlot = String(norm['timeslot'] || norm['time'] || norm['slot'] || '03:00 PM - 04:00 PM').trim();
-          const periods = parseInt(norm['periodstaken'] || norm['periods'] || norm['period'] || 1, 10);
-          const totalPlannedPeriods = parseInt(norm['totalplannedperiods'] || norm['plannedperiods'] || norm['totalperiods'] || 2, 10);
-          const hours = parseFloat(norm['hoursspentteaching'] || norm['hoursspent'] || norm['hours'] || norm['hrs'] || 1.0);
-          const targetDate = String(norm['targetcompletiondate'] || norm['targetdate'] || norm['completeby'] || norm['deadline'] || norm['enddate'] || new Date().toISOString().split('T')[0]).trim();
-          const status = String(norm['activitystatus'] || norm['status'] || 'Completed').trim();
-          const remarks = String(norm['remarks'] || norm['remark'] || norm['outcomes'] || '').trim();
-
-          // Auto-assign faculty based on Subject or Excel row
-          let teacherName = String(norm['teachername'] || norm['teacher'] || norm['faculty'] || '').trim();
-          if (!teacherName) {
-            teacherName = defaultFacultyBySubject[subject] || 'More A.D';
-          }
+          const batch = String(norm['classbatch'] || norm['batch'] || norm['batchname'] || norm['class'] || norm['standard'] || norm['std'] || '').trim();
+          const chapter = String(norm['chapter'] || norm['chaptername'] || norm['unit'] || norm['modulename'] || norm['module'] || '').trim();
+          const topicTaught = String(norm['topictaught'] || norm['topictaughtsyllabuscovered'] || norm['topic'] || norm['topicname'] || norm['syllabus'] || norm['syllabuscovered'] || norm['title'] || chapter || '').trim();
+          const timeSlot = String(norm['timeslot'] || norm['time'] || norm['slot'] || norm['timing'] || '').trim();
+          const periods = parseInt(norm['periodstaken'] || norm['periods'] || norm['period'] || norm['lectures'] || norm['lec'] || norm['totallectures'] || norm['totalplannedperiods'] || 1, 10);
+          const totalPlannedPeriods = parseInt(norm['totalplannedperiods'] || norm['plannedperiods'] || norm['totalperiods'] || norm['totallectures'] || periods || 1, 10);
+          const hours = parseFloat(norm['hoursspentteaching'] || norm['hoursspent'] || norm['hours'] || norm['hrs'] || norm['duration'] || totalPlannedPeriods || 1.0);
+          const targetDate = String(norm['targetcompletiondate'] || norm['targetdate'] || norm['completeby'] || norm['deadline'] || norm['enddate'] || norm['date'] || norm['activitydate'] || '').trim();
+          const status = String(norm['activitystatus'] || norm['status'] || norm['state'] || 'Planned').trim();
+          const remarks = String(norm['remarks'] || norm['remark'] || norm['notes'] || norm['outcomes'] || '').trim();
+          const teacherName = String(norm['teachername'] || norm['teacher'] || norm['faculty'] || norm['facultyname'] || norm['instructor'] || norm['staff'] || norm['name'] || '').trim();
 
           return {
             branch,
@@ -1023,11 +934,12 @@ export default function ActivityTimetableManagement() {
             subject,
             teacherName,
             batch,
-            chapter,
-            topicTaught,
+            chapter: chapter || topicTaught,
+            topicTaught: topicTaught || chapter,
             timeSlot,
-            periods,
+            periods: periods || totalPlannedPeriods,
             totalPlannedPeriods,
+            durationDisplay: (periods || totalPlannedPeriods) === totalPlannedPeriods ? `${totalPlannedPeriods} Lectures (${hours}h)` : `${periods} / ${totalPlannedPeriods} Periods (${hours}h)`,
             hours,
             targetDate,
             status,
@@ -1057,29 +969,30 @@ export default function ActivityTimetableManagement() {
 
     try {
       const payloadList = dailyParsedData.map(item => ({
-        branch: item.branch || 'Tarabai Park',
+        branch: item.branch || '',
         activity: item.activity || 'Classroom Lecture & Theory',
-        subject: item.subject || 'Physics',
-        batch: item.batch || '12th pcm tarabai park',
-        chapter: item.chapter || item.topicTaught || 'Curriculum Module',
-        topic_taught: item.topicTaught || item.chapter || 'Lecture Activity',
-        time_slot: item.timeSlot || '09:00 AM - 10:00 AM',
-        periods: parseInt(item.periods || 1, 10),
-        total_planned_periods: parseInt(item.totalPlannedPeriods || 2, 10),
-        hours: parseFloat(item.hours || 1.0),
-        target_date: item.targetDate || new Date().toISOString().split('T')[0],
-        status: item.status || 'Completed',
-        teacher_name: item.teacherName || defaultFacultyBySubject[item.subject] || 'More A.D',
+        subject: item.subject || '',
+        batch: item.batch || '',
+        chapter: item.chapter || item.topicTaught || '',
+        topic_taught: item.topicTaught || item.chapter || '',
+        time_slot: item.timeSlot || '',
+        periods: parseInt(item.periods || item.totalPlannedPeriods || 1, 10),
+        total_planned_periods: parseInt(item.totalPlannedPeriods || item.periods || 1, 10),
+        hours: parseFloat(item.hours || item.periods || 1.0),
+        target_date: item.targetDate || '',
+        status: item.status || 'Planned',
+        teacher_name: item.teacherName || '',
+        teacher_id: item.teacherId || null,
         remarks: item.remarks || '',
-        frequency: 'Daily',
-        activity_date: new Date().toISOString().split('T')[0]
+        frequency: item.frequency || 'Daily',
+        activity_date: item.activityDate || item.targetDate || new Date().toISOString().split('T')[0]
       }));
 
       await curriculumService.bulkCreateDailyActivities(payloadList);
       setIsDailyImportModalOpen(false);
       setDailyParsedData([]);
 
-      // Auto-sync daily activities with schedule into batch timetable
+      // Auto-sync daily activities with schedule into batch timetable if time_slot and subject exist
       try {
         const slotsToSync = payloadList
           .filter(item => item.time_slot && item.subject)
@@ -1095,9 +1008,9 @@ export default function ActivityTimetableManagement() {
               day,
               time: item.time_slot,
               subject: item.subject,
-              teacher_name: item.teacher_name || defaultFacultyBySubject[item.subject] || 'More A.D',
+              teacher_name: item.teacher_name || '',
               batch: item.batch,
-              branch: item.branch || 'Tarabai Park',
+              branch: item.branch || '',
               room: 'Room 201'
             };
           });
@@ -1108,19 +1021,6 @@ export default function ActivityTimetableManagement() {
       } catch (syncErr) {
         console.warn('Auto-sync daily import to timetable failed:', syncErr);
       }
-
-      // Optimistically add imported items into dailyActivities so they are immediately visible on the Daily Logs table
-      const newItemsWithIds = payloadList.map((item, idx) => ({
-        id: `ACT-IMP-${Date.now()}-${idx}`,
-        ...item,
-        topicTaught: item.topic_taught,
-        timeSlot: item.time_slot,
-        totalPlannedPeriods: item.total_planned_periods,
-        targetDate: item.target_date,
-        teacherName: item.teacher_name
-      }));
-
-      setDailyActivities(prev => [...newItemsWithIds, ...(prev || [])]);
 
       // Reset filters on Daily Logs page so newly imported items are immediately visible and not hidden by filters!
       setDailyBranchFilter('All');
@@ -1135,11 +1035,11 @@ export default function ActivityTimetableManagement() {
 
       // Trigger update event across app
       window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
-      toast.success(`Successfully imported ${payloadList.length} daily activities! Kept on Daily Logs page.`);
+      toast.success(`Successfully imported and saved ${payloadList.length} activities into database!`);
       await loadData();
     } catch (err) {
       console.error('Failed to import activities:', err);
-      toast.error('Error importing activities to backend.');
+      toast.error('Error importing activities to database.');
     } finally {
       setLoading(false);
     }
@@ -1201,19 +1101,19 @@ export default function ActivityTimetableManagement() {
   const handleOpenEditDailyModal = (act) => {
     setEditingDailyId(act.id);
     setDailyForm({
-      branch: act.branch || 'Tarabai Park',
+      branch: act.branch || '',
       activity: act.activity || 'Classroom Lecture & Theory',
       subject: act.subject || 'Physics',
-      teacherName: act.teacherName || defaultFacultyBySubject[act.subject] || 'More A.D',
-      batch: act.batch || '12th pcm tarabai park',
+      teacherName: act.teacherName || '',
+      batch: act.batch || '',
       chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
-      timeSlot: act.timeSlot || '03:00 PM - 04:00 PM',
-      periods: String(act.periods || '1'),
-      totalPlannedPeriods: String(act.totalPlannedPeriods || '2'),
+      timeSlot: act.timeSlot || '',
+      periods: String(act.periods || act.totalPlannedPeriods || '1'),
+      totalPlannedPeriods: String(act.totalPlannedPeriods || act.periods || '1'),
       hours: String(act.hours || '1.0'),
-      targetDate: act.targetDate || new Date().toISOString().split('T')[0],
-      status: act.status || 'Completed',
+      targetDate: act.targetDate || '',
+      status: act.status || 'Planned',
       remarks: act.remarks || ''
     });
     setIsDailyModalOpen(true);
@@ -1235,14 +1135,14 @@ export default function ActivityTimetableManagement() {
       topic_taught: dailyForm.topicTaught,
       time_slot: dailyForm.timeSlot,
       periods: parseInt(dailyForm.periods, 10) || 1,
-      total_planned_periods: parseInt(dailyForm.totalPlannedPeriods, 10) || 2,
+      total_planned_periods: parseInt(dailyForm.totalPlannedPeriods, 10) || 1,
       hours: parseFloat(dailyForm.hours) || 1.0,
       target_date: dailyForm.targetDate,
       status: dailyForm.status,
-      teacher_name: dailyForm.teacherName || defaultFacultyBySubject[dailyForm.subject] || 'More A.D',
+      teacher_name: dailyForm.teacherName || '',
       remarks: dailyForm.remarks,
       frequency: 'Daily',
-      activity_date: new Date().toISOString().split('T')[0]
+      activity_date: dailyForm.targetDate || new Date().toISOString().split('T')[0]
     };
 
     try {
@@ -1316,15 +1216,20 @@ export default function ActivityTimetableManagement() {
         (item.batch && item.batch.toLowerCase().includes(q)) ||
         (item.teacherName && item.teacherName.toLowerCase().includes(q));
 
-      const matchesBranch = dailyBranchFilter === 'All' || item.branch === dailyBranchFilter;
+      const itemDate = item.activity_date || item.activityDate || item.targetDate || item.target_date || '';
+      const matchesDate = !dailyDateFilter || itemDate === dailyDateFilter;
+
+      const matchesBranch = dailyBranchFilter === 'All' || 
+        item.branch === dailyBranchFilter || 
+        (item.branch && dailyBranchFilter !== 'All' && item.branch.toLowerCase().includes(dailyBranchFilter.toLowerCase().split(' ')[0]));
       const matchesTeacher = dailyTeacherFilter === 'All' || item.teacherName === dailyTeacherFilter;
       const matchesSubject = dailySubjectFilter === 'All' || item.subject === dailySubjectFilter;
       const matchesBatch = dailyBatchFilter === 'All' || item.batch === dailyBatchFilter;
       const matchesStatus = dailyStatusFilter === 'All' || item.status === dailyStatusFilter;
 
-      return matchesSearch && matchesBranch && matchesTeacher && matchesSubject && matchesBatch && matchesStatus;
+      return matchesSearch && matchesDate && matchesBranch && matchesTeacher && matchesSubject && matchesBatch && matchesStatus;
     });
-  }, [dailyActivities, dailySearch, dailyBranchFilter, dailyTeacherFilter, dailySubjectFilter, dailyBatchFilter, dailyStatusFilter]);
+  }, [dailyActivities, dailySearch, dailyDateFilter, dailyBranchFilter, dailyTeacherFilter, dailySubjectFilter, dailyBatchFilter, dailyStatusFilter]);
 
   // -------------------------------------------------------------
   // TAB 2: MASTER WEEKLY TIMETABLE LOGIC & EXCEL SYNC
@@ -1698,23 +1603,455 @@ export default function ActivityTimetableManagement() {
 
   // Helper styling for branches
   const getBranchBadge = (branch = '') => {
-    const isMangalwar = branch.toLowerCase().includes('mangalwar');
-    return {
-      bg: isMangalwar ? '#F0FDFA' : '#FDF0F0',
-      text: isMangalwar ? '#0D9488' : '#8B1216',
-      border: isMangalwar ? '#99F6E4' : '#F5C2C4',
-      label: isMangalwar ? 'Mangalwar Peth' : 'Tarabai Park'
-    };
+    const b = (branch || '').toLowerCase();
+    if ((b.includes('mangalwar') && b.includes('tarabai')) || b.includes('mp/tp') || b.includes('both')) {
+      return { bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE', label: 'Mangalwar & Tarabai' };
+    }
+    if (b.includes('mangalwar')) {
+      return { bg: '#F0FDFA', text: '#0D9488', border: '#99F6E4', label: 'Mangalwar Peth' };
+    }
+    if (b.includes('tarabai')) {
+      return { bg: '#FDF0F0', text: '#8B1216', border: '#F5C2C4', label: 'Tarabai Park' };
+    }
+    return { bg: '#F8FAFC', text: '#475569', border: '#E2E8F0', label: branch || 'All Branches' };
   };
 
   // Helper to format Class / Batch without repeating the branch name
   const formatClassBatch = (batchStr = '') => {
-    if (!batchStr) return 'General Class';
-    return batchStr
+    if (!batchStr) return '—';
+    const cleaned = batchStr
       .replace(/Tarabai\s*Park/gi, '')
       .replace(/Mangalwar\s*Peth/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
+    return cleaned || batchStr;
+  };
+
+  // Renders the exact Excel table format for a single subject (keeps authentic format of original Excel sheet)
+  const renderSingleSubjectTable = (subjectName, chapters = [], isStacked = false) => {
+    const boardsTotal = chapters.reduce((acc, c) => acc + (Number(c.boards_lectures) || 0), 0);
+    const entranceTotal = chapters.reduce((acc, c) => acc + (Number(c.entrance_lectures) || 0), 0);
+    const lecturesTotal = chapters.reduce((acc, c) => acc + (Number(c.total_lectures) || ((Number(c.boards_lectures) || 0) + (Number(c.entrance_lectures) || 0))), 0);
+
+    return (
+      <div
+        key={subjectName}
+        className={`border rounded-3 overflow-hidden shadow-xs ${isStacked ? 'mb-4' : ''}`}
+        style={{ borderColor: '#475569', backgroundColor: '#FFFFFF' }}
+      >
+        {/* Sheet Top Info Banner */}
+        <div
+          className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+          style={{ backgroundColor: '#F8FAFC', borderColor: '#475569' }}
+        >
+          <div className="d-flex align-items-center gap-2">
+            <span
+              className="badge px-2.5 py-1 fw-bold text-white shadow-xs"
+              style={{
+                backgroundColor: facultyColorMap[subjectName] || '#1E293B',
+                fontSize: '11.5px',
+                letterSpacing: '0.3px',
+                borderRadius: '5px'
+              }}
+            >
+              📑 Sheet: {subjectName}
+            </span>
+            <span className="text-sa-muted" style={{ fontSize: '12px' }}>
+              • {chapters.length} Chapters • {boardsTotal} Boards + {entranceTotal} Entrance = {lecturesTotal} Total Lectures
+            </span>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleOpenAddChapterModal(subjectName)}
+              className="btn btn-sm text-sa-charcoal fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
+              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '5px' }}
+              title={`Add Chapter to ${subjectName}`}
+            >
+              <Plus size={13} color="#8B1216" />
+              <span>Add Chapter</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleTriggerSyllabusExcel}
+              className="btn btn-sm text-success fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
+              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '5px' }}
+              title="Upload / Re-import Excel"
+            >
+              <FileSpreadsheet size={13} />
+              <span>Import</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="table-responsive m-0">
+          <table
+            className="table table-bordered align-middle m-0"
+            style={{
+              borderColor: '#475569',
+              borderCollapse: 'collapse',
+              fontSize: '13px'
+            }}
+          >
+            <thead>
+              {/* Row 1: Academic Year Header */}
+              <tr style={{ backgroundColor: '#FFFFFF' }}>
+                <th
+                  colSpan={6}
+                  className="text-center fw-bold"
+                  style={{
+                    color: '#DC2626',
+                    fontSize: '17px',
+                    padding: '9px 16px',
+                    borderColor: '#475569',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {syllabusStandard} {syllabusAcademicYear}
+                </th>
+              </tr>
+
+              {/* Row 2: Subject & No of lec for mp/tp */}
+              <tr style={{ backgroundColor: '#FFFFFF' }}>
+                <th
+                  colSpan={2}
+                  className="text-center fw-bold"
+                  style={{
+                    color: '#DC2626',
+                    fontSize: '16px',
+                    padding: '8px 16px',
+                    borderColor: '#475569'
+                  }}
+                >
+                  {subjectName}
+                </th>
+                <th
+                  colSpan={2}
+                  className="text-center fw-bold"
+                  style={{
+                    color: '#DC2626',
+                    fontSize: '15px',
+                    padding: '8px 16px',
+                    borderColor: '#475569'
+                  }}
+                >
+                  No of lec for mp/tp
+                </th>
+                <th
+                  rowSpan={2}
+                  className="text-center fw-bold"
+                  style={{
+                    width: '90px',
+                    color: '#475569',
+                    backgroundColor: '#F8FAFC',
+                    borderColor: '#475569',
+                    verticalAlign: 'middle',
+                    fontSize: '12px'
+                  }}
+                >
+                  Total
+                </th>
+                <th
+                  rowSpan={2}
+                  className="text-center fw-semibold"
+                  style={{
+                    width: '80px',
+                    color: '#64748B',
+                    backgroundColor: '#F8FAFC',
+                    borderColor: '#475569',
+                    verticalAlign: 'middle',
+                    fontSize: '12px'
+                  }}
+                >
+                  Action
+                </th>
+              </tr>
+
+              {/* Row 3: Column Headers (Sr.no, Title, Boards, Entrance) */}
+              <tr style={{ backgroundColor: '#FFFFFF' }}>
+                <th
+                  style={{
+                    width: '70px',
+                    textAlign: 'center',
+                    color: '#1D4ED8',
+                    textDecoration: 'underline',
+                    fontWeight: 700,
+                    padding: '9px 8px',
+                    borderColor: '#475569',
+                    backgroundColor: '#FFFFFF',
+                    fontSize: '13.5px'
+                  }}
+                >
+                  Sr.no
+                </th>
+                <th
+                  style={{
+                    textAlign: 'left',
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    padding: '9px 16px',
+                    borderColor: '#475569',
+                    backgroundColor: '#FFFFFF',
+                    fontSize: '13.5px'
+                  }}
+                >
+                  Title
+                </th>
+                <th
+                  style={{
+                    width: '130px',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    padding: '9px 8px',
+                    backgroundColor: '#BDD7EE',
+                    borderColor: '#475569',
+                    fontSize: '13.5px'
+                  }}
+                >
+                  Boards
+                </th>
+                <th
+                  style={{
+                    width: '130px',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    padding: '9px 8px',
+                    backgroundColor: '#BDD7EE',
+                    borderColor: '#475569',
+                    fontSize: '13.5px'
+                  }}
+                >
+                  Entrance
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {chapters.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-4 text-sa-muted">
+                    <div className="d-flex flex-column align-items-center justify-content-center gap-1.5">
+                      <FileSpreadsheet size={30} color="#94A3B8" />
+                      <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                        No chapters found for {subjectName}
+                      </span>
+                      <span className="small text-muted" style={{ maxWidth: '380px' }}>
+                        Import the Excel sheet or click Add Chapter to populate this subject.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                chapters.map((chapter, idx) => {
+                  const boards = chapter.boards_lectures || 0;
+                  const entrance = chapter.entrance_lectures || 0;
+                  const total = boards + entrance;
+
+                  return (
+                    <tr
+                      key={chapter.id || chapter.topic_id || `${subjectName}-${idx}`}
+                      style={{ backgroundColor: '#FFFFFF' }}
+                    >
+                      {/* 1. Sr.no */}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          fontWeight: 600,
+                          color: '#0F172A',
+                          padding: '8px 8px',
+                          borderColor: '#475569',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {chapter.sr_no || idx + 1}
+                      </td>
+
+                      {/* 2. Chapter Title */}
+                      <td
+                        style={{
+                          padding: '8px 16px',
+                          fontWeight: 600,
+                          color: '#0F172A',
+                          borderColor: '#475569',
+                          fontSize: '13px'
+                        }}
+                      >
+                        <span>{chapter.title || chapter.topic_name}</span>
+                      </td>
+
+                      {/* 3. Boards Lectures (Excel blue shading #BDD7EE) */}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          fontWeight: 700,
+                          color: '#0F172A',
+                          padding: '8px 8px',
+                          backgroundColor: '#BDD7EE',
+                          borderColor: '#475569',
+                          fontSize: '13.5px'
+                        }}
+                      >
+                        {boards}
+                      </td>
+
+                      {/* 4. Entrance Lectures (Excel blue shading #BDD7EE) */}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          fontWeight: 700,
+                          color: '#0F172A',
+                          padding: '8px 8px',
+                          backgroundColor: '#BDD7EE',
+                          borderColor: '#475569',
+                          fontSize: '13.5px'
+                        }}
+                      >
+                        {entrance}
+                      </td>
+
+                      {/* 5. Total Lectures */}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          padding: '8px 8px',
+                          borderColor: '#475569'
+                        }}
+                      >
+                        <span
+                          className="badge rounded-pill fw-semibold"
+                          style={{
+                            backgroundColor: '#F1F5F9',
+                            color: '#1E293B',
+                            fontSize: '11px',
+                            padding: '4px 8px'
+                          }}
+                        >
+                          {total} lec
+                        </span>
+                      </td>
+
+                      {/* 6. Action */}
+                      <td
+                        style={{
+                          textAlign: 'center',
+                          padding: '8px 8px',
+                          borderColor: '#475569'
+                        }}
+                      >
+                        <div className="d-inline-flex align-items-center justify-content-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditChapterModal(chapter)}
+                            className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              backgroundColor: '#EFF6FF',
+                              color: '#2563EB',
+                              border: '1px solid #BFDBFE',
+                              cursor: 'pointer'
+                            }}
+                            title="Edit Chapter"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChapter(chapter)}
+                            className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              backgroundColor: '#FEF2F2',
+                              color: '#DC2626',
+                              border: '1px solid #FECACA',
+                              cursor: 'pointer'
+                            }}
+                            title="Delete Chapter"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+
+            {/* Footer Total */}
+            {chapters.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: '#F8FAFC', fontWeight: 700 }}>
+                  <td colSpan={2} style={{ textAlign: 'right', padding: '9px 16px', borderColor: '#475569', color: '#0F172A', fontSize: '13px' }}>
+                    Total ({chapters.length} Chapters):
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '9px 8px', backgroundColor: '#A9C4E2', borderColor: '#475569', color: '#0F172A', fontSize: '14px', fontWeight: 700 }}>
+                    {boardsTotal}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '9px 8px', backgroundColor: '#A9C4E2', borderColor: '#475569', color: '#0F172A', fontSize: '14px', fontWeight: 700 }}>
+                    {entranceTotal}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '9px 8px', borderColor: '#475569', color: '#0F172A', fontSize: '13px' }}>
+                    {lecturesTotal} lec
+                  </td>
+                  <td style={{ borderColor: '#475569' }}></td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // Main Excel View Container: Displays individual subject sheet or cleanly separated stacked tables
+  const renderAsItIsExcelTable = () => {
+    const standardSubjects = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+    const dynamicSubjects = Array.from(
+      new Set(
+        syllabusList
+          .map((item) => item.subject)
+          .filter((sub) => sub && !standardSubjects.some((s) => s.toLowerCase() === sub.toLowerCase()))
+      )
+    );
+    const allKnownSubjects = [...standardSubjects, ...dynamicSubjects];
+
+    const activeSubjects = allKnownSubjects.filter((sub) =>
+      syllabusList.some((item) => item.subject && item.subject.toLowerCase() === sub.toLowerCase())
+    );
+    const subjectsWithData = activeSubjects.length > 0 ? activeSubjects : standardSubjects;
+
+    // When viewing all subjects, render each subject in its own separate, unmerged Excel table
+    if (syllabusSubject === 'All') {
+      return (
+        <div className="d-flex flex-column gap-4">
+          {subjectsWithData.map((sub) => {
+            const subChapters = syllabusList
+              .filter((item) => item.subject && item.subject.toLowerCase() === sub.toLowerCase())
+              .filter((item) => {
+                if (!syllabusSearch.trim()) return true;
+                return (
+                  (item.title && item.title.toLowerCase().includes(syllabusSearch.toLowerCase())) ||
+                  String(item.sr_no).includes(syllabusSearch)
+                );
+              })
+              .sort((a, b) => (Number(a.sr_no) || 0) - (Number(b.sr_no) || 0));
+
+            if (syllabusSearch.trim() && subChapters.length === 0) return null;
+
+            return renderSingleSubjectTable(sub, subChapters, true);
+          })}
+        </div>
+      );
+    }
+
+    // When viewing a specific subject sheet, render ONLY that subject's Excel table
+    return renderSingleSubjectTable(syllabusSubject, filteredSyllabusList, false);
   };
 
   return (
@@ -2062,7 +2399,7 @@ export default function ActivityTimetableManagement() {
             </div>
           </div>
 
-          {/* Quick Filters Bar: Branch & Faculty */}
+          {/* Quick Filters Bar: Branch */}
           <div className="d-flex flex-column gap-2 pt-1 pb-1">
             {/* Quick Branch Filter */}
             <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -2098,50 +2435,60 @@ export default function ActivityTimetableManagement() {
                 );
               })}
             </div>
-
-            {/* Quick Faculty Switcher */}
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <span className="text-sa-muted small fw-semibold" style={{ fontSize: '12px' }}>
-                Filter Faculty:
-              </span>
-              {dynamicFacultyList.map((f) => {
-                const active = dailyTeacherFilter === f.id;
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setDailyTeacherFilter(f.id)}
-                    className={`btn btn-sm d-inline-flex align-items-center gap-1.5 transition-all shadow-xs ${
-                      active ? 'text-white fw-bold' : 'bg-white border text-sa-charcoal'
-                    }`}
-                    style={{
-                      backgroundColor: active ? f.color : '#FFFFFF',
-                      borderColor: active ? f.color : '#CBD5E1',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      padding: '4px 12px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span>{f.label}</span>
-                    <span
-                      className="badge rounded-pill"
-                      style={{
-                        backgroundColor: active ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
-                        color: active ? '#FFFFFF' : '#475569',
-                        fontSize: '10px'
-                      }}
-                    >
-                      {f.badge}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Detailed Filters Bar */}
           <div className="row g-2 align-items-center">
+            {/* Filter by Date */}
+            <div className="col-12 col-md-3">
+              <div className="d-flex align-items-center gap-1.5">
+                <div className="position-relative flex-grow-1">
+                  <Calendar
+                    size={14}
+                    className="position-absolute"
+                    style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#8B1216' }}
+                  />
+                  <input
+                    type="date"
+                    value={dailyDateFilter}
+                    onChange={(e) => setDailyDateFilter(e.target.value)}
+                    className="form-control form-control-sm border shadow-xs"
+                    style={{
+                      height: '38px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      paddingLeft: '32px',
+                      borderColor: dailyDateFilter ? '#8B1216' : '#CBD5E1',
+                      backgroundColor: dailyDateFilter ? '#FFF5F5' : '#FFFFFF',
+                      fontWeight: dailyDateFilter ? 600 : 400
+                    }}
+                    title="Filter by Activity Date"
+                  />
+                </div>
+                {dailyDateFilter ? (
+                  <button
+                    type="button"
+                    onClick={() => setDailyDateFilter('')}
+                    className="btn btn-sm btn-outline-secondary px-2 py-1"
+                    style={{ height: '38px', borderRadius: '8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    title="Show All Dates"
+                  >
+                    All Dates
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDailyDateFilter(new Date().toISOString().split('T')[0])}
+                    className="btn btn-sm btn-outline-danger px-2 py-1"
+                    style={{ height: '38px', borderRadius: '8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    title="Filter by Today's Date"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Search */}
             <div className="col-12 col-md-3">
               <div className="position-relative">
@@ -2165,6 +2512,24 @@ export default function ActivityTimetableManagement() {
                   }}
                 />
               </div>
+            </div>
+
+            {/* Filter by Faculty */}
+            <div className="col-6 col-md-2">
+              <select
+                value={dailyTeacherFilter}
+                onChange={(e) => setDailyTeacherFilter(e.target.value)}
+                className="form-select form-select-sm border shadow-xs"
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12px', borderColor: '#CBD5E1' }}
+              >
+                <option value="All">All Faculty</option>
+                {Array.from(new Set([
+                  ...teachers.map(t => t.name),
+                  ...dailyActivities.map(a => a.teacherName)
+                ])).filter(Boolean).map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
 
             {/* Filter by Branch */}
@@ -2198,7 +2563,7 @@ export default function ActivityTimetableManagement() {
             </div>
 
             {/* Filter by Batch */}
-            <div className="col-6 col-md-3">
+            <div className="col-6 col-md-2">
               <select
                 value={dailyBatchFilter}
                 onChange={(e) => setDailyBatchFilter(e.target.value)}
@@ -2206,18 +2571,26 @@ export default function ActivityTimetableManagement() {
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12px', borderColor: '#CBD5E1' }}
               >
                 <option value="All">All Batches</option>
-                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                {Array.from(new Set([
+                  'Class 12th',
+                  'Class 11th',
+                  '12th pcm tarabai park',
+                  '12th pcb tarabai park',
+                  '12th pcmb tarabai park',
+                  '12th pcm Mangalvar Peth',
+                  '12th pcb Mangalvar Peth',
+                  '12th pcmb Mangalvar Peth',
+                  '11th pcm tarabai park',
+                  '11th pcb tarabai park',
+                  '11th pcmb tarabai park',
+                  '11th pcm Mangalvar Peth',
+                  '11th pcb Mangalvar Peth',
+                  '11th pcmb Mangalvar Peth',
+                  ...batches.map(b => b.name),
+                  ...dailyActivities.map(a => a.batch)
+                ])).filter(Boolean).map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
               </select>
             </div>
 
@@ -2232,17 +2605,92 @@ export default function ActivityTimetableManagement() {
                 <option value="All">All Statuses</option>
                 <option value="Completed">Completed</option>
                 <option value="In Progress">In Progress</option>
-                <option value="Scheduled">Scheduled</option>
               </select>
             </div>
           </div>
 
-          {/* Daily Activities Table - Responsive with Sticky Action Column */}
-          <div className="table-responsive border rounded-3" style={{ borderColor: '#FEE2E2', borderRadius: '12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
-            <table className="table table-hover align-middle m-0" style={{ fontSize: '12.5px', minWidth: '1150px' }}>
+          {/* View Format Switcher */}
+          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2.5 pt-1">
+            <div className="d-flex align-items-center gap-2">
+              <span className="fw-bold text-sa-charcoal" style={{ fontSize: '12.5px' }}>View Format:</span>
+              <div className="d-flex align-items-center p-0.5 bg-light border rounded-3" style={{ borderColor: '#CBD5E1' }}>
+                <button
+                  type="button"
+                  onClick={() => setDailyViewMode('excel')}
+                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 ${
+                    dailyViewMode === 'excel' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: dailyViewMode === 'excel' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FileSpreadsheet size={13} />
+                  <span>Excel Sheet Structure (As-It-Is)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDailyViewMode('logs')}
+                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 ${
+                    dailyViewMode === 'logs' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: dailyViewMode === 'logs' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <CalendarDays size={13} />
+                  <span>Detailed Activity Logs</span>
+                </button>
+              </div>
+            </div>
+
+            {dailyViewMode === 'excel' && (
+              <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
+                  const isSelected = syllabusSubject === sub;
+                  return (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => {
+                        setSyllabusSubject(sub);
+                        loadSyllabusData(sub);
+                      }}
+                      className="btn btn-sm px-2.5 py-1 fw-semibold"
+                      style={{
+                        backgroundColor: isSelected ? '#8B1216' : '#FFFFFF',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        border: isSelected ? '1px solid #8B1216' : '1px solid #CBD5E1',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {sub}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {dailyViewMode === 'excel' ? (
+            renderAsItIsExcelTable()
+          ) : (
+            /* Daily Activities Table - Responsive with Sticky Action Column */
+            <div className="table-responsive border rounded-3" style={{ borderColor: '#FEE2E2', borderRadius: '12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
+              <table className="table table-hover align-middle m-0" style={{ fontSize: '12.5px', minWidth: '1150px' }}>
               <thead style={{ backgroundColor: '#FFF5F5', borderBottom: '1.5px solid #FEE2E2' }}>
                 <tr style={{ height: '42px' }}>
                   <th style={{ padding: '11px 14px', width: '45px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>#</th>
+                  <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date Covered</th>
                   {dailyBranchFilter === 'All' && (
                     <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Branch</th>
                   )}
@@ -2254,7 +2702,6 @@ export default function ActivityTimetableManagement() {
                   <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Topic Taught & Outcomes</th>
                   <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Time Slot</th>
                   <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Duration (Periods & Hrs)</th>
-                  <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Target Completion Date</th>
                   <th style={{ padding: '11px 14px', color: '#8B1216', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
                   <th
                     style={{
@@ -2281,7 +2728,7 @@ export default function ActivityTimetableManagement() {
               <tbody>
                 {filteredDailyActivities.length === 0 ? (
                   <tr>
-                    <td colSpan={9 + (dailyBranchFilter === 'All' ? 1 : 0) + (dailyTeacherFilter === 'All' ? 1 : 0)} className="text-center py-5 text-sa-muted">
+                    <td colSpan={8 + (dailyBranchFilter === 'All' ? 1 : 0) + (dailyTeacherFilter === 'All' ? 1 : 0)} className="text-center py-5 text-sa-muted">
                       <div className="d-flex flex-column align-items-center justify-content-center gap-2">
                         <FileSpreadsheet size={32} style={{ color: '#94A3B8' }} />
                         <span className="fw-medium">No daily activity records match the selected filters.</span>
@@ -2297,6 +2744,12 @@ export default function ActivityTimetableManagement() {
                       <tr key={item.id || idx}>
                         <td style={{ padding: '11px 16px', color: '#64748B', fontWeight: 500 }}>
                           {idx + 1}
+                        </td>
+                        <td style={{ padding: '11px 16px', whiteSpace: 'nowrap' }}>
+                          <div className="d-flex align-items-center gap-1.5 text-sa-charcoal fw-semibold" style={{ fontSize: '12px' }}>
+                            <Calendar size={13} style={{ color: '#8B1216' }} />
+                            <span>{item.activity_date || item.activityDate || item.targetDate || '—'}</span>
+                          </div>
                         </td>
                         {dailyBranchFilter === 'All' && (
                           <td style={{ padding: '11px 16px', whiteSpace: 'nowrap' }}>
@@ -2319,34 +2772,59 @@ export default function ActivityTimetableManagement() {
                         {dailyTeacherFilter === 'All' && (
                           <td style={{ padding: '11px 16px' }}>
                             <div className="d-flex align-items-center gap-2">
-                              <div
-                                className="rounded-circle d-flex align-items-center justify-content-center fw-bold"
-                                style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  backgroundColor: '#F1F5F9',
-                                  color: '#0F172A',
-                                  fontSize: '11px'
-                                }}
-                              >
-                                {(item.teacherName || 'T').charAt(0)}
-                              </div>
-                              <div>
-                                <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '12.5px' }}>
-                                  {item.teacherName || defaultFacultyBySubject[item.subject] || 'Assigned Faculty'}
+                              {item.teacherName && item.teacherName.toLowerCase() !== 'unassigned' ? (
+                                <>
+                                  <div
+                                    className="rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      backgroundColor: '#F1F5F9',
+                                      color: '#0F172A',
+                                      fontSize: '11px'
+                                    }}
+                                  >
+                                    {item.teacherName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '12.5px' }}>
+                                      {item.teacherName}
+                                    </div>
+                                    {item.subject && (
+                                      <span
+                                        className="badge rounded-pill fw-semibold mt-0.5"
+                                        style={{
+                                          backgroundColor: subjStyle.bg,
+                                          color: subjStyle.text,
+                                          border: `1px solid ${subjStyle.border}`,
+                                          fontSize: '10.5px'
+                                        }}
+                                      >
+                                        {item.subject}
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div>
+                                  {item.subject && (
+                                    <span
+                                      className="badge rounded-pill fw-semibold mb-1 d-inline-block"
+                                      style={{
+                                        backgroundColor: subjStyle.bg,
+                                        color: subjStyle.text,
+                                        border: `1px solid ${subjStyle.border}`,
+                                        fontSize: '10.5px'
+                                      }}
+                                    >
+                                      {item.subject}
+                                    </span>
+                                  )}
+                                  <div className="text-sa-muted" style={{ fontSize: '12px' }}>
+                                    Unassigned
+                                  </div>
                                 </div>
-                                <span
-                                  className="badge rounded-pill fw-semibold mt-0.5"
-                                  style={{
-                                    backgroundColor: subjStyle.bg,
-                                    color: subjStyle.text,
-                                    border: `1px solid ${subjStyle.border}`,
-                                    fontSize: '10.5px'
-                                  }}
-                                >
-                                  {item.subject}
-                                </span>
-                              </div>
+                              )}
                             </div>
                           </td>
                         )}
@@ -2373,7 +2851,7 @@ export default function ActivityTimetableManagement() {
                         <td style={{ padding: '11px 16px', whiteSpace: 'nowrap', color: '#475569', fontSize: '12px' }}>
                           <div className="d-flex align-items-center gap-1">
                             <Clock size={12} style={{ color: '#8B1216' }} />
-                            <span>{item.timeSlot}</span>
+                            <span>{item.timeSlot || '—'}</span>
                           </div>
                         </td>
                         <td style={{ padding: '11px 16px', whiteSpace: 'nowrap' }}>
@@ -2382,34 +2860,29 @@ export default function ActivityTimetableManagement() {
                               className="badge fw-semibold"
                               style={{ backgroundColor: '#F1F5F9', color: '#334155', fontSize: '11.5px', borderRadius: '6px' }}
                             >
-                              {item.periods} / {item.totalPlannedPeriods} Periods
+                              {item.periods && item.totalPlannedPeriods && item.periods !== item.totalPlannedPeriods
+                                ? `${item.periods} / ${item.totalPlannedPeriods} Periods`
+                                : `${item.totalPlannedPeriods || item.periods} Lectures`}
                             </span>
                             <span
                               className="badge fw-semibold"
                               style={{ backgroundColor: '#FEE2E2', color: '#B91C1C', fontSize: '11px', borderRadius: '6px' }}
                             >
-                              {item.hours}h
+                              {item.hours || item.totalPlannedPeriods || item.periods}h
                             </span>
                           </div>
-                        </td>
-                        <td style={{ padding: '11px 16px', whiteSpace: 'nowrap' }}>
-                          <div className="d-flex align-items-center gap-1.5 text-sa-charcoal fw-semibold" style={{ fontSize: '12px' }}>
-                            <Calendar size={13} style={{ color: '#2563EB' }} />
-                            <span>{item.targetDate || '2026-10-25'}</span>
-                          </div>
-                          <span className="text-sa-muted d-block" style={{ fontSize: '10.5px' }}>Target Completion</span>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
                           <span
                             className="badge rounded-pill fw-semibold"
                             style={{
-                              backgroundColor: item.status === 'Completed' ? '#EAF6EF' : '#FEF3C7',
-                              color: item.status === 'Completed' ? '#168554' : '#D97706',
-                              border: item.status === 'Completed' ? '1px solid #C6E7D2' : '1px solid #FDE68A',
+                              backgroundColor: (item.status === 'Completed' || item.status === 'completed') ? '#EAF6EF' : '#FEF3C7',
+                              color: (item.status === 'Completed' || item.status === 'completed') ? '#168554' : '#D97706',
+                              border: (item.status === 'Completed' || item.status === 'completed') ? '1px solid #C6E7D2' : '1px solid #FDE68A',
                               fontSize: '11px'
                             }}
                           >
-                            {item.status === 'Completed' ? '✓ Completed' : 'In Progress'}
+                            {(item.status === 'Completed' || item.status === 'completed') ? '✓ Completed' : '⏳ In Progress'}
                           </span>
                         </td>
                         <td
@@ -2471,6 +2944,7 @@ export default function ActivityTimetableManagement() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
 
@@ -3214,13 +3688,14 @@ export default function ActivityTimetableManagement() {
 
           {/* Subject Navigation Tabs & Search Controls */}
           <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 flex-wrap">
-            {/* Subject Tabs */}
+            {/* Subject Tabs - Authentic Excel Sheet Tabs */}
             <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap" style={{ borderColor: '#E2E8F0' }}>
               {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
                 const count = sub === 'All'
                   ? syllabusList.length
                   : syllabusList.filter((s) => s.subject && s.subject.toLowerCase() === sub.toLowerCase()).length;
                 const isSelected = syllabusSubject === sub;
+                const label = sub === 'All' ? '📑 All Sheets (Stacked)' : `📑 ${sub}`;
                 return (
                   <button
                     key={sub}
@@ -3231,21 +3706,21 @@ export default function ActivityTimetableManagement() {
                     }}
                     className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold transition-all px-3 py-1.5`}
                     style={{
-                      backgroundColor: isSelected ? '#8B1216' : 'transparent',
-                      color: isSelected ? '#FFFFFF' : '#475569',
+                      backgroundColor: isSelected ? '#8B1216' : '#FFFFFF',
+                      color: isSelected ? '#FFFFFF' : '#334155',
+                      border: isSelected ? '1px solid #8B1216' : '1px solid #CBD5E1',
                       borderRadius: '6px',
                       fontSize: '12px',
-                      border: 'none',
                       cursor: 'pointer'
                     }}
                   >
-                    <span>{sub}</span>
+                    <span>{label}</span>
                     <span
                       className="badge rounded-pill"
                       style={{
                         backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
                         color: isSelected ? '#FFFFFF' : '#475569',
-                        fontSize: '10px'
+                        fontSize: '10.5px'
                       }}
                     >
                       {count}
@@ -3274,370 +3749,7 @@ export default function ActivityTimetableManagement() {
           </div>
 
           {/* EXACT EXCEL FORMAT DISPLAY CONTAINER */}
-          <div
-            className="border rounded-3 overflow-hidden shadow-xs"
-            style={{ borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' }}
-          >
-            {/* Top Sheet Header Bar */}
-            <div
-              className="py-2.5 px-3 border-bottom text-center fw-bold"
-              style={{
-                backgroundColor: '#FFFFFF',
-                color: '#DC2626',
-                fontSize: '16px',
-                letterSpacing: '0.5px'
-              }}
-            >
-              12th 2026 – 2027
-            </div>
-
-            {/* Sub-Header Row: Subject & No of lec for mp/tp */}
-            <div
-              className="row g-0 border-bottom text-center align-items-center"
-              style={{ backgroundColor: '#FFFFFF', minHeight: '38px' }}
-            >
-              <div
-                className="col-6 col-md-7 py-2 px-3 text-center fw-bold border-end"
-                style={{ color: '#DC2626', fontSize: '15px' }}
-              >
-                {syllabusSubject === 'All' ? 'All Subjects (Physics, Chemistry, Mathematics, Biology)' : syllabusSubject}
-              </div>
-              <div
-                className="col-6 col-md-5 py-2 px-3 text-center fw-bold"
-                style={{ color: '#DC2626', fontSize: '15px' }}
-              >
-                No of lec for mp/tp
-              </div>
-            </div>
-
-            {/* The Excel Table Structure */}
-            <div className="table-responsive m-0">
-              <table
-                className="table table-bordered align-middle m-0"
-                style={{
-                  borderColor: '#CBD5E1',
-                  borderCollapse: 'collapse',
-                  fontSize: '13px'
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: '#F8FAFC' }}>
-                    <th
-                      style={{
-                        width: '70px',
-                        textAlign: 'center',
-                        color: '#1D4ED8',
-                        textDecoration: 'underline',
-                        fontWeight: 700,
-                        padding: '10px 8px',
-                        borderColor: '#CBD5E1',
-                        backgroundColor: '#F8FAFC'
-                      }}
-                    >
-                      Sr.no
-                    </th>
-                    <th
-                      style={{
-                        textAlign: 'left',
-                        fontWeight: 700,
-                        color: '#0F172A',
-                        padding: '10px 16px',
-                        borderColor: '#CBD5E1',
-                        backgroundColor: '#F8FAFC'
-                      }}
-                    >
-                      Title
-                    </th>
-                    <th
-                      style={{
-                        width: '130px',
-                        textAlign: 'center',
-                        fontWeight: 700,
-                        color: '#1E3A8A',
-                        padding: '10px 8px',
-                        backgroundColor: '#D9E1F2',
-                        borderColor: '#CBD5E1'
-                      }}
-                    >
-                      Boards
-                    </th>
-                    <th
-                      style={{
-                        width: '130px',
-                        textAlign: 'center',
-                        fontWeight: 700,
-                        color: '#0F172A',
-                        padding: '10px 8px',
-                        backgroundColor: '#F8FAFC',
-                        borderColor: '#CBD5E1'
-                      }}
-                    >
-                      Entrance
-                    </th>
-                    <th
-                      style={{
-                        width: '100px',
-                        textAlign: 'center',
-                        fontWeight: 700,
-                        color: '#475569',
-                        padding: '10px 8px',
-                        backgroundColor: '#F8FAFC',
-                        borderColor: '#CBD5E1'
-                      }}
-                    >
-                      Total
-                    </th>
-                    <th
-                      style={{
-                        width: '90px',
-                        textAlign: 'center',
-                        fontWeight: 600,
-                        color: '#64748B',
-                        padding: '10px 8px',
-                        backgroundColor: '#F8FAFC',
-                        borderColor: '#CBD5E1'
-                      }}
-                    >
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSyllabusList.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-5 text-sa-muted">
-                        <div className="d-flex flex-column align-items-center justify-content-center gap-2">
-                          <FileSpreadsheet size={36} color="#94A3B8" />
-                          <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '14px' }}>
-                            No syllabus chapters found for {syllabusSubject}
-                          </span>
-                          <span className="small text-muted" style={{ maxWidth: '400px' }}>
-                            Upload the Excel file with columns <code>Sr.no</code>, <code>Title</code>, <code>Boards</code>, and <code>Entrance</code> to view the layout here immediately.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleTriggerSyllabusExcel}
-                            className="btn btn-sm text-white mt-2 px-3 py-1.5 fw-semibold"
-                            style={{ backgroundColor: '#168554', borderRadius: '6px', fontSize: '12px' }}
-                          >
-                            <FileSpreadsheet size={14} className="me-1" />
-                            Upload Excel Now
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredSyllabusList.map((chapter, idx) => {
-                      const boards = chapter.boards_lectures || 0;
-                      const entrance = chapter.entrance_lectures || 0;
-                      const total = boards + entrance;
-
-                      return (
-                        <tr
-                          key={chapter.id || chapter.topic_id || idx}
-                          style={{
-                            backgroundColor: idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
-                            transition: 'background-color 0.15s ease'
-                          }}
-                        >
-                          {/* 1. Sr.no */}
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              fontWeight: 600,
-                              color: '#334155',
-                              padding: '9px 8px',
-                              borderColor: '#CBD5E1'
-                            }}
-                          >
-                            {chapter.sr_no || idx + 1}
-                          </td>
-
-                          {/* 2. Chapter Title */}
-                          <td
-                            style={{
-                              padding: '9px 16px',
-                              fontWeight: 500,
-                              color: '#0F172A',
-                              borderColor: '#CBD5E1'
-                            }}
-                          >
-                            <div className="d-flex align-items-center justify-content-between">
-                              <span>{chapter.title || chapter.topic_name}</span>
-                              {chapter.subject && syllabusSubject === 'All' && (
-                                <span
-                                  className="badge ms-2"
-                                  style={{
-                                    backgroundColor: facultyColorMap[chapter.subject] || '#475569',
-                                    color: '#FFFFFF',
-                                    fontSize: '10px'
-                                  }}
-                                >
-                                  {chapter.subject}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 3. Boards Lectures (Excel blue shading #D9E1F2) */}
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              fontWeight: 700,
-                              color: '#0F172A',
-                              padding: '9px 8px',
-                              backgroundColor: '#D9E1F2',
-                              borderColor: '#CBD5E1',
-                              fontSize: '13.5px'
-                            }}
-                          >
-                            {boards}
-                          </td>
-
-                          {/* 4. Entrance Lectures */}
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              fontWeight: 600,
-                              color: '#0F172A',
-                              padding: '9px 8px',
-                              borderColor: '#CBD5E1',
-                              fontSize: '13.5px'
-                            }}
-                          >
-                            {entrance}
-                          </td>
-
-                          {/* 5. Total Lectures */}
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              padding: '9px 8px',
-                              borderColor: '#CBD5E1'
-                            }}
-                          >
-                            <span
-                              className="badge rounded-pill fw-semibold"
-                              style={{
-                                backgroundColor: '#F1F5F9',
-                                color: '#1E293B',
-                                fontSize: '11px',
-                                padding: '4px 8px'
-                              }}
-                            >
-                              {total} lec
-                            </span>
-                          </td>
-
-                          {/* 6. Action */}
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              padding: '9px 8px',
-                              borderColor: '#CBD5E1'
-                            }}
-                          >
-                            <div className="d-inline-flex align-items-center justify-content-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditChapterModal(chapter)}
-                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
-                                style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#EFF6FF',
-                                  color: '#2563EB',
-                                  border: '1px solid #BFDBFE',
-                                  cursor: 'pointer'
-                                }}
-                                title="Edit Chapter"
-                              >
-                                <Edit3 size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteChapter(chapter)}
-                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
-                                style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#FEF2F2',
-                                  color: '#DC2626',
-                                  border: '1px solid #FECACA',
-                                  cursor: 'pointer'
-                                }}
-                                title="Delete Chapter"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-
-                  {/* Summary Footer Row */}
-                  {filteredSyllabusList.length > 0 && (
-                    <tr
-                      style={{
-                        backgroundColor: '#F8FAFC',
-                        fontWeight: 700,
-                        borderTop: '2px solid #94A3B8'
-                      }}
-                    >
-                      <td style={{ borderColor: '#CBD5E1', textAlign: 'center', color: '#64748B' }}>
-                        —
-                      </td>
-                      <td style={{ borderColor: '#CBD5E1', padding: '11px 16px', color: '#0F172A' }}>
-                        Total Planned Lectures for {syllabusSubject}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'center',
-                          backgroundColor: '#D9E1F2',
-                          borderColor: '#CBD5E1',
-                          color: '#1E3A8A',
-                          fontWeight: 800,
-                          fontSize: '14px',
-                          padding: '11px 8px'
-                        }}
-                      >
-                        {totalBoardsLec}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'center',
-                          borderColor: '#CBD5E1',
-                          color: '#0F172A',
-                          fontWeight: 800,
-                          fontSize: '14px',
-                          padding: '11px 8px'
-                        }}
-                      >
-                        {totalEntranceLec}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'center',
-                          borderColor: '#CBD5E1',
-                          color: '#8B1216',
-                          fontWeight: 800,
-                          fontSize: '14px',
-                          padding: '11px 8px'
-                        }}
-                      >
-                        {totalAllLec}
-                      </td>
-                      <td style={{ borderColor: '#CBD5E1' }}></td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {renderAsItIsExcelTable()}
         </div>
       )}
       <Modal
@@ -3656,7 +3768,7 @@ export default function ActivityTimetableManagement() {
                 Excel File Processed Successfully
               </div>
               <div className="text-sa-muted small">
-                Entries will be saved with Branch, Chapter, Duration Periods, and Target Completion Date, routed to each teacher's log.
+                Excel records will be imported and saved into the database exactly as defined in the sheet.
               </div>
             </div>
             <span className="badge rounded-pill bg-success text-white px-2.5 py-1" style={{ fontSize: '11px' }}>
@@ -3684,30 +3796,36 @@ export default function ActivityTimetableManagement() {
                   <tr key={idx}>
                     <td style={{ padding: '8px 12px', color: '#64748B' }}>{idx + 1}</td>
                     <td style={{ padding: '8px 12px' }}>
-                      <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{row.branch}</span>
+                      <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{row.branch || '—'}</span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <div className="fw-semibold">{row.teacherName}</div>
-                      <span className="badge bg-primary-subtle text-primary border" style={{ fontSize: '10px' }}>{row.subject}</span>
+                      {row.teacherName ? (
+                        <div className="fw-semibold">{row.teacherName}</div>
+                      ) : (
+                        <div className="text-sa-muted fst-italic" style={{ fontSize: '11px' }}>Unassigned</div>
+                      )}
+                      {row.subject && (
+                        <span className="badge bg-primary-subtle text-primary border" style={{ fontSize: '10px' }}>{row.subject}</span>
+                      )}
                     </td>
                     <td style={{ padding: '8px 12px', color: '#475569' }}>
-                      {row.batch}
+                      {row.batch || '—'}
                     </td>
                     <td style={{ padding: '8px 12px', color: '#1E293B' }}>
-                      {row.chapter}
+                      {row.chapter || '—'}
                     </td>
                     <td style={{ padding: '8px 12px', fontWeight: 600, color: '#0F172A' }}>
-                      {row.topicTaught}
+                      {row.topicTaught || '—'}
                     </td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                      {row.periods} / {row.totalPlannedPeriods} P ({row.hours}h)
+                      {row.durationDisplay || (row.totalPlannedPeriods ? `${row.totalPlannedPeriods} Periods` : (row.periods ? `${row.periods} Periods` : '—'))}
                     </td>
                     <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 500, color: '#8B1216' }}>
-                      {row.targetDate}
+                      {row.targetDate || '—'}
                     </td>
                     <td style={{ padding: '8px 12px' }}>
                       <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '10px' }}>
-                        {row.status}
+                        {row.status || 'Active'}
                       </span>
                     </td>
                   </tr>
@@ -3863,7 +3981,7 @@ export default function ActivityTimetableManagement() {
             </div>
 
             <div className="col-12 col-sm-6">
-              <label className="form-label text-sa-muted small fw-semibold mb-1">Target Completion Date ("Complete By")</label>
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Date Covered / Activity Date <span className="text-danger">*</span></label>
               <input
                 type="date"
                 required
@@ -3946,16 +4064,15 @@ export default function ActivityTimetableManagement() {
             </div>
 
             <div className="col-12 col-sm-6">
-              <label className="form-label text-sa-muted small fw-semibold mb-1">Activity Status</label>
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Topic Status</label>
               <select
                 className="form-select form-select-sm border shadow-xs"
                 value={dailyForm.status}
                 onChange={(e) => setDailyForm(prev => ({ ...prev, status: e.target.value }))}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
               >
-                <option value="Completed">Completed</option>
                 <option value="In Progress">In Progress</option>
-                <option value="Scheduled">Scheduled</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
           </div>

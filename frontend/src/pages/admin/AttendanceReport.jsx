@@ -293,7 +293,7 @@ export default function AttendanceReport() {
           </div>
         )}
 
-        <div className="row g-3 align-items-center">
+        <div className="row g-3 align-items-end">
           {/* Date Selector (For Date view) */}
           {activeTab === 'date' && (
             <div className="col-12 col-md-4">
@@ -303,6 +303,7 @@ export default function AttendanceReport() {
                 className="form-control form-control-sm"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
+                style={{ height: '33px' }}
               />
             </div>
           )}
@@ -316,6 +317,7 @@ export default function AttendanceReport() {
                   className="form-select form-select-sm"
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
+                  style={{ height: '33px' }}
                 >
                   {allStudents.map(s => (
                     <option key={s.id} value={s.student_id || s.id}>
@@ -327,13 +329,18 @@ export default function AttendanceReport() {
             </div>
           )}
 
-          <div className="col-12 col-md-2 d-flex align-items-end ms-auto">
+          <div className="col-12 col-md-2 ms-auto">
+            {(activeTab === 'date' || activeTab === 'student') && (
+              <label className="small mb-1 d-none d-md-block opacity-0" style={{ userSelect: 'none' }}>&nbsp;</label>
+            )}
             <button
               type="button"
               className="btn btn-sm btn-light border w-100 d-inline-flex align-items-center justify-content-center gap-1.5"
               onClick={fetchReport}
+              disabled={loading}
+              style={{ height: '33px' }}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={13} className={loading ? 'spin' : ''} />
               <span>Update View</span>
             </button>
           </div>

@@ -1188,11 +1188,8 @@ async def save_batch_date_attendance(payload: dict) -> dict:
 
         # Slot 1
         st1_status = item.get("lecture_1_status")
-        if st1_status and st1_status != "Not Marked":
+        if st1_status:
             st1_subject = item.get("lecture_1_subject") or "Physics"
-            if st1_status == "Absent":
-                absent_count += 1
-
             existing_s1 = await Attendance.find_one({
                 "$and": [
                     {"$or": [
@@ -1205,39 +1202,44 @@ async def save_batch_date_attendance(payload: dict) -> dict:
                 ]
             })
 
-            if existing_s1:
-                existing_s1.status = st1_status
-                existing_s1.subject = st1_subject
-                existing_s1.branch = st_branch
-                existing_s1.academic_batch = st_acad_batch
-                existing_s1.session = st_session
-                existing_s1.batch = st_acad_batch
-                if item.get("remarks"):
-                    existing_s1.remarks = item["remarks"]
-                await existing_s1.save()
+            if st1_status == "Not Marked":
+                if existing_s1:
+                    await existing_s1.delete()
+                    saved_count += 1
             else:
-                att1 = Attendance(
-                    student=student,
-                    date=day_start + timedelta(hours=9),
-                    status=st1_status,
-                    lecture_slot=1,
-                    subject=st1_subject,
-                    branch=st_branch,
-                    academic_batch=st_acad_batch,
-                    session=st_session,
-                    batch=st_acad_batch,
-                    remarks=item.get("remarks")
-                )
-                await att1.insert()
-            saved_count += 1
+                if st1_status == "Absent":
+                    absent_count += 1
+
+                if existing_s1:
+                    existing_s1.status = st1_status
+                    existing_s1.subject = st1_subject
+                    existing_s1.branch = st_branch
+                    existing_s1.academic_batch = st_acad_batch
+                    existing_s1.session = st_session
+                    existing_s1.batch = st_acad_batch
+                    if item.get("remarks"):
+                        existing_s1.remarks = item["remarks"]
+                    await existing_s1.save()
+                else:
+                    att1 = Attendance(
+                        student=student,
+                        date=day_start + timedelta(hours=9),
+                        status=st1_status,
+                        lecture_slot=1,
+                        subject=st1_subject,
+                        branch=st_branch,
+                        academic_batch=st_acad_batch,
+                        session=st_session,
+                        batch=st_acad_batch,
+                        remarks=item.get("remarks")
+                    )
+                    await att1.insert()
+                saved_count += 1
 
         # Slot 2
         st2_status = item.get("lecture_2_status")
-        if st2_status and st2_status != "Not Marked":
+        if st2_status:
             st2_subject = item.get("lecture_2_subject") or "Mathematics"
-            if st2_status == "Absent":
-                absent_count += 1
-
             existing_s2 = await Attendance.find_one({
                 "$and": [
                     {"$or": [
@@ -1250,35 +1252,43 @@ async def save_batch_date_attendance(payload: dict) -> dict:
                 ]
             })
 
-            if existing_s2:
-                existing_s2.status = st2_status
-                existing_s2.subject = st2_subject
-                existing_s2.branch = st_branch
-                existing_s2.academic_batch = st_acad_batch
-                existing_s2.session = st_session
-                existing_s2.batch = st_acad_batch
-                if item.get("remarks"):
-                    existing_s2.remarks = item["remarks"]
-                await existing_s2.save()
+            if st2_status == "Not Marked":
+                if existing_s2:
+                    await existing_s2.delete()
+                    saved_count += 1
             else:
-                att2 = Attendance(
-                    student=student,
-                    date=day_start + timedelta(hours=11),
-                    status=st2_status,
-                    lecture_slot=2,
-                    subject=st2_subject,
-                    branch=st_branch,
-                    academic_batch=st_acad_batch,
-                    session=st_session,
-                    batch=st_acad_batch,
-                    remarks=item.get("remarks")
-                )
-                await att2.insert()
-            saved_count += 1
+                if st2_status == "Absent":
+                    absent_count += 1
+
+                if existing_s2:
+                    existing_s2.status = st2_status
+                    existing_s2.subject = st2_subject
+                    existing_s2.branch = st_branch
+                    existing_s2.academic_batch = st_acad_batch
+                    existing_s2.session = st_session
+                    existing_s2.batch = st_acad_batch
+                    if item.get("remarks"):
+                        existing_s2.remarks = item["remarks"]
+                    await existing_s2.save()
+                else:
+                    att2 = Attendance(
+                        student=student,
+                        date=day_start + timedelta(hours=11),
+                        status=st2_status,
+                        lecture_slot=2,
+                        subject=st2_subject,
+                        branch=st_branch,
+                        academic_batch=st_acad_batch,
+                        session=st_session,
+                        batch=st_acad_batch,
+                        remarks=item.get("remarks")
+                    )
+                    await att2.insert()
+                saved_count += 1
 
     return {
         "success": True,
-        "message": f"Successfully saved {saved_count} lecture attendance record(s) for {clean_date} in MongoDB",
+        "message": f"Successfully saved {saved_count} lecture attendance record(s) for {clean_date}",
         "date": clean_date,
         "saved_count": saved_count,
         "absent_count": absent_count,

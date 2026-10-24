@@ -196,3 +196,12 @@ input[type="datetime-local"].is-invalid {
 .gap-y-3 { row-gap: 1rem !important; }
 .gap-y-4 { row-gap: 1.5rem !important; }
 
+/* Keyframes & Utility Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin, .spin-animation {
+  animation: spin 1s linear infinite;
+}
+

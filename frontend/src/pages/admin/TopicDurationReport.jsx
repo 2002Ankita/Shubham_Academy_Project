@@ -584,14 +584,14 @@ export default function AdminTopicDurationReport() {
   // Registered batches state initialized with academy registration batches and supplemented by DB
   const [allBatches, setAllBatches] = useState(REGISTRATION_BATCHES);
 
-  // Topic list state initialized with merged data (master + local storage)
+  // Topic list state initialized with real topics from localStorage or empty
   const [topicList, setTopicList] = useState(() => {
     let local = [];
     try {
       const s = localStorage.getItem(STORAGE_TOPICS_KEY);
       if (s) local = JSON.parse(s);
     } catch (_) {}
-    return mergeTopics(masterTopics, local, []);
+    return local;
   });
 
   // Highlighted topic when redirected from Daily Activity
@@ -628,7 +628,7 @@ export default function AdminTopicDurationReport() {
       .catch((err) => console.warn('Could not fetch batches:', err));
   }, []);
 
-  // Sync with backend topic-durations on component mount and merge
+  // Sync with backend topic-durations on component mount
   useEffect(() => {
     const syncTopics = () => {
       let local = [];
@@ -639,8 +639,10 @@ export default function AdminTopicDurationReport() {
 
       curriculumService.getTopicDurations().then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          const merged = mergeTopics(masterTopics, local, data);
+          const merged = mergeTopics([], local, data);
           setTopicList(merged);
+        } else if (local.length > 0) {
+          setTopicList(local);
         }
       });
     };
@@ -650,14 +652,22 @@ export default function AdminTopicDurationReport() {
     return () => window.removeEventListener('sa_topic_plans_updated', syncTopics);
   }, []);
 
-  // Daily teacher activities for cross-verifying actual periods
-  const [dailyActivities] = useState(() => {
+  // Daily teacher activities from database for cross-verifying actual periods
+  const [dailyActivities, setDailyActivities] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_ACTIVITIES_KEY);
       if (saved) return JSON.parse(saved);
     } catch (_) {}
     return [];
   });
+
+  useEffect(() => {
+    curriculumService.getDailyActivities().then(data => {
+      if (Array.isArray(data)) {
+        setDailyActivities(data);
+      }
+    });
+  }, []);
 
   // The 3 MANDATORY FILTERS: Subject, Faculty, Batch (Supports Auto-Prefill via Redirect)
   const [selectedSubject, setSelectedSubject] = useState(() => {
