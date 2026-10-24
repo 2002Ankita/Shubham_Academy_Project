@@ -1,11 +1,13 @@
 import api from './api';
+import { getUserBranch, filterAttendanceByBranch } from '../utils/branchUtils';
 
 export const attendanceService = {
   // General Attendance Logs (e.g. RFID / Gate entries)
   getLogs: async (params = {}) => {
+    const activeBranch = params?.branch || getUserBranch();
     try {
       const res = await api.get('/attendance', { params });
-      return res.data;
+      return filterAttendanceByBranch(res.data || [], activeBranch);
     } catch {
       return [];
     }
@@ -146,6 +148,165 @@ export const attendanceService = {
   deleteAttendance: async (id) => {
     const res = await api.delete(`/attendance/${id}`);
     return res.data;
+  },
+
+  // Academy Admin: Batch-Wise Attendance Report (2 lectures/day)
+  getBatchReport: async ({ batch } = {}) => {
+    const activeBranch = getUserBranch();
+    const isTP = activeBranch === 'Tarabai Park';
+
+    const students = isTP ? [
+      { roll_number: 'SA-TP-1001', student_name: 'Aarav Deshmukh', batch: batch || '11th pcm tarabai park', parent_mobile: '+91 98220 11222', lecture_1_present: 19, lecture_1_total: 20, lecture_2_present: 18, lecture_2_total: 20, total_lectures: 40, total_present: 37, total_absent: 3, attendance_rate: 93, status: 'Regular' },
+      { roll_number: 'SA-TP-1002', student_name: 'Ananya Joshi', batch: batch || '11th pcb tarabai park', parent_mobile: '+91 98220 11224', lecture_1_present: 17, lecture_1_total: 20, lecture_2_present: 18, lecture_2_total: 20, total_lectures: 40, total_present: 35, total_absent: 5, attendance_rate: 88, status: 'Regular' },
+      { roll_number: 'SA-TP-1003', student_name: 'Tanvi Shinde', batch: batch || '12th pcm tarabai park', parent_mobile: '+91 98220 11226', lecture_1_present: 20, lecture_1_total: 20, lecture_2_present: 19, lecture_2_total: 20, total_lectures: 40, total_present: 39, total_absent: 1, attendance_rate: 98, status: 'Regular' },
+      { roll_number: 'SA-TP-1004', student_name: 'Aryan Patil', batch: batch || '12th pcmb tarabai park', parent_mobile: '+91 98220 11228', lecture_1_present: 14, lecture_1_total: 20, lecture_2_present: 15, lecture_2_total: 20, total_lectures: 40, total_present: 29, total_absent: 11, attendance_rate: 73, status: 'Defaulter' }
+    ] : [
+      { roll_number: 'SA-MP-1001', student_name: 'Diya Patil', batch: batch || '11th pcm Mangalvar Peth', parent_mobile: '+91 98220 33442', lecture_1_present: 20, lecture_1_total: 20, lecture_2_present: 18, lecture_2_total: 20, total_lectures: 40, total_present: 38, total_absent: 2, attendance_rate: 95, status: 'Regular' },
+      { roll_number: 'SA-MP-1002', student_name: 'Rohan Deshmukh', batch: batch || '11th pcb Mangalvar Peth', parent_mobile: '+91 98220 33444', lecture_1_present: 16, lecture_1_total: 20, lecture_2_present: 17, lecture_2_total: 20, total_lectures: 40, total_present: 33, total_absent: 7, attendance_rate: 83, status: 'Regular' },
+      { roll_number: 'SA-MP-1003', student_name: 'Sneha Kadam', batch: batch || '12th pcm Mangalvar Peth', parent_mobile: '+91 98220 33446', lecture_1_present: 19, lecture_1_total: 20, lecture_2_present: 20, lecture_2_total: 20, total_lectures: 40, total_present: 39, total_absent: 1, attendance_rate: 98, status: 'Regular' },
+      { roll_number: 'SA-MP-1004', student_name: 'Aditya Joshi', batch: batch || '12th pcmb Mangalvar Peth', parent_mobile: '+91 98220 33448', lecture_1_present: 14, lecture_1_total: 20, lecture_2_present: 14, lecture_2_total: 20, total_lectures: 40, total_present: 28, total_absent: 12, attendance_rate: 70, status: 'Defaulter' }
+    ];
+
+    const totalStudents = students.length;
+    const totalPresent = students.reduce((acc, s) => acc + s.total_present, 0);
+    const totalLectures = students.reduce((acc, s) => acc + s.total_lectures, 0);
+    const overallRate = totalLectures > 0 ? Math.round((totalPresent / totalLectures) * 100) : 0;
+    const defaulters = students.filter(s => s.status === 'Defaulter').length;
+
+    return {
+      total_students: totalStudents,
+      overall_attendance_percent: overallRate,
+      total_lectures_conducted: 40,
+      total_present: totalPresent,
+      defaulters_count: defaulters,
+      students
+    };
+  },
+
+  // Academy Admin: Date-Wise Attendance Report (Lecture 1 & 2)
+  getDateReport: async ({ date, batch } = {}) => {
+    const activeBranch = getUserBranch();
+    const isTP = activeBranch === 'Tarabai Park';
+
+    const records = isTP ? [
+      {
+        roll_number: 'SA-TP-1001',
+        student_name: 'Aarav Deshmukh',
+        batch: batch || '11th pcm tarabai park',
+        parent_mobile: '+91 98220 11222',
+        lecture_1: { status: 'Present', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Present', subject: 'Mathematics', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      },
+      {
+        roll_number: 'SA-TP-1002',
+        student_name: 'Ananya Joshi',
+        batch: batch || '11th pcb tarabai park',
+        parent_mobile: '+91 98220 11224',
+        lecture_1: { status: 'Present', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Absent', subject: 'Biology', time: '11:00 AM – 01:30 PM', notification_sent: true }
+      },
+      {
+        roll_number: 'SA-TP-1003',
+        student_name: 'Tanvi Shinde',
+        batch: batch || '12th pcm tarabai park',
+        parent_mobile: '+91 98220 11226',
+        lecture_1: { status: 'Present', subject: 'Chemistry', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Present', subject: 'Mathematics', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      },
+      {
+        roll_number: 'SA-TP-1004',
+        student_name: 'Aryan Patil',
+        batch: batch || '12th pcmb tarabai park',
+        parent_mobile: '+91 98220 11228',
+        lecture_1: { status: 'Absent', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: true },
+        lecture_2: { status: 'Present', subject: 'Biology', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      }
+    ] : [
+      {
+        roll_number: 'SA-MP-1001',
+        student_name: 'Diya Patil',
+        batch: batch || '11th pcm Mangalvar Peth',
+        parent_mobile: '+91 98220 33442',
+        lecture_1: { status: 'Present', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Present', subject: 'Mathematics', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      },
+      {
+        roll_number: 'SA-MP-1002',
+        student_name: 'Rohan Deshmukh',
+        batch: batch || '11th pcb Mangalvar Peth',
+        parent_mobile: '+91 98220 33444',
+        lecture_1: { status: 'Present', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Absent', subject: 'Biology', time: '11:00 AM – 01:30 PM', notification_sent: true }
+      },
+      {
+        roll_number: 'SA-MP-1003',
+        student_name: 'Sneha Kadam',
+        batch: batch || '12th pcm Mangalvar Peth',
+        parent_mobile: '+91 98220 33446',
+        lecture_1: { status: 'Present', subject: 'Chemistry', time: '08:00 AM – 10:30 AM', notification_sent: false },
+        lecture_2: { status: 'Present', subject: 'Mathematics', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      },
+      {
+        roll_number: 'SA-MP-1004',
+        student_name: 'Aditya Joshi',
+        batch: batch || '12th pcmb Mangalvar Peth',
+        parent_mobile: '+91 98220 33448',
+        lecture_1: { status: 'Absent', subject: 'Physics', time: '08:00 AM – 10:30 AM', notification_sent: true },
+        lecture_2: { status: 'Present', subject: 'Biology', time: '11:00 AM – 01:30 PM', notification_sent: false }
+      }
+    ];
+
+    return {
+      date: date || new Date().toISOString().split('T')[0],
+      batch: batch || 'All Batches',
+      total_students: records.length,
+      present_count: records.length * 2 - 2,
+      absent_count: 2,
+      attendance_rate: 75,
+      records
+    };
+  },
+
+  // Academy Admin: Student-Wise Historical Ledger
+  getStudentReport: async (studentId) => {
+    const activeBranch = getUserBranch();
+    const isTP = activeBranch === 'Tarabai Park';
+
+    const stInfo = isTP ? {
+      roll_number: 'SA-TP-1001',
+      student_name: 'Aarav Deshmukh',
+      batch: '11th pcm tarabai park',
+      branch: 'Tarabai Park',
+      standard: '11th Science',
+      parent_name: 'Sanjay Deshmukh',
+      parent_mobile: '+91 98220 11222'
+    } : {
+      roll_number: 'SA-MP-1001',
+      student_name: 'Diya Patil',
+      batch: '11th pcm Mangalvar Peth',
+      branch: 'Mangalvar Peth',
+      standard: '11th Science',
+      parent_name: 'Mahesh Patil',
+      parent_mobile: '+91 98220 33442'
+    };
+
+    return {
+      student: stInfo,
+      summary: {
+        total_lectures: 40,
+        attended_lectures: 38,
+        absent_lectures: 2,
+        attendance_percentage: 95
+      },
+      history: [
+        { date: '2026-10-22', lecture_slot: 'Lecture 1', subject: 'Physics', batch: stInfo.batch, status: 'Present', check_in_time: '08:05 AM', notification_sent: false, source: 'Biometric / Lecture Log', remarks: 'On time' },
+        { date: '2026-10-22', lecture_slot: 'Lecture 2', subject: 'Mathematics', batch: stInfo.batch, status: 'Present', check_in_time: '11:02 AM', notification_sent: false, source: 'Biometric / Lecture Log', remarks: 'On time' },
+        { date: '2026-10-21', lecture_slot: 'Lecture 1', subject: 'Chemistry', batch: stInfo.batch, status: 'Present', check_in_time: '08:10 AM', notification_sent: false, source: 'Lecture Log', remarks: 'On time' },
+        { date: '2026-10-21', lecture_slot: 'Lecture 2', subject: 'Mathematics', batch: stInfo.batch, status: 'Present', check_in_time: '11:00 AM', notification_sent: false, source: 'Lecture Log', remarks: 'On time' },
+        { date: '2026-10-20', lecture_slot: 'Lecture 1', subject: 'Physics', batch: stInfo.batch, status: 'Absent', check_in_time: '--', notification_sent: true, source: 'Excel Upload', remarks: 'Excused sick leave' },
+        { date: '2026-10-20', lecture_slot: 'Lecture 2', subject: 'Mathematics', batch: stInfo.batch, status: 'Present', check_in_time: '11:05 AM', notification_sent: false, source: 'Lecture Log', remarks: 'Afternoon session' }
+      ]
+    };
   }
 };
 

@@ -24,15 +24,21 @@ import {
   Upload
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getUserBranch, MANGALVAR_BATCHES, TARABAI_BATCHES } from '../../utils/branchUtils';
 
 export default function AttendanceReport() {
   const navigate = useNavigate();
+
+  const activeBranch = getUserBranch();
+  const campusBatches = activeBranch === 'Mangalvar Peth'
+    ? MANGALVAR_BATCHES
+    : (activeBranch === 'Tarabai Park' ? TARABAI_BATCHES : [...MANGALVAR_BATCHES, ...TARABAI_BATCHES]);
 
   // Active Report View: 'batch', 'date', 'student'
   const [activeTab, setActiveTab] = useState('batch');
 
   // Filter States
-  const [batch, setBatch] = useState('11th pcm tarabai park');
+  const [batch, setBatch] = useState(campusBatches[0] || '11th pcm Mangalvar peth');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
@@ -46,18 +52,7 @@ export default function AttendanceReport() {
 
   const batches = [
     'All Batches',
-    '11th pcm tarabai park',
-    '11th pcb tarabai park',
-    '11th pcmb tarabai park',
-    '12th pcm tarabai park',
-    '12th pcb tarabai park',
-    '12th pcmb tarabai park',
-    '11th pcm Mangalvar peth',
-    '11th pcb Mangalvar peth',
-    '11th pcmb Mangalvar peth',
-    '12th pcm Mangalvar peth',
-    '12th pcb Mangalvar peth',
-    '12th pcmb Mangalvar peth'
+    ...campusBatches
   ];
 
   // Load students for autocomplete

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Trash2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
+import { Trash2, AlertTriangle, AlertCircle, Info, X, ShieldCheck, CheckCircle2, LogOut } from 'lucide-react';
 
 export default function ConfirmModal({
   isOpen,
@@ -8,7 +8,8 @@ export default function ConfirmModal({
   subtitle = 'This action cannot be undone.',
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  type = 'danger', // 'danger' | 'warning' | 'info'
+  type = 'danger', // 'danger' | 'warning' | 'info' | 'success' | 'logout'
+  customIcon,
   onConfirm,
   onCancel
 }) {
@@ -39,6 +40,26 @@ export default function ConfirmModal({
   // Icon & Theme Styling based on type
   const getTheme = () => {
     switch (type) {
+      case 'logout':
+        return {
+          icon: <LogOut size={28} strokeWidth={2.2} />,
+          iconBg: '#FEE2E2',
+          iconColor: '#DC2626',
+          iconBorder: '#FECACA',
+          confirmBtnBg: '#8B1216', // Shubham Academy signature crimson/maroon
+          confirmBtnHover: '#730E12',
+          confirmShadow: 'rgba(139, 18, 22, 0.3)'
+        };
+      case 'success':
+        return {
+          icon: <ShieldCheck size={28} strokeWidth={2.2} />,
+          iconBg: '#DCFCE7',
+          iconColor: '#16A34A',
+          iconBorder: '#BBF7D0',
+          confirmBtnBg: '#16A34A',
+          confirmBtnHover: '#15803D',
+          confirmShadow: 'rgba(22, 163, 74, 0.25)'
+        };
       case 'warning':
         return {
           icon: <AlertCircle size={28} strokeWidth={2.2} />,
@@ -161,7 +182,7 @@ export default function ConfirmModal({
             boxShadow: '0 4px 10px rgba(0, 0, 0, 0.04)'
           }}
         >
-          {theme.icon}
+          {customIcon || theme.icon}
         </div>
 
         {/* Title */}

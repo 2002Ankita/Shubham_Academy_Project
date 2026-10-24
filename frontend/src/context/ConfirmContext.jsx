@@ -37,7 +37,8 @@ export const ConfirmProvider = ({ children }) => {
           subtitle: options.subtitle !== undefined ? options.subtitle : 'This action cannot be undone.',
           confirmText: options.confirmText || 'Confirm',
           cancelText: options.cancelText || 'Cancel',
-          type: options.type || 'danger'
+          type: options.type || 'danger',
+          customIcon: options.customIcon || null
         });
       }
     });
@@ -75,6 +76,7 @@ export const ConfirmProvider = ({ children }) => {
         confirmText={dialogState.confirmText}
         cancelText={dialogState.cancelText}
         type={dialogState.type}
+        customIcon={dialogState.customIcon}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />

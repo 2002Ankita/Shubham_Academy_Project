@@ -22,25 +22,23 @@ import batchService from '../../services/batchService';
 import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
+import {
+  getUserBranch,
+  CAMPUS,
+  MANGALVAR_BATCHES,
+  TARABAI_BATCHES,
+  filterBatchesByBranch
+} from '../../utils/branchUtils';
 
 export const STANDARD_BATCHES = [
-  '11th pcm tarabai park',
-  '11th pcb tarabai park',
-  '11th pcmb tarabai park',
-  '12th pcm tarabai park',
-  '12th pcb tarabai park',
-  '12th pcmb tarabai park',
-  '11th pcm Mangalvar Peth',
-  '11th pcb Mangalvar Peth',
-  '11th pcmb Mangalvar Peth',
-  '12th pcm Mangalvar Peth',
-  '12th pcb Mangalvar Peth',
-  '12th pcmb Mangalvar Peth'
+  ...TARABAI_BATCHES,
+  ...MANGALVAR_BATCHES
 ];
 
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(true);
@@ -55,7 +53,7 @@ export default function StudentRegistration() {
     parentPhone: '',
     standard: '11th Science',
     batch: '',
-    branch: 'Tarabai Park',
+    branch: activeBranch || CAMPUS.MANGALVAR_PETH,
     originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
@@ -70,36 +68,40 @@ export default function StudentRegistration() {
   const [errors, setErrors] = useState({});
 
   const batchList = useMemo(() => {
-    const list = [...STANDARD_BATCHES];
+    const campusDefaults = activeBranch === CAMPUS.TARABAI_PARK ? [...TARABAI_BATCHES] : [...MANGALVAR_BATCHES];
+    const list = [...campusDefaults];
     if (Array.isArray(batches)) {
-      batches.forEach((b) => {
+      const scoped = filterBatchesByBranch(batches, activeBranch);
+      scoped.forEach((b) => {
         if (b?.name && !list.some((item) => item.toLowerCase() === b.name.toLowerCase())) {
           list.push(b.name);
         }
       });
     }
     return list;
-  }, [batches]);
+  }, [batches, activeBranch]);
 
   useEffect(() => {
-    feeService.getStructures().then((data) => {
+    feeService.getStructures(activeBranch).then((data) => {
       if (Array.isArray(data)) setFeeStructures(data);
     }).catch((err) => console.warn('Could not load fee structures:', err));
-  }, []);
+  }, [activeBranch]);
 
   useEffect(() => {
     batchService.getBatches()
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setBatches(data);
+          const scoped = filterBatchesByBranch(data, activeBranch);
+          setBatches(scoped);
           // Auto-select first batch if none chosen
-          if (!formData.batch) {
-            const firstBatch = data[0].name;
+          if (!formData.batch && scoped.length > 0) {
+            const firstBatch = scoped[0].name;
             const is12th = firstBatch.toLowerCase().includes('12th');
             setFormData((prev) => ({
               ...prev,
               batch: firstBatch,
-              standard: data[0].standard || (is12th ? '12th Science' : '11th Science')
+              branch: activeBranch || (is12th ? '12th Science' : '11th Science'),
+              standard: scoped[0].standard || (is12th ? '12th Science' : '11th Science')
             }));
           }
         }
@@ -110,7 +112,7 @@ export default function StudentRegistration() {
       .finally(() => {
         setLoadingBatches(false);
       });
-  }, []);
+  }, [activeBranch]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -160,7 +162,7 @@ export default function StudentRegistration() {
     if (bLower.includes('tarabai')) {
       detectedBranch = 'Tarabai Park';
     } else if (bLower.includes('mangal')) {
-      detectedBranch = 'Mangalwar Peth';
+      detectedBranch = 'Mangalvar Peth';
     }
 
     // Auto-lookup matching fee structure
@@ -275,7 +277,7 @@ export default function StudentRegistration() {
         parent_mobile: cleanParentMobile,
         standard: formData.standard || undefined,
         batch: formData.batch || undefined,
-        branch: formData.branch || (formData.batch?.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park'),
+        branch: activeBranch || formData.branch || (formData.batch?.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park'),
         totalFees: effectiveTotalFees,
         total_fees: effectiveTotalFees,
         original_fees: origFees,
@@ -314,6 +316,7 @@ export default function StudentRegistration() {
           details: `${formData.discountRecommendedBy?.trim() || 'Counselor'} recommended a concession of ₹${discAmount.toLocaleString()} for ${formData.fullName} (${formData.batch || formData.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
           read: false,
           forSuperAdminOnly: true,
+          branch: activeBranch,
           studentId: result?.id,
           studentName: formData.fullName,
           discountAmount: discAmount,

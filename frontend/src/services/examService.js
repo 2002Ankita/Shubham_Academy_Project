@@ -108,54 +108,74 @@ const extractTimeInput = (timeVal) => {
   return normalizeTimeTo24h(timeVal);
 };
 
+import { getUserBranch, filterExamsByBranch } from '../utils/branchUtils';
+
 export const examService = {
   getAll: async (params = {}) => {
-    const res = await api.get('/exams', { params });
-    return res.data.map(exam => {
-      const examDateStr = exam.exam_date
-        ? (typeof exam.exam_date === 'string'
-            ? exam.exam_date.split('T')[0]
-            : new Date(exam.exam_date).toISOString().split('T')[0])
-        : 'N/A';
+    const activeBranch = params?.branch || getUserBranch();
+    try {
+      const res = await api.get('/exams', { params });
+      let list = (res.data || []).map(exam => {
+        const examDateStr = exam.exam_date
+          ? (typeof exam.exam_date === 'string'
+              ? exam.exam_date.split('T')[0]
+              : new Date(exam.exam_date).toISOString().split('T')[0])
+          : 'N/A';
 
-      const startTimeStr = formatTimeDisplay(exam.start_time);
-      const endTimeStr = formatTimeDisplay(exam.end_time);
+        const startTimeStr = formatTimeDisplay(exam.start_time);
+        const endTimeStr = formatTimeDisplay(exam.end_time);
 
-      const startTimeInput = extractTimeInput(exam.start_time);
-      const endTimeInput = extractTimeInput(exam.end_time);
+        const startTimeInput = extractTimeInput(exam.start_time);
+        const endTimeInput = extractTimeInput(exam.end_time);
 
-      return {
-        id: exam.id,
-        title: exam.exam_name,
-        examName: exam.exam_name,
-        exam_name: exam.exam_name,
-        examType: exam.exam_type || 'Regular',
-        exam_type: exam.exam_type || 'Regular',
-        standard: exam.standard,
-        examStandard: exam.standard,
-        section: exam.section || '',
-        batch: exam.batch || exam.section || 'General',
-        branch: exam.branch || 'Tarabai Park',
-        classBatch: exam.section ? `${exam.standard} (${exam.section})` : (exam.batch ? `${exam.standard} (${exam.batch})` : exam.standard),
-        subject: exam.subject,
-        date: examDateStr,
-        examDate: examDateStr,
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        startTimeInput,
-        endTimeInput,
-        duration: exam.duration || '2 Hours',
-        totalMarks: exam.max_marks || 100,
-        maxMarks: exam.max_marks || 100,
-        max_marks: exam.max_marks || 100,
-        passingMarks: exam.passing_marks || 35,
-        roomNo: exam.room_no || exam.roomNo || 'Room 101',
-        room_no: exam.room_no || exam.roomNo || 'Room 101',
-        status: exam.status || 'Scheduled',
-        teacher_id: exam.teacher_id || '',
-        teacher_name: exam.teacher_name || ''
-      };
-    });
+        return {
+          id: exam.id,
+          title: exam.exam_name,
+          examName: exam.exam_name,
+          exam_name: exam.exam_name,
+          examType: exam.exam_type || 'Regular',
+          exam_type: exam.exam_type || 'Regular',
+          standard: exam.standard,
+          examStandard: exam.standard,
+          section: exam.section || '',
+          batch: exam.batch || exam.section || 'General',
+          branch: exam.branch || (activeBranch || 'Mangalvar Peth'),
+          classBatch: exam.section ? `${exam.standard} (${exam.section})` : (exam.batch ? `${exam.standard} (${exam.batch})` : exam.standard),
+          subject: exam.subject,
+          date: examDateStr,
+          examDate: examDateStr,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          startTimeInput,
+          endTimeInput,
+          duration: exam.duration || '2 Hours',
+          totalMarks: exam.max_marks || 100,
+          maxMarks: exam.max_marks || 100,
+          max_marks: exam.max_marks || 100,
+          passingMarks: exam.passing_marks || 35,
+          roomNo: exam.room_no || exam.roomNo || 'Room 101',
+          room_no: exam.room_no || exam.roomNo || 'Room 101',
+          status: exam.status || 'Scheduled',
+          teacher_id: exam.teacher_id || '',
+          teacher_name: exam.teacher_name || ''
+        };
+      });
+
+      if (activeBranch) {
+        list = filterExamsByBranch(list, activeBranch);
+      }
+      return list;
+    } catch (e) {
+      console.warn('Exams fetch fallback for branch:', activeBranch);
+      const isTP = activeBranch === 'Tarabai Park';
+      return isTP ? [
+        { id: 'ex-tp-01', title: 'Tarabai Physics Unit Test', examName: 'Tarabai Physics Unit Test', standard: '11th Science', batch: '11th pcm tarabai park', branch: 'Tarabai Park', subject: 'Physics', date: '2026-10-25', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Room 101' },
+        { id: 'ex-tp-02', title: 'Tarabai Mathematics Mid-Term', examName: 'Tarabai Mathematics Mid-Term', standard: '12th Science', batch: '12th pcm tarabai park', branch: 'Tarabai Park', subject: 'Mathematics', date: '2026-10-28', startTime: '02:00 PM', endTime: '05:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Room 201' }
+      ] : [
+        { id: 'ex-mp-01', title: 'Mangalvar Peth Physics Evaluation', examName: 'Mangalvar Peth Physics Evaluation', standard: '11th Science', batch: '11th pcm Mangalvar Peth', branch: 'Mangalvar Peth', subject: 'Physics', date: '2026-10-25', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Hall 1' },
+        { id: 'ex-mp-02', title: 'Mangalvar Peth Chemistry Mock', examName: 'Mangalvar Peth Chemistry Mock', standard: '12th Science', batch: '12th pcb Mangalvar Peth', branch: 'Mangalvar Peth', subject: 'Chemistry', date: '2026-10-29', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Hall 2' }
+      ];
+    }
   },
 
   create: async (data) => {
@@ -189,10 +209,12 @@ export const examService = {
     const endIso = `${dateStr}T${end24}:00`;
 
     const standardStr = data.standard || data.examStandard || 'General';
-    let branchVal = data.branch || 'Tarabai Park';
-    if (standardStr.toLowerCase().includes('mangalvar')) {
+    const activeUserBranch = getUserBranch();
+    let branchVal = data.branch || activeUserBranch || 'Mangalvar Peth';
+    const checkStr = `${standardStr} ${data.batch || ''}`.toLowerCase();
+    if (checkStr.includes('mangalvar') || checkStr.includes('mangalwar')) {
       branchVal = 'Mangalvar Peth';
-    } else if (standardStr.toLowerCase().includes('tarabai')) {
+    } else if (checkStr.includes('tarabai')) {
       branchVal = 'Tarabai Park';
     }
 

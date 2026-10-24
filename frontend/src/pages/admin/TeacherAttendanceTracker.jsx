@@ -26,9 +26,11 @@ import {
   Check
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function TeacherAttendanceTracker() {
   const navigate = useNavigate();
+  const { confirm } = useConfirm();
 
   // State
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -233,7 +235,16 @@ export default function TeacherAttendanceTracker() {
 
   // Quick 1-click Check Out action for a teacher who is currently working
   const handleQuickCheckOut = async (rec) => {
-    if (window.confirm(`Check out faculty member: ${rec.teacher_name} now?`)) {
+    const isConfirmed = await confirm({
+      title: 'Check Out Faculty',
+      message: `Check out faculty member: ${rec.teacher_name} now?`,
+      subtitle: 'This will record the official check-out time.',
+      confirmText: 'Check Out',
+      cancelText: 'Cancel',
+      type: 'warning'
+    });
+
+    if (isConfirmed) {
       try {
         await attendanceService.checkOut(rec.teacher_id, 'Checked out by Admin');
         toast.success(`${rec.teacher_name} successfully checked out!`);
@@ -246,7 +257,16 @@ export default function TeacherAttendanceTracker() {
 
   // Delete record
   const handleDeleteRecord = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete attendance record for ${name}?`)) {
+    const isConfirmed = await confirm({
+      title: 'Delete Attendance Record',
+      message: `Are you sure you want to delete attendance record for ${name}?`,
+      subtitle: 'This action cannot be undone.',
+      confirmText: 'Delete Record',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+
+    if (isConfirmed) {
       try {
         await attendanceService.deleteAttendance(id);
         toast.success('Attendance record deleted');

@@ -27,10 +27,12 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import { getUserBranch, CAMPUS } from '../../utils/branchUtils';
 
 export default function StudentList() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
   const { confirm } = useConfirm();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const [students, setStudents] = useState([]);
@@ -242,8 +244,8 @@ export default function StudentList() {
           parentPhone: parsedParent,
           standard: normalizedRow['classstandard'] || normalizedRow['class'] || normalizedRow['standard'] || 'General',
           rfidCard: normalizedRow['rfiduid'] || normalizedRow['rfid'] || normalizedRow['rfidbadge'] || '',
-          batch: 'General',
-          branch: 'Tarabai Park',
+          batch: normalizedRow['batch'] || (activeBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar peth'),
+          branch: activeBranch || 'Mangalvar Peth',
           totalFees: 0,
           admission_date: normalizedRow['admissiondate'] || normalizedRow['dateofadmission'] || normalizedRow['joiningdate'] ? new Date(normalizedRow['admissiondate'] || normalizedRow['dateofadmission'] || normalizedRow['joiningdate']).toISOString() : undefined
         };

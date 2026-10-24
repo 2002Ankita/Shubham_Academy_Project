@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
+import { getUserBranch } from '../../utils/branchUtils';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -52,6 +53,7 @@ import Button from '../../components/common/Button';
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userBranch = getUserBranch(user);
   const [timeRange, setTimeRange] = useState('Last 12 Months');
   const [separateGraphMode, setSeparateGraphMode] = useState('separate'); // 'separate' | 'grouped' | 'stacked'
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Suspended'
@@ -387,7 +389,7 @@ export default function SuperAdminDashboard() {
                 }}
               >
                 <ShieldCheck size={14} style={{ color: '#8B1216' }} />
-                <span>Super Admin Executive Portal • Central Authority</span>
+                <span>Super Admin Executive Portal • {userBranch ? `${userBranch} Campus` : 'Central Authority'}</span>
               </span>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
+import { getUserBranch, MANGALVAR_BATCHES, TARABAI_BATCHES } from '../../utils/branchUtils';
 
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return null;
@@ -31,10 +32,15 @@ const parseDurationToMinutes = (durStr) => {
 };
 
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
+  const activeBranch = getUserBranch();
+  const campusBatches = activeBranch === 'Mangalvar Peth'
+    ? MANGALVAR_BATCHES
+    : (activeBranch === 'Tarabai Park' ? TARABAI_BATCHES : [...MANGALVAR_BATCHES, ...TARABAI_BATCHES]);
+
   const [formData, setFormData] = useState({
     title: 'Weekly Test - Mechanics & Kinematics',
     standard: '11th Science',
-    batch: '11th pcm tarabai park',
+    batch: campusBatches[0] || '11th pcm Mangalvar peth',
     subject: 'Physics',
     date: new Date().toISOString().split('T')[0],
     startTime: '10:00 am',
@@ -92,7 +98,8 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
     e.preventDefault();
     onSubmit({
       ...formData,
-      batch: formData.batch || formData.standard || '11th pcm tarabai park',
+      batch: formData.batch || campusBatches[0] || (activeBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar peth'),
+      branch: activeBranch || ((formData.batch || '').toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth'),
       standard: formData.standard || formData.batch || '11th Science',
       notify_parents: activeChannels.length > 0,
       notify_sms: formData.notifySMS,
@@ -150,20 +157,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
                 standard: e.target.value.includes('12th') ? '12th Science' : '11th Science'
               }));
             }}
-            options={[
-              '11th pcm tarabai park',
-              '11th pcb tarabai park',
-              '11th pcmb tarabai park',
-              '12th pcm tarabai park',
-              '12th pcb tarabai park',
-              '12th pcmb tarabai park',
-              '11th pcm Mangalvar peth',
-              '11th pcb Mangalvar peth',
-              '11th pcmb Mangalvar peth',
-              '12th pcm Mangalvar peth',
-              '12th pcb Mangalvar peth',
-              '12th pcmb Mangalvar peth'
-            ]}
+            options={campusBatches}
             required
           />
         </div>

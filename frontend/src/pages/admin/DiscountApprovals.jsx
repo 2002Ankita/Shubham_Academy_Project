@@ -31,9 +31,11 @@ import { toast } from 'react-toastify';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmContext';
 
 export default function DiscountApprovals() {
   const { user } = useAuth();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -166,7 +168,16 @@ export default function DiscountApprovals() {
       return;
     }
     const origReq = Number(student.discountRequestedAmount || student.discountAmount || 0);
-    if (!window.confirm(`Are you sure you want to approve the discount concession of ₹${origReq.toLocaleString()} for ${student.name} as Super Admin?`)) {
+    const isConfirmed = await confirm({
+      title: 'Approve Discount Concession',
+      message: `Are you sure you want to approve the discount concession of ₹${origReq.toLocaleString()} for ${student.name} as Super Admin?`,
+      subtitle: 'This will officially record your Super Admin approval and apply the fee concession.',
+      confirmText: 'Approve Concession',
+      cancelText: 'Cancel',
+      type: 'success'
+    });
+
+    if (!isConfirmed) {
       return;
     }
 

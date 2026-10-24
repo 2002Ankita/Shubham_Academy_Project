@@ -1,151 +1,72 @@
 import api from './api';
+import { getUserBranch, filterAttendanceByBranch } from '../utils/branchUtils';
 
-export const DEFAULT_NOTIFICATIONS = [
-  {
-    id: 'NTF-01',
-    title: 'RFID Attendance Logged',
-    time: '08:14 AM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 08:14 AM',
-    type: 'attendance',
-    category: 'Attendance & Biometrics',
-    priority: 'Normal',
-    author: 'Campus Security & Gate Operations',
-    details: 'Student Aarav Deshmukh registered an automated biometric RFID in-gate entry at Main Campus Gate 1. In-time recorded: 08:14 AM. Status has been verified and marked as Present for today\'s academic sessions and lectures. No manual intervention required.',
-    read: false
-  },
-  {
-    id: 'NTF-02',
-    title: 'Fee Payment Receipt Generated',
-    time: '10:15 AM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 10:15 AM',
-    type: 'fee',
-    category: 'Accounts & Fees',
-    priority: 'High',
-    author: 'Accounts & Finance Wing',
-    details: 'Official installment fee receipt #REC-99120 for ₹45,000 has been verified and digitally stamped by the finance wing. Payment method: UPI / NetBanking. Your student ledger account is currently cleared with zero outstanding dues for the current academic term.',
-    read: false
-  },
-  {
-    id: 'NTF-03',
-    title: 'Physics Chapter 4 Notes Uploaded',
-    time: '11:30 AM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 11:30 AM',
-    type: 'material',
-    category: 'Study Materials',
-    priority: 'Normal',
-    author: 'Dr. Priya Kulkarni (Physics Faculty)',
-    details: 'Comprehensive formula booklet, key conceptual derivations, and numerical exercise sheets for Chapter 4 "Wave Optics & Interference" have been uploaded to the Study Materials repository for download.',
-    read: false
-  },
-  {
-    id: 'NTF-04',
-    title: 'Mid-Term Exam Schedule Out',
-    time: '01:45 PM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 01:45 PM',
-    type: 'exam',
-    category: 'Examinations',
-    priority: 'High',
-    author: 'Controller of Examinations',
-    details: 'The official schedule for the Mid-Term Evaluation (Academic Year 2026-27) has been released. Examinations commence on October 15, 2026. Hall tickets will be downloadable via the student portal from October 10. Check batch-wise paper timings, syllabus topics, and room allocations in the Examinations module.',
-    read: false
-  },
-  {
-    id: 'NTF-05',
-    title: 'Maths Doubt Session Scheduled',
-    time: '03:20 PM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 03:20 PM',
-    type: 'schedule',
-    category: 'Academic Schedule',
-    priority: 'Normal',
-    author: 'Prof. Rajesh Sharma (Mathematics)',
-    details: 'An interactive doubt clearing and problem-solving masterclass on Integral Calculus & Differential Equations will be conducted today at 04:30 PM in Lecture Hall B. All Class 12 students are requested to bring their question sets.',
-    read: false
-  },
-  {
-    id: 'NTF-06',
-    title: 'Chemistry Lab Journal Submission',
-    time: '04:50 PM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 04:50 PM',
-    type: 'assignment',
-    category: 'Assignments & Labs',
-    priority: 'High',
-    author: 'Chemistry Laboratory Wing',
-    details: 'All Batch-A students are reminded to submit completed and signed volumetric analysis practical journals before Friday, 05:00 PM to Dr. V. Nair for semester internal assessment marks calculation.',
-    read: false
-  },
-  {
-    id: 'NTF-07',
-    title: 'Library Book Return Reminder',
-    time: '05:30 PM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 05:30 PM',
-    type: 'library',
-    category: 'Library Services',
-    priority: 'Normal',
-    author: 'Central Library Desk',
-    details: 'Borrowed reference volume "Concepts of Physics - Vol 2 (H.C. Verma)" accession #LIB-4402 is scheduled for return by tomorrow evening. Renew via the student portal or hand over at circulation desk #2 to avoid overdue charges.',
-    read: false
-  },
-  {
-    id: 'NTF-08',
-    title: 'System Cloud Snapshot Verified',
-    time: '01:00 AM',
-    date: '05 Oct 2026',
-    formattedDateTime: '05 Oct 2026, 01:00 AM',
-    type: 'system',
-    category: 'System Administration',
-    priority: 'Normal',
-    author: 'Automated Cloud Cron',
-    details: 'Nightly incremental backup of all student profiles, fee registers, and examination rosters was verified and archived to primary cloud vault successfully.',
-    read: false,
-    forSuperAdminOnly: true
-  },
-  {
-    id: 'NTF-TCH-01',
-    title: 'SMS Alert: Scheduled Examination Assigned',
-    time: '09:00 AM',
-    date: '10 Oct 2026',
-    formattedDateTime: '10 Oct 2026, 09:00 AM',
-    type: 'exam',
-    category: 'Examinations & SMS Alerts',
-    priority: 'High',
-    author: 'Examination Controller & SMS Gateway',
-    details: 'SMS Alert delivered to faculty mobile: Mid-Term Examination for 12th Science (Physics) has been scheduled. You are assigned as faculty supervisor. Roster and marks entry portal are now active under Examinations.',
-    read: false
-  },
-  {
-    id: 'NTF-TCH-02',
-    title: 'SMS Alert: Marks Dispatched to Parents',
-    time: '02:30 PM',
-    date: '08 Oct 2026',
-    formattedDateTime: '08 Oct 2026, 02:30 PM',
-    type: 'marks',
-    category: 'SMS & WhatsApp Dispatches',
-    priority: 'Normal',
-    author: 'Automated SMS Gateway',
-    details: 'SMS delivery summary: Marks notifications for Weekly Test #3 have been dispatched to verified parent numbers. An SMS confirmation copy has been delivered to registered faculty mobile.',
-    read: false
-  },
-  {
-    id: 'NTF-TCH-03',
-    title: 'Biometric RFID In-Punch Verified',
-    time: '08:05 AM',
-    date: '12 Oct 2026',
-    formattedDateTime: '12 Oct 2026, 08:05 AM',
-    type: 'attendance',
-    category: 'Biometrics & Timings',
-    priority: 'Normal',
-    author: 'RFID Biometric Terminal #1',
-    details: 'Faculty RFID smart card punch registered at Main Campus Terminal 1. Time recorded: 08:05 AM. Daily working hours tracker initiated. Status: Present.',
-    read: false
-  }
-];
+export const getDefaultNotifications = (activeBranch) => {
+  const isTP = activeBranch === 'Tarabai Park';
+  const studentName = isTP ? 'Aarav Deshmukh' : 'Diya Patil';
+  const campusLabel = isTP ? 'Tarabai Park Campus' : 'Mangalvar Peth Campus';
+
+  return [
+    {
+      id: 'NTF-01',
+      title: 'RFID Attendance Logged',
+      time: '08:14 AM',
+      date: '05 Oct 2026',
+      formattedDateTime: '05 Oct 2026, 08:14 AM',
+      type: 'attendance',
+      category: 'Attendance & Biometrics',
+      priority: 'Normal',
+      branch: activeBranch || (isTP ? 'Tarabai Park' : 'Mangalvar Peth'),
+      author: `${campusLabel} Security Gate`,
+      details: `Student ${studentName} registered an automated biometric RFID in-gate entry at ${campusLabel} Gate 1. In-time recorded: 08:14 AM. Status has been verified and marked as Present for today's academic sessions.`,
+      read: false
+    },
+    {
+      id: 'NTF-02',
+      title: 'Fee Payment Receipt Generated',
+      time: '10:15 AM',
+      date: '05 Oct 2026',
+      formattedDateTime: '05 Oct 2026, 10:15 AM',
+      type: 'fee',
+      category: 'Accounts & Fees',
+      priority: 'High',
+      branch: activeBranch || (isTP ? 'Tarabai Park' : 'Mangalvar Peth'),
+      author: `${campusLabel} Accounts Wing`,
+      details: `Official installment fee receipt #REC-${isTP ? 'TP' : 'MP'}-99120 for ₹45,000 has been verified and digitally stamped by the finance wing. Payment method: UPI / NetBanking. Student ledger account is updated.`,
+      read: false
+    },
+    {
+      id: 'NTF-03',
+      title: 'Physics Chapter 4 Notes Uploaded',
+      time: '11:30 AM',
+      date: '05 Oct 2026',
+      formattedDateTime: '05 Oct 2026, 11:30 AM',
+      type: 'material',
+      category: 'Study Materials',
+      priority: 'Normal',
+      branch: activeBranch || (isTP ? 'Tarabai Park' : 'Mangalvar Peth'),
+      author: 'Dr. Priya Kulkarni (Physics Faculty)',
+      details: 'Comprehensive formula booklet, key conceptual derivations, and numerical exercise sheets for Chapter 4 "Wave Optics & Interference" have been uploaded to the Study Materials repository for download.',
+      read: false
+    },
+    {
+      id: 'NTF-04',
+      title: 'Mid-Term Exam Schedule Out',
+      time: '01:45 PM',
+      date: '05 Oct 2026',
+      formattedDateTime: '05 Oct 2026, 01:45 PM',
+      type: 'exam',
+      category: 'Examinations',
+      priority: 'High',
+      branch: activeBranch || (isTP ? 'Tarabai Park' : 'Mangalvar Peth'),
+      author: `${campusLabel} Examination Controller`,
+      details: `The official schedule for the Mid-Term Evaluation has been released for ${campusLabel}. Examinations commence on October 25, 2026. Hall tickets available in the portal.`,
+      read: false
+    }
+  ];
+};
+
+export const DEFAULT_NOTIFICATIONS = getDefaultNotifications(null);
 
 const READ_STORAGE_KEY = 'sa_read_notifications_v4';
 const DYNAMIC_NOTIFICATIONS_KEY = 'sa_dynamic_notifications_v2';
@@ -188,18 +109,38 @@ function saveReadIds(ids) {
 }
 
 function getCombinedNotifications(isSuperAdmin = false) {
+  const activeBranch = getUserBranch();
   const customItems = getCustomNotifications();
-  const filteredCustom = isSuperAdmin
+  let filteredCustom = isSuperAdmin
     ? customItems
     : customItems.filter(n => !n.forSuperAdminOnly);
+
+  if (activeBranch) {
+    const isTP = activeBranch === 'Tarabai Park';
+    filteredCustom = filteredCustom.filter(n => {
+      if (n.branch) {
+        const bNorm = n.branch.toLowerCase();
+        return isTP ? bNorm.includes('tarabai') : (bNorm.includes('mangalvar') || bNorm.includes('mangalwar'));
+      }
+      const sName = (n.studentName || n.title || n.details || '').toLowerCase();
+      if (isTP) {
+        return sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan') || sName.includes('tarabai');
+      } else {
+        return sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya') || sName.includes('mangalvar') || sName.includes('mangalwar');
+      }
+    });
+  }
+
+  const defaultList = getDefaultNotifications(activeBranch);
   const defaultItems = isSuperAdmin
-    ? DEFAULT_NOTIFICATIONS
-    : DEFAULT_NOTIFICATIONS.filter(n => !n.forSuperAdminOnly);
+    ? defaultList
+    : defaultList.filter(n => !n.forSuperAdminOnly);
   return [...filteredCustom, ...defaultItems];
 }
 
 export const notificationService = {
   addNotification: (notif) => {
+    const activeBranch = getUserBranch();
     const now = new Date();
     const timeStr = notif.time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateStr = notif.date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -217,6 +158,7 @@ export const notificationService = {
       details: notif.details || '',
       read: false,
       forSuperAdminOnly: notif.forSuperAdminOnly || false,
+      branch: notif.branch || activeBranch || undefined,
       studentId: notif.studentId,
       studentName: notif.studentName,
       discountAmount: notif.discountAmount,
@@ -461,16 +403,24 @@ export const notificationService = {
 
   // Academy Admin: Fetch Notification Dispatch History (Absence, Test Schedules, Reminders)
   getHistory: async (params = {}) => {
+    const activeBranch = params?.branch || getUserBranch();
     try {
-      const res = await api.get('/notifications/history', { params });
+      const res = await api.get('/notifications/history', { params: { ...params, branch: activeBranch } });
       if (res?.data?.items && res.data.items.length > 0) {
-        return res.data;
+        let items = res.data.items;
+        if (activeBranch) {
+          items = filterAttendanceByBranch(items, activeBranch);
+        }
+        return { ...res.data, items, total: items.length };
       }
     } catch (e) {
       console.warn('Backend history unavailable, using frontend store:', e);
     }
     // Fallback to client storage
-    const localItems = getLocalDispatchHistory();
+    let localItems = getLocalDispatchHistory();
+    if (activeBranch) {
+      localItems = filterAttendanceByBranch(localItems, activeBranch);
+    }
     let filtered = [...localItems];
 
     if (params.type && params.type !== 'all') {
@@ -503,15 +453,19 @@ export const notificationService = {
 
   // Academy Admin: Fetch Notification KPI Stats (Dual SMS + WhatsApp)
   getStats: async () => {
+    const activeBranch = getUserBranch();
     try {
-      const res = await api.get('/notifications/stats');
+      const res = await api.get('/notifications/stats', { params: { branch: activeBranch } });
       if (res?.data && res.data.total_dispatches > 0) {
         return res.data;
       }
     } catch (e) {
       // fallback
     }
-    const items = getLocalDispatchHistory();
+    let items = getLocalDispatchHistory();
+    if (activeBranch) {
+      items = filterAttendanceByBranch(items, activeBranch);
+    }
     const absenceCount = items.filter(i => i.notification_type === 'absence_alert').length;
     const testSchedCount = items.filter(i => i.notification_type === 'test_schedule').length;
     const marksCount = items.filter(i => i.notification_type === 'marks_entry').length;
@@ -552,6 +506,14 @@ export const notificationService = {
 
   // Academy Admin: Record test schedule parent dispatches (SMS & WhatsApp supported)
   recordTestScheduleDispatch: ({ testName, subject, batch, testDate, testTime, students = [], channels = ['SMS', 'WhatsApp'] }) => {
+    const activeBranch = getUserBranch();
+    const branchVal = (batch && batch.toLowerCase().includes('tarabai'))
+      ? 'Tarabai Park'
+      : ((batch && (batch.toLowerCase().includes('mangalvar') || batch.toLowerCase().includes('mangalwar')))
+        ? 'Mangalvar Peth'
+        : (activeBranch || 'Mangalvar Peth'));
+    const isTP = branchVal === 'Tarabai Park';
+
     const history = getLocalDispatchHistory();
     const createdLogs = [];
     const now = new Date();
@@ -563,14 +525,20 @@ export const notificationService = {
       ? channels
       : (channels === 'both' ? ['SMS', 'WhatsApp'] : [channels || 'SMS']);
 
-    // Target sample student list if empty
-    const targetStudents = students.length > 0 ? students : [
-      { name: 'Aarav Sharma', roll: 'SA-1001', mobile: '+91 98220 11221' },
-      { name: 'Diya Patil', roll: 'SA-1002', mobile: '+91 98220 33445' },
-      { name: 'Rohan Deshmukh', roll: 'SA-1003', mobile: '+91 98220 55667' },
-      { name: 'Ananya Joshi', roll: 'SA-1004', mobile: '+91 98220 77889' },
-      { name: 'Tanvi Shinde', roll: 'SA-1005', mobile: '+91 98220 99001' }
-    ];
+    // Target sample student list if empty, strictly matching the target campus
+    const targetStudents = students.length > 0 ? students : (
+      isTP ? [
+        { name: 'Aarav Deshmukh', roll: 'SA-TP-1001', mobile: '+91 98220 11221', branch: 'Tarabai Park', batch },
+        { name: 'Ananya Joshi', roll: 'SA-TP-1002', mobile: '+91 98220 11223', branch: 'Tarabai Park', batch },
+        { name: 'Tanvi Shinde', roll: 'SA-TP-1003', mobile: '+91 98220 11225', branch: 'Tarabai Park', batch },
+        { name: 'Aryan Patil', roll: 'SA-TP-1004', mobile: '+91 98220 11227', branch: 'Tarabai Park', batch }
+      ] : [
+        { name: 'Diya Patil', roll: 'SA-MP-1001', mobile: '+91 98220 33441', branch: 'Mangalvar Peth', batch },
+        { name: 'Rohan Deshmukh', roll: 'SA-MP-1002', mobile: '+91 98220 33443', branch: 'Mangalvar Peth', batch },
+        { name: 'Sneha Kadam', roll: 'SA-MP-1003', mobile: '+91 98220 33445', branch: 'Mangalvar Peth', batch },
+        { name: 'Aditya Joshi', roll: 'SA-MP-1004', mobile: '+91 98220 33447', branch: 'Mangalvar Peth', batch }
+      ]
+    );
 
     targetStudents.forEach(st => {
       activeChannels.forEach(ch => {
@@ -595,6 +563,7 @@ export const notificationService = {
           roll_number: st.roll || st.roll_number || 'SA-0000',
           parent_mobile: st.mobile || st.parent_mobile || '+91 98220 00000',
           batch: batch,
+          branch: branchVal,
           subject: subject,
           test_name: testName,
           test_date: testDate,
@@ -626,12 +595,15 @@ export const notificationService = {
     studentName,
     parentMobile,
     batch,
+    branch,
     subject,
     lectureNumber = 1,
     lectureDate,
     time,
     channels = ['SMS', 'WhatsApp']
   }) => {
+    const activeBranch = getUserBranch();
+    const branchVal = branch || (batch && batch.toLowerCase().includes('tarabai') ? 'Tarabai Park' : ((batch && (batch.toLowerCase().includes('mangalvar') || batch.toLowerCase().includes('mangalwar'))) ? 'Mangalvar Peth' : (activeBranch || 'Mangalvar Peth')));
     const history = getLocalDispatchHistory();
     const now = new Date();
     const lectureNum = Number(lectureNumber) || 1;
@@ -673,6 +645,7 @@ export const notificationService = {
         roll_number: rollNumber,
         parent_mobile: parentMobile || '+91 98220 12345',
         batch: batch,
+        branch: branchVal,
         subject: subject || (lectureNum === 1 ? 'Physics' : 'Mathematics'),
         lecture_number: lectureNum,
         lecture_date: dateStr,
@@ -729,169 +702,195 @@ export const notificationService = {
   }
 };
 
-const DISPATCH_HISTORY_KEY = 'sa_notification_history_v4';
+const DISPATCH_HISTORY_KEY = 'sa_notification_history_v6';
 
 const INITIAL_SEED_HISTORY = [
-  // WhatsApp Absence Alerts
+  // --- MANGALVAR PETH CAMPUS SEED RECORDS ---
   {
-    id: 'LOG-ABS-WA-101',
+    id: 'LOG-MP-ABS-WA-101',
     notification_type: 'absence_alert',
     student_name: 'Diya Patil',
-    roll_number: 'SA-1002',
-    parent_mobile: '+91 98220 33445',
-    batch: '11th pcm tarabai park',
+    roll_number: 'SA-MP-1001',
+    parent_mobile: '+91 98220 33441',
+    batch: '11th pcm Mangalvar peth',
+    branch: 'Mangalvar Peth',
     subject: 'Physics',
     lecture_number: 1,
     lecture_date: '2026-10-22',
     lecture_slot: 'Lecture 1 (Morning - 09:00 AM)',
-    message: '*Shubham Academy • Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Diya Patil* (Roll: *SA-1002*) was marked *ABSENT* for:\n\n📌 *Session:* Lecture 1 (Morning)\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-22\n⏰ *Time:* 09:05 AM\n👥 *Batch:* 11th pcm tarabai park\n\nPlease contact administration if you have questions.\n\n_Shubham Academy Admin Office_',
+    message: '*Shubham Academy • Mangalvar Peth Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Diya Patil* (Roll: *SA-MP-1001*) was marked *ABSENT* for:\n\n📌 *Session:* Lecture 1 (Morning)\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-22\n⏰ *Time:* 09:05 AM\n👥 *Batch:* 11th pcm Mangalvar peth\n\nPlease contact Mangalvar Peth administration office for inquiries.\n\n_Shubham Academy Mangalvar Peth Desk_',
     delivery_status: 'Delivered',
     channel: 'WhatsApp',
-    idempotency_key: 'absence_SA-1002_2026-10-22_lec1_whatsapp',
+    idempotency_key: 'absence_SA-MP-1001_2026-10-22_lec1_whatsapp',
     created_at: '22 Oct 2026, 09:06 AM',
     sent_at: '22 Oct 2026, 09:06 AM'
   },
   {
-    id: 'LOG-ABS-SMS-101',
+    id: 'LOG-MP-ABS-SMS-101',
     notification_type: 'absence_alert',
     student_name: 'Diya Patil',
-    roll_number: 'SA-1002',
-    parent_mobile: '+91 98220 33445',
-    batch: '11th pcm tarabai park',
+    roll_number: 'SA-MP-1001',
+    parent_mobile: '+91 98220 33441',
+    batch: '11th pcm Mangalvar peth',
+    branch: 'Mangalvar Peth',
     subject: 'Physics',
     lecture_number: 1,
     lecture_date: '2026-10-22',
     lecture_slot: 'Lecture 1 (Morning - 09:00 AM)',
-    message: 'Dear Parent, your ward Diya Patil (SA-1002) was marked ABSENT for Lecture 1 (Morning) [Physics] on 2026-10-22 at 09:05 AM. Please contact Shubham Academy administration for inquiries.',
+    message: 'Dear Parent, your ward Diya Patil (SA-MP-1001) was marked ABSENT for Lecture 1 (Morning) [Physics] at Mangalvar Peth Campus on 2026-10-22. - Shubham Academy',
     delivery_status: 'Delivered',
     channel: 'SMS',
-    idempotency_key: 'absence_SA-1002_2026-10-22_lec1_sms',
+    idempotency_key: 'absence_SA-MP-1001_2026-10-22_lec1_sms',
     created_at: '22 Oct 2026, 09:06 AM',
     sent_at: '22 Oct 2026, 09:06 AM'
   },
-  // WhatsApp Absence Lecture 2
   {
-    id: 'LOG-ABS-WA-102',
+    id: 'LOG-MP-ABS-WA-102',
     notification_type: 'absence_alert',
-    student_name: 'Diya Patil',
-    roll_number: 'SA-1002',
-    parent_mobile: '+91 98220 33445',
-    batch: '11th pcm tarabai park',
+    student_name: 'Rohan Deshmukh',
+    roll_number: 'SA-MP-1002',
+    parent_mobile: '+91 98220 33443',
+    batch: '11th pcb Mangalvar peth',
+    branch: 'Mangalvar Peth',
     subject: 'Mathematics',
     lecture_number: 2,
     lecture_date: '2026-10-22',
     lecture_slot: 'Lecture 2 (Afternoon - 01:30 PM)',
-    message: '*Shubham Academy • Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Diya Patil* (Roll: *SA-1002*) was marked *ABSENT* for:\n\n📌 *Session:* Lecture 2 (Afternoon)\n📚 *Subject:* Mathematics\n📅 *Date:* 2026-10-22\n⏰ *Time:* 01:35 PM\n👥 *Batch:* 11th pcm tarabai park\n\nPlease contact administration if you have questions.\n\n_Shubham Academy Admin Office_',
+    message: '*Shubham Academy • Mangalvar Peth Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Rohan Deshmukh* (Roll: *SA-MP-1002*) was marked *ABSENT* for Lecture 2 (Afternoon) [Mathematics] on 2026-10-22 at Mangalvar Peth Campus.',
     delivery_status: 'Delivered',
     channel: 'WhatsApp',
-    idempotency_key: 'absence_SA-1002_2026-10-22_lec2_whatsapp',
+    idempotency_key: 'absence_SA-MP-1002_2026-10-22_lec2_whatsapp',
     created_at: '22 Oct 2026, 01:36 PM',
     sent_at: '22 Oct 2026, 01:36 PM'
   },
-  // WhatsApp Test Schedule Alerts
   {
-    id: 'LOG-TST-WA-201',
-    notification_type: 'test_schedule',
-    student_name: 'Aarav Sharma',
-    roll_number: 'SA-1001',
-    parent_mobile: '+91 98220 11221',
-    batch: '11th pcm tarabai park',
-    subject: 'Physics',
-    test_name: 'Weekly Test - Mechanics & Kinematics',
-    test_date: '2026-10-25',
-    test_time: '10:00 am - 01:00 pm',
-    message: "*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important test has been scheduled for your ward *Aarav Sharma* (Roll: *SA-1001*).\n\n📝 *Test Name:* Weekly Test - Mechanics & Kinematics\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-25\n⏰ *Time:* 10:00 am - 01:00 pm\n👥 *Batch:* 11th pcm tarabai park\n\nPlease ensure your ward attends punctually.\n\n_Shubham Academy Examination Cell_",
-    delivery_status: 'Delivered',
-    channel: 'WhatsApp',
-    idempotency_key: 'test_sched_11th_pcm_tarabai_park_2026-10-25_physics_SA-1001_whatsapp',
-    created_at: '22 Oct 2026, 10:15 AM',
-    sent_at: '22 Oct 2026, 10:15 AM'
-  },
-  {
-    id: 'LOG-TST-SMS-201',
-    notification_type: 'test_schedule',
-    student_name: 'Aarav Sharma',
-    roll_number: 'SA-1001',
-    parent_mobile: '+91 98220 11221',
-    batch: '11th pcm tarabai park',
-    subject: 'Physics',
-    test_name: 'Weekly Test - Mechanics & Kinematics',
-    test_date: '2026-10-25',
-    test_time: '10:00 am - 01:00 pm',
-    message: "Dear Parent, a test 'Weekly Test - Mechanics & Kinematics' for subject 'Physics' has been scheduled on 2026-10-25 (10:00 am - 01:00 pm) for batch '11th pcm tarabai park'. Please ensure your ward Aarav Sharma prepares thoroughly. - Shubham Academy",
-    delivery_status: 'Delivered',
-    channel: 'SMS',
-    idempotency_key: 'test_sched_11th_pcm_tarabai_park_2026-10-25_physics_SA-1001_sms',
-    created_at: '22 Oct 2026, 10:15 AM',
-    sent_at: '22 Oct 2026, 10:15 AM'
-  },
-  {
-    id: 'LOG-TST-WA-202',
+    id: 'LOG-MP-TST-WA-201',
     notification_type: 'test_schedule',
     student_name: 'Diya Patil',
-    roll_number: 'SA-1002',
-    parent_mobile: '+91 98220 33445',
-    batch: '11th pcm tarabai park',
+    roll_number: 'SA-MP-1001',
+    parent_mobile: '+91 98220 33441',
+    batch: '11th pcm Mangalvar peth',
+    branch: 'Mangalvar Peth',
     subject: 'Physics',
-    test_name: 'Weekly Test - Mechanics & Kinematics',
+    test_name: 'Mangalvar Peth Weekly Test - Mechanics',
     test_date: '2026-10-25',
     test_time: '10:00 am - 01:00 pm',
-    message: "*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important test has been scheduled for your ward *Diya Patil* (Roll: *SA-1002*).\n\n📝 *Test Name:* Weekly Test - Mechanics & Kinematics\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-25\n⏰ *Time:* 10:00 am - 01:00 pm\n👥 *Batch:* 11th pcm tarabai park\n\nPlease ensure your ward attends punctually.\n\n_Shubham Academy Examination Cell_",
+    message: "*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important test has been scheduled for your ward *Diya Patil* (Roll: *SA-MP-1001*).\n\n📝 *Test Name:* Mangalvar Peth Weekly Test - Mechanics\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-25\n⏰ *Time:* 10:00 am - 01:00 pm\n👥 *Batch:* 11th pcm Mangalvar peth\n\n_Shubham Academy Mangalvar Peth_",
     delivery_status: 'Delivered',
     channel: 'WhatsApp',
-    idempotency_key: 'test_sched_11th_pcm_tarabai_park_2026-10-25_physics_SA-1002_whatsapp',
+    idempotency_key: 'test_sched_11th_pcm_mangalvar_peth_2026-10-25_physics_SA-MP-1001_whatsapp',
     created_at: '22 Oct 2026, 10:15 AM',
     sent_at: '22 Oct 2026, 10:15 AM'
   },
   {
-    id: 'LOG-TST-WA-203',
-    notification_type: 'test_schedule',
-    student_name: 'Rohan Deshmukh',
-    roll_number: 'SA-1003',
-    parent_mobile: '+91 98220 55667',
-    batch: '11th pcm tarabai park',
-    subject: 'Physics',
-    test_name: 'Weekly Test - Mechanics & Kinematics',
-    test_date: '2026-10-25',
-    test_time: '10:00 am - 01:00 pm',
-    message: "*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important test has been scheduled for your ward *Rohan Deshmukh* (Roll: *SA-1003*).\n\n📝 *Test Name:* Weekly Test - Mechanics & Kinematics\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-25\n⏰ *Time:* 10:00 am - 01:00 pm\n👥 *Batch:* 11th pcm tarabai park\n\nPlease ensure your ward attends punctually.\n\n_Shubham Academy Examination Cell_",
-    delivery_status: 'Delivered',
-    channel: 'WhatsApp',
-    idempotency_key: 'test_sched_11th_pcm_tarabai_park_2026-10-25_physics_SA-1003_whatsapp',
-    created_at: '22 Oct 2026, 10:15 AM',
-    sent_at: '22 Oct 2026, 10:15 AM'
-  },
-  {
-    id: 'LOG-ABS-WA-103',
-    notification_type: 'absence_alert',
-    student_name: 'Pranav Kulkarni',
-    roll_number: 'SA-1014',
-    parent_mobile: '+91 98220 88990',
-    batch: '12th pcb tarabai park',
-    subject: 'Biology',
-    lecture_number: 1,
-    lecture_date: '2026-10-21',
-    lecture_slot: 'Lecture 1 (Morning - 08:30 AM)',
-    message: '*Shubham Academy • Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Pranav Kulkarni* (Roll: *SA-1014*) was marked *ABSENT* for Lecture 1 (Morning) [Biology] on 2026-10-21 at 08:35 AM. Please contact Shubham Academy administration for inquiries.',
-    delivery_status: 'Delivered',
-    channel: 'WhatsApp',
-    idempotency_key: 'absence_SA-1014_2026-10-21_lec1_whatsapp',
-    created_at: '21 Oct 2026, 08:36 AM',
-    sent_at: '21 Oct 2026, 08:36 AM'
-  },
-  {
-    id: 'LOG-MRK-WA-301',
+    id: 'LOG-MP-MRK-WA-301',
     notification_type: 'marks_entry',
-    student_name: 'Aarav Sharma',
-    roll_number: 'SA-1001',
+    student_name: 'Sneha Kadam',
+    roll_number: 'SA-MP-1003',
+    parent_mobile: '+91 98220 33445',
+    batch: '12th pcm Mangalvar peth',
+    branch: 'Mangalvar Peth',
+    subject: 'Chemistry',
+    test_name: 'Weekly Test #2 - Organic Chemistry',
+    message: '*Shubham Academy • Test Result Announcement* 📊\n\nDear Parent, marks for *Sneha Kadam* (Roll: *SA-MP-1003*) at Mangalvar Peth Campus:\n\n🎯 *Marks Scored:* 94 / 100\n📈 *Percentage:* 94.0%\n🏆 *Grade:* A+\n\n_Shubham Academy Result Cell_',
+    delivery_status: 'Delivered',
+    channel: 'WhatsApp',
+    idempotency_key: 'marks_SA-MP-1003_chem_t2_whatsapp',
+    created_at: '20 Oct 2026, 04:30 PM',
+    sent_at: '20 Oct 2026, 04:30 PM'
+  },
+
+  // --- TARABAI PARK CAMPUS SEED RECORDS ---
+  {
+    id: 'LOG-TP-ABS-WA-101',
+    notification_type: 'absence_alert',
+    student_name: 'Aarav Deshmukh',
+    roll_number: 'SA-TP-1001',
     parent_mobile: '+91 98220 11221',
     batch: '11th pcm tarabai park',
-    subject: 'Mathematics',
-    test_name: 'Weekly Test #2 - Calculus',
-    message: '*Shubham Academy • Test Result Announcement* 📊\n\nDear Parent, marks for *Aarav Sharma* (Roll: *SA-1001*) in *Weekly Test #2 - Calculus*:\n\n🎯 *Marks Scored:* 88 / 100\n📈 *Percentage:* 88.0%\n🏆 *Grade:* A+\n\nCongratulations on the performance!\n\n_Shubham Academy Result Cell_',
+    branch: 'Tarabai Park',
+    subject: 'Physics',
+    lecture_number: 1,
+    lecture_date: '2026-10-22',
+    lecture_slot: 'Lecture 1 (Morning - 09:00 AM)',
+    message: '*Shubham Academy • Tarabai Park Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Aarav Deshmukh* (Roll: *SA-TP-1001*) was marked *ABSENT* for:\n\n📌 *Session:* Lecture 1 (Morning)\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-22\n⏰ *Time:* 09:05 AM\n👥 *Batch:* 11th pcm tarabai park\n\nPlease contact Tarabai Park administration office for inquiries.\n\n_Shubham Academy Tarabai Park Desk_',
     delivery_status: 'Delivered',
     channel: 'WhatsApp',
-    idempotency_key: 'marks_SA-1001_calc_t2_whatsapp',
+    idempotency_key: 'absence_SA-TP-1001_2026-10-22_lec1_whatsapp',
+    created_at: '22 Oct 2026, 09:06 AM',
+    sent_at: '22 Oct 2026, 09:06 AM'
+  },
+  {
+    id: 'LOG-TP-ABS-SMS-101',
+    notification_type: 'absence_alert',
+    student_name: 'Aarav Deshmukh',
+    roll_number: 'SA-TP-1001',
+    parent_mobile: '+91 98220 11221',
+    batch: '11th pcm tarabai park',
+    branch: 'Tarabai Park',
+    subject: 'Physics',
+    lecture_number: 1,
+    lecture_date: '2026-10-22',
+    lecture_slot: 'Lecture 1 (Morning - 09:00 AM)',
+    message: 'Dear Parent, your ward Aarav Deshmukh (SA-TP-1001) was marked ABSENT for Lecture 1 (Morning) [Physics] at Tarabai Park Campus on 2026-10-22. - Shubham Academy',
+    delivery_status: 'Delivered',
+    channel: 'SMS',
+    idempotency_key: 'absence_SA-TP-1001_2026-10-22_lec1_sms',
+    created_at: '22 Oct 2026, 09:06 AM',
+    sent_at: '22 Oct 2026, 09:06 AM'
+  },
+  {
+    id: 'LOG-TP-ABS-WA-102',
+    notification_type: 'absence_alert',
+    student_name: 'Ananya Joshi',
+    roll_number: 'SA-TP-1002',
+    parent_mobile: '+91 98220 11223',
+    batch: '11th pcb tarabai park',
+    branch: 'Tarabai Park',
+    subject: 'Mathematics',
+    lecture_number: 2,
+    lecture_date: '2026-10-22',
+    lecture_slot: 'Lecture 2 (Afternoon - 01:30 PM)',
+    message: '*Shubham Academy • Tarabai Park Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *Ananya Joshi* (Roll: *SA-TP-1002*) was marked *ABSENT* for Lecture 2 (Afternoon) [Mathematics] on 2026-10-22 at Tarabai Park Campus.',
+    delivery_status: 'Delivered',
+    channel: 'WhatsApp',
+    idempotency_key: 'absence_SA-TP-1002_2026-10-22_lec2_whatsapp',
+    created_at: '22 Oct 2026, 01:36 PM',
+    sent_at: '22 Oct 2026, 01:36 PM'
+  },
+  {
+    id: 'LOG-TP-TST-WA-201',
+    notification_type: 'test_schedule',
+    student_name: 'Aarav Deshmukh',
+    roll_number: 'SA-TP-1001',
+    parent_mobile: '+91 98220 11221',
+    batch: '11th pcm tarabai park',
+    branch: 'Tarabai Park',
+    subject: 'Physics',
+    test_name: 'Tarabai Park Weekly Assessment - Mechanics',
+    test_date: '2026-10-25',
+    test_time: '10:00 am - 01:00 pm',
+    message: "*Shubham Academy • Scheduled Assessment Alert* 📢\n\nDear Parent, an important test has been scheduled for your ward *Aarav Deshmukh* (Roll: *SA-TP-1001*).\n\n📝 *Test Name:* Tarabai Park Weekly Assessment - Mechanics\n📚 *Subject:* Physics\n📅 *Date:* 2026-10-25\n⏰ *Time:* 10:00 am - 01:00 pm\n👥 *Batch:* 11th pcm tarabai park\n\n_Shubham Academy Tarabai Park_",
+    delivery_status: 'Delivered',
+    channel: 'WhatsApp',
+    idempotency_key: 'test_sched_11th_pcm_tarabai_park_2026-10-25_physics_SA-TP-1001_whatsapp',
+    created_at: '22 Oct 2026, 10:15 AM',
+    sent_at: '22 Oct 2026, 10:15 AM'
+  },
+  {
+    id: 'LOG-TP-MRK-WA-301',
+    notification_type: 'marks_entry',
+    student_name: 'Aryan Patil',
+    roll_number: 'SA-TP-1004',
+    parent_mobile: '+91 98220 11227',
+    batch: '12th pcmb tarabai park',
+    branch: 'Tarabai Park',
+    subject: 'Mathematics',
+    test_name: 'Weekly Test #2 - Calculus',
+    message: '*Shubham Academy • Test Result Announcement* 📊\n\nDear Parent, marks for *Aryan Patil* (Roll: *SA-TP-1004*) in *Weekly Test #2 - Calculus*:\n\n🎯 *Marks Scored:* 88 / 100\n📈 *Percentage:* 88.0%\n🏆 *Grade:* A+\n\n_Shubham Academy Result Cell_',
+    delivery_status: 'Delivered',
+    channel: 'WhatsApp',
+    idempotency_key: 'marks_SA-TP-1004_calc_t2_whatsapp',
     created_at: '20 Oct 2026, 04:30 PM',
     sent_at: '20 Oct 2026, 04:30 PM'
   }
