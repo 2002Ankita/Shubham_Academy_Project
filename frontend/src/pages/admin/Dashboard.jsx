@@ -293,10 +293,17 @@ export default function AdminDashboard() {
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
   );
 
-  const feeData = [
-    { name: 'Collected', value: monthlyFees > 0 ? monthlyFees : 1, amount: `₹${monthlyFees.toLocaleString()}`, color: '#8B1216' },
-    { name: 'Pending', value: pendingFees > 0 ? pendingFees : 1, amount: `₹${pendingFees.toLocaleString()}`, color: '#F5A900' }
-  ];
+  const totalTargetFees = monthlyFees + pendingFees;
+  const collectionPercentage = totalTargetFees > 0
+    ? Math.round((monthlyFees / totalTargetFees) * 100)
+    : 0;
+
+  const feeData = totalTargetFees === 0
+    ? [{ name: 'No Data', value: 1, color: '#E2E8F0' }]
+    : [
+        ...(monthlyFees > 0 ? [{ name: 'Collected', value: monthlyFees, color: '#168554' }] : []),
+        ...(pendingFees > 0 ? [{ name: 'Pending', value: pendingFees, color: '#F5A900' }] : [])
+      ];
 
   const lowStockItems = [];
 
@@ -603,15 +610,25 @@ export default function AdminDashboard() {
             </div>
 
             {/* Donut Chart with Centered Value */}
-            <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{ minHeight: '200px' }}>
-              <ResponsiveContainer width="100%" height={190}>
+            <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{ minHeight: '180px' }}>
+              <ResponsiveContainer width="100%" height={175}>
                 <PieChart>
+                  <Tooltip
+                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
+                    contentStyle={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    }}
+                  />
                   <Pie
                     data={feeData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
+                    innerRadius={48}
+                    outerRadius={70}
                     startAngle={90}
                     endAngle={-270}
                     dataKey="value"
@@ -625,12 +642,15 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
 
               {/* Center Text */}
-              <div className="position-absolute top-50 start-50 translate-middle text-center" style={{ pointerEvents: 'none' }}>
-                <div className="fw-extrabold text-sa-charcoal" style={{ fontSize: '1.10rem', lineHeight: 1.1 }}>
-                  ₹{monthlyFees.toLocaleString('en-IN')}
+              <div className="position-absolute top-50 start-50 translate-middle text-center" style={{ pointerEvents: 'none', maxWidth: '110px' }}>
+                <div className="fw-semibold text-sa-muted text-uppercase" style={{ fontSize: '0.66rem', letterSpacing: '0.5px' }}>
+                  Total Fees
                 </div>
-                <div className="text-sa-muted" style={{ fontSize: '0.72rem' }}>
-                  Collected
+                <div className="fw-extrabold text-sa-charcoal" style={{ fontSize: '1.02rem', lineHeight: 1.15 }}>
+                  ₹{totalTargetFees.toLocaleString('en-IN')}
+                </div>
+                <div className="fw-bold mt-0.5" style={{ fontSize: '0.70rem', color: monthlyFees > 0 ? '#168554' : '#D97718' }}>
+                  {collectionPercentage}% Collected
                 </div>
               </div>
             </div>
@@ -638,7 +658,7 @@ export default function AdminDashboard() {
             {/* Bottom Legend */}
             <div className="d-flex align-items-center justify-content-center gap-3 pt-2 border-top mt-1" style={{ fontSize: '0.78rem' }}>
               <div className="d-flex align-items-center gap-1.5">
-                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#8B1216' }} />
+                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#168554' }} />
                 <span className="text-sa-charcoal fw-semibold">Collected ₹{monthlyFees.toLocaleString('en-IN')}</span>
               </div>
               <div className="d-flex align-items-center gap-1.5">

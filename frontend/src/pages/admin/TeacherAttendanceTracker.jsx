@@ -402,7 +402,7 @@ export default function TeacherAttendanceTracker() {
         </div>
 
         {/* Top Control Bar: Date Selector, Manual Entry & Export */}
-        <div className="d-flex align-items-center flex-wrap gap-2">
+        <div className="d-flex align-items-center flex-wrap flex-sm-nowrap gap-2 flex-shrink-0">
           {/* Date Selector */}
           <div className="d-flex align-items-center gap-2 bg-white border px-2.5 py-1 rounded-3 shadow-2xs">
             <Calendar size={15} className="text-sa-muted" />
@@ -434,32 +434,35 @@ export default function TeacherAttendanceTracker() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center p-2 rounded-2"
+            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center p-2 rounded-2 flex-shrink-0"
             title="Refresh records"
             aria-label="Refresh records"
           >
             <RefreshCw size={15} className={refreshing ? 'spin-animation' : ''} />
           </button>
 
-          {/* Export CSV */}
-          <Button
-            variant="outline"
-            icon={Download}
-            onClick={handleExportCSV}
-            style={{ fontSize: '13px', padding: '7px 14px' }}
-          >
-            Export Timesheet
-          </Button>
+          {/* Action Buttons Group (Always Side by Side) */}
+          <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
+            {/* Export CSV */}
+            <Button
+              variant="outline"
+              icon={Download}
+              onClick={handleExportCSV}
+              style={{ fontSize: '13px', padding: '7px 13px', whiteSpace: 'nowrap' }}
+            >
+              Export Timesheet
+            </Button>
 
-          {/* Manual Entry */}
-          <Button
-            variant="primary"
-            icon={PlusCircle}
-            onClick={handleOpenCreateModal}
-            style={{ fontSize: '13px', padding: '7px 15px' }}
-          >
-            Manual Punch / Entry
-          </Button>
+            {/* Manual Entry */}
+            <Button
+              variant="primary"
+              icon={PlusCircle}
+              onClick={handleOpenCreateModal}
+              style={{ fontSize: '13px', padding: '7px 14px', whiteSpace: 'nowrap' }}
+            >
+              Manual Punch / Entry
+            </Button>
+          </div>
         </div>
       </div>
 
