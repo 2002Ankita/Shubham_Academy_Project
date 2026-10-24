@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmContext';
 import studentService from '../../services/studentService';
+import { getUserBranch } from '../../utils/branchUtils';
 import {
   LayoutDashboard,
   Building2,
@@ -205,6 +207,7 @@ const ContactPhoneIcon = ({ size = 21, className = '' }) => (
 
 export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStudent, isSuperAdmin: propIsSuperAdmin, isTeacher: propIsTeacher, isAdmin: propIsAdmin }) {
   const { user, logout } = useAuth();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -239,10 +242,23 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isAdmin = propIsAdmin ?? (!isSuperAdmin && !isStudent && !isTeacher && (roleStr === 'admin' || location.pathname.startsWith('/admin')));
   const usesPearlNavigation = isAdmin || isSuperAdmin || isStudent || isTeacher;
   const sidebarWidth = usesPearlNavigation ? '265px' : (width || 'var(--sa-sidebar-width)');
+  const userBranch = getUserBranch(user);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    if (onClose) onClose();
+    const isConfirmed = await confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      subtitle: 'You will need to sign in again to access your account.',
+      confirmText: 'Sign Out',
+      cancelText: 'No',
+      type: 'logout'
+    });
+
+    if (isConfirmed) {
+      await logout();
+      navigate('/login');
+    }
   };
 
   const isFeePath = location.pathname.startsWith('/admin/fees');
@@ -489,7 +505,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 }}
               >
                 <Crown size={14} style={{ color: '#FDE047' }} />
-                <span>SUPER ADMIN</span>
+                <span>SUPER ADMIN {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
               </div>
             )}
 
@@ -508,7 +524,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 }}
               >
                 <Shield size={14} style={{ color: '#FDE047' }} />
-                <span>ACADEMY ADMIN</span>
+                <span>ACADEMY ADMIN {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
               </div>
             )}
 
@@ -873,7 +889,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 }}
               >
                 <LogOut size={17} />
-                <span style={{ letterSpacing: '0.02em' }}>Logout</span>
+                <span style={{ letterSpacing: '0.02em' }}>Sign Out</span>
               </button>
             </div>
 

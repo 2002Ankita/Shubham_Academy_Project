@@ -1,53 +1,66 @@
 import api from './api';
+import { getUserBranch, isStudentInBranch } from '../utils/branchUtils';
 
 export const studentService = {
   getAll: async (params = {}) => {
-    const res = await api.get('/students', { params });
-    return res.data.map(student => {
-      const totalFees = Number(student.total_fees) || 0;
-      const paidFees = Number(student.paid_fees) || 0;
-      const remainingFees = Number(student.remaining_fees) || Math.max(0, totalFees - paidFees);
-      
-      let feesStatus = 'Pending';
-      if (totalFees > 0 && paidFees >= totalFees) {
-        feesStatus = 'Paid';
-      } else if (paidFees > 0) {
-        feesStatus = 'Partial';
+    const activeBranch = params?.branch || getUserBranch();
+    try {
+      const res = await api.get('/students', { params });
+      let list = (res.data || []).map(student => {
+        const totalFees = Number(student.total_fees) || 0;
+        const paidFees = Number(student.paid_fees) || 0;
+        const remainingFees = Number(student.remaining_fees) || Math.max(0, totalFees - paidFees);
+        
+        let feesStatus = 'Pending';
+        if (totalFees > 0 && paidFees >= totalFees) {
+          feesStatus = 'Paid';
+        } else if (paidFees > 0) {
+          feesStatus = 'Partial';
+        }
+
+        return {
+          ...student,
+          name: student.full_name,
+          phone: student.mobile_number,
+          parentPhone: student.parent_mobile,
+          parentName: student.parent_name,
+          standard: student.standard || '11th Science',
+          batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+          academicBatch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+          academic_batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
+          session: student.session || null,
+          branch: student.branch || (activeBranch || 'Tarabai Park'),
+          status: student.is_active !== false ? 'Active' : 'Inactive',
+          rollNumber: student.student_id || 'N/A',
+          totalFees,
+          paidFees,
+          remainingFees,
+          feesStatus,
+          profileCompleted: Boolean(student.profile_completed),
+          attendancePercent: student.attendancePercent || 0,
+          originalFees: student.original_fees || student.total_fees || 0,
+          discountAmount: student.discount_amount || 0,
+          discountRequestedAmount: student.discount_requested_amount || student.discount_amount || 0,
+          discountReason: student.discount_reason || '',
+          discountStatus: student.discount_status || 'NONE',
+          discountOfferedBy: student.discount_offered_by || '',
+          discountRecommendedBy: student.discount_recommended_by || student.discount_offered_by || '',
+          discountOfferedAt: student.discount_offered_at || null,
+          discountApprovedBy: student.discount_approved_by || '',
+          discountApprovedAt: student.discount_approved_at || null,
+          discountRejectionReason: student.discount_rejection_reason || ''
+        };
+      });
+
+      if (activeBranch) {
+        list = list.filter(st => isStudentInBranch(st, activeBranch));
       }
 
-      return {
-        ...student,
-        name: student.full_name,
-        phone: student.mobile_number,
-        parentPhone: student.parent_mobile,
-        parentName: student.parent_name,
-        standard: student.standard || '11th Science',
-        batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
-        academicBatch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
-        academic_batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
-        session: student.session || null,
-        branch: student.branch || 'Tarabai Park',
-        status: student.is_active !== false ? 'Active' : 'Inactive',
-        rollNumber: student.student_id || 'N/A',
-        totalFees,
-        paidFees,
-        remainingFees,
-        feesStatus,
-        profileCompleted: Boolean(student.profile_completed),
-        attendancePercent: student.attendancePercent || 0,
-        originalFees: student.original_fees || student.total_fees || 0,
-        discountAmount: student.discount_amount || 0,
-        discountRequestedAmount: student.discount_requested_amount || student.discount_amount || 0,
-        discountReason: student.discount_reason || '',
-        discountStatus: student.discount_status || 'NONE',
-        discountOfferedBy: student.discount_offered_by || '',
-        discountRecommendedBy: student.discount_recommended_by || student.discount_offered_by || '',
-        discountOfferedAt: student.discount_offered_at || null,
-        discountApprovedBy: student.discount_approved_by || '',
-        discountApprovedAt: student.discount_approved_at || null,
-        discountRejectionReason: student.discount_rejection_reason || ''
-      };
-    });
+      return list;
+    } catch (err) {
+      console.warn('Student fetch fallback for branch:', activeBranch, err.message);
+      return [];
+    }
   },
 
   getById: async (id) => {
@@ -196,8 +209,27 @@ export const studentService = {
   },
 
   getDiscountApprovals: async (status = '') => {
-    const res = await api.get('/students/discounts/approvals', { params: { status } });
-    return res.data;
+    const activeBranch = getUserBranch();
+    try {
+      const res = await api.get('/students/discounts/approvals', { params: { status } });
+      let data = res.data || [];
+      if (activeBranch && Array.isArray(data)) {
+        data = data.filter(item => {
+          const b = (item.batch || item.standard || '').toLowerCase();
+          const br = (item.branch || '').toLowerCase();
+          if (activeBranch === 'Tarabai Park') {
+            return b.includes('tarabai') || br.includes('tarabai') || (!b.includes('mangalvar') && !br.includes('mangalvar'));
+          }
+          if (activeBranch === 'Mangalvar Peth') {
+            return b.includes('mangalvar') || b.includes('mangalwar') || br.includes('mangalvar') || br.includes('mangalwar');
+          }
+          return true;
+        });
+      }
+      return data;
+    } catch (e) {
+      return [];
+    }
   }
 };
 

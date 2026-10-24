@@ -33,11 +33,15 @@ import {
   formatStudentBatchDisplay,
   matchesStudentFilters
 } from '../../config/branchBatchConfig';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function LectureAttendanceManager() {
   const navigate = useNavigate();
+  const activeBranch = getUserBranch();
+  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+
   // Standardized Branch & Batch selection (Step 1: Branch -> Step 2: Session if Mangalwar Peth -> Step 3: Academic Batch)
-  const [selectedBranch, setSelectedBranch] = useState(BRANCH_TARABAI);
+  const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const [selectedSession, setSelectedSession] = useState('');
   const [selectedAcademicBatch, setSelectedAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -53,7 +57,7 @@ export default function LectureAttendanceManager() {
   const [uploadFile, setUploadFile] = useState(null);
   const [parsedRows, setParsedRows] = useState([]);
   const [uploadSlot, setUploadSlot] = useState(1);
-  const [uploadBranch, setUploadBranch] = useState(BRANCH_TARABAI);
+  const [uploadBranch, setUploadBranch] = useState(defaultBranch);
   const [uploadSession, setUploadSession] = useState('');
   const [uploadAcademicBatch, setUploadAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [uploadSubject, setUploadSubject] = useState('Physics');
@@ -73,7 +77,6 @@ export default function LectureAttendanceManager() {
     session: uploadSession,
     academicBatch: uploadAcademicBatch
   });
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -192,10 +195,11 @@ export default function LectureAttendanceManager() {
   // Client-side sample template generator (.xlsx)
   const handleDownloadTemplate = () => {
     try {
-      const templateData = [
+      const isTP = activeBranch === 'Tarabai Park';
+      const templateData = isTP ? [
         {
-          'Roll Number': 'SA-1001',
-          'Student Name': 'Aarav Sharma',
+          'Roll Number': 'SA-TP-1001',
+          'Student Name': 'Aarav Deshmukh',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 1',
@@ -204,8 +208,8 @@ export default function LectureAttendanceManager() {
           'Remarks': 'Morning Lecture'
         },
         {
-          'Roll Number': 'SA-1001',
-          'Student Name': 'Aarav Sharma',
+          'Roll Number': 'SA-TP-1001',
+          'Student Name': 'Aarav Deshmukh',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',
@@ -214,8 +218,8 @@ export default function LectureAttendanceManager() {
           'Remarks': 'Afternoon Lecture'
         },
         {
-          'Roll Number': 'SA-1002',
-          'Student Name': 'Diya Patil',
+          'Roll Number': 'SA-TP-1002',
+          'Student Name': 'Ananya Joshi',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 1',
@@ -224,8 +228,8 @@ export default function LectureAttendanceManager() {
           'Remarks': 'Morning Lecture'
         },
         {
-          'Roll Number': 'SA-1002',
-          'Student Name': 'Diya Patil',
+          'Roll Number': 'SA-TP-1002',
+          'Student Name': 'Ananya Joshi',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',
@@ -234,7 +238,48 @@ export default function LectureAttendanceManager() {
           'Remarks': 'Medical absence'
         },
         {
-          'Roll Number': 'SA-1003',
+          'Roll Number': 'SA-TP-1003',
+          'Student Name': 'Tanvi Shinde',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 1',
+          'Subject': 'Physics',
+          'Status (Present/Absent/Late/Leave)': 'Present',
+          'Remarks': 'Morning Lecture'
+        },
+        {
+          'Roll Number': 'SA-TP-1003',
+          'Student Name': 'Tanvi Shinde',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 2',
+          'Subject': 'Mathematics',
+          'Status (Present/Absent/Late/Leave)': 'Present',
+          'Remarks': 'Afternoon Lecture'
+        }
+      ] : [
+        {
+          'Roll Number': 'SA-MP-1001',
+          'Student Name': 'Diya Patil',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 1',
+          'Subject': 'Physics',
+          'Status (Present/Absent/Late/Leave)': 'Present',
+          'Remarks': 'Morning Lecture'
+        },
+        {
+          'Roll Number': 'SA-MP-1001',
+          'Student Name': 'Diya Patil',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 2',
+          'Subject': 'Mathematics',
+          'Status (Present/Absent/Late/Leave)': 'Present',
+          'Remarks': 'Afternoon Lecture'
+        },
+        {
+          'Roll Number': 'SA-MP-1002',
           'Student Name': 'Rohan Deshmukh',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
@@ -244,8 +289,28 @@ export default function LectureAttendanceManager() {
           'Remarks': 'Morning Lecture'
         },
         {
-          'Roll Number': 'SA-1003',
+          'Roll Number': 'SA-MP-1002',
           'Student Name': 'Rohan Deshmukh',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 2',
+          'Subject': 'Mathematics',
+          'Status (Present/Absent/Late/Leave)': 'Absent',
+          'Remarks': 'Medical absence'
+        },
+        {
+          'Roll Number': 'SA-MP-1003',
+          'Student Name': 'Sneha Kadam',
+          'Batch': selectedBatchLabel,
+          'Date (YYYY-MM-DD)': selectedDate,
+          'Lecture Slot': 'Lecture 1',
+          'Subject': 'Physics',
+          'Status (Present/Absent/Late/Leave)': 'Present',
+          'Remarks': 'Morning Lecture'
+        },
+        {
+          'Roll Number': 'SA-MP-1003',
+          'Student Name': 'Sneha Kadam',
           'Batch': selectedBatchLabel,
           'Date (YYYY-MM-DD)': selectedDate,
           'Lecture Slot': 'Lecture 2',

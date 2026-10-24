@@ -30,6 +30,7 @@ import {
   isSessionRequired,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export const STANDARD_BATCHES = [
   '11th PCM',
@@ -43,6 +44,8 @@ export const STANDARD_BATCHES = [
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
+  const initialBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
@@ -55,11 +58,11 @@ export default function StudentRegistration() {
     email: '',
     mobileNumber: '',
     parentPhone: '',
-    branch: BRANCH_TARABAI,
+    branch: initialBranch,
     session: '',
     academicBatch: '11th PCM',
     standard: '11th Science',
-    batch: '11th PCM Tarabai Park',
+    batch: `${initialBranch} • 11th PCM`,
     originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
@@ -74,11 +77,10 @@ export default function StudentRegistration() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    feeService.getStructures().then((data) => {
+    feeService.getStructures(activeBranch).then((data) => {
       if (Array.isArray(data)) setFeeStructures(data);
     }).catch((err) => console.warn('Could not load fee structures:', err));
-  }, []);
-
+  }, [activeBranch]);
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let updated = { ...formData, [name]: value };
@@ -322,6 +324,7 @@ export default function StudentRegistration() {
           details: `${formData.discountRecommendedBy?.trim() || 'Counselor'} recommended a concession of ₹${discAmount.toLocaleString()} for ${formData.fullName} (${formData.batch || formData.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
           read: false,
           forSuperAdminOnly: true,
+          branch: activeBranch,
           studentId: result?.id,
           studentName: formData.fullName,
           discountAmount: discAmount,

@@ -18,28 +18,51 @@ import { toast } from 'react-toastify';
 export default function SignIn() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState('student');
-  const [email, setEmail] = useState('aarav.d@shubham.edu');
-  const [password, setPassword] = useState('9876500001');
+  const [selectedRole, setSelectedRole] = useState('admin');
+  const [email, setEmail] = useState('admin@shubham.edu');
+  const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const [selectedCampus, setSelectedCampus] = useState('Mangalvar Peth');
+
+  const getRoleEmail = (roleId, campus = selectedCampus) => {
+    if (roleId === 'student') return 'aarav.d@shubham.edu';
+    if (roleId === 'teacher') return 'priya.k@shubham.edu';
+    if (roleId === 'admin') {
+      return campus === 'Tarabai Park' ? 'admin.tarabai@shubham.edu' : 'admin@shubham.edu';
+    }
+    if (roleId === 'superadmin') {
+      return campus === 'Tarabai Park' ? 'superadmin.tarabai@shubham.edu' : 'superadmin@shubham.edu';
+    }
+    return 'admin@shubham.edu';
+  };
+
   const roles = [
-    { id: 'admin', label: 'Academy Admin', icon: Landmark, email: 'admin@shubham.edu' },
-    { id: 'teacher', label: 'Teacher', icon: User, email: 'priya.k@shubham.edu' },
-    { id: 'student', label: 'Student', icon: User, email: 'aarav.d@shubham.edu' },
-    { id: 'superadmin', label: 'SuperAdmin', icon: Shield, email: 'superadmin@shubham.edu' },
+    { id: 'admin', label: 'Academy Admin', icon: Landmark },
+    { id: 'teacher', label: 'Teacher', icon: User },
+    { id: 'student', label: 'Student', icon: User },
+    { id: 'superadmin', label: 'SuperAdmin', icon: Shield },
   ];
 
-  const handleRoleSelect = (role, defaultEmail) => {
+  const handleRoleSelect = (role, campus = selectedCampus) => {
     setSelectedRole(role);
-    setEmail(defaultEmail);
+    const targetEmail = getRoleEmail(role, campus);
+    setEmail(targetEmail);
     if (role === 'student') {
       setPassword('9876500001');
     } else {
       setPassword('password123');
     }
+  };
+
+  const handleCampusChange = (campus) => {
+    setSelectedCampus(campus);
+    const roleToUse = (selectedRole === 'admin' || selectedRole === 'superadmin') ? selectedRole : 'admin';
+    setSelectedRole(roleToUse);
+    setEmail(getRoleEmail(roleToUse, campus));
+    setPassword('password123');
   };
 
   const handleSubmit = async (e) => {
@@ -103,6 +126,48 @@ export default function SignIn() {
 
       {/* Role Selector: Sign in as (moved slightly down with dedicated space) */}
       <div style={{ marginTop: '16px', marginBottom: '20px' }}>
+        {/* Campus Department Selector for Admins */}
+        <div className="d-flex align-items-center justify-content-between mb-2 pb-1">
+          <label
+            className="form-label d-block text-start mb-0 fw-semibold"
+            style={{ fontSize: '0.78rem', color: '#1F2937' }}
+          >
+            Campus / Department
+          </label>
+          <div className="btn-group btn-group-sm" role="group">
+            <button
+              type="button"
+              className="btn btn-sm py-1 px-2.5 transition-all"
+              style={{
+                fontSize: '0.70rem',
+                fontWeight: selectedCampus === 'Mangalvar Peth' ? '700' : '500',
+                backgroundColor: selectedCampus === 'Mangalvar Peth' ? '#8B1216' : '#FFFFFF',
+                color: selectedCampus === 'Mangalvar Peth' ? '#FFFFFF' : '#4B5563',
+                borderColor: selectedCampus === 'Mangalvar Peth' ? '#8B1216' : '#E5E7EB',
+                borderRadius: '6px 0 0 6px'
+              }}
+              onClick={() => handleCampusChange('Mangalvar Peth')}
+            >
+              🏛️ Mangalvar Peth
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm py-1 px-2.5 transition-all"
+              style={{
+                fontSize: '0.70rem',
+                fontWeight: selectedCampus === 'Tarabai Park' ? '700' : '500',
+                backgroundColor: selectedCampus === 'Tarabai Park' ? '#8B1216' : '#FFFFFF',
+                color: selectedCampus === 'Tarabai Park' ? '#FFFFFF' : '#4B5563',
+                borderColor: selectedCampus === 'Tarabai Park' ? '#8B1216' : '#E5E7EB',
+                borderRadius: '0 6px 6px 0'
+              }}
+              onClick={() => handleCampusChange('Tarabai Park')}
+            >
+              🌲 Tarabai Park
+            </button>
+          </div>
+        </div>
+
         <label
           className="form-label d-block text-start mb-2 fw-semibold"
           style={{ fontSize: '0.78rem', color: '#1F2937' }}
@@ -126,7 +191,7 @@ export default function SignIn() {
                     minHeight: '54px',
                     boxShadow: isSelected ? '0 2px 6px rgba(139, 18, 22, 0.08)' : 'none'
                   }}
-                  onClick={() => handleRoleSelect(r.id, r.email)}
+                  onClick={() => handleRoleSelect(r.id, selectedCampus)}
                 >
                   <Icon
                     size={17}

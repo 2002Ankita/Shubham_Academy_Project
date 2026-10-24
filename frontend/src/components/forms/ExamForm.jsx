@@ -9,6 +9,7 @@ import {
   ACADEMIC_BATCHES,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
+import { getUserBranch } from '../../utils/branchUtils';
 
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return null;
@@ -38,13 +39,16 @@ const parseDurationToMinutes = (durStr) => {
 };
 
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
+  const activeBranch = getUserBranch();
+  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+
   const [formData, setFormData] = useState({
     title: 'Weekly Test - Mechanics & Kinematics',
     standard: '11th Science',
-    branch: BRANCH_TARABAI,
+    branch: defaultBranch,
     session: '',
     academicBatch: ACADEMIC_BATCHES[0],
-    batch: `${BRANCH_TARABAI} • ${ACADEMIC_BATCHES[0]}`,
+    batch: `${defaultBranch} • ${ACADEMIC_BATCHES[0]}`,
     subject: 'Physics',
     date: new Date().toISOString().split('T')[0],
     startTime: '10:00 am',
@@ -102,7 +106,8 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
     e.preventDefault();
     onSubmit({
       ...formData,
-      batch: formData.batch || formData.standard || '11th pcm tarabai park',
+      batch: formData.batch || campusBatches[0] || (activeBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar peth'),
+      branch: activeBranch || ((formData.batch || '').toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth'),
       standard: formData.standard || formData.batch || '11th Science',
       notify_parents: activeChannels.length > 0,
       notify_sms: formData.notifySMS,

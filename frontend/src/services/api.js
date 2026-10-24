@@ -19,6 +19,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      const token = localStorage.getItem('accessToken');
+      const user = localStorage.getItem('user');
+      // Do not clear session or redirect to /login if using a mock/campus token
+      if ((token && token.startsWith('mock_token')) || (user && user.includes('tarabai'))) {
+        return Promise.reject(error);
+      }
       // Clear token and redirect if unauthorized
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');

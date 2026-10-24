@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, UserCircle, LogOut, CheckCircle, ChevronDown, Search, Calendar, ArrowRight, X, Clock, ChevronRight, Check, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useConfirm } from '../../context/ConfirmContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import notificationService from '../../services/notificationService';
 import studentService from '../../services/studentService';
 import { toast } from 'react-toastify';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDateFilter }) {
   const { user, logout } = useAuth();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -279,8 +282,20 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    setShowUserMenu(false);
+    const isConfirmed = await confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      subtitle: 'You will need to sign in again to access your account.',
+      confirmText: 'Sign Out',
+      cancelText: 'No',
+      type: 'logout'
+    });
+
+    if (isConfirmed) {
+      await logout();
+      navigate('/login');
+    }
   };
 
   return (
@@ -927,6 +942,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'More A.D' : 'Shubham Sharma')}
                 </span>
                 <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
+                  {getUserBranch(user) ? `${getUserBranch(user)} • ` : ''}
                   {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : isStudent ? 'Student' : 'Administrator'}
                 </span>
               </div>
@@ -1020,7 +1036,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   <LogOut size={16} />
                 </div>
                 <span className="fw-semibold" style={{ color: '#DC2626', fontSize: '0.86rem' }}>
-                  Logout
+                  Sign Out
                 </span>
               </button>
             </div>

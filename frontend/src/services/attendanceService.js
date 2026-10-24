@@ -1,11 +1,13 @@
 import api from './api';
+import { getUserBranch, filterAttendanceByBranch } from '../utils/branchUtils';
 
 export const attendanceService = {
   // General Attendance Logs (e.g. RFID / Gate entries)
   getLogs: async (params = {}) => {
+    const activeBranch = params?.branch || getUserBranch();
     try {
       const res = await api.get('/attendance', { params });
-      return res.data;
+      return filterAttendanceByBranch(res.data || [], activeBranch);
     } catch {
       return [];
     }

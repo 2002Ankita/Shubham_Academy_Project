@@ -31,15 +31,19 @@ import {
   ACADEMIC_BATCHES,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function AttendanceReport() {
   const navigate = useNavigate();
+
+  const activeBranch = getUserBranch();
+  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
 
   // Active Report View: 'batch', 'date', 'student'
   const [activeTab, setActiveTab] = useState('batch');
 
   // Standardized Filter States
-  const [reportBranch, setReportBranch] = useState(BRANCH_TARABAI);
+  const [reportBranch, setReportBranch] = useState(defaultBranch);
   const [reportSession, setReportSession] = useState('');
   const [reportAcademicBatch, setReportAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);

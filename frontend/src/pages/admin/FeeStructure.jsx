@@ -270,13 +270,18 @@ const DEFAULT_OFFICIAL_STRUCTURES = [
   }
 ];
 
+import { getUserBranch } from '../../utils/branchUtils';
+
 export default function FeeStructure() {
   const navigate = useNavigate();
   const { confirm } = useConfirm();
+  const activeBranch = getUserBranch();
+  const defaultTab = activeBranch === 'Mangalvar Peth' ? 'Mangalwar Peth' : (activeBranch === 'Tarabai Park' ? 'Tarabai Park' : 'ALL');
+
   const [structures, setStructures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seedingLoading, setSeedingLoading] = useState(false);
-  const [selectedCampusTab, setSelectedCampusTab] = useState('ALL');
+  const [selectedCampusTab, setSelectedCampusTab] = useState(defaultTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState('ALL');
   const [showComparison, setShowComparison] = useState(true);
@@ -288,8 +293,8 @@ export default function FeeStructure() {
   // Form state
   const [formData, setFormData] = useState({
     standard: '12th Science',
-    batch: '12th pcm tarabai park',
-    branch: 'Tarabai Park',
+    batch: activeBranch === 'Mangalvar Peth' ? '12th pcm mangalvar peth' : '12th pcm tarabai park',
+    branch: activeBranch === 'Mangalvar Peth' ? 'Mangalwar Peth' : 'Tarabai Park',
     academic_year: '2025-2026',
     total_fee: 65000,
     number_of_installments: 4,
@@ -640,67 +645,75 @@ export default function FeeStructure() {
       {/* 2. Campus Selector Tabs */}
       <div className="sa-card p-2 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
-              selectedCampusTab === 'ALL'
-                ? 'btn-dark text-white shadow-sm'
-                : 'btn-outline-light text-sa-charcoal border'
-            }`}
-            onClick={() => setSelectedCampusTab('ALL')}
-          >
-            <Building size={16} />
-            All Campuses
-            <span className="badge bg-secondary rounded-pill ms-1">{structures.length}</span>
-          </button>
+          {!activeBranch && (
+            <button
+              type="button"
+              className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
+                selectedCampusTab === 'ALL'
+                  ? 'btn-dark text-white shadow-sm'
+                  : 'btn-outline-light text-sa-charcoal border'
+              }`}
+              onClick={() => setSelectedCampusTab('ALL')}
+            >
+              <Building size={16} />
+              All Campuses
+              <span className="badge bg-secondary rounded-pill ms-1">{structures.length}</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
-              selectedCampusTab === 'Tarabai Park'
-                ? 'btn-danger text-white shadow-sm'
-                : 'btn-outline-danger border'
-            }`}
-            style={
-              selectedCampusTab === 'Tarabai Park'
-                ? { backgroundColor: '#8B1216', borderColor: '#8B1216' }
-                : {}
-            }
-            onClick={() => setSelectedCampusTab('Tarabai Park')}
-          >
-            <Building size={16} />
-            Tarabai Park Campus
-            <span className="badge bg-white text-danger rounded-pill ms-1">{countTarabai}</span>
-          </button>
+          {(!activeBranch || activeBranch === 'Tarabai Park') && (
+            <button
+              type="button"
+              className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
+                selectedCampusTab === 'Tarabai Park'
+                  ? 'btn-danger text-white shadow-sm'
+                  : 'btn-outline-danger border'
+              }`}
+              style={
+                selectedCampusTab === 'Tarabai Park'
+                  ? { backgroundColor: '#8B1216', borderColor: '#8B1216' }
+                  : {}
+              }
+              onClick={() => setSelectedCampusTab('Tarabai Park')}
+            >
+              <Building size={16} />
+              Tarabai Park Campus
+              <span className="badge bg-white text-danger rounded-pill ms-1">{countTarabai}</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
-              selectedCampusTab === 'Mangalwar Peth'
-                ? 'btn-primary text-white shadow-sm'
-                : 'btn-outline-primary border'
-            }`}
-            style={
-              selectedCampusTab === 'Mangalwar Peth'
-                ? { backgroundColor: '#0F52BA', borderColor: '#0F52BA' }
-                : {}
-            }
-            onClick={() => setSelectedCampusTab('Mangalwar Peth')}
-          >
-            <Building size={16} />
-            Mangalwar Peth Campus
-            <span className="badge bg-white text-primary rounded-pill ms-1">{countMangalwar}</span>
-          </button>
+          {(!activeBranch || activeBranch === 'Mangalvar Peth') && (
+            <button
+              type="button"
+              className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
+                selectedCampusTab === 'Mangalwar Peth'
+                  ? 'btn-primary text-white shadow-sm'
+                  : 'btn-outline-primary border'
+              }`}
+              style={
+                selectedCampusTab === 'Mangalwar Peth'
+                  ? { backgroundColor: '#0F52BA', borderColor: '#0F52BA' }
+                  : {}
+              }
+              onClick={() => setSelectedCampusTab('Mangalwar Peth')}
+            >
+              <Building size={16} />
+              Mangalwar Peth Campus
+              <span className="badge bg-white text-primary rounded-pill ms-1">{countMangalwar}</span>
+            </button>
+          )}
         </div>
 
-        <button
-          type="button"
-          className="btn btn-sm btn-link text-decoration-none text-sa-muted d-flex align-items-center gap-1"
-          onClick={() => setShowComparison(!showComparison)}
-        >
-          <TrendingUp size={14} />
-          {showComparison ? 'Hide Campus Comparison' : 'Show Campus Comparison'}
-        </button>
+        {!activeBranch && (
+          <button
+            type="button"
+            className="btn btn-sm btn-link text-decoration-none text-sa-muted d-flex align-items-center gap-1"
+            onClick={() => setShowComparison(!showComparison)}
+          >
+            <TrendingUp size={14} />
+            {showComparison ? 'Hide Campus Comparison' : 'Show Campus Comparison'}
+          </button>
+        )}
       </div>
 
       {/* 3. Campus Highlight Banner (when a specific campus is selected) */}
@@ -765,7 +778,7 @@ export default function FeeStructure() {
       )}
 
       {/* 4. Side-by-Side Campus Fee Comparison Matrix */}
-      {showComparison && (
+      {!activeBranch && showComparison && (
         <div className="sa-card p-4 border shadow-sm">
           <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <div>
