@@ -28,6 +28,7 @@ export default function BranchBatchSelector({
   allOptionLabel = 'All',
   required = false,
   disabled = false,
+  fixedBranch = false,
   size = 'md', // 'sm' | 'md'
   layout = 'row', // 'row' | 'stacked' | 'grid'
   labels = {},
@@ -58,12 +59,17 @@ export default function BranchBatchSelector({
             <Building size={14} className="text-sa-primary" />
             <span>{labels.branch || 'Select Branch'}</span>
             {required && <span className="text-danger">*</span>}
+            {fixedBranch && (
+              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-1.5 py-0.2 rounded-pill ms-auto" style={{ fontSize: '10px' }}>
+                Fixed
+              </span>
+            )}
           </label>
           <select
             className={`${selectClass} ${!branch && required ? 'border-warning' : ''}`}
             value={branch || ''}
             onChange={(e) => handleBranchSelect(e.target.value)}
-            disabled={disabled}
+            disabled={disabled || fixedBranch}
             required={required}
           >
             {showAllOption ? (

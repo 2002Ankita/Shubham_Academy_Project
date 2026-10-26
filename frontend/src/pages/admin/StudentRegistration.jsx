@@ -583,6 +583,7 @@ export default function StudentRegistration() {
                   onBatchChange={handleAcademicBatchChange}
                   required={true}
                   disabled={loading}
+                  fixedBranch={Boolean(activeBranch && !user?.role?.toLowerCase().includes('super'))}
                   showAllOption={false}
                 />
 

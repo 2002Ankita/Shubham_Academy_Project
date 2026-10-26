@@ -3,11 +3,11 @@ import { getUserBranch, filterBatchesByBranch, MANGALVAR_BATCHES, TARABAI_BATCHE
 
 const batchService = {
   getBatches: async (params = {}) => {
-    const activeBranch = params?.branch || getUserBranch();
+    const activeBranch = params?.branch !== undefined ? params.branch : getUserBranch();
     try {
       const response = await api.get('/batches', { params });
       let data = response.data || [];
-      if (activeBranch && Array.isArray(data)) {
+      if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All' && Array.isArray(data)) {
         data = filterBatchesByBranch(data, activeBranch);
       }
       if ((!data || data.length === 0) && activeBranch) {

@@ -1080,9 +1080,8 @@ export default function StudentProfile() {
                     value={formData.branch}
                     onChange={(e) => handleInputChange('branch', e.target.value)}
                   >
-                    <option value="Tarabai Park">Tarabai Park Branch</option>
-                    <option value="Kolhapur Main Branch">Kolhapur Main Branch</option>
-                    <option value="Rajarampuri">Rajarampuri Branch</option>
+                    <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+                    <option value="Tarabai Park">Tarabai Park Campus</option>
                   </select>
                 </div>
 

@@ -32,6 +32,7 @@ export const authService = {
           let userId = isTarabai
             ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01')
             : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01');
+          let userRole = isSuper ? 'super-admin' : (credentials.role || 'admin');
 
           try {
             const meResponse = await api.get('/auth/me', {
@@ -41,18 +42,37 @@ export const authService = {
             if (u?.id) userId = u.id;
             if (u?.full_name) userName = u.full_name;
             if (u?.branch) branch = u.branch;
+            if (u?.role) {
+              const r = u.role.toLowerCase();
+              userRole = r === 'super_admin' ? 'super-admin' : r;
+            }
           } catch (e) {
             // ignore network/interceptor fallback
           }
+
+          if (!userName || userName === 'Rajesh Patil' || userName === 'Shubham Sharma') {
+            if (userRole === 'teacher' || emailLower.includes('priya')) {
+              userName = 'Dr. Priya Kulkarni';
+              userRole = 'teacher';
+            } else if (userRole === 'student' || emailLower.includes('aarav') || emailLower === '9876500001') {
+              userName = 'Aarav Deshmukh';
+              userRole = 'student';
+            }
+          }
+
+          let title = 'ADMIN';
+          if (userRole === 'super-admin') title = 'SUPER_ADMIN';
+          else if (userRole === 'teacher') title = 'TEACHER';
+          else if (userRole === 'student') title = 'STUDENT';
 
           const formattedUser = {
             id: userId,
             name: userName,
             email: credentials.email,
-            role: isSuper ? 'super-admin' : (credentials.role || 'admin'),
+            role: userRole,
             branch: branch,
             avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-            title: isSuper ? 'SUPER_ADMIN' : 'ADMIN'
+            title: title
           };
 
           localStorage.setItem('user', JSON.stringify(formattedUser));
@@ -68,19 +88,46 @@ export const authService = {
       (emailLower === 'admin@shubham.edu' ||
        emailLower === 'superadmin@shubham.edu' ||
        emailLower === 'admin.tarabai@shubham.edu' ||
-       emailLower === 'superadmin.tarabai@shubham.edu') &&
-      (pwd === 'password123' || !pwd)
+       emailLower === 'superadmin.tarabai@shubham.edu' ||
+       emailLower === 'priya.k@shubham.edu' ||
+       emailLower === 'aarav.d@shubham.edu' ||
+       emailLower === '9876500001') &&
+      (pwd === 'password123' || pwd === '9876500001' || !pwd)
     ) {
+      let role = 'admin';
+      let name = 'Rajesh Patil';
+      let id = isTarabai ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01') : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01');
+      let branch = isTarabai ? 'Tarabai Park' : 'Mangalvar Peth';
+      let title = 'ADMIN';
+
+      if (emailLower.includes('priya') || credentials.role === 'teacher') {
+        role = 'teacher';
+        name = 'Dr. Priya Kulkarni';
+        id = 'TCH-001';
+        branch = 'Tarabai Park';
+        title = 'TEACHER';
+      } else if (emailLower.includes('aarav') || emailLower === '9876500001' || credentials.role === 'student') {
+        role = 'student';
+        name = 'Aarav Deshmukh';
+        id = 'STU-001';
+        branch = 'Tarabai Park';
+        title = 'STUDENT';
+      } else if (isSuper) {
+        role = 'super-admin';
+        name = isTarabai ? 'Sanjay Shinde' : 'Shubham Sharma';
+        title = 'SUPER_ADMIN';
+      } else {
+        name = isTarabai ? 'Vikram Desai' : 'Rajesh Patil';
+      }
+
       const mockUser = {
-        id: isTarabai ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01') : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01'),
-        name: isTarabai
-          ? (isSuper ? 'Sanjay Shinde' : 'Vikram Desai')
-          : (isSuper ? 'Shubham Sharma' : 'Rajesh Patil'),
+        id,
+        name,
         email: emailLower,
-        role: isSuper ? 'super-admin' : 'admin',
-        branch: isTarabai ? 'Tarabai Park' : 'Mangalvar Peth',
+        role,
+        branch,
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-        title: isSuper ? 'SUPER_ADMIN' : 'ADMIN'
+        title
       };
       localStorage.setItem('accessToken', `mock_token_${Date.now()}`);
       localStorage.setItem('user', JSON.stringify(mockUser));
