@@ -49,31 +49,62 @@ export default function BranchBatchSelector({
   const isSessionDisabled = disabled || !branch || !needsSession;
 
   const selectClass = size === 'sm' ? 'form-select form-select-sm' : 'form-select';
-  const labelClass = 'form-label small fw-semibold text-sa-charcoal d-flex align-items-center gap-1.5 mb-1';
+  const labelClass = 'form-label small fw-semibold text-sa-charcoal d-flex align-items-center gap-1.5 mb-1 text-nowrap';
 
   return (
     <div className={`branch-batch-selector ${className}`}>
       <div className={layout === 'stacked' ? 'd-flex flex-column gap-3' : 'row g-3 align-items-end'}>
         {/* Step 1: Branch Display / Dropdown */}
         <div className={layout === 'stacked' ? 'w-100' : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6')}>
-          <label className={labelClass}>
-            <Building size={14} className="text-sa-primary" />
-            <span>{labels.branch || 'Branch / Campus'}</span>
-            {required && <span className="text-danger">*</span>}
+          <label className="form-label small fw-semibold text-sa-charcoal d-flex align-items-center justify-content-between mb-1">
+            <span className="d-inline-flex align-items-center gap-1.5 text-nowrap">
+              <Building size={14} className="text-sa-primary flex-shrink-0" />
+              <span>{labels.branch || 'Branch / Campus'}</span>
+              {required && <span className="text-danger">*</span>}
+            </span>
             {fixedBranch && (
-              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-1.5 py-0.2 rounded-pill ms-auto" style={{ fontSize: '10px' }}>
+              <span
+                className="badge rounded-pill flex-shrink-0"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  backgroundColor: '#ECFDF5',
+                  color: '#065F46',
+                  border: '1px solid #A7F3D0',
+                  padding: '2px 8px'
+                }}
+              >
                 Fixed
               </span>
             )}
           </label>
           {fixedBranch ? (
-            <div
-              className="form-control bg-light fw-bold text-sa-charcoal d-flex align-items-center justify-content-between"
-              style={{ height: size === 'sm' ? '31px' : '38px', fontSize: size === 'sm' ? '0.78rem' : '0.875rem' }}
-            >
-              <span>{branch ? (branch.toLowerCase().includes('mangal') ? '🏛️ Mangalvar Peth' : '🌲 Tarabai Park') : 'Not Selected'}</span>
-              <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-1.5 py-0.5 rounded-pill" style={{ fontSize: '10px' }}>
-                Fixed from Login
+            <div className="position-relative">
+              <input
+                type="text"
+                readOnly
+                disabled
+                tabIndex={-1}
+                value={branch ? (branch.toLowerCase().includes('mangal') ? '🏛️ Mangalvar Peth' : '🌲 Tarabai Park') : 'Not Selected'}
+                className={`${size === 'sm' ? 'form-control form-control-sm' : 'form-control'} fw-bold pe-4`}
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderColor: '#E2E8F0',
+                  color: '#1E293B',
+                  cursor: 'not-allowed',
+                  height: size === 'sm' ? '31px' : '38px',
+                  fontSize: size === 'sm' ? '0.8rem' : '0.875rem',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden'
+                }}
+              />
+              <span
+                className="position-absolute end-0 top-50 translate-middle-y me-2.5 text-muted pointer-events-none"
+                style={{ fontSize: '11px', opacity: 0.65 }}
+                title="Locked to your login campus"
+              >
+                🔒
               </span>
             </div>
           ) : (

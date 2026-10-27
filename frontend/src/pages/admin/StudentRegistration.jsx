@@ -589,7 +589,7 @@ export default function StudentRegistration() {
                 <div>
                   <h6 className="fw-bold m-0 text-sa-charcoal">2. Branch & Batch Allocation (Admission Source of Truth)</h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                    Select Branch first, followed by Session (if Mangalwar Peth) and Academic Batch
+                    Select Branch first, followed by Session (if Mangalvar Peth) and Academic Batch
                   </span>
                 </div>
               </div>
