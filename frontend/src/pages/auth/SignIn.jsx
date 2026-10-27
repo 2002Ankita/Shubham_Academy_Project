@@ -75,11 +75,12 @@ export default function SignIn() {
       const res = await login({ email, password, role: selectedRole, branch: selectedCampus });
       toast.success(`Welcome back, ${res.user.name}!`);
 
-      if (res.user.role === 'super-admin') {
+      const userRole = (res.user.role || '').toLowerCase();
+      if (userRole === 'super-admin' || userRole === 'super_admin') {
         navigate('/super-admin/dashboard');
-      } else if (res.user.role === 'admin') {
+      } else if (userRole === 'admin') {
         navigate('/admin/dashboard');
-      } else if (res.user.role === 'teacher') {
+      } else if (userRole === 'teacher') {
         navigate('/teacher/dashboard');
       } else {
         navigate('/student/dashboard');

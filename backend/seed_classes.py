@@ -39,6 +39,7 @@ async def seed():
             teacher_name="Dr. Priya Kulkarni",
             batch_name="11-PCM-TP",
             class_code="11-PCM-TP",
+            branch="Tarabai Park",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -50,6 +51,7 @@ async def seed():
             teacher_name="Dr. Priya Kulkarni",
             batch_name="11-PCB-TP",
             class_code="11-PCB-TP",
+            branch="Tarabai Park",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -61,6 +63,7 @@ async def seed():
             teacher_name="Dr. Priya Kulkarni",
             batch_name="11-PCMB-TP",
             class_code="11-PCMB-TP",
+            branch="Tarabai Park",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -72,6 +75,7 @@ async def seed():
             teacher_name="Prof. Rajesh Sharma",
             batch_name="12-PCM-TP",
             class_code="12-PCM-TP",
+            branch="Tarabai Park",
             days=["Tuesday", "Thursday", "Saturday"]
         ),
         Batch(
@@ -83,6 +87,7 @@ async def seed():
             teacher_name="Prof. Sunita Patil",
             batch_name="12-PCB-TP",
             class_code="12-PCB-TP",
+            branch="Tarabai Park",
             days=["Tuesday", "Thursday", "Saturday"]
         ),
         Batch(
@@ -94,6 +99,7 @@ async def seed():
             teacher_name="Prof. Rajesh Sharma",
             batch_name="12-PCMB-TP",
             class_code="12-PCMB-TP",
+            branch="Tarabai Park",
             days=["Tuesday", "Thursday", "Saturday"]
         ),
         Batch(
@@ -105,6 +111,7 @@ async def seed():
             teacher_name="Dr. Priya Kulkarni",
             batch_name="11-PCM-MP",
             class_code="11-PCM-MP",
+            branch="Mangalvar Peth",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -116,6 +123,7 @@ async def seed():
             teacher_name="Prof. Sunita Patil",
             batch_name="11-PCB-MP",
             class_code="11-PCB-MP",
+            branch="Mangalvar Peth",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -127,6 +135,7 @@ async def seed():
             teacher_name="Prof. Rajesh Sharma",
             batch_name="11-PCMB-MP",
             class_code="11-PCMB-MP",
+            branch="Mangalvar Peth",
             days=["Monday", "Wednesday", "Friday"]
         ),
         Batch(
@@ -138,6 +147,7 @@ async def seed():
             teacher_name="Prof. Rajesh Sharma",
             batch_name="12-PCM-MP",
             class_code="12-PCM-MP",
+            branch="Mangalvar Peth",
             days=["Tuesday", "Thursday", "Saturday"]
         ),
         Batch(
@@ -149,6 +159,7 @@ async def seed():
             teacher_name="Prof. Sunita Patil",
             batch_name="12-PCB-MP",
             class_code="12-PCB-MP",
+            branch="Mangalvar Peth",
             days=["Tuesday", "Thursday", "Saturday"]
         ),
         Batch(
@@ -160,6 +171,7 @@ async def seed():
             teacher_name="Dr. Priya Kulkarni",
             batch_name="12-PCMB-MP",
             class_code="12-PCMB-MP",
+            branch="Mangalvar Peth",
             days=["Tuesday", "Thursday", "Saturday"]
         )
     ]

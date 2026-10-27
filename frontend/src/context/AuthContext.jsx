@@ -3,6 +3,54 @@ import authService from '../services/authService';
 
 export const AuthContext = createContext(null);
 
+const DEMO_USERS = {
+  admin: {
+    id: 'USR-ADM-MP-01',
+    name: 'Rajesh Patil',
+    email: 'admin@shubham.edu',
+    role: 'admin',
+    branch: 'Mangalvar Peth',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    title: 'ADMIN'
+  },
+  'super-admin': {
+    id: 'USR-SA-MP-01',
+    name: 'Shubham Sharma',
+    email: 'superadmin@shubham.edu',
+    role: 'super-admin',
+    branch: 'Mangalvar Peth',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    title: 'SUPER_ADMIN'
+  },
+  superadmin: {
+    id: 'USR-SA-MP-01',
+    name: 'Shubham Sharma',
+    email: 'superadmin@shubham.edu',
+    role: 'super-admin',
+    branch: 'Mangalvar Peth',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    title: 'SUPER_ADMIN'
+  },
+  teacher: {
+    id: 'TCH-001',
+    name: 'Dr. Priya Kulkarni',
+    email: 'priya.k@shubham.edu',
+    role: 'teacher',
+    branch: 'Tarabai Park',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    title: 'TEACHER'
+  },
+  student: {
+    id: 'STU-001',
+    name: 'Aarav Deshmukh',
+    email: 'aarav.d@shubham.edu',
+    role: 'student',
+    branch: 'Tarabai Park',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    title: 'STUDENT'
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

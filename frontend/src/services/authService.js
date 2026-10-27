@@ -49,6 +49,7 @@ export const authService = {
           let userId = isTarabai
             ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01')
             : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01');
+          let userRole = isSuper ? 'super-admin' : (credentials.role || 'admin');
 
           if (targetRole === 'teacher') {
             userName = 'Dr. Priya Kulkarni';
@@ -72,6 +73,16 @@ export const authService = {
             }
           } catch (e) {
             // ignore network/interceptor fallback
+          }
+
+          if (!userName || userName === 'Rajesh Patil' || userName === 'Shubham Sharma') {
+            if (targetRole === 'teacher' || emailLower.includes('priya')) {
+              userName = 'Dr. Priya Kulkarni';
+              targetRole = 'teacher';
+            } else if (targetRole === 'student' || emailLower.includes('aarav') || emailLower === '9876500001') {
+              userName = 'Aarav Deshmukh';
+              targetRole = 'student';
+            }
           }
 
           const defaultAvatar = targetRole === 'teacher'
@@ -118,9 +129,11 @@ export const authService = {
       emailLower === 'superadmin@shubham.edu' ||
       emailLower === 'admin.tarabai@shubham.edu' ||
       emailLower === 'superadmin.tarabai@shubham.edu' ||
+      emailLower === 'priya.k@shubham.edu' ||
+      emailLower === 'aarav.d@shubham.edu' ||
       targetRole === 'admin' ||
       targetRole === 'super-admin'
-    ) && (pwd === 'password123' || !pwd);
+    ) && (pwd === 'password123' || pwd === '9876500001' || !pwd);
 
     if (isTeacherCreds) {
       const mockTeacher = {

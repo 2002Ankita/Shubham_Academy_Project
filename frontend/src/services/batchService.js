@@ -27,9 +27,8 @@ const recordDeletedBatch = (id, name) => {
 
 const batchService = {
   getBatches: async (params = {}) => {
-    const activeBranch = params?.branch || getUserBranch();
+    const activeBranch = params?.branch !== undefined ? params.branch : getUserBranch();
     const deletedList = getDeletedBatchIdentifiers();
-
     try {
       const queryParams = { ...params };
       if (activeBranch && !queryParams.branch) {
@@ -37,7 +36,7 @@ const batchService = {
       }
       const response = await api.get('/batches', { params: queryParams });
       let data = response.data || [];
-      if (activeBranch && Array.isArray(data)) {
+      if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All' && Array.isArray(data)) {
         data = filterBatchesByBranch(data, activeBranch);
       }
 
