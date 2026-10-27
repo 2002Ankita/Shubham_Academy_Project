@@ -10,6 +10,8 @@ import leaveService from '../../services/leaveService';
 import salaryService from '../../services/salaryService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
+import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
 import {
   ResponsiveContainer,
   BarChart,
@@ -55,6 +57,9 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const currentBranch = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
 
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
   const [feePeriod, setFeePeriod] = useState('This Month');
@@ -138,7 +143,13 @@ export default function AdminDashboard() {
       }
 
       if (studentsRes.status === 'fulfilled') {
-        const students = studentsRes.value || [];
+        const rawStudents = studentsRes.value || [];
+        const students = (!isSuperAdmin && activeBranch)
+          ? rawStudents.filter(s => {
+              const b = (s.branch || '').toLowerCase();
+              return isMangal ? b.includes('mangal') : b.includes('tarabai');
+            })
+          : rawStudents;
         setTotalStudents(students.length);
         setAllStudents(students);
 
@@ -329,6 +340,26 @@ export default function AdminDashboard() {
             >
               Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
             </h1>
+            <div className="d-flex align-items-center gap-2 mt-2">
+              <span
+                className="badge py-1.5 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5"
+                style={{
+                  backgroundColor: '#8B1216',
+                  color: '#FFFFFF',
+                  fontSize: '0.80rem',
+                  letterSpacing: '0.02em',
+                  boxShadow: '0 2px 6px rgba(139,18,22,0.18)'
+                }}
+              >
+                {isMangal ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
+                <span
+                  className="badge bg-white text-dark py-0.5 px-1.5 rounded-pill"
+                  style={{ fontSize: '0.68rem', fontWeight: 600 }}
+                >
+                  Fixed from Login
+                </span>
+              </span>
+            </div>
             <p
               className="text-sa-charcoal text-opacity-75 m-0 mt-2"
               style={{ fontSize: '0.95rem', fontWeight: 400 }}

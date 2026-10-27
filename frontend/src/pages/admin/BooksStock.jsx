@@ -31,6 +31,7 @@ import inventoryService from '../../services/inventoryService';
 import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
 import {
   BRANCH_TARABAI,
@@ -41,6 +42,11 @@ import {
 
 export default function BooksStock() {
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : BRANCH_TARABAI;
+  const defaultSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -76,9 +82,19 @@ export default function BooksStock() {
   const [selectedHandoverFaculty, setSelectedHandoverFaculty] = useState('All');
 
   // Branch & Batch selection state for Handover modal
-  const [handoverBranch, setHandoverBranch] = useState(BRANCH_TARABAI);
-  const [handoverSession, setHandoverSession] = useState('');
+  const [handoverBranch, setHandoverBranch] = useState(defaultBranch);
+  const [handoverSession, setHandoverSession] = useState(defaultSession);
   const [handoverAcademicBatch, setHandoverAcademicBatch] = useState('11th PCM');
+
+  useEffect(() => {
+    if (!isSuperAdmin && activeBranch) {
+      const b = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      setHandoverBranch(b);
+      if (b === BRANCH_MANGALWAR && !handoverSession) {
+        setHandoverSession('Morning');
+      }
+    }
+  }, [activeBranch, isSuperAdmin, isMangal]);
 
   const eligibleHandoverStudents = React.useMemo(() => {
     return students.filter(s =>
@@ -1081,6 +1097,7 @@ export default function BooksStock() {
                 }}
                 size="sm"
                 showAllOption={false}
+                fixedBranch={!isSuperAdmin}
               />
             </div>
 

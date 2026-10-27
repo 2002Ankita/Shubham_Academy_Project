@@ -31,13 +31,16 @@ import {
   ACADEMIC_BATCHES,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
+import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 
 export default function AttendanceReport() {
   const navigate = useNavigate();
-
-  const activeBranch = getUserBranch();
-  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const activeBranch = getUserBranch(user);
+  const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
 
   // Active Report View: 'batch', 'date', 'student'
   const [activeTab, setActiveTab] = useState('batch');
@@ -291,7 +294,8 @@ export default function AttendanceReport() {
               onSessionChange={setReportSession}
               academicBatch={reportAcademicBatch}
               onAcademicBatchChange={setReportAcademicBatch}
-              showAllOption={true}
+              showAllOption={isSuperAdmin}
+              fixedBranch={!isSuperAdmin}
               layout="grid"
             />
           </div>

@@ -3,22 +3,40 @@ import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 import BranchBatchSelector from '../common/BranchBatchSelector';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
 import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
   parseLegacyBatch,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
 
 export default function StudentForm({ initialData, onSubmit, loading, onCancel }) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const fallbackBranch = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : BRANCH_TARABAI;
+  const fallbackSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
+
   const parsed = parseLegacyBatch(initialData?.batch || initialData?.academic_batch || '');
+  const defaultBranchVal = initialData?.branch || parsed.branch || fallbackBranch;
+  const defaultSessionVal = initialData?.session || parsed.session || (defaultBranchVal === BRANCH_MANGALWAR ? (fallbackSession || 'Morning') : '');
+
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
     standard: initialData?.standard || '12th Science',
-    branch: initialData?.branch || parsed.branch,
+    branch: defaultBranchVal,
     academicBatch: initialData?.academicBatch || initialData?.academic_batch || parsed.academicBatch,
-    session: initialData?.session || parsed.session,
-    batch: initialData?.batch || formatStudentBatchDisplay(parsed),
+    session: defaultSessionVal,
+    batch: initialData?.batch || formatStudentBatchDisplay({
+      branch: defaultBranchVal,
+      session: defaultSessionVal,
+      academicBatch: initialData?.academicBatch || initialData?.academic_batch || parsed.academicBatch
+    }),
     rfidCard: initialData?.rfidCard || 'CARD-' + Math.floor(100000 + Math.random() * 900000),
     totalFees: initialData?.totalFees || 45000,
     parentName: initialData?.parentName || '',
@@ -177,6 +195,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
               standard: ab.includes('12th') ? '12th Science' : '11th Science'
             }))}
             layout="grid"
+            fixedBranch={!isSuperAdmin}
           />
         </div>
 

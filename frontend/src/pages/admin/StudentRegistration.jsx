@@ -45,7 +45,8 @@ export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const activeBranch = getUserBranch(user);
-  const initialBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const initialBranch = isMangal ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
@@ -59,10 +60,10 @@ export default function StudentRegistration() {
     mobileNumber: '',
     parentPhone: '',
     branch: initialBranch,
-    session: '',
+    session: isMangal ? 'Morning' : '',
     academicBatch: '11th PCM',
     standard: '11th Science',
-    batch: `${initialBranch} • 11th PCM`,
+    batch: `${initialBranch} • ${isMangal ? 'Morning • ' : ''}11th PCM`,
     originalFees: 55000,
     discountAmount: 0,
     discountReason: '',
@@ -75,6 +76,26 @@ export default function StudentRegistration() {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (activeBranch) {
+      const isMP = activeBranch.toLowerCase().includes('mangal');
+      const targetBranch = isMP ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      const targetSession = isMP ? (formData.session || 'Morning') : '';
+      const currentAcademic = formData.academicBatch || '11th PCM';
+      const std = currentAcademic.startsWith('12th') ? '12th Science' : '11th Science';
+      const fullBatch = `${currentAcademic} ${targetBranch}${targetSession ? ` (${targetSession})` : ''}`;
+
+      setFormData(prev => ({
+        ...prev,
+        branch: targetBranch,
+        session: targetSession,
+        academicBatch: currentAcademic,
+        standard: std,
+        batch: fullBatch
+      }));
+    }
+  }, [activeBranch]);
 
   useEffect(() => {
     feeService.getStructures(activeBranch).then((data) => {
@@ -832,25 +853,31 @@ export default function StudentRegistration() {
                 <button
                   type="button"
                   className="btn btn-outline-secondary px-4"
-                  onClick={() =>
+                  onClick={() => {
+                    const isMP = activeBranch && activeBranch.toLowerCase().includes('mangal');
+                    const branchToUse = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
+                    const sessionToUse = isMP ? 'Morning' : '';
                     setFormData({
                       fullName: '',
                       email: '',
                       mobileNumber: '',
                       parentPhone: '',
+                      branch: branchToUse,
+                      session: sessionToUse,
+                      academicBatch: '11th PCM',
                       standard: '11th Science',
-                      batch: '',
-                      originalFees: 45000,
+                      batch: `${branchToUse} • ${sessionToUse ? `${sessionToUse} • ` : ''}11th PCM`,
+                      originalFees: 55000,
                       discountAmount: 0,
                       discountReason: '',
                       discountRecommendedBy: 'Miss Shilpa (Counselor)',
-                      totalFees: 45000,
+                      totalFees: 55000,
                       paidFees: 15000,
-                      remainingFees: 30000,
+                      remainingFees: 40000,
                       password: '',
                       admissionDate: new Date().toISOString().split('T')[0]
-                    })
-                  }
+                    });
+                  }}
                   disabled={loading}
                 >
                   Clear Form

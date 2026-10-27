@@ -36,6 +36,7 @@ import {
   formatStudentBatchDisplay,
   getStudentAssignment
 } from '../../config/branchBatchConfig';
+import { getUserBranch } from '../../utils/branchUtils';
 
 // Helper to get local ISO string for datetime-local input (YYYY-MM-DDTHH:mm)
 const getCurrentLocalDateTime = () => {
@@ -58,6 +59,10 @@ export default function BooksDelivery() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { confirm } = useConfirm();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const activeBranch = getUserBranch(user);
+  const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = isSuperAdmin ? '' : (isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
 
   const [deliveries, setDeliveries] = useState([]);
@@ -72,14 +77,24 @@ export default function BooksDelivery() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [subjectFilter, setSubjectFilter] = useState('All');
   const [recipientFilter, setRecipientFilter] = useState('All');
-  const [filterBranch, setFilterBranch] = useState('');
+  const [filterBranch, setFilterBranch] = useState(defaultBranch);
   const [filterSession, setFilterSession] = useState('');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
 
   // Handover Modal Branch & Batch Selection State
-  const [modalBranch, setModalBranch] = useState(BRANCH_TARABAI);
-  const [modalSession, setModalSession] = useState('');
+  const [modalBranch, setModalBranch] = useState(isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
+  const [modalSession, setModalSession] = useState(isMP ? 'Morning' : '');
   const [modalAcademicBatch, setModalAcademicBatch] = useState('11th PCM');
+
+  useEffect(() => {
+    if (activeBranch && !isSuperAdmin) {
+      const isMangal = activeBranch.toLowerCase().includes('mangal');
+      const b = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      setFilterBranch(b);
+      setModalBranch(b);
+      if (isMangal && !modalSession) setModalSession('Morning');
+    }
+  }, [activeBranch, isSuperAdmin]);
 
   // Modal States
   const [modalOpen, setModalOpen] = useState(false);
@@ -500,7 +515,8 @@ export default function BooksDelivery() {
             onBranchChange={setFilterBranch}
             onSessionChange={setFilterSession}
             onBatchChange={setFilterAcademicBatch}
-            showAllOption={true}
+            showAllOption={isSuperAdmin}
+            fixedBranch={!isSuperAdmin}
             allOptionLabel="All"
             size="sm"
           />
@@ -816,6 +832,7 @@ export default function BooksDelivery() {
                     }}
                     size="sm"
                     showAllOption={false}
+                    fixedBranch={!isSuperAdmin}
                   />
                 </div>
 

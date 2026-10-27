@@ -40,8 +40,18 @@ import curriculumService from '../../services/curriculumService';
 import batchService from '../../services/batchService';
 import teacherService from '../../services/teacherService';
 import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
+import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
 
 export default function ActivityTimetableManagement() {
+  const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const userBranchName = isMangal ? 'Mangalwar Peth' : (activeBranch || 'Tarabai Park');
+  const defaultBranchFilter = (!isSuperAdmin && activeBranch) ? userBranchName : 'All';
+
   const { confirm } = useConfirm();
   const location = useLocation();
   const navigate = useNavigate();
@@ -833,7 +843,7 @@ export default function ActivityTimetableManagement() {
   // -------------------------------------------------------------
   const [dailySearch, setDailySearch] = useState('');
   const [dailyDateFilter, setDailyDateFilter] = useState('');
-  const [dailyBranchFilter, setDailyBranchFilter] = useState('All');
+  const [dailyBranchFilter, setDailyBranchFilter] = useState(defaultBranchFilter);
   const [dailyTeacherFilter, setDailyTeacherFilter] = useState('All');
   const [dailySubjectFilter, setDailySubjectFilter] = useState('All');
   const [dailyBatchFilter, setDailyBatchFilter] = useState('All');
@@ -843,7 +853,7 @@ export default function ActivityTimetableManagement() {
   const [isDailyModalOpen, setIsDailyModalOpen] = useState(false);
   const [editingDailyId, setEditingDailyId] = useState(null);
   const [dailyForm, setDailyForm] = useState({
-    branch: 'Tarabai Park',
+    branch: (!isSuperAdmin && activeBranch) ? userBranchName : 'Tarabai Park',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
     teacherName: 'More A.D',
@@ -1235,7 +1245,7 @@ export default function ActivityTimetableManagement() {
   // TAB 2: MASTER WEEKLY TIMETABLE LOGIC & EXCEL SYNC
   // -------------------------------------------------------------
   const [timetableSearch, setTimetableSearch] = useState('');
-  const [timetableBranchFilter, setTimetableBranchFilter] = useState('All');
+  const [timetableBranchFilter, setTimetableBranchFilter] = useState(defaultBranchFilter);
   const [timetableTeacherFilter, setTimetableTeacherFilter] = useState('All');
   const [timetableSubjectFilter, setTimetableSubjectFilter] = useState('All');
   const [timetableDayFilter, setTimetableDayFilter] = useState('All');
@@ -1247,7 +1257,7 @@ export default function ActivityTimetableManagement() {
   const [timetableForm, setTimetableForm] = useState({
     day: 'Monday',
     timeSlot: '09:00 AM – 10:00 AM',
-    branch: 'Tarabai Park',
+    branch: (!isSuperAdmin && activeBranch) ? userBranchName : 'Tarabai Park',
     subject: 'Physics',
     teacherName: 'More A.D',
     batch: '12th pcm tarabai park',
@@ -2406,11 +2416,13 @@ export default function ActivityTimetableManagement() {
               <span className="text-sa-muted small fw-semibold" style={{ fontSize: '12px' }}>
                 Filter Branch:
               </span>
-              {[
+              {(isSuperAdmin || !activeBranch ? [
                 { id: 'All', label: 'All Branches' },
                 { id: 'Tarabai Park', label: 'Tarabai Park Branch' },
                 { id: 'Mangalwar Peth', label: 'Mangalwar Peth Branch' }
-              ].map((b) => {
+              ] : [
+                { id: userBranchName, label: `${userBranchName} [Fixed from Login]` }
+              ]).map((b) => {
                 const active = dailyBranchFilter === b.id;
                 return (
                   <button
@@ -2537,12 +2549,19 @@ export default function ActivityTimetableManagement() {
               <select
                 value={dailyBranchFilter}
                 onChange={(e) => setDailyBranchFilter(e.target.value)}
+                disabled={!isSuperAdmin && Boolean(activeBranch)}
                 className="form-select form-select-sm border shadow-xs"
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12px', borderColor: '#CBD5E1' }}
               >
-                <option value="All">All Branches</option>
-                <option value="Tarabai Park">Tarabai Park</option>
-                <option value="Mangalwar Peth">Mangalwar Peth</option>
+                {!isSuperAdmin && activeBranch ? (
+                  <option value={userBranchName}>{userBranchName} [Fixed from Login]</option>
+                ) : (
+                  <>
+                    <option value="All">All Branches</option>
+                    <option value="Tarabai Park">Tarabai Park</option>
+                    <option value="Mangalwar Peth">Mangalwar Peth</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -3131,12 +3150,19 @@ export default function ActivityTimetableManagement() {
                 className="form-select form-select-sm border shadow-xs text-sa-charcoal"
                 value={timetableBranchFilter}
                 onChange={(e) => setTimetableBranchFilter(e.target.value)}
+                disabled={!isSuperAdmin && Boolean(activeBranch)}
                 style={{ height: '38px', borderRadius: '8px', fontSize: '12px', borderColor: '#E2E8F0' }}
               >
-                <option value="All">All Branches</option>
-                {branches.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
+                {!isSuperAdmin && activeBranch ? (
+                  <option value={userBranchName}>{userBranchName} [Fixed from Login]</option>
+                ) : (
+                  <>
+                    <option value="All">All Branches</option>
+                    {branches.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
 
@@ -3878,6 +3904,7 @@ export default function ActivityTimetableManagement() {
               <select
                 className="form-select form-select-sm border shadow-xs"
                 value={dailyForm.branch}
+                disabled={!isSuperAdmin && Boolean(activeBranch)}
                 onChange={(e) => {
                   const br = e.target.value;
                   setDailyForm(prev => ({
@@ -4320,6 +4347,7 @@ export default function ActivityTimetableManagement() {
               <select
                 className="form-select form-select-sm border shadow-xs"
                 value={timetableForm.branch}
+                disabled={!isSuperAdmin && Boolean(activeBranch)}
                 onChange={(e) => {
                   const b = e.target.value;
                   const defaultBatch = b === 'Mangalwar Peth'

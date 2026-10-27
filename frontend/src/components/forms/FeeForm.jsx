@@ -5,6 +5,8 @@ import Button from '../common/Button';
 import feeService from '../../services/feeService';
 import studentService from '../../services/studentService';
 import BranchBatchSelector from '../common/BranchBatchSelector';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
 import {
   BRANCH_TARABAI,
   BRANCH_MANGALWAR,
@@ -33,10 +35,29 @@ export default function FeeForm({
   loading: externalLoading,
   onStudentSelectChange
 }) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = (!isSuperAdmin && activeBranch)
+    ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI)
+    : BRANCH_TARABAI;
+  const defaultSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
+
   // 1. Standardized Branch, Session & Academic Batch State
-  const [selectedBranch, setSelectedBranch] = useState(BRANCH_TARABAI);
-  const [selectedSession, setSelectedSession] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
+  const [selectedSession, setSelectedSession] = useState(defaultSession);
   const [selectedAcademicBatch, setSelectedAcademicBatch] = useState('11th PCM');
+
+  useEffect(() => {
+    if (!isSuperAdmin && activeBranch) {
+      const b = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      setSelectedBranch(b);
+      if (b === BRANCH_MANGALWAR && !selectedSession) {
+        setSelectedSession('Morning');
+      }
+    }
+  }, [activeBranch, isSuperAdmin, isMangal]);
 
   // Derived Standard
   const selectedStandard = (selectedAcademicBatch || '').startsWith('12th') ? '12th Science' : '11th Science';
@@ -283,6 +304,7 @@ export default function FeeForm({
           onBatchChange={setSelectedAcademicBatch}
           required={true}
           showAllOption={false}
+          fixedBranch={!isSuperAdmin}
         />
       </div>
 

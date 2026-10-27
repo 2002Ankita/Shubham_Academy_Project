@@ -3,6 +3,7 @@ import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 import BranchBatchSelector from '../common/BranchBatchSelector';
+import { useAuth } from '../../hooks/useAuth';
 import {
   BRANCH_TARABAI,
   BRANCH_MANGALWAR,
@@ -39,16 +40,20 @@ const parseDurationToMinutes = (durStr) => {
 };
 
 export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
-  const activeBranch = getUserBranch();
-  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : BRANCH_TARABAI;
+  const defaultSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
 
   const [formData, setFormData] = useState({
     title: 'Weekly Test - Mechanics & Kinematics',
     standard: '11th Science',
     branch: defaultBranch,
-    session: '',
+    session: defaultSession,
     academicBatch: ACADEMIC_BATCHES[0],
-    batch: `${defaultBranch} • ${ACADEMIC_BATCHES[0]}`,
+    batch: `${defaultBranch} • ${defaultSession ? `${defaultSession} • ` : ''}${ACADEMIC_BATCHES[0]}`,
     subject: 'Physics',
     date: new Date().toISOString().split('T')[0],
     startTime: '10:00 am',
@@ -61,6 +66,19 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
     notifySMS: true,
     notifyWhatsApp: true
   });
+
+  useEffect(() => {
+    if (!isSuperAdmin && activeBranch) {
+      const b = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      const s = isMangal ? (formData.session || 'Morning') : '';
+      setFormData(prev => ({
+        ...prev,
+        branch: b,
+        session: s,
+        batch: formatStudentBatchDisplay({ branch: b, session: s, academicBatch: prev.academicBatch })
+      }));
+    }
+  }, [activeBranch, isSuperAdmin, isMangal]);
 
   const [previewTab, setPreviewTab] = useState('whatsapp'); // 'whatsapp' or 'sms'
 
@@ -174,6 +192,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
               standard: ab.includes('12th') ? '12th Science' : '11th Science'
             }))}
             layout="grid"
+            fixedBranch={!isSuperAdmin}
           />
         </div>
 

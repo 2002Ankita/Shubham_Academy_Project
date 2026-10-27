@@ -6,7 +6,8 @@ import {
   BRANCH_MANGALWAR,
   SESSIONS,
   ACADEMIC_BATCHES,
-  isSessionRequired
+  isSessionRequired,
+  normalizeBranch
 } from '../../config/branchBatchConfig';
 
 /**
@@ -53,11 +54,11 @@ export default function BranchBatchSelector({
   return (
     <div className={`branch-batch-selector ${className}`}>
       <div className={layout === 'stacked' ? 'd-flex flex-column gap-3' : 'row g-3 align-items-end'}>
-        {/* Step 1: Branch Dropdown */}
+        {/* Step 1: Branch Display / Dropdown */}
         <div className={layout === 'stacked' ? 'w-100' : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6')}>
           <label className={labelClass}>
             <Building size={14} className="text-sa-primary" />
-            <span>{labels.branch || 'Select Branch'}</span>
+            <span>{labels.branch || 'Branch / Campus'}</span>
             {required && <span className="text-danger">*</span>}
             {fixedBranch && (
               <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-1.5 py-0.2 rounded-pill ms-auto" style={{ fontSize: '10px' }}>
@@ -65,24 +66,36 @@ export default function BranchBatchSelector({
               </span>
             )}
           </label>
-          <select
-            className={`${selectClass} ${!branch && required ? 'border-warning' : ''}`}
-            value={branch || ''}
-            onChange={(e) => handleBranchSelect(e.target.value)}
-            disabled={disabled || fixedBranch}
-            required={required}
-          >
-            {showAllOption ? (
-              <option value="">{allOptionLabel} Branches</option>
-            ) : (
-              <option value="">-- Choose Branch --</option>
-            )}
-            {BRANCHES.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
+          {fixedBranch ? (
+            <div
+              className="form-control bg-light fw-bold text-sa-charcoal d-flex align-items-center justify-content-between"
+              style={{ height: size === 'sm' ? '31px' : '38px', fontSize: size === 'sm' ? '0.78rem' : '0.875rem' }}
+            >
+              <span>{branch ? (branch.toLowerCase().includes('mangal') ? '🏛️ Mangalvar Peth' : '🌲 Tarabai Park') : 'Not Selected'}</span>
+              <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-1.5 py-0.5 rounded-pill" style={{ fontSize: '10px' }}>
+                Fixed from Login
+              </span>
+            </div>
+          ) : (
+            <select
+              className={`${selectClass} ${!branch && required ? 'border-warning' : ''}`}
+              value={normalizeBranch(branch) || branch || ''}
+              onChange={(e) => handleBranchSelect(e.target.value)}
+              disabled={disabled}
+              required={required}
+            >
+              {showAllOption ? (
+                <option value="">{allOptionLabel} Branches</option>
+              ) : (
+                <option value="">-- Choose Branch --</option>
+              )}
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Step 2: Session Dropdown (Shown or required for Mangalwar Peth) */}

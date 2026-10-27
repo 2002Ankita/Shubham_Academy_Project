@@ -29,6 +29,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
 import {
+  BRANCH_TARABAI,
+  BRANCH_MANGALWAR,
   formatStudentBatchDisplay,
   matchesStudentFilters
 } from '../../config/branchBatchConfig';
@@ -40,6 +42,9 @@ export default function StudentList() {
   const activeBranch = getUserBranch(user);
   const { confirm } = useConfirm();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const defaultBranch = isSuperAdmin ? '' : (isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
+
   const [students, setStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'discounts'
   const [discountFilter, setDiscountFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -50,9 +55,16 @@ export default function StudentList() {
   const [importedFile, setImportedFile] = useState(null);
 
   // Standardized Branch & Batch Filters
-  const [filterBranch, setFilterBranch] = useState('');
+  const [filterBranch, setFilterBranch] = useState(defaultBranch);
   const [filterSession, setFilterSession] = useState('');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
+
+  useEffect(() => {
+    if (activeBranch && !isSuperAdmin) {
+      const isMangal = activeBranch.toLowerCase().includes('mangal');
+      setFilterBranch(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+    }
+  }, [activeBranch, isSuperAdmin]);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -475,18 +487,18 @@ export default function StudentList() {
               <span className="small fw-bold text-sa-charcoal">
                 Filter by Admission Branch & Batch:
               </span>
-              {(filterBranch || filterSession || filterAcademicBatch) && (
+              {(filterSession || filterAcademicBatch || (isSuperAdmin && filterBranch)) && (
                 <button
                   type="button"
                   className="btn btn-xs btn-outline-secondary py-0.5 px-2"
                   style={{ fontSize: '11px' }}
                   onClick={() => {
-                    setFilterBranch('');
+                    setFilterBranch(isSuperAdmin ? '' : defaultBranch);
                     setFilterSession('');
                     setFilterAcademicBatch('');
                   }}
                 >
-                  Reset Branch Filters
+                  Reset Batch Filters
                 </button>
               )}
             </div>
@@ -497,7 +509,8 @@ export default function StudentList() {
               onSessionChange={setFilterSession}
               academicBatch={filterAcademicBatch}
               onAcademicBatchChange={setFilterAcademicBatch}
-              showAllOption={true}
+              showAllOption={isSuperAdmin}
+              fixedBranch={!isSuperAdmin}
               layout="grid"
             />
           </div>

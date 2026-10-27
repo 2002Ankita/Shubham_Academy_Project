@@ -7,7 +7,8 @@
  */
 
 export const BRANCH_TARABAI = 'Tarabai Park';
-export const BRANCH_MANGALWAR = 'Mangalwar Peth';
+export const BRANCH_MANGALWAR = 'Mangalvar Peth';
+export const BRANCH_MANGALVAR = 'Mangalvar Peth';
 
 export const BRANCHES = [
   BRANCH_TARABAI,
@@ -42,20 +43,20 @@ export const isSessionRequired = (branch) => {
  */
 export const getBatchesForBranch = (branch, session = null) => {
   if (!branch) return [];
-  // For both Tarabai Park and Mangalwar Peth, all 6 academic batches are available
+  // For both Tarabai Park and Mangalvar Peth, all 6 academic batches are available
   return [...ACADEMIC_BATCHES];
 };
 
 /**
- * Normalizes branch string into either 'Tarabai Park' or 'Mangalwar Peth'.
+ * Normalizes branch string into either 'Tarabai Park' or 'Mangalvar Peth'.
  */
 export const normalizeBranch = (rawBranch) => {
   if (!rawBranch) return null;
   const b = String(rawBranch).toLowerCase().trim();
-  if (b.includes('tarabai') || b.includes('main') || b.includes('kolhapur')) {
+  if (b.includes('tarabai') || b.includes('main') || b.includes('kolhapur') || /\b(tp)\b/i.test(b) || b.includes('-tp-') || b.startsWith('tp-') || b.startsWith('sa-tp')) {
     return BRANCH_TARABAI;
   }
-  if (b.includes('mangal')) {
+  if (b.includes('mangal') || /\b(mp)\b/i.test(b) || b.includes('-mp-') || b.startsWith('mp-') || b.startsWith('sa-mp')) {
     return BRANCH_MANGALWAR;
   }
   return rawBranch.trim();
