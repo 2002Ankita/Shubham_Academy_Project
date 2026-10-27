@@ -41,6 +41,59 @@ export const STANDARD_BATCHES = [
   '12th PCMB'
 ];
 
+export const getMatchingCourseFee = (structures, branch, academicBatch, standard, fallbackFee = 55000) => {
+  if (!structures || structures.length === 0) return fallbackFee;
+  
+  const bLower = (branch || '').toLowerCase();
+  const isMangal = bLower.includes('mangal');
+  const std = standard || (academicBatch?.startsWith('12th') ? '12th Science' : '11th Science');
+  const batchStr = (academicBatch || '').toLowerCase();
+  
+  // Extract stream: 'pcmb', 'pcb', 'pcm'
+  let stream = '';
+  if (batchStr.includes('pcmb')) stream = 'pcmb';
+  else if (batchStr.includes('pcb')) stream = 'pcb';
+  else if (batchStr.includes('pcm')) stream = 'pcm';
+  
+  // 1. Exact match: branch + standard + specific stream
+  if (stream) {
+    const streamMatch = structures.find(s => {
+      const sBranch = (s.branch || '').toLowerCase();
+      const sBatch = (s.batch || '').toLowerCase();
+      const sStd = (s.standard || '').toLowerCase();
+      const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
+      const stdMatches = sStd.includes(std.startsWith('12') ? '12' : '11');
+      if (!branchMatches || !stdMatches) return false;
+      
+      if (stream === 'pcmb') return sBatch.includes('pcmb');
+      if (stream === 'pcm') return sBatch.includes('pcm') && !sBatch.includes('pcmb');
+      if (stream === 'pcb') return sBatch.includes('pcb') && !sBatch.includes('pcmb');
+      return false;
+    });
+    if (streamMatch && streamMatch.total_fee > 0) return streamMatch.total_fee;
+  }
+  
+  // 2. Branch + batch name includes academic batch
+  const batchMatch = structures.find(s => {
+    const sBranch = (s.branch || '').toLowerCase();
+    const sBatch = (s.batch || '').toLowerCase();
+    const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
+    return branchMatches && sBatch.includes(batchStr);
+  });
+  if (batchMatch && batchMatch.total_fee > 0) return batchMatch.total_fee;
+
+  // 3. Branch + standard match
+  const stdMatch = structures.find(s => {
+    const sBranch = (s.branch || '').toLowerCase();
+    const sStd = (s.standard || '').toLowerCase();
+    const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
+    return branchMatches && sStd.includes(std.startsWith('12') ? '12' : '11');
+  });
+  if (stdMatch && stdMatch.total_fee > 0) return stdMatch.total_fee;
+
+  return fallbackFee;
+};
+
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -99,7 +152,21 @@ export default function StudentRegistration() {
 
   useEffect(() => {
     feeService.getStructures(activeBranch).then((data) => {
-      if (Array.isArray(data)) setFeeStructures(data);
+      if (Array.isArray(data)) {
+        setFeeStructures(data);
+        const dynamicFee = getMatchingCourseFee(data, formData.branch, formData.academicBatch, formData.standard, formData.originalFees);
+        if (dynamicFee > 0) {
+          const disc = Number(formData.discountAmount) || 0;
+          const net = dynamicFee; // gross course fee payable pending discount approval
+          const paid = Number(formData.paidFees) || 0;
+          setFormData(prev => ({
+            ...prev,
+            originalFees: dynamicFee,
+            totalFees: net,
+            remainingFees: Math.max(0, net - paid)
+          }));
+        }
+      }
     }).catch((err) => console.warn('Could not load fee structures:', err));
   }, [activeBranch]);
   const handleInputChange = (e) => {
@@ -138,19 +205,9 @@ export default function StudentRegistration() {
     const std = currentAcademic.startsWith('12th') ? '12th Science' : '11th Science';
     const fullBatch = `${currentAcademic} ${newBranch}${newSession ? ` (${newSession})` : ''}`;
 
-    let newOriginalFee = formData.originalFees;
-    if (feeStructures && feeStructures.length > 0) {
-      const match = feeStructures.find(
-        (s) => (s.branch === newBranch && s.standard === std) ||
-               (s.batch && s.batch.toLowerCase().includes(currentAcademic.toLowerCase()))
-      );
-      if (match && match.total_fee > 0) {
-        newOriginalFee = match.total_fee;
-      }
-    }
-
+    const newOriginalFee = getMatchingCourseFee(feeStructures, newBranch, currentAcademic, std, formData.originalFees);
     const disc = Number(formData.discountAmount) || 0;
-    const netTotal = Math.max(0, newOriginalFee - disc);
+    const netTotal = newOriginalFee; // gross course fee payable pending discount approval
     const paid = Number(formData.paidFees) || 0;
 
     setFormData((prev) => ({
@@ -183,19 +240,9 @@ export default function StudentRegistration() {
     const std = newAcademicBatch.startsWith('12th') ? '12th Science' : '11th Science';
     const fullBatch = `${newAcademicBatch} ${formData.branch}${formData.session ? ` (${formData.session})` : ''}`;
 
-    let newOriginalFee = formData.originalFees;
-    if (feeStructures && feeStructures.length > 0) {
-      const match = feeStructures.find(
-        (s) => (s.branch === formData.branch && s.standard === std) ||
-               (s.batch && s.batch.toLowerCase().includes(newAcademicBatch.toLowerCase()))
-      );
-      if (match && match.total_fee > 0) {
-        newOriginalFee = match.total_fee;
-      }
-    }
-
+    const newOriginalFee = getMatchingCourseFee(feeStructures, formData.branch, newAcademicBatch, std, formData.originalFees);
     const disc = Number(formData.discountAmount) || 0;
-    const netTotal = Math.max(0, newOriginalFee - disc);
+    const netTotal = newOriginalFee; // gross course fee payable pending discount approval
     const paid = Number(formData.paidFees) || 0;
 
     setFormData((prev) => ({

@@ -32,6 +32,8 @@ class FeeDetailsResponse(BaseModel):
     total_fees: float
     amount_paid: float
     pending_fees: float
+    student_name: Optional[str] = None
+    roll_number: Optional[str] = None
     original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
     discount_reason: Optional[str] = None

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
@@ -193,23 +194,25 @@ export default function FeeForm({
 
       // Student-specific payment history
       const studentPayments = (allPayments || []).filter(
-        (p) => String(p.studentId) === String(studentId)
+        (p) => String(p.studentId) === String(studentId) ||
+               (details?.roll_number && p.rollNumber === details.roll_number) ||
+               (studentObj?.rollNumber && p.rollNumber === studentObj.rollNumber)
       );
 
-      const totalApplicableFees = Number(details.total_fees || 0);
-      const paidSoFar = Number(details.amount_paid || 0);
-      const balanceRemaining = Math.max(0, totalApplicableFees - paidSoFar);
+      const totalApplicableFees = Number(details?.total_fees || studentObj?.totalFees || studentObj?.total_fees || 0);
+      const paidSoFar = Number(details?.amount_paid != null ? details.amount_paid : (studentObj?.paidFees || studentObj?.paid_fees || 0));
+      const balanceRemaining = details?.pending_fees != null ? Number(details.pending_fees) : Math.max(0, totalApplicableFees - paidSoFar);
 
       setFormData((prev) => ({
         ...prev,
         studentId,
         amountPaid: 0,
         totalFees: totalApplicableFees,
-        originalFees: details.original_fees || totalApplicableFees,
-        discountAmount: details.discount_amount || 0,
-        discountReason: details.discount_reason || '',
-        discountStatus: details.discount_status || 'NONE',
-        discountApprovedBy: details.discount_approved_by || '',
+        originalFees: details?.original_fees || studentObj?.originalFees || studentObj?.original_fees || totalApplicableFees,
+        discountAmount: details?.discount_amount || studentObj?.discountAmount || studentObj?.discount_amount || 0,
+        discountReason: details?.discount_reason || studentObj?.discountReason || '',
+        discountStatus: details?.discount_status || studentObj?.discountStatus || 'NONE',
+        discountApprovedBy: details?.discount_approved_by || studentObj?.discountApprovedBy || '',
         alreadyPaid: paidSoFar,
         pendingAmount: balanceRemaining
       }));
@@ -241,6 +244,23 @@ export default function FeeForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudent) return;
+
+    if (formData.pendingAmount <= 0) {
+      toast.error('All course fees for this student are already fully settled.');
+      return;
+    }
+
+    const payAmt = Number(formData.amountPaid);
+    if (!payAmt || payAmt <= 0) {
+      toast.error('Please enter a valid amount to pay.');
+      return;
+    }
+
+    const maxAllowable = Number(formData.totalFees) - Number(formData.alreadyPaid);
+    if (payAmt > maxAllowable) {
+      toast.error(`Payment amount (₹${payAmt.toLocaleString()}) cannot exceed outstanding balance of ₹${Math.max(0, maxAllowable).toLocaleString()}.`);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -625,6 +645,15 @@ export default function FeeForm({
               </span>
             </div>
 
+            {formData.pendingAmount <= 0 && (
+              <div className="alert alert-success d-flex align-items-center gap-2 mb-3 py-2.5 px-3">
+                <CheckCircle2 size={18} className="text-success flex-shrink-0" />
+                <span className="small">
+                  <strong>Course Fees Fully Settled:</strong> All tuition and academic fees for {selectedStudent.name} have been completely paid. No outstanding balance remains.
+                </span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div className="row g-3 g-md-4">
                 <div className="col-12 col-md-6">
@@ -633,6 +662,7 @@ export default function FeeForm({
                     name="feeHead"
                     value={formData.feeHead}
                     onChange={handleInputChange}
+                    disabled={formData.pendingAmount <= 0}
                     options={[
                       'Annual Full Tuition Fee',
                       'Term 1 Installment',
@@ -649,6 +679,7 @@ export default function FeeForm({
                     name="paymentMode"
                     value={formData.paymentMode}
                     onChange={handleInputChange}
+                    disabled={formData.pendingAmount <= 0}
                     options={[
                       'UPI / Online Transfer',
                       'Cash Counter',
@@ -665,8 +696,10 @@ export default function FeeForm({
                     name="amountPaid"
                     type="number"
                     min="1"
+                    max={formData.pendingAmount > 0 ? formData.pendingAmount : 0}
                     value={formData.amountPaid}
                     onChange={handleInputChange}
+                    disabled={formData.pendingAmount <= 0}
                     required
                   />
                 </div>
@@ -678,6 +711,7 @@ export default function FeeForm({
                     placeholder="e.g. UPI-984210029"
                     value={formData.transactionRef}
                     onChange={handleInputChange}
+                    disabled={formData.pendingAmount <= 0}
                   />
                 </div>
 
@@ -687,6 +721,7 @@ export default function FeeForm({
                     name="remarks"
                     value={formData.remarks}
                     onChange={handleInputChange}
+                    disabled={formData.pendingAmount <= 0}
                   />
                 </div>
               </div>
@@ -696,10 +731,15 @@ export default function FeeForm({
                   type="submit"
                   variant="primary"
                   loading={submitting || externalLoading}
+                  disabled={formData.pendingAmount <= 0 || submitting || externalLoading}
                   className="px-4 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center gap-2"
                 >
                   <CheckCircle2 size={16} />
-                  <span>Record Payment & Generate Receipt</span>
+                  <span>
+                    {formData.pendingAmount <= 0
+                      ? 'Fees Fully Settled'
+                      : 'Record Payment & Generate Receipt'}
+                  </span>
                 </Button>
               </div>
             </form>

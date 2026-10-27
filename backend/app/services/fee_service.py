@@ -399,17 +399,50 @@ async def delete_fee_structure(structure_id: str) -> dict:
     }
 
 async def _lookup_student_fee(student: Student, struct_list: list = None) -> float:
-    student_custom_fee = getattr(student, 'total_fees', 0.0)
-    if student_custom_fee and student_custom_fee > 0:
-        return float(student_custom_fee)
+    # 1. If original_fees is stored, calculate dynamically based on discount approval status
+    disc_status = getattr(student, 'discount_status', 'NONE') or 'NONE'
+    disc_amount = float(getattr(student, 'discount_amount', 0.0) or 0.0)
+    orig_fees = float(getattr(student, 'original_fees', 0.0) or 0.0)
+    custom_total = float(getattr(student, 'total_fees', 0.0) or 0.0)
+
+    if orig_fees > 0:
+        if disc_status == "APPROVED" and disc_amount > 0:
+            return max(0.0, orig_fees - disc_amount)
+        return orig_fees
+
+    if custom_total > 0:
+        if disc_status == "APPROVED" and disc_amount > 0 and custom_total > disc_amount:
+            return max(0.0, custom_total - disc_amount)
+        return custom_total
 
     if struct_list is None:
         struct_list = await FeeStructure.find_all().to_list()
 
     student_branch = normalize_branch_name(getattr(student, "branch", ""), getattr(student, "batch", ""))
-    student_batch = (getattr(student, "batch", "") or "").strip().lower()
+    student_batch = (getattr(student, "academic_batch", "") or getattr(student, "batch", "") or "").strip().lower()
     student_standard = (getattr(student, "standard", "") or "").strip().lower()
     student_year = (getattr(student, "academic_year", "") or "").strip()
+
+    # Determine stream: pcmb, pcb, pcm
+    stream = ""
+    if "pcmb" in student_batch:
+        stream = "pcmb"
+    elif "pcb" in student_batch:
+        stream = "pcb"
+    elif "pcm" in student_batch:
+        stream = "pcm"
+
+    # Match stream specifically if available
+    if stream:
+        for s in struct_list:
+            s_b = (s.batch or "").strip().lower()
+            if s.branch == student_branch and (student_standard in s.standard.strip().lower() or not student_standard):
+                if stream == "pcmb" and "pcmb" in s_b:
+                    return float(s.total_fee)
+                elif stream == "pcm" and "pcm" in s_b and "pcmb" not in s_b:
+                    return float(s.total_fee)
+                elif stream == "pcb" and "pcb" in s_b and "pcmb" not in s_b:
+                    return float(s.total_fee)
 
     # 1. Exact match (standard, batch, branch, academic_year)
     for s in struct_list:
@@ -426,22 +459,17 @@ async def _lookup_student_fee(student: Student, struct_list: list = None) -> flo
         if s.batch.strip().lower() == student_batch and s.branch == student_branch:
             return float(s.total_fee)
 
-    # 4. Match batch only
-    for s in struct_list:
-        if s.batch.strip().lower() == student_batch:
-            return float(s.total_fee)
-
-    # 5. Match standard and branch
+    # 4. Match standard and branch
     for s in struct_list:
         if s.standard.strip().lower() == student_standard and s.branch == student_branch:
             return float(s.total_fee)
 
-    # 6. Any match for the campus branch
+    # 5. Any match for the campus branch
     for s in struct_list:
         if s.branch == student_branch:
             return float(s.total_fee)
 
-    return 0.0
+    return 55000.0
 
 async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     from app.services.student_service import resolve_student, student_matches_branch, student_matches_standard
@@ -460,7 +488,25 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     # Update total fees if an override was provided in the UI
     if getattr(payment_in, 'total_course_fees_override', None) is not None and payment_in.total_course_fees_override > 0:
         student.total_fees = payment_in.total_course_fees_override
+        student.original_fees = payment_in.total_course_fees_override
         await student.save()
+
+    total_fees = await _lookup_student_fee(student)
+    existing_payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
+    total_paid_so_far = sum(p.amount_paid for p in existing_payments)
+    current_pending = max(0.0, total_fees - total_paid_so_far)
+
+    if current_pending <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Student course fees are already fully cleared. No pending balance remains."
+        )
+
+    if payment_in.amount_paid > current_pending:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment amount (₹{payment_in.amount_paid:,.0f}) cannot exceed current outstanding balance (₹{current_pending:,.0f})."
+        )
         
     payment = FeePayment(
         student=student,
@@ -474,19 +520,20 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     
     res = await _format_fee_payment(payment)
     
-    total_fees = await _lookup_student_fee(student)
-    payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
-    total_paid = sum(p.amount_paid for p in payments)
+    all_payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
+    new_total_paid = sum(p.amount_paid for p in all_payments)
+    new_pending = max(0.0, total_fees - new_total_paid)
     
     # Sync student record paid_fees and remaining_fees
-    student.paid_fees = total_paid
-    student.remaining_fees = max(0.0, total_fees - total_paid)
+    student.paid_fees = new_total_paid
+    student.remaining_fees = new_pending
+    student.total_fees = total_fees
     await student.save()
 
     res["total_fees"] = total_fees
-    res["pending_fees"] = max(0.0, total_fees - total_paid)
-    res["cumulative_paid"] = total_paid
-    res["current_pending_fees"] = max(0.0, total_fees - total_paid)
+    res["pending_fees"] = new_pending
+    res["cumulative_paid"] = new_total_paid
+    res["current_pending_fees"] = new_pending
     res["original_fees"] = getattr(student, "original_fees", 0.0) or total_fees
     res["discount_amount"] = getattr(student, "discount_amount", 0.0) or 0.0
     res["discount_status"] = getattr(student, "discount_status", "NONE") or "NONE"
@@ -580,17 +627,49 @@ async def get_fee_details(
         
     # Get all payments
     payments = await FeePayment.find(FeePayment.student.id == student.id).to_list()
-    total_paid = sum(p.amount_paid for p in payments)
+    if payments:
+        total_paid = sum(p.amount_paid for p in payments)
+    else:
+        total_paid = float(getattr(student, "paid_fees", 0.0) or 0.0)
     
     total_fees = await _lookup_student_fee(student)
+    orig_fees = float(getattr(student, "original_fees", 0.0) or 0.0)
+    if orig_fees <= 0:
+        orig_fees = total_fees
+        student.original_fees = orig_fees
+
     pending_fees = max(0.0, total_fees - total_paid)
+
+    # Sync student record in database so student dashboard and reports are always consistent
+    if student.total_fees != total_fees or student.paid_fees != total_paid or student.remaining_fees != pending_fees:
+        student.total_fees = total_fees
+        student.paid_fees = total_paid
+        student.remaining_fees = pending_fees
+        await student.save()
+
+    # Determine student name and roll number
+    stu_name = getattr(student, "full_name", "") or ""
+    if not stu_name and student.user:
+        if isinstance(student.user, User):
+            stu_name = student.user.full_name
+        else:
+            try:
+                u_obj = await User.get(student.user.ref.id)
+                if u_obj:
+                    stu_name = u_obj.full_name
+            except Exception:
+                pass
+
+    roll_no = getattr(student, "student_id", "") or ""
     
     return FeeDetailsResponse(
         student_id=str(student.id),
         total_fees=total_fees,
         amount_paid=total_paid,
         pending_fees=pending_fees,
-        original_fees=getattr(student, "original_fees", 0.0) or total_fees,
+        student_name=stu_name,
+        roll_number=roll_no,
+        original_fees=orig_fees,
         discount_amount=getattr(student, "discount_amount", 0.0) or 0.0,
         discount_reason=getattr(student, "discount_reason", None),
         discount_status=getattr(student, "discount_status", "NONE") or "NONE",

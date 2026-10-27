@@ -129,11 +129,17 @@ export default function StudentDashboard() {
         if (marksData.status === 'fulfilled' && Array.isArray(marksData.value)) {
           setResults(marksData.value);
         }
+        const stu = studentData.status === 'fulfilled' ? studentData.value : null;
+
         if (feesData.status === 'fulfilled' && Array.isArray(feesData.value)) {
           const studentFees = feesData.value.filter(
-            f => f.studentId === studentId || f.rollNumber === user?.rollNumber
+            f => (stu?.id && String(f.studentId) === String(stu.id)) ||
+                 (user?.id && String(f.studentId) === String(user.id)) ||
+                 (stu?.rollNumber && f.rollNumber === stu.rollNumber) ||
+                 (stu?.student_id && f.rollNumber === stu.student_id) ||
+                 (user?.rollNumber && f.rollNumber === user.rollNumber)
           );
-          setFees(studentFees.length > 0 ? studentFees : feesData.value);
+          setFees(studentFees);
         }
         if (attendanceData.status === 'fulfilled' && Array.isArray(attendanceData.value)) {
           setAttendanceLogs(attendanceData.value);
@@ -141,6 +147,17 @@ export default function StudentDashboard() {
         
         if (detailsData?.status === 'fulfilled' && detailsData.value) {
            setFeeDetails(detailsData.value);
+        } else if (stu) {
+           setFeeDetails({
+             total_fees: stu.totalFees || stu.total_fees || 0,
+             amount_paid: stu.paidFees || stu.paid_fees || 0,
+             pending_fees: stu.remainingFees != null ? stu.remainingFees : (stu.remaining_fees || 0),
+             original_fees: stu.originalFees || stu.original_fees || 0,
+             discount_amount: stu.discountAmount || stu.discount_amount || 0,
+             discount_status: stu.discountStatus || stu.discount_status || 'NONE',
+             discount_reason: stu.discountReason || stu.discount_reason,
+             discount_approved_by: stu.discountApprovedBy || stu.discount_approved_by
+           });
         }
         if (batchesDataRes?.status === 'fulfilled' && Array.isArray(batchesDataRes.value)) {
            const stu = studentData.status === 'fulfilled' ? studentData.value : null;
@@ -234,9 +251,9 @@ export default function StudentDashboard() {
     return 0;
   })();
 
-  const totalFeeAmount = feeDetails.total_fees || 0;
-  const paidFeeAmount = feeDetails.amount_paid || 0;
-  const pendingFeeAmount = feeDetails.pending_fees || 0;
+  const totalFeeAmount = feeDetails.total_fees || student?.totalFees || student?.total_fees || 0;
+  const paidFeeAmount = feeDetails.amount_paid != null ? feeDetails.amount_paid : (student?.paidFees || student?.paid_fees || 0);
+  const pendingFeeAmount = feeDetails.pending_fees != null ? feeDetails.pending_fees : (student?.remainingFees != null ? student.remainingFees : (student?.remaining_fees || 0));
 
   const overallScore = (() => {
     if (results.length > 0) {
@@ -462,11 +479,15 @@ export default function StudentDashboard() {
                 <span className="fw-semibold" style={{ fontSize: '0.76rem', color: Number(pendingFeeAmount) > 0 ? '#DC2626' : '#168554' }}>
                   {Number(pendingFeeAmount) > 0 ? '▲ Outstanding Due' : '✓ No pending fees'}
                 </span>
-                {feeDetails.discount_status === 'APPROVED' && Number(feeDetails.discount_amount) > 0 && (
+                {((feeDetails.discount_status === 'APPROVED' || student?.discount_status === 'APPROVED') && Number(feeDetails.discount_amount || student?.discount_amount) > 0) ? (
                   <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.67rem' }}>
-                    -₹{Number(feeDetails.discount_amount).toLocaleString()} Concession
+                    -₹{Number(feeDetails.discount_amount || student?.discount_amount).toLocaleString()} Concession Approved
                   </span>
-                )}
+                ) : ((feeDetails.discount_status === 'PENDING' || student?.discount_status === 'PENDING') && Number(feeDetails.discount_amount || student?.discount_amount) > 0) ? (
+                  <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style={{ fontSize: '0.67rem' }}>
+                    ⏳ ₹{Number(feeDetails.discount_amount || student?.discount_amount).toLocaleString()} Concession Pending
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>

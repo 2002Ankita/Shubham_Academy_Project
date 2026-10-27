@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
+import studentService from '../../services/studentService';
 
 const DEFAULT_FEE_STRUCTURES = [
   {
@@ -82,14 +83,37 @@ export default function StudentFees() {
       setLoading(true);
       try {
         if (user?.id) {
-          const detailData = await feeService.getFeeDetails(user.id);
-          if (detailData && detailData.total_fees > 0) {
+          const [detailData, allPayments, stuObj] = await Promise.all([
+            feeService.getFeeDetails(user.id).catch(() => null),
+            feeService.getAll().catch(() => []),
+            studentService.getById(user.id).catch(() => null)
+          ]);
+
+          if (detailData) {
             setDetails(detailData);
+          } else if (stuObj) {
+            setDetails({
+              total_fees: stuObj.totalFees || stuObj.total_fees || 0,
+              amount_paid: stuObj.paidFees || stuObj.paid_fees || 0,
+              pending_fees: stuObj.remainingFees != null ? stuObj.remainingFees : (stuObj.remaining_fees || 0),
+              original_fees: stuObj.originalFees || stuObj.original_fees || 0,
+              discount_amount: stuObj.discountAmount || stuObj.discount_amount || 0,
+              discount_status: stuObj.discountStatus || stuObj.discount_status || 'NONE',
+              discount_reason: stuObj.discountReason || stuObj.discount_reason,
+              discount_approved_by: stuObj.discountApprovedBy || stuObj.discount_approved_by
+            });
           }
 
-          const allPayments = await feeService.getAll();
           const userPayments = Array.isArray(allPayments)
-            ? allPayments.filter(f => f.studentId === detailData?.student_id || f.studentId === user.id)
+            ? allPayments.filter(f =>
+                (detailData?.student_id && String(f.studentId) === String(detailData.student_id)) ||
+                (stuObj?.id && String(f.studentId) === String(stuObj.id)) ||
+                String(f.studentId) === String(user.id) ||
+                (detailData?.roll_number && f.rollNumber === detailData.roll_number) ||
+                (stuObj?.rollNumber && f.rollNumber === stuObj.rollNumber) ||
+                (stuObj?.student_id && f.rollNumber === stuObj.student_id) ||
+                (user?.rollNumber && f.rollNumber === user.rollNumber)
+              )
             : [];
 
           if (userPayments && userPayments.length > 0) {
@@ -106,9 +130,9 @@ export default function StudentFees() {
               receiptNo: p.receiptNo || `REC-${Math.floor(100000 + Math.random() * 900000)}`,
               feeStructureName: p.feeHead || 'Standard Tuition Fee Structure',
               feeStructureYear: '2025 - 2026',
-              totalFees: p.totalFees || 0,
+              totalFees: p.totalFees || detailData?.total_fees || stuObj?.total_fees || 0,
               paidFees: p.amountPaid || 0,
-              pendingAmount: p.pendingAmount != null ? p.pendingAmount : 0,
+              pendingAmount: p.pendingAmount != null ? p.pendingAmount : (detailData?.pending_fees || 0),
               cumulativePaid: p.cumulativePaid || p.amountPaid,
               currentPendingFees: p.currentPendingFees,
               paymentDate: p.paymentDate || 'N/A',
@@ -118,18 +142,22 @@ export default function StudentFees() {
             setFeeStructures(mapped);
           } else {
             // Show one row reflecting their total fees if no payments exist yet
+            const effectiveTotal = detailData?.total_fees || stuObj?.totalFees || stuObj?.total_fees || 0;
+            const effectivePaid = detailData?.amount_paid != null ? detailData.amount_paid : (stuObj?.paidFees || 0);
+            const effectivePending = detailData?.pending_fees != null ? detailData.pending_fees : Math.max(0, effectiveTotal - effectivePaid);
+
             setFeeStructures([{
               id: 'FS-DEFAULT',
               receiptNo: 'N/A',
-              feeStructureName: user?.course || 'Current Course Fees',
+              feeStructureName: stuObj?.batch || user?.course || 'Academic Course Enrollment Fees',
               feeStructureYear: '2025 - 2026',
-              totalFees: detailData?.total_fees || 0,
-              paidFees: detailData?.amount_paid || 0,
-              pendingAmount: detailData?.pending_fees || detailData?.total_fees || 0,
+              totalFees: effectiveTotal,
+              paidFees: effectivePaid,
+              pendingAmount: effectivePending,
               paymentDate: 'N/A',
               paymentMode: 'N/A',
               transactionId: 'N/A',
-              status: 'Pending'
+              status: effectivePending <= 0 ? 'Paid' : (effectivePaid > 0 ? 'Partial' : 'Pending')
             }]);
           }
         }
