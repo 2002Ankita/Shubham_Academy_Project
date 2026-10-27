@@ -442,23 +442,6 @@ export default function DiscountApprovals() {
             <RefreshCw size={14} className={loading ? 'spin' : ''} />
             <span>Refresh</span>
           </button>
-
-          {/* User Requested Button: Display all pending discounts */}
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter('PENDING');
-              setSearchParams({ status: 'PENDING' });
-              const el = document.getElementById('discount-approvals-table');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1.5 px-3.5 py-1.5 shadow-xs"
-            style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
-            title="Display all student discount concessions awaiting Super Admin decision"
-          >
-            <Clock size={15} />
-            <span>Display All Pending Discounts ({pendingList.length})</span>
-          </button>
         </div>
       </div>
 
