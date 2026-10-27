@@ -134,7 +134,7 @@ async def check_out(
         raise HTTPException(status_code=403, detail="Not authorized to check out")
     return await check_out_teacher(attendance_in)
 
-@router.get("/student/{student_id}", response_model=List[AttendanceResponse])
+@router.get("/student/{student_id}")
 async def list_student_attendance(student_id: str, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     return await get_student_attendance(student_id)

@@ -148,24 +148,13 @@ export const marksService = {
         subject: mark.subject || 'N/A',
         teacher: mark.teacher || 'Prof. Faculty',
         maxMarks: mark.max_marks || mark.maxMarks || 100,
-        obtainedMarks: mark.marks_obtained || mark.obtainedMarks,
-        percentage: mark.percentage || (mark.marks_obtained ? ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1) : 0),
+        obtainedMarks: mark.marks_obtained !== undefined ? mark.marks_obtained : mark.obtainedMarks,
+        percentage: mark.percentage || (mark.marks_obtained !== undefined ? ((mark.marks_obtained / (mark.max_marks || 100)) * 100).toFixed(1) : 0),
         grade: mark.grade || (mark.pass_status ? 'Pass' : 'Fail'),
+        pass_status: mark.pass_status,
         status: mark.status || 'Published',
         remarks: mark.remarks || ''
-      })).filter(m => {
-        const subj = (m.subject || m.examName || '').toLowerCase();
-        let hasSubjectCheck = false;
-        let subjectMatched = false;
-
-        if (subj.includes('physics')) { hasSubjectCheck = true; if (sStream.includes('p')) subjectMatched = true; }
-        if (subj.includes('chemistry')) { hasSubjectCheck = true; if (sStream.includes('c')) subjectMatched = true; }
-        if (subj.includes('math')) { hasSubjectCheck = true; if (sStream.includes('m')) subjectMatched = true; }
-        if (subj.includes('biology') || subj.includes('bio')) { hasSubjectCheck = true; if (sStream.includes('b')) subjectMatched = true; }
-
-        if (hasSubjectCheck && sStream) return subjectMatched;
-        return true;
-      });
+      }));
     };
 
     try {

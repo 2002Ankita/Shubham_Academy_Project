@@ -13,6 +13,17 @@ export const attendanceService = {
     }
   },
 
+  // Student specific attendance logs
+  getStudentAttendance: async (studentId) => {
+    try {
+      const res = await api.get(`/attendance/student/${studentId}`);
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (err) {
+      console.warn('Failed to fetch student attendance:', err);
+      return [];
+    }
+  },
+
   scanRfid: async (rfidCard, gate = 'Gate 1') => {
     const res = await api.post('/attendance/rfid-scan', { rfidCard, gate });
     return res.data;

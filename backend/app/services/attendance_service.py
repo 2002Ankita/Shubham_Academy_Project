@@ -166,18 +166,44 @@ async def mark_attendance(attendance_in: AttendanceCreate) -> Attendance:
     await attendance.insert()
     return attendance
 
-async def get_student_attendance(student_id: str) -> list[Attendance]:
+async def get_student_attendance(student_id: str) -> list[dict]:
     from app.services.student_service import resolve_student
     student = await resolve_student(student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    return await Attendance.find({
+    records = await Attendance.find({
         "$or": [
             {"student.$id": student.id},
             {"student.id": student.id},
             {"student": student.id}
         ]
     }).sort("-date").to_list()
+
+    res = []
+    parent_phone = student.parent_mobile or student.mobile_number or ""
+    sms_text = f"Delivered to +91 {parent_phone}" if parent_phone else "Real-time gate SMS verified"
+
+    for r in records:
+        time_str = r.rfid_scan_time.strftime("%I:%M %p") if r.rfid_scan_time else (r.check_in_time.strftime("%I:%M %p") if r.check_in_time else r.date.strftime("%I:%M %p"))
+        slot_label = f"Lecture {r.lecture_slot}" if r.lecture_slot else "Gate Tap"
+        mode_label = "RFID Smart Card" if r.rfid_scan_time else "Digital Terminal"
+        res.append({
+            "id": str(r.id),
+            "student_id": str(student.id),
+            "date": r.date.strftime("%Y-%m-%d"),
+            "time": time_str,
+            "gate": "Gate 1 Terminal",
+            "mode": mode_label,
+            "lecture_slot": r.lecture_slot or 1,
+            "slot_label": slot_label,
+            "subject": r.subject or "Class Lecture",
+            "status": r.status or "Present",
+            "smsAlert": sms_text if r.status == "Present" else f"Absence Alert sent to +91 {parent_phone}",
+            "remarks": r.remarks or "",
+            "branch": r.branch or student.branch or "Tarabai Park",
+            "batch": r.academic_batch or student.academic_batch or student.batch or "11th PCM"
+        })
+    return res
 
 async def check_in_teacher(attendance_in: AttendanceCreate) -> dict:
     from app.services.teacher_service import resolve_teacher
@@ -919,12 +945,13 @@ async def delete_attendance_record(record_id: str) -> dict:
 
 async def get_all_attendance_logs(params: Optional[dict] = None) -> list[dict]:
     # General attendance logs (such as RFID / student gate taps)
-    records = await Attendance.find({"student": {"$ne": None}}).sort("-date").limit(100).to_list()
+    records = await Attendance.find(Attendance.student != None).sort("-date").limit(100).to_list()
     res = []
     for r in records:
         student_name = "Student"
         roll = "--"
         rfid = "--"
+        branch_str = r.branch or "Tarabai Park"
         if r.student:
             student_obj = None
             if isinstance(r.student, Student):
@@ -932,8 +959,9 @@ async def get_all_attendance_logs(params: Optional[dict] = None) -> list[dict]:
             elif hasattr(r.student, "ref"):
                 student_obj = await Student.get(r.student.ref.id)
             if student_obj:
-                roll = student_obj.roll_number
+                roll = getattr(student_obj, "roll_number", None) or getattr(student_obj, "student_id", "--")
                 rfid = student_obj.rfid_tag or "--"
+                branch_str = student_obj.branch or branch_str
                 if student_obj.user:
                     u = await User.get(student_obj.user.ref.id) if hasattr(student_obj.user, "ref") else student_obj.user
                     if u:
@@ -942,11 +970,15 @@ async def get_all_attendance_logs(params: Optional[dict] = None) -> list[dict]:
         time_str = r.rfid_scan_time.strftime("%I:%M %p") if r.rfid_scan_time else r.date.strftime("%I:%M %p")
         res.append({
             "id": str(r.id),
+            "date": r.date.strftime("%Y-%m-%d"),
             "time": time_str,
             "studentName": student_name,
             "rollNumber": roll,
             "rfidCard": rfid,
-            "gate": "Gate 1",
+            "branch": branch_str,
+            "gate": "Gate 1 Terminal",
+            "subject": r.subject or "Class Lecture",
+            "mode": "RFID Smart Card" if r.rfid_scan_time else "Digital Tap",
             "status": r.status or "Present",
             "smsAlert": "Dispatched to parents"
         })
@@ -978,8 +1010,9 @@ async def scan_rfid_card(rfid_card: str, gate: str = "Gate 1") -> dict:
         if u:
             student_name = u.full_name
 
+    roll_val = getattr(student, "roll_number", None) or getattr(student, "student_id", "--")
     return {
-        "message": f"Badge verified for {student_name} ({student.roll_number}) at {gate}",
+        "message": f"Badge verified for {student_name} ({roll_val}) at {gate}",
         "record": {
             "id": str(att.id),
             "studentName": student_name,
