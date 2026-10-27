@@ -30,6 +30,7 @@ export const curriculumService = {
 
   // Create a new daily activity
   createDailyActivity: async (data) => {
+    let result = null;
     try {
       const res = await api.post('/daily-activities', data);
       if (res?.data) {
@@ -38,7 +39,7 @@ export const curriculumService = {
           const updated = [res.data, ...saved.filter(item => item.id !== res.data.id)];
           localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
         } catch (_) {}
-        return res.data;
+        result = res.data;
       }
     } catch (err) {
       console.warn('Backend create daily-activity failed, saving locally:', err);
@@ -48,12 +49,17 @@ export const curriculumService = {
         const updated = [localItem, ...saved];
         localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
       } catch (_) {}
-      return localItem;
+      result = localItem;
     }
+    try {
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated', { detail: result }));
+    } catch (_) {}
+    return result;
   },
 
   // Bulk create daily activities from Excel import
   bulkCreateDailyActivities: async (activitiesList) => {
+    let resultList = null;
     try {
       const res = await api.post('/daily-activities/bulk', activitiesList);
       if (Array.isArray(res.data) && res.data.length > 0) {
@@ -62,33 +68,40 @@ export const curriculumService = {
           const updated = [...res.data, ...saved];
           localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
         } catch (_) {}
-        return res.data;
+        resultList = res.data;
       }
     } catch (err) {
       console.warn('Backend bulk daily-activities failed, fallback to sequential or local:', err);
     }
 
-    const createdList = [];
-    for (let i = 0; i < activitiesList.length; i++) {
-      const item = activitiesList[i];
-      try {
-        const res = await api.post('/daily-activities', item);
-        createdList.push(res.data);
-      } catch (_) {
-        const localItem = { id: `ACT-${Date.now()}-${i}`, ...item, created_at: new Date().toISOString() };
-        createdList.push(localItem);
+    if (!resultList) {
+      const createdList = [];
+      for (let i = 0; i < activitiesList.length; i++) {
+        const item = activitiesList[i];
+        try {
+          const res = await api.post('/daily-activities', item);
+          createdList.push(res.data);
+        } catch (_) {
+          const localItem = { id: `ACT-${Date.now()}-${i}`, ...item, created_at: new Date().toISOString() };
+          createdList.push(localItem);
+        }
       }
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
+        const updated = [...createdList, ...saved];
+        localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+      } catch (_) {}
+      resultList = createdList;
     }
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
-      const updated = [...createdList, ...saved];
-      localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated', { detail: resultList }));
     } catch (_) {}
-    return createdList;
+    return resultList;
   },
 
   // Update a daily activity
   updateDailyActivity: async (id, data) => {
+    let result = null;
     try {
       const res = await api.put(`/daily-activities/${id}`, data);
       if (res?.data) {
@@ -97,7 +110,7 @@ export const curriculumService = {
           const updated = saved.map(item => item.id === id ? { ...item, ...res.data } : item);
           localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
         } catch (_) {}
-        return res.data;
+        result = res.data;
       }
     } catch (err) {
       console.warn('Backend update daily-activity failed, updating locally:', err);
@@ -106,8 +119,12 @@ export const curriculumService = {
         const updated = saved.map((item) => (item.id === id ? { ...item, ...data } : item));
         localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
       } catch (_) {}
-      return { id, ...data };
+      result = { id, ...data };
     }
+    try {
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated', { detail: result }));
+    } catch (_) {}
+    return result;
   },
 
   // Delete a daily activity
@@ -121,6 +138,9 @@ export const curriculumService = {
       const saved = JSON.parse(localStorage.getItem(STORAGE_ACTIVITIES_KEY) || '[]');
       const updated = saved.filter((item) => item.id !== id);
       localStorage.setItem(STORAGE_ACTIVITIES_KEY, JSON.stringify(updated));
+    } catch (_) {}
+    try {
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated', { detail: { id, deleted: true } }));
     } catch (_) {}
     return { success: true };
   },

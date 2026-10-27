@@ -334,6 +334,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
+        { label: 'Daily Log Activity', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
@@ -376,6 +377,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
+        { label: 'Daily Log Activity', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },
@@ -404,12 +406,13 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     if (item.path === '/admin/students') {
       return location.pathname.startsWith('/admin/students') && !location.pathname.startsWith('/admin/students/register');
     }
-    // If on teacher attendance or leave approvals, activate those specific items, not Teachers
+    // If on teacher attendance, leave approvals, or teacher activities, activate those specific items, not Teachers
     if (item.path === '/admin/teachers') {
       return (
         location.pathname.startsWith('/admin/teachers') &&
         !location.pathname.startsWith('/admin/teachers/attendance') &&
-        !location.pathname.startsWith('/admin/teachers/leave-approvals')
+        !location.pathname.startsWith('/admin/teachers/leave-approvals') &&
+        !location.pathname.startsWith('/admin/teacher-activities')
       );
     }
     if (item.matchPrefixes) {

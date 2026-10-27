@@ -86,15 +86,17 @@ export default function ActivityTimetableManagement() {
     }
   });
 
-  // Listen for tab query changes from notification clicks
+  // Listen for tab query changes or route changes
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('tab') === 'weekly' || params.get('tab') === 'timetable') {
       setActiveTab('timetable');
     } else if (params.get('tab') === 'syllabus' || params.get('tab') === 'lecture-plan') {
       setActiveTab('syllabus');
+    } else if (params.get('tab') === 'daily' || location.pathname.includes('teacher-activities') || location.pathname.includes('daily-activities')) {
+      setActiveTab('daily');
     }
-  }, [location.search]);
+  }, [location.search, location.pathname]);
 
   // Sync published and requested weeks
   useEffect(() => {

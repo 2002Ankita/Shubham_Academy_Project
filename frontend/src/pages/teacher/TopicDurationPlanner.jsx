@@ -973,11 +973,12 @@ export default function TopicDurationPlanner() {
                 value={form.branch}
                 onChange={(e) => {
                   const b = e.target.value;
+                  const isMangal = b.toLowerCase().includes('mangal');
                   setForm({
                     ...form,
                     branch: b,
-                    batch: b === 'Mangalwar Peth'
-                      ? '12th pcm Mangalvar Peth'
+                    batch: isMangal
+                      ? '11th pcm Mangalvar Peth (Morning)'
                       : '12th pcm tarabai park'
                   });
                 }}
@@ -1042,19 +1043,46 @@ export default function TopicDurationPlanner() {
                 onChange={(e) => setForm({ ...form, batch: e.target.value })}
                 required
               >
-                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                <option value="All Enrolled Batches">All Enrolled Batches</option>
+                {form.branch?.toLowerCase().includes('mangal') ? (
+                  <>
+                    <optgroup label="☀️ Morning Session">
+                      <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                      <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                      <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                      <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                    </optgroup>
+                    <optgroup label="🌙 Evening Session">
+                      <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                      <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                      <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                      <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                    </optgroup>
+                    {form.batch && !form.batch.includes('(Morning)') && !form.batch.includes('(Evening)') && form.batch.toLowerCase().includes('mangal') && (
+                      <option value={form.batch}>{form.batch}</option>
+                    )}
+                    <option value="All Enrolled Batches">All Enrolled Batches</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                    <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                    <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                    <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                    <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                    <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                    {form.batch && form.batch.toLowerCase().includes('tarabai') && ![
+                      '11th pcm tarabai park', '11th pcb tarabai park', '11th pcmb tarabai park',
+                      '12th pcm tarabai park', '12th pcb tarabai park', '12th pcmb tarabai park'
+                    ].includes(form.batch) && (
+                      <option value={form.batch}>{form.batch}</option>
+                    )}
+                    <option value="All Enrolled Batches">All Enrolled Batches</option>
+                  </>
+                )}
               </select>
             </div>
 

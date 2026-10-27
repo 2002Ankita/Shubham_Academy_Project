@@ -9,6 +9,7 @@ import inventoryService from '../../services/inventoryService';
 import leaveService from '../../services/leaveService';
 import salaryService from '../../services/salaryService';
 import teacherService from '../../services/teacherService';
+import curriculumService from '../../services/curriculumService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
@@ -80,6 +81,8 @@ export default function AdminDashboard() {
   const [facultySalaries, setFacultySalaries] = useState([]);
   const [facultyList, setFacultyList] = useState([]);
   const [leaveActionLoading, setLeaveActionLoading] = useState(false);
+  const [teacherActivities, setTeacherActivities] = useState([]);
+  const [activityBranchFilter, setActivityBranchFilter] = useState('All');
 
   const [attendanceData, setAttendanceData] = useState([
     { day: 'Mon', present: 0, absent: 0 },
@@ -110,7 +113,8 @@ export default function AdminDashboard() {
         salariesRes,
         teachersRes,
         teacherAttRes,
-        teacherSumRes
+        teacherSumRes,
+        activitiesRes
       ] = await Promise.allSettled([
         studentService.getAll(),
         attendanceService.getLogs(),
@@ -123,7 +127,8 @@ export default function AdminDashboard() {
         salaryService.getAll(),
         teacherService.getAll(),
         attendanceService.getTeachersAttendance({ date: todayStr }),
-        attendanceService.getTeachersSummary({ date: todayStr })
+        attendanceService.getTeachersSummary({ date: todayStr }),
+        curriculumService.getDailyActivities().catch(() => [])
       ]);
 
       if (leavesRes.status === 'fulfilled') {
@@ -140,6 +145,9 @@ export default function AdminDashboard() {
       }
       if (teacherSumRes.status === 'fulfilled') {
         setFacultySummary(teacherSumRes.value || null);
+      }
+      if (activitiesRes.status === 'fulfilled' && Array.isArray(activitiesRes.value)) {
+        setTeacherActivities(activitiesRes.value);
       }
 
       if (studentsRes.status === 'fulfilled') {
@@ -234,7 +242,41 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+
+    const handleActivitiesUpdate = () => {
+      curriculumService.getDailyActivities().then(data => {
+        if (Array.isArray(data)) {
+          setTeacherActivities(data);
+        }
+      }).catch(() => {});
+    };
+
+    window.addEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
+    window.addEventListener('sa_timetable_updated', fetchDashboardData);
+    return () => {
+      window.removeEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
+      window.removeEventListener('sa_timetable_updated', fetchDashboardData);
+    };
   }, []);
+
+  // Filtered teacher activities for live admin view
+  const filteredTeacherActivities = teacherActivities.filter(act => {
+    const actBranch = (act.branch || '').toLowerCase();
+    const actBatch = (act.batch || '').toLowerCase();
+    if (!isSuperAdmin && activeBranch) {
+      if (isMangal && !actBranch.includes('mangal') && !actBatch.includes('mangal')) return false;
+      if (!isMangal && !actBranch.includes('tarabai') && !actBatch.includes('tarabai')) return false;
+    }
+    if (activityBranchFilter !== 'All') {
+      if (activityBranchFilter === 'Tarabai Park') {
+        return actBranch.includes('tarabai') || actBatch.includes('tarabai');
+      }
+      if (activityBranchFilter === 'Mangalwar Peth') {
+        return actBranch.includes('mangal') || actBatch.includes('mangal');
+      }
+    }
+    return true;
+  });
 
   // Faculty calculations
   const pendingLeaves = facultyLeaves.filter(
@@ -756,10 +798,10 @@ export default function AdminDashboard() {
             </div>
             <div>
               <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.20rem', lineHeight: 1.25 }}>
-                Faculty Operations: Working Time, Leaves & Salary
+                Faculty Operations: Working Time, Leaves & Daily Logs
               </h2>
               <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
-                Real-time tracking of staff working hours, pending leaves, and payroll records
+                Real-time tracking of staff working hours, teacher classroom activity logs, and payroll records
               </span>
             </div>
           </div>
@@ -784,6 +826,20 @@ export default function AdminDashboard() {
               {pendingLeaves.length > 0 && (
                 <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
                   {pendingLeaves.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/teacher-activities')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+            >
+              <FileText size={13} />
+              <span>Daily Log Activity</span>
+              {teacherActivities.length > 0 && (
+                <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
+                  {teacherActivities.length}
                 </span>
               )}
             </button>
@@ -1168,6 +1224,243 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Row: Teacher Daily Activity Logs */}
+        <div className="mt-3.5 pt-3 border-top">
+          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2.5 mb-3">
+            <div className="d-flex align-items-center gap-2.5">
+              <div
+                className="rounded-2 d-flex align-items-center justify-content-center shadow-xs flex-shrink-0"
+                style={{ width: '34px', height: '34px', backgroundColor: '#FDF0F0', color: '#8B1216', border: '1px solid #F5C2C4' }}
+              >
+                <FileText size={17} />
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <h3 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
+                    Teacher Daily Activity Logs
+                  </h3>
+                  <span
+                    className="badge rounded-pill fw-semibold"
+                    style={{ fontSize: '0.70rem', backgroundColor: '#FDF0F0', color: '#8B1216', border: '1px solid #F5C2C4' }}
+                  >
+                    {filteredTeacherActivities.length} Activities Recorded
+                  </span>
+                  <span className="badge rounded-pill bg-success-subtle text-success fw-medium" style={{ fontSize: '0.68rem' }}>
+                    ● Live Synced
+                  </span>
+                </div>
+                <span className="text-sa-muted" style={{ fontSize: '0.74rem' }}>
+                  Teaching topics, lecture duration, and classroom progress logged by teachers across branches
+                </span>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              {/* Branch Quick Filter Tabs */}
+              <div className="d-flex align-items-center bg-light p-1 rounded-2 border" style={{ fontSize: '0.74rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setActivityBranchFilter('All')}
+                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'All' ? 'bg-white text-sa-charcoal shadow-xs' : 'text-sa-muted'}`}
+                >
+                  All Campuses
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityBranchFilter('Tarabai Park')}
+                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'Tarabai Park' ? 'bg-white text-sa-maroon shadow-xs' : 'text-sa-muted'}`}
+                >
+                  Tarabai Park
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityBranchFilter('Mangalwar Peth')}
+                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'Mangalwar Peth' ? 'bg-white text-teal shadow-xs' : 'text-sa-muted'}`}
+                  style={{ color: activityBranchFilter === 'Mangalwar Peth' ? '#0D9488' : undefined }}
+                >
+                  Mangalwar Peth
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/admin/teacher-activities')}
+                className="btn btn-sm btn-light border text-sa-charcoal d-inline-flex align-items-center gap-1.5 fw-semibold"
+                style={{ fontSize: '0.75rem', height: '30px' }}
+                title="Open Daily Log Activity Management"
+              >
+                <span>Full Logs Table</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Activities List / Table */}
+          {filteredTeacherActivities.length === 0 ? (
+            <div className="text-center py-4 bg-light rounded-3 border text-sa-muted d-flex flex-column align-items-center justify-content-center">
+              <FileText size={24} className="text-muted mb-1.5 opacity-50" />
+              <span className="fw-semibold" style={{ fontSize: '0.84rem', color: '#475569' }}>
+                No teacher activity logs submitted yet
+              </span>
+              <span style={{ fontSize: '0.74rem' }}>
+                When teachers log lecture activities, topics taught, and periods from their portal, they will instantly appear here.
+              </span>
+            </div>
+          ) : (
+            <div className="table-responsive border rounded-3 overflow-hidden bg-white shadow-xs">
+              <table className="table table-hover align-middle m-0" style={{ fontSize: '0.80rem' }}>
+                <thead style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                  <tr className="text-sa-muted text-uppercase" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>
+                    <th className="fw-semibold py-2 ps-3">Teacher / Faculty</th>
+                    <th className="fw-semibold py-2">Campus & Batch</th>
+                    <th className="fw-semibold py-2">Subject</th>
+                    <th className="fw-semibold py-2">Topic Taught & Chapter</th>
+                    <th className="fw-semibold py-2 text-center">Periods / Hours</th>
+                    <th className="fw-semibold py-2">Activity Date</th>
+                    <th className="fw-semibold py-2 pe-3 text-end">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTeacherActivities.slice(0, 6).map((act, idx) => {
+                    const rawBranch = (act.branch || '').toLowerCase();
+                    const rawBatch = (act.batch || '').toLowerCase();
+                    const isMangal = rawBranch.includes('mangal') || rawBatch.includes('mangal');
+                    const isMorning = rawBatch.includes('morning');
+                    const isEvening = rawBatch.includes('evening');
+                    const isCompleted = (act.status || '').toLowerCase() === 'completed';
+
+                    const facultyName = act.teacher_name || act.teacherName || 'Faculty Member';
+                    const initials = facultyName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+                    return (
+                      <tr key={act.id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                        <td className="py-2 ps-3">
+                          <div className="d-flex align-items-center gap-2">
+                            <div
+                              className="rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                fontSize: '11px',
+                                backgroundColor: isMangal ? '#CCFBF1' : '#FEE2E2',
+                                color: isMangal ? '#0F766E' : '#991B1B'
+                              }}
+                            >
+                              {initials}
+                            </div>
+                            <div>
+                              <div className="fw-bold text-sa-charcoal" style={{ fontSize: '0.82rem', lineHeight: 1.2 }}>
+                                {facultyName}
+                              </div>
+                              <span className="text-sa-muted small" style={{ fontSize: '0.68rem' }}>
+                                {act.activity || 'Classroom Lecture'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-2">
+                          <div className="d-flex flex-column gap-0.5">
+                            <span
+                              className="badge rounded-pill fw-semibold text-truncate d-inline-block"
+                              style={{
+                                maxWidth: '140px',
+                                fontSize: '0.68rem',
+                                backgroundColor: isMangal ? '#F0FDFA' : '#FDF0F0',
+                                color: isMangal ? '#0D9488' : '#8B1216',
+                                border: isMangal ? '1px solid #99F6E4' : '1px solid #F5C2C4'
+                              }}
+                            >
+                              {isMangal ? 'Mangalwar Peth' : 'Tarabai Park'}
+                            </span>
+                            <div className="d-flex align-items-center gap-1 mt-0.5">
+                              <span className="text-sa-charcoal fw-semibold" style={{ fontSize: '0.72rem' }}>
+                                {act.batch ? act.batch.replace(/tarabai park|Mangalvar Peth/gi, '').trim() || act.batch : 'General Batch'}
+                              </span>
+                              {isMorning && (
+                                <span className="badge bg-warning-subtle text-warning-emphasis p-0 px-1" style={{ fontSize: '9.5px' }}>
+                                  ☀️ Morning
+                                </span>
+                              )}
+                              {isEvening && (
+                                <span className="badge bg-purple-subtle text-primary-emphasis p-0 px-1" style={{ fontSize: '9.5px', backgroundColor: '#F3E8FF', color: '#6B21A8' }}>
+                                  🌙 Evening
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-2">
+                          <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.78rem' }}>
+                            {act.subject || 'Physics'}
+                          </span>
+                        </td>
+
+                        <td className="py-2" style={{ maxWidth: '280px' }}>
+                          <div className="fw-semibold text-sa-charcoal text-truncate" title={act.topic_taught || act.topicTaught}>
+                            {act.topic_taught || act.topicTaught || 'Curriculum Topic'}
+                          </div>
+                          {act.chapter && (
+                            <div className="text-sa-muted text-truncate" style={{ fontSize: '0.69rem' }} title={act.chapter}>
+                              {act.chapter}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-2 text-center">
+                          <span className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '0.84rem' }}>
+                            {act.periods || 1} <span style={{ fontSize: '0.70rem', fontWeight: 500, color: '#64748B' }}>periods</span>
+                          </span>
+                          <div className="text-sa-muted" style={{ fontSize: '0.68rem' }}>
+                            {act.hours || 1.0} hrs
+                          </div>
+                        </td>
+
+                        <td className="py-2">
+                          <div className="text-sa-charcoal fw-semibold" style={{ fontSize: '0.74rem' }}>
+                            {act.activity_date || act.target_date || 'Today'}
+                          </div>
+                          <div className="text-sa-muted" style={{ fontSize: '0.68rem' }}>
+                            {act.time_slot || act.timeSlot || '08:30 AM'}
+                          </div>
+                        </td>
+
+                        <td className="py-2 pe-3 text-end">
+                          <span
+                            className="badge rounded-pill fw-semibold px-2 py-0.5"
+                            style={{
+                              fontSize: '0.68rem',
+                              backgroundColor: isCompleted ? '#EAF6EF' : '#FEF3C7',
+                              color: isCompleted ? '#168554' : '#B45309',
+                              border: isCompleted ? '1px solid #BBF7D0' : '1px solid #FDE68A'
+                            }}
+                          >
+                            {isCompleted ? '✓ Completed' : '⏳ In Progress'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Footer link to complete daily activity log page */}
+          <div className="mt-2.5 d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
+            <span>Showing recent {Math.min(6, filteredTeacherActivities.length)} of {filteredTeacherActivities.length} activities</span>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/teacher-activities')}
+              className="btn btn-link p-0 text-decoration-none fw-semibold"
+              style={{ fontSize: '0.75rem', color: '#8B1216' }}
+            >
+              Open Daily Log Activity Panel &rarr;
+            </button>
           </div>
         </div>
       </div>

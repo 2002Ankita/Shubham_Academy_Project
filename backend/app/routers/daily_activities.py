@@ -19,6 +19,7 @@ async def list_daily_activities(
     subject: Optional[str] = None,
     batch: Optional[str] = None,
     standard: Optional[str] = None,
+    branch: Optional[str] = None,
     status: Optional[str] = None,
     date: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
@@ -36,6 +37,8 @@ async def list_daily_activities(
     elif teacher_name:
         query["teacher_name"] = {"$regex": teacher_name, "$options": "i"}
 
+    if branch and branch != "All":
+        query["branch"] = {"$regex": branch, "$options": "i"}
     if subject and subject != "All":
         query["subject"] = {"$regex": subject, "$options": "i"}
     if batch and batch != "All":

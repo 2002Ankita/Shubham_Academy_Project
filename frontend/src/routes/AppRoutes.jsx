@@ -152,6 +152,7 @@ export default function AppRoutes() {
         <Route path="/admin/batches" element={<BatchManagement />} />
         <Route path="/admin/activity-timetable" element={<ActivityTimetableManagement />} />
         <Route path="/admin/daily-activities" element={<ActivityTimetableManagement />} />
+        <Route path="/admin/teacher-activities" element={<ActivityTimetableManagement />} />
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />

@@ -1090,7 +1090,15 @@ export default function DailyActivityReport() {
               <select
                 className="form-select form-select-sm"
                 value={selectedBranchFilter}
-                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedBranchFilter(val);
+                  if (val === 'Tarabai Park' && selectedBatchFilter.toLowerCase().includes('mangal')) {
+                    setSelectedBatchFilter('All');
+                  } else if (val === 'Mangalwar Peth' && selectedBatchFilter.toLowerCase().includes('tarabai')) {
+                    setSelectedBatchFilter('All');
+                  }
+                }}
                 style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
               >
                 <option value="All">All Branches</option>
@@ -1120,21 +1128,81 @@ export default function DailyActivityReport() {
               className="form-select form-select-sm"
               value={selectedBatchFilter}
               onChange={(e) => setSelectedBatchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '175px' }}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '185px' }}
             >
               <option value="All">All Batches</option>
-              <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-              <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-              <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-              <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-              <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-              <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-              <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-              <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-              <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-              <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-              <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-              <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+              {selectedBranchFilter === 'Tarabai Park' ? (
+                <>
+                  <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                  <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                  <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                  <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                  <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                  <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                </>
+              ) : selectedBranchFilter === 'Mangalwar Peth' ? (
+                <>
+                  <optgroup label="☀️ Morning Session">
+                    <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                    <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                    <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                    <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                    <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                    <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                  </optgroup>
+                  <optgroup label="🌙 Evening Session">
+                    <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                    <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                    <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                    <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                    <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                    <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                  </optgroup>
+                  <optgroup label="General / Other Batches">
+                    <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                    <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                    <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                    <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                    <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                    <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                  </optgroup>
+                </>
+              ) : (
+                <>
+                  <optgroup label="Tarabai Park Batches">
+                    <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                    <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                    <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                    <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                    <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                    <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                  </optgroup>
+                  <optgroup label="Mangalwar Peth ☀️ Morning Session">
+                    <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                    <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                    <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                    <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                    <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                    <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                  </optgroup>
+                  <optgroup label="Mangalwar Peth 🌙 Evening Session">
+                    <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                    <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                    <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                    <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                    <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                    <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                  </optgroup>
+                  <optgroup label="Mangalwar Peth General">
+                    <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                    <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                    <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                    <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                    <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                    <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                  </optgroup>
+                </>
+              )}
             </select>
 
             {/* Status Filter: In Progress vs Completed */}
@@ -1362,7 +1430,15 @@ export default function DailyActivityReport() {
               <select
                 className="form-select form-select-sm"
                 value={newActivity.branch}
-                onChange={(e) => setNewActivity({ ...newActivity, branch: e.target.value })}
+                onChange={(e) => {
+                  const b = e.target.value;
+                  const isMangal = b.toLowerCase().includes('mangal');
+                  setNewActivity({
+                    ...newActivity,
+                    branch: b,
+                    batch: isMangal ? '11th pcm Mangalvar Peth (Morning)' : '12th pcm tarabai park'
+                  });
+                }}
                 required
               >
                 <option value="Tarabai Park">Tarabai Park Branch</option>
@@ -1407,19 +1483,46 @@ export default function DailyActivityReport() {
                 onChange={(e) => setNewActivity({ ...newActivity, batch: e.target.value })}
                 required
               >
-                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                <option value="All Enrolled Batches">All Enrolled Batches</option>
+                {newActivity.branch?.toLowerCase().includes('mangal') ? (
+                  <>
+                    <optgroup label="☀️ Morning Session">
+                      <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                      <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                      <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                      <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                    </optgroup>
+                    <optgroup label="🌙 Evening Session">
+                      <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                      <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                      <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                      <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                    </optgroup>
+                    {newActivity.batch && !newActivity.batch.includes('(Morning)') && !newActivity.batch.includes('(Evening)') && newActivity.batch.toLowerCase().includes('mangal') && (
+                      <option value={newActivity.batch}>{newActivity.batch}</option>
+                    )}
+                    <option value="All Enrolled Batches">All Enrolled Batches</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                    <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                    <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                    <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                    <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                    <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                    {newActivity.batch && newActivity.batch.toLowerCase().includes('tarabai') && ![
+                      '11th pcm tarabai park', '11th pcb tarabai park', '11th pcmb tarabai park',
+                      '12th pcm tarabai park', '12th pcb tarabai park', '12th pcmb tarabai park'
+                    ].includes(newActivity.batch) && (
+                      <option value={newActivity.batch}>{newActivity.batch}</option>
+                    )}
+                    <option value="All Enrolled Batches">All Enrolled Batches</option>
+                  </>
+                )}
               </select>
             </div>
 
