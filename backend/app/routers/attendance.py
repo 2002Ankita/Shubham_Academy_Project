@@ -5,6 +5,7 @@ from app.schemas.attendance import (
     AttendanceResponse,
     TeacherAttendanceRecord,
     TeacherAttendanceSummary,
+    TeacherMonthlyHoursSummary,
     TeacherManualAttendanceCreate,
     AttendanceUpdate,
     BatchAttendanceLedgerResponse,
@@ -18,6 +19,7 @@ from app.services.attendance_service import (
     check_out_teacher,
     get_all_teachers_attendance,
     get_teachers_attendance_summary,
+    get_teachers_monthly_hours_summary,
     mark_manual_teacher_attendance,
     update_attendance_record,
     delete_attendance_record,
@@ -82,10 +84,21 @@ async def get_teachers_summary(
     token: str = Depends(oauth2_scheme)
 ):
     user = await get_current_user(token)
-    role = user.role.upper()
+    role = user.role.upper().replace("-", "_")
     if role not in {"ADMIN", "SUPER_ADMIN"}:
         raise HTTPException(status_code=403, detail="Not authorized to view teacher attendance summary")
     return await get_teachers_attendance_summary(date)
+
+@router.get("/teachers/monthly-hours", response_model=TeacherMonthlyHoursSummary)
+async def get_teachers_monthly_hours(
+    month: Optional[str] = Query(None, description="Month in YYYY-MM format, e.g. 2026-10"),
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = user.role.upper().replace("-", "_")
+    if role not in {"ADMIN", "SUPER_ADMIN"}:
+        raise HTTPException(status_code=403, detail="Not authorized to view teacher monthly hours")
+    return await get_teachers_monthly_hours_summary(month)
 
 @router.post("/teachers/manual")
 async def manual_teacher_attendance(

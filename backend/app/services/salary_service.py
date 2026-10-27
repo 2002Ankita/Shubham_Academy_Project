@@ -120,46 +120,29 @@ from app.models.attendance import Attendance
 from datetime import timedelta
 
 async def generate_monthly_salaries(month_name: str):
-    try:
-        month_date = datetime.strptime(month_name, "%B %Y")
-        start_date = month_date
-        if month_date.month == 12:
-            end_date = month_date.replace(year=month_date.year+1, month=1)
-        else:
-            end_date = month_date.replace(month=month_date.month+1)
-    except ValueError:
-        start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        end_date = start_date + timedelta(days=31)
-
+    from app.services.attendance_service import get_teachers_monthly_hours_summary
+    summary = await get_teachers_monthly_hours_summary(month_name)
     teachers = await Teacher.find_all().to_list()
-    for t in teachers:
-        att_records = await Attendance.find(
-            Attendance.teacher.id == t.id,
-            Attendance.date >= start_date,
-            Attendance.date < end_date
-        ).to_list()
-        
-        total_hours = 0.0
-        for att in att_records:
-            if att.check_in_time and att.check_out_time:
-                diff = (att.check_out_time - att.check_in_time).total_seconds() / 3600.0
-                total_hours += max(0.0, diff)
-        
-        working_hours = total_hours if total_hours > 0 else 160.0
-        
-        if hasattr(t, 'hourly_rate') and t.hourly_rate:
-            base = t.hourly_rate * working_hours
-        else:
-            base = getattr(t, 'monthly_salary', 60000)
-            if not base or base < 1000:
-                base = 60000
+    teacher_by_id = {str(t.id): t for t in teachers}
 
-        existing = await SalaryPayment.find_one(SalaryPayment.teacher.id == t.id, SalaryPayment.month_name == month_name)
+    month_label = summary.get("month_label") or month_name
+
+    for f in summary.get("faculty_records", []):
+        tid = f.get("teacher_id")
+        t = teacher_by_id.get(tid)
+        if not t:
+            continue
+        working_hours = float(f.get("total_hours", 0.0) or 0.0)
+        base = float(f.get("calculated_salary", 0.0) or 0.0)
+        if base <= 0 and working_hours > 0:
+            base = round(working_hours * float(f.get("hourly_rate", 500.0) or 500.0), 2)
+
+        existing = await SalaryPayment.find_one(SalaryPayment.teacher.id == t.id, SalaryPayment.month_name == month_label)
         
         if not existing:
             new_s = SalaryPayment(
                 teacher=t,
-                month_name=month_name,
+                month_name=month_label,
                 base_salary=base,
                 allowances=0,
                 deductions=0,
@@ -173,7 +156,7 @@ async def generate_monthly_salaries(month_name: str):
             await new_s.insert()
         elif existing.status in ["Processing", "Partially Paid"]:
             existing.base_salary = base
-            existing.net_payable = base + existing.allowances - existing.deductions
-            existing.amount_pending = existing.net_payable - getattr(existing, 'amount_paid', 0.0)
+            existing.net_payable = base + (existing.allowances or 0) - (existing.deductions or 0)
+            existing.amount_pending = max(0.0, existing.net_payable - (getattr(existing, 'amount_paid', 0.0) or 0.0))
             existing.working_hours = working_hours
             await existing.save()

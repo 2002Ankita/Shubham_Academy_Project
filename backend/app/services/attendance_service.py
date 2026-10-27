@@ -1327,3 +1327,214 @@ async def save_batch_date_attendance(payload: dict) -> dict:
         "students_processed": len(records)
     }
 
+async def get_teachers_monthly_hours_summary(month_str: Optional[str] = None) -> dict:
+    """
+    Calculate monthly faculty working hours and estimated salary compensation.
+    Aggregates attendance punch durations, daily lecture activities, and hourly rates.
+    """
+    import calendar
+    from app.models.salary import SalaryPayment
+
+    now = datetime.utcnow()
+    if not month_str:
+        year = now.year
+        month = now.month
+        month_str = f"{year:04d}-{month:02d}"
+    else:
+        try:
+            parts = month_str.strip().split("-")
+            year = int(parts[0])
+            month = int(parts[1])
+        except Exception:
+            year = now.year
+            month = now.month
+            month_str = f"{year:04d}-{month:02d}"
+
+    last_day = calendar.monthrange(year, month)[1]
+    start_date_str = f"{year:04d}-{month:02d}-01"
+    end_date_str = f"{year:04d}-{month:02d}-{last_day:02d}"
+
+    dt_obj = datetime(year, month, 1)
+    month_label = dt_obj.strftime("%B %Y")
+
+    # Fetch all records for the month (both punches and daily activities)
+    month_records = await get_all_teachers_attendance(start_date=start_date_str, end_date=end_date_str)
+
+    # Preload teachers and user identities
+    teachers = await Teacher.find_all().to_list()
+
+    # Preload salary payments for this month
+    salaries = await SalaryPayment.find_all().to_list()
+    sal_by_teacher = {}
+    for s in salaries:
+        s_m = (getattr(s, "month_name", "") or "").lower()
+        if month_label.lower() in s_m or month_str in s_m:
+            tid = None
+            if s.teacher:
+                if hasattr(s.teacher, "id"):
+                    tid = str(s.teacher.id)
+                elif hasattr(s.teacher, "ref") and hasattr(s.teacher.ref, "id"):
+                    tid = str(s.teacher.ref.id)
+            if tid:
+                sal_by_teacher[tid] = s
+
+    # Build faculty records map
+    teacher_stats = {}
+    for t in teachers:
+        user_name = ""
+        user_email = ""
+        if isinstance(t.user, User):
+            user_name = t.user.full_name
+            user_email = t.user.email
+        elif t.user:
+            try:
+                user_obj = await User.get(t.user.ref.id)
+                if user_obj:
+                    user_name = user_obj.full_name
+                    user_email = user_obj.email
+            except Exception:
+                pass
+
+        rate = float(getattr(t, "hourly_rate", 0) or 0)
+        if rate <= 1.0:
+            rate = 500.0  # standard fallback hourly rate
+
+        tid_str = str(t.id)
+        teacher_stats[tid_str] = {
+            "teacher_id": tid_str,
+            "teacher_name": user_name or f"Faculty ({t.employee_id})",
+            "employee_id": t.employee_id or "--",
+            "email": user_email or t.email or "",
+            "mobile_number": t.mobile_number or "",
+            "subjects": t.subjects or [],
+            "hourly_rate": rate,
+            "total_minutes": 0,
+            "days_set": set()
+        }
+
+    # Aggregate minutes and days from records
+    for r in month_records:
+        r_tid = r.get("teacher_id")
+        r_tname = (r.get("teacher_name") or "").lower()
+        h_str = r.get("total_hours") or ""
+
+        mins = 0
+        if "h" in h_str:
+            p = h_str.split("h")
+            hrs = int(p[0].strip() or 0)
+            m = 0
+            if len(p) > 1 and "m" in p[1]:
+                m = int(p[1].replace("m", "").strip() or 0)
+            mins = hrs * 60 + m
+        elif r.get("check_in_time") and r.get("check_out_time"):
+            try:
+                cin = datetime.fromisoformat(r["check_in_time"].replace("Z", "+00:00"))
+                cout = datetime.fromisoformat(r["check_out_time"].replace("Z", "+00:00"))
+                mins = int(max(0, (cout - cin).total_seconds()) // 60)
+            except Exception:
+                pass
+
+        matched_key = None
+        if r_tid and r_tid in teacher_stats:
+            matched_key = r_tid
+        else:
+            for k, val in teacher_stats.items():
+                if val["teacher_name"].lower() == r_tname:
+                    matched_key = k
+                    break
+
+        if not matched_key and r_tname:
+            # Handle additional faculty like Prof. Shubham Shinde who might not have a formal Teacher doc
+            matched_key = f"ext_{r_tname}"
+            teacher_stats[matched_key] = {
+                "teacher_id": r_tid or matched_key,
+                "teacher_name": r.get("teacher_name") or "Faculty Member",
+                "employee_id": r.get("employee_id") or "--",
+                "email": r.get("email") or "",
+                "mobile_number": r.get("mobile_number") or "",
+                "subjects": r.get("subjects") or ["Physics & Mathematics"],
+                "hourly_rate": 500.0,
+                "total_minutes": 0,
+                "days_set": set()
+            }
+
+        if matched_key:
+            teacher_stats[matched_key]["total_minutes"] += mins
+            d_str = (r.get("date") or "")[:10]
+            if d_str:
+                teacher_stats[matched_key]["days_set"].add(d_str)
+
+    # Format list of records
+    faculty_list = []
+    total_payroll = 0.0
+    total_minutes_all = 0
+    active_count = 0
+
+    for k, stat in teacher_stats.items():
+        tm = stat["total_minutes"]
+        days_count = len(stat["days_set"])
+        hrs_dec = round(tm / 60.0, 2)
+        h_part = tm // 60
+        m_part = tm % 60
+        calc_salary = round((tm / 60.0) * stat["hourly_rate"], 2)
+
+        if tm > 0 or days_count > 0:
+            active_count += 1
+
+        total_payroll += calc_salary
+        total_minutes_all += tm
+
+        # Check existing payment
+        existing_sal = sal_by_teacher.get(stat["teacher_id"])
+        sal_status = "Calculated (Hourly)"
+        amt_paid = 0.0
+        amt_pending = calc_salary
+
+        if existing_sal:
+            amt_paid = float(getattr(existing_sal, "amount_paid", 0.0) or 0.0)
+            amt_pending = float(getattr(existing_sal, "amount_pending", calc_salary) or calc_salary)
+            if existing_sal.status in ["Disbursed", "Fully Paid"]:
+                sal_status = "Disbursed"
+            elif existing_sal.status == "Partially Paid":
+                sal_status = "Partially Paid"
+            elif existing_sal.status == "Processing":
+                sal_status = "Payroll Draft Ready"
+
+        faculty_list.append({
+            "teacher_id": stat["teacher_id"],
+            "teacher_name": stat["teacher_name"],
+            "employee_id": stat["employee_id"],
+            "email": stat["email"],
+            "mobile_number": stat["mobile_number"],
+            "subjects": stat["subjects"],
+            "days_worked": days_count,
+            "total_minutes": tm,
+            "total_hours": hrs_dec,
+            "total_hours_formatted": f"{h_part}h {m_part}m",
+            "hourly_rate": stat["hourly_rate"],
+            "calculated_salary": calc_salary,
+            "salary_status": sal_status,
+            "amount_paid": amt_paid,
+            "amount_pending": amt_pending
+        })
+
+    # Sort faculty: active teachers with hours first, then alphabetically
+    faculty_list.sort(key=lambda x: (-x["total_minutes"], x["teacher_name"]))
+
+    total_hrs_all = round(total_minutes_all / 60.0, 2)
+    tot_h_part = total_minutes_all // 60
+    tot_m_part = total_minutes_all % 60
+    avg_hrs = round(total_hrs_all / active_count, 2) if active_count > 0 else 0.0
+
+    return {
+        "month": month_str,
+        "month_label": month_label,
+        "total_teachers": len(faculty_list),
+        "active_teachers_this_month": active_count,
+        "total_hours_worked": total_hrs_all,
+        "total_hours_formatted": f"{tot_h_part}h {tot_m_part}m",
+        "total_calculated_payroll": round(total_payroll, 2),
+        "average_hours_per_teacher": avg_hrs,
+        "faculty_records": faculty_list
+    }
+

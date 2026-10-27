@@ -116,3 +116,31 @@ class BatchAttendanceLedgerSaveRequest(BaseModel):
     session: Optional[str] = None
     records: List[BatchStudentAttendanceSaveItem]
 
+class TeacherMonthlyHoursRecord(BaseModel):
+    teacher_id: str
+    teacher_name: str
+    employee_id: str
+    email: Optional[str] = None
+    mobile_number: Optional[str] = None
+    subjects: Optional[List[str]] = []
+    days_worked: int = 0
+    total_minutes: int = 0
+    total_hours: float = 0.0
+    total_hours_formatted: str = "0h 00m"
+    hourly_rate: float = 0.0
+    calculated_salary: float = 0.0
+    salary_status: str = "Calculated"
+    amount_paid: float = 0.0
+    amount_pending: float = 0.0
+
+class TeacherMonthlyHoursSummary(BaseModel):
+    month: str
+    month_label: str
+    total_teachers: int = 0
+    active_teachers_this_month: int = 0
+    total_hours_worked: float = 0.0
+    total_hours_formatted: str = "0h 00m"
+    total_calculated_payroll: float = 0.0
+    average_hours_per_teacher: float = 0.0
+    faculty_records: List[TeacherMonthlyHoursRecord] = []
+

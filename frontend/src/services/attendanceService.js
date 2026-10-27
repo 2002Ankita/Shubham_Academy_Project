@@ -143,6 +143,12 @@ export const attendanceService = {
     return res.data;
   },
 
+  // Academy Admin: Monthly Teacher Working Hours & Salary Compensation Summary
+  getTeachersMonthlyHours: async (params = {}) => {
+    const res = await api.get('/attendance/teachers/monthly-hours', { params });
+    return res.data;
+  },
+
   // Academy Admin: Manual check-in / check-out / punch entry
   markTeacherManual: async (data) => {
     const res = await api.post('/attendance/teachers/manual', data);
