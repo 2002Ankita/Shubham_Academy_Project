@@ -35,7 +35,7 @@ export default function StudentAttendance() {
           const matching = generalLogs.filter(
             l => (studentRoll && (l.rollNumber === studentRoll || l.studentName === user?.full_name))
           );
-          setLogs(matching.length > 0 ? matching : generalLogs);
+          setLogs(matching || []);
         }
       } catch (err) {
         console.warn('Attendance loading fallback:', err);

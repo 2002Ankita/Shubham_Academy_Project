@@ -26,6 +26,10 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     branch: Optional[str] = None
+    batch: Optional[str] = None
+    academic_batch: Optional[str] = None
+    session: Optional[str] = None
+    student_id: Optional[str] = None
     is_active: bool
 
 class UserUpdate(BaseModel):

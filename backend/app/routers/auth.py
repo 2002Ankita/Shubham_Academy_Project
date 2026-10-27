@@ -47,12 +47,38 @@ async def logout(token: str = Depends(oauth2_scheme)):
 async def get_me(token: str = Depends(oauth2_scheme)):
     from app.services.auth_service import get_current_user
     user = await get_current_user(token)
+
+    branch_val = getattr(user, "branch", None)
+    batch_val = None
+    acad_batch_val = None
+    session_val = None
+    student_id_val = None
+
+    if (user.role or "").upper() == "STUDENT":
+        from app.models.student import Student
+        st = await Student.find_one({
+            "$or": [{"user.$id": user.id}, {"user.id": user.id}, {"user": user.id}]
+        })
+        if st:
+            branch_val = st.branch or branch_val
+            batch_val = st.batch or st.academic_batch
+            acad_batch_val = st.academic_batch or st.batch
+            session_val = st.session
+            student_id_val = st.student_id
+            if user.branch != branch_val:
+                user.branch = branch_val
+                await user.save()
+
     return {
         "id": str(user.id),
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
-        "branch": getattr(user, "branch", None),
+        "branch": branch_val,
+        "batch": batch_val,
+        "academic_batch": acad_batch_val,
+        "session": session_val,
+        "student_id": student_id_val,
         "is_active": user.is_active
     }
 

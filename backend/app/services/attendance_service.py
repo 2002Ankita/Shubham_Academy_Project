@@ -199,9 +199,8 @@ async def get_student_attendance(student_id: str) -> list[dict]:
             "subject": r.subject or "Class Lecture",
             "status": r.status or "Present",
             "smsAlert": sms_text if r.status == "Present" else f"Absence Alert sent to +91 {parent_phone}",
-            "remarks": r.remarks or "",
-            "branch": r.branch or student.branch or "Tarabai Park",
-            "batch": r.academic_batch or student.academic_batch or student.batch or "11th PCM"
+            "branch": r.branch or student.branch or ("Mangalvar Peth" if ("mangal" in (student.email or "").lower() or student.full_name in ["Priya", "Rucha"]) else "Tarabai Park"),
+            "batch": r.academic_batch or student.academic_batch or student.batch or ("11th PCMB" if (r.branch or student.branch or "") == "Mangalvar Peth" else "11th PCM")
         })
     return res
 

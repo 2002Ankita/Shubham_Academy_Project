@@ -59,6 +59,11 @@ export const authService = {
             userId = 'USR-STU-01';
           }
 
+          let userBatch = null;
+          let userAcadBatch = null;
+          let userSession = null;
+          let userStudentId = null;
+
           try {
             const meResponse = await api.get('/auth/me', {
               headers: { Authorization: `Bearer ${token}` }
@@ -67,6 +72,10 @@ export const authService = {
             if (u?.id) userId = u.id;
             if (u?.full_name) userName = u.full_name;
             if (u?.branch) branch = u.branch;
+            if (u?.batch) userBatch = u.batch;
+            if (u?.academic_batch) userAcadBatch = u.academic_batch;
+            if (u?.session) userSession = u.session;
+            if (u?.student_id) userStudentId = u.student_id;
             if (u?.role) {
               const r = u.role.toLowerCase().replace('_', '-');
               if (r) targetRole = r;
@@ -76,7 +85,7 @@ export const authService = {
           }
 
           if (!userName || userName === 'Rajesh Patil' || userName === 'Shubham Sharma') {
-            if (targetRole === 'teacher' || emailLower.includes('priya')) {
+            if (targetRole === 'teacher' || (emailLower.includes('priya.k@') || emailLower.startsWith('teacher'))) {
               userName = 'Dr. Priya Kulkarni';
               targetRole = 'teacher';
             } else if (targetRole === 'student' || emailLower.includes('aarav') || emailLower === '9876500001') {
@@ -96,11 +105,16 @@ export const authService = {
             name: userName,
             email: credentials.email,
             role: targetRole,
-            branch: credentials.branch || branch,
+            branch: branch || credentials.branch,
+            batch: userBatch,
+            academic_batch: userAcadBatch,
+            session: userSession,
+            student_id: userStudentId,
             avatar: defaultAvatar,
             title: targetRole.toUpperCase().replace('-', '_')
           };
 
+          localStorage.removeItem('student_profile_data');
           localStorage.setItem('user', JSON.stringify(formattedUser));
           return { accessToken: token, user: formattedUser };
         }
@@ -197,6 +211,7 @@ export const authService = {
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('student_profile_data');
     }
     return { success: true };
   },

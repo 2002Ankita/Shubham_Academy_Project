@@ -60,7 +60,7 @@ export default function StudentProfile() {
     pincode: '',
     standard: user?.standard || '',
     batch: user?.batch || '',
-    branch: user?.branch || 'Kolhapur Main Branch',
+    branch: user?.branch || 'Mangalvar Peth',
     academicYear: '2025-2026',
     previousSchool: '',
     parentName: user?.parentName || user?.parent_name || '',
@@ -81,7 +81,7 @@ export default function StudentProfile() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
+        if (parsed && typeof parsed === 'object' && String(parsed.id) === String(user?.id)) {
           return { ...defaultProfile, ...parsed };
         }
       } catch (e) {

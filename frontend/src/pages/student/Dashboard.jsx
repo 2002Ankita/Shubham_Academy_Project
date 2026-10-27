@@ -108,10 +108,23 @@ export default function StudentDashboard() {
         }
         if (examsData.status === 'fulfilled' && Array.isArray(examsData.value)) {
           const stu = studentData.status === 'fulfilled' ? studentData.value : null;
-          const sBatch = (stu?.batch || '').toLowerCase();
-          const sStream = sBatch.split(' ')[1] || '';
+          const activeBranch = stu?.branch || user?.branch || (user?.email === 'priya@gmail.com' || user?.email === 'rucha@gmail.com' || (user?.email || '').includes('mangal') ? 'Mangalvar Peth' : 'Tarabai Park');
+          const isMangalvar = activeBranch.toLowerCase().includes('mangal');
+          const isTarabai = activeBranch.toLowerCase().includes('tarabai');
+          const sBatch = (stu?.batch || stu?.academic_batch || user?.batch || '').toLowerCase();
+          const sStream = sBatch.split(' ')[1] || (sBatch.includes('pcmb') ? 'pcmb' : sBatch.includes('pcm') ? 'pcm' : sBatch.includes('pcb') ? 'pcb' : '');
           
           const filteredExams = examsData.value.filter(e => {
+            const combo = `${e.branch || ''} ${e.batch || ''} ${e.standard || ''} ${e.title || ''} ${e.exam_name || ''}`.toLowerCase();
+            if (isMangalvar) {
+              if (combo.includes('tarabai') || combo.includes(' tp ') || combo.endsWith(' tp') || combo.includes('-tp')) return false;
+              if (e.branch && !e.branch.toLowerCase().includes('mangal')) return false;
+            }
+            if (isTarabai) {
+              if (combo.includes('mangalvar') || combo.includes('mangalwar') || combo.includes(' mp ') || combo.endsWith(' mp') || combo.includes('-mp')) return false;
+              if (e.branch && !e.branch.toLowerCase().includes('tarabai')) return false;
+            }
+
             const subj = (e.subject || e.title || '').toLowerCase();
             let hasSubjectCheck = false;
             let subjectMatched = false;
@@ -162,10 +175,26 @@ export default function StudentDashboard() {
         if (batchesDataRes?.status === 'fulfilled' && Array.isArray(batchesDataRes.value)) {
            const stu = studentData.status === 'fulfilled' ? studentData.value : null;
            if (stu) {
+              const activeBranch = stu?.branch || user?.branch || (user?.email === 'priya@gmail.com' || user?.email === 'rucha@gmail.com' || (user?.email || '').includes('mangal') ? 'Mangalvar Peth' : 'Tarabai Park');
+              const isMangalvar = activeBranch.toLowerCase().includes('mangal');
+              const isTarabai = activeBranch.toLowerCase().includes('tarabai');
+
               const isMatch = (b, stu) => {
                  const bName = (b.name || '').toLowerCase();
+                 const bBranch = (b.branch || '').toLowerCase();
+
+                 // Strict campus isolation: never show Tarabai Park to Mangalvar Peth students
+                 if (isMangalvar) {
+                    if (bName.includes('tarabai') || bName.includes(' tp ') || bName.endsWith(' tp') || bName.includes('-tp')) return false;
+                    if (bBranch && !bBranch.includes('mangal')) return false;
+                 }
+                 if (isTarabai) {
+                    if (bName.includes('mangalvar') || bName.includes('mangalwar') || bName.includes(' mp ') || bName.endsWith(' mp') || bName.includes('-mp')) return false;
+                    if (bBranch && !bBranch.includes('tarabai')) return false;
+                 }
+
                  const bStd = (b.standard || '').toLowerCase();
-                 const sBatch = (stu.batch || '').toLowerCase();
+                 const sBatch = (stu.batch || stu.academic_batch || '').toLowerCase();
                  const sStd = (stu.standard || '').toLowerCase();
                  const subj = (b.subject || '').toLowerCase();
                  
