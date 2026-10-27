@@ -59,17 +59,20 @@ export default function SignIn() {
 
   const handleCampusChange = (campus) => {
     setSelectedCampus(campus);
-    const roleToUse = (selectedRole === 'admin' || selectedRole === 'superadmin') ? selectedRole : 'admin';
-    setSelectedRole(roleToUse);
+    const roleToUse = selectedRole;
     setEmail(getRoleEmail(roleToUse, campus));
-    setPassword('password123');
+    if (roleToUse === 'student') {
+      setPassword('9876500001');
+    } else {
+      setPassword('password123');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await login({ email, password, role: selectedRole });
+      const res = await login({ email, password, role: selectedRole, branch: selectedCampus });
       toast.success(`Welcome back, ${res.user.name}!`);
 
       if (res.user.role === 'super-admin') {
@@ -300,7 +303,12 @@ export default function SignIn() {
           </div>
           {selectedRole === 'student' && (
             <div className="mt-1.5" style={{ fontSize: '0.72rem', color: '#6B7280' }}>
-              <span>💡 Students can log in using their <strong>Mobile Number</strong> or Email, with their <strong>Mobile Number</strong> as Password.</span>
+              <span>💡 Students can log in using their <strong>Mobile Number</strong> or Email, with their <strong>Mobile Number</strong> or <strong>password123</strong> as Password.</span>
+            </div>
+          )}
+          {selectedRole === 'teacher' && (
+            <div className="mt-1.5" style={{ fontSize: '0.72rem', color: '#6B7280' }}>
+              <span>💡 Teachers can log in with <strong>priya.k@shubham.edu</strong> and password <strong>password123</strong>.</span>
             </div>
           )}
         </div>

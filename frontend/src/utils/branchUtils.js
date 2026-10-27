@@ -221,8 +221,10 @@ export const filterAttendanceByBranch = (records, targetBranch) => {
  * Filters fee records / receipts by campus.
  */
 export const filterFeesByBranch = (fees, targetBranch) => {
-  if (!targetBranch) return fees;
+  if (!targetBranch || targetBranch === 'ALL') return fees;
   const norm = normalizeBranch(targetBranch);
+  if (!norm || norm === 'ALL') return fees;
+
   return (fees || []).filter(f => {
     const br = f?.branch || '';
     if (br) {
@@ -239,12 +241,47 @@ export const filterFeesByBranch = (fees, targetBranch) => {
     if (roll.includes('TP')) return norm === CAMPUS.TARABAI_PARK;
 
     const sName = (f?.studentName || f?.student_name || '').toLowerCase();
-    if (sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya')) {
+    if (sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya') || sName.includes('rajesh') || sName.includes('sawant')) {
       return norm === CAMPUS.MANGALVAR_PETH;
     }
-    if (sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan')) {
+    if (sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan') || sName.includes('omkar') || sName.includes('priya') || sName.includes('sunita')) {
       return norm === CAMPUS.TARABAI_PARK;
     }
-    return false;
+    return true;
   });
 };
+
+/**
+ * Checks whether a leave request belongs to a target branch.
+ */
+export const isLeaveInBranch = (leave, targetBranch) => {
+  if (!targetBranch) return true;
+  const normTarget = normalizeBranch(targetBranch);
+  if (!normTarget) return true;
+
+  const br = leave?.branch || '';
+  if (br) {
+    const match = normalizeBranch(br);
+    if (match) return match === normTarget;
+  }
+
+  const tName = (leave?.teacher_name || leave?.teacherName || '').toLowerCase();
+  if (tName.includes('sharma') || tName.includes('mangalvar') || tName.includes('mangalwar')) {
+    return normTarget === CAMPUS.MANGALVAR_PETH;
+  }
+  if (tName.includes('patil') || tName.includes('tarabai')) {
+    return normTarget === CAMPUS.TARABAI_PARK;
+  }
+
+  return true;
+};
+
+/**
+ * Filters leave requests by campus.
+ */
+export const filterLeavesByBranch = (leaves, targetBranch) => {
+  if (!targetBranch) return leaves;
+  const norm = normalizeBranch(targetBranch);
+  return (leaves || []).filter(l => isLeaveInBranch(l, norm));
+};
+

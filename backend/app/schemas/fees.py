@@ -19,6 +19,7 @@ class FeePaymentResponse(FeePaymentCreate):
     roll_number: str
     total_fees: float
     pending_fees: float
+    batch: Optional[str] = None
     original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
     discount_status: Optional[str] = "NONE"

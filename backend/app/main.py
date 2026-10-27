@@ -21,6 +21,11 @@ async def lifespan(app: FastAPI):
         await normalize_all_students()
     except Exception:
         pass
+    try:
+        from app.routers.leave_requests import ensure_default_leave_requests
+        await ensure_default_leave_requests()
+    except Exception:
+        pass
     from app.core.scheduler import start_scheduler, shutdown_scheduler
     start_scheduler()
     yield

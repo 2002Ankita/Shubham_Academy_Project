@@ -38,18 +38,27 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
             if user_obj:
                 student_name = user_obj.full_name
 
+    branch_val = getattr(payment, "branch", None) or (getattr(student_obj, "branch", "") if student_obj else "") or ""
+    batch_val = (getattr(student_obj, "batch", "") if student_obj else "") or ""
+    standard_val = getattr(payment, "standard", None) or (getattr(student_obj, "standard", "") if student_obj else "") or ""
+    pending_val = getattr(student_obj, "remaining_fees", 0.0) if student_obj else 0.0
+
     return {
         "id": str(payment.id),
         "student_id": student_id_str,
         "student_name": student_name,
         "roll_number": roll_number,
-        "amount_paid": payment.amount_paid,
-        "payment_method": payment.payment_method,
-        "transaction_reference": payment.transaction_reference,
-        "remarks": payment.remarks,
+        "branch": branch_val,
+        "batch": batch_val,
+        "standard": standard_val,
+        "amount_paid": payment.amount_paid or 0.0,
+        "payment_method": payment.payment_method or "Cash",
+        "transaction_reference": payment.transaction_reference or "N/A",
+        "remarks": payment.remarks or "Fee Payment",
         "payment_date": payment.payment_date,
         "original_fees": getattr(student_obj, "original_fees", 0.0) if student_obj else 0.0,
         "total_fees": getattr(student_obj, "total_fees", 0.0) if student_obj else 0.0,
+        "pending_fees": pending_val,
         "discount_amount": getattr(student_obj, "discount_amount", 0.0) if student_obj else 0.0,
         "discount_status": getattr(student_obj, "discount_status", "NONE") if student_obj else "NONE",
         "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None
@@ -541,6 +550,9 @@ async def get_all_fee_payments(
                 formatted["discount_amount"] = getattr(student_obj, "discount_amount", 0.0) or 0.0
                 formatted["discount_status"] = getattr(student_obj, "discount_status", "NONE") or "NONE"
                 formatted["discount_approved_by"] = getattr(student_obj, "discount_approved_by", None)
+                formatted["branch"] = getattr(p, "branch", None) or getattr(student_obj, "branch", "") or ""
+                formatted["batch"] = getattr(student_obj, "batch", "") or ""
+                formatted["standard"] = getattr(p, "standard", None) or getattr(student_obj, "standard", "") or ""
 
             formatted["total_fees"] = total_fees
             formatted["pending_fees"] = pending_after_this_payment

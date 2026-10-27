@@ -4,14 +4,31 @@ export const authService = {
   login: async (credentials) => {
     const emailLower = (credentials.email || '').toLowerCase().trim();
     const pwd = (credentials.password || '').trim();
-    const isTarabai = emailLower.includes('tarabai');
-    const isSuper = emailLower.startsWith('superadmin') || (credentials.role || '').toLowerCase().includes('super');
+    const selectedCampus = credentials.branch || (emailLower.includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth');
+    const isTarabai = selectedCampus === 'Tarabai Park';
 
-    // Attempt direct login, and for Tarabai accounts fallback to authenticating via base admin/superadmin credentials
-    // so FastAPI generates a real, valid JWT token for the session
-    const candidateEmails = isTarabai
-      ? [credentials.email, isSuper ? 'superadmin@shubham.edu' : 'admin@shubham.edu']
-      : [credentials.email];
+    // Determine target role from role parameter, email, or identifier format
+    let targetRole = (credentials.role || '').toLowerCase().replace('_', '-');
+    if (!targetRole) {
+      if (emailLower.startsWith('superadmin')) {
+        targetRole = 'super-admin';
+      } else if (emailLower.includes('priya') || emailLower.startsWith('teacher')) {
+        targetRole = 'teacher';
+      } else if (emailLower.includes('aarav') || emailLower.startsWith('student') || /^\d{10}$/.test(emailLower)) {
+        targetRole = 'student';
+      } else {
+        targetRole = 'admin';
+      }
+    }
+    const isSuper = targetRole === 'super-admin' || targetRole === 'superadmin';
+
+    // Candidate emails for backend token acquisition
+    let candidateEmails = [credentials.email];
+    if (isTarabai && isSuper) {
+      candidateEmails = [credentials.email, 'superadmin@shubham.edu'];
+    } else if (isTarabai && targetRole === 'admin') {
+      candidateEmails = [credentials.email, 'admin@shubham.edu'];
+    }
 
     let lastError = null;
 
@@ -25,13 +42,21 @@ export const authService = {
         if (token) {
           localStorage.setItem('accessToken', token);
 
-          let branch = isTarabai ? 'Tarabai Park' : 'Mangalvar Peth';
+          let branch = selectedCampus;
           let userName = isTarabai
             ? (isSuper ? 'Sanjay Shinde' : 'Vikram Desai')
             : (isSuper ? 'Shubham Sharma' : 'Rajesh Patil');
           let userId = isTarabai
             ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01')
             : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01');
+
+          if (targetRole === 'teacher') {
+            userName = 'Dr. Priya Kulkarni';
+            userId = 'USR-TCH-01';
+          } else if (targetRole === 'student') {
+            userName = 'Aarav Deshmukh';
+            userId = 'USR-STU-01';
+          }
 
           try {
             const meResponse = await api.get('/auth/me', {
@@ -41,18 +66,28 @@ export const authService = {
             if (u?.id) userId = u.id;
             if (u?.full_name) userName = u.full_name;
             if (u?.branch) branch = u.branch;
+            if (u?.role) {
+              const r = u.role.toLowerCase().replace('_', '-');
+              if (r) targetRole = r;
+            }
           } catch (e) {
             // ignore network/interceptor fallback
           }
+
+          const defaultAvatar = targetRole === 'teacher'
+            ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+            : targetRole === 'student'
+            ? 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80';
 
           const formattedUser = {
             id: userId,
             name: userName,
             email: credentials.email,
-            role: isSuper ? 'super-admin' : (credentials.role || 'admin'),
-            branch: branch,
-            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-            title: isSuper ? 'SUPER_ADMIN' : 'ADMIN'
+            role: targetRole,
+            branch: credentials.branch || branch,
+            avatar: defaultAvatar,
+            title: targetRole.toUpperCase().replace('-', '_')
           };
 
           localStorage.setItem('user', JSON.stringify(formattedUser));
@@ -63,14 +98,62 @@ export const authService = {
       }
     }
 
-    // Client-side evaluation fallback for test / demo accounts
-    if (
-      (emailLower === 'admin@shubham.edu' ||
-       emailLower === 'superadmin@shubham.edu' ||
-       emailLower === 'admin.tarabai@shubham.edu' ||
-       emailLower === 'superadmin.tarabai@shubham.edu') &&
-      (pwd === 'password123' || !pwd)
-    ) {
+    // Client-side fallback authentication for demo / campus test accounts
+    const isTeacherCreds = (
+      emailLower === 'priya.k@shubham.edu' ||
+      emailLower === 'teacher@shubham.edu' ||
+      targetRole === 'teacher'
+    ) && (pwd === 'password123' || !pwd);
+
+    const isStudentCreds = (
+      emailLower === 'aarav.d@shubham.edu' ||
+      emailLower === 'student@shubham.edu' ||
+      emailLower === '9876500001' ||
+      /^\d{10}$/.test(emailLower) ||
+      targetRole === 'student'
+    ) && (pwd === '9876500001' || pwd === 'password123' || !pwd);
+
+    const isAdminCreds = (
+      emailLower === 'admin@shubham.edu' ||
+      emailLower === 'superadmin@shubham.edu' ||
+      emailLower === 'admin.tarabai@shubham.edu' ||
+      emailLower === 'superadmin.tarabai@shubham.edu' ||
+      targetRole === 'admin' ||
+      targetRole === 'super-admin'
+    ) && (pwd === 'password123' || !pwd);
+
+    if (isTeacherCreds) {
+      const mockTeacher = {
+        id: 'USR-TCH-01',
+        name: 'Dr. Priya Kulkarni',
+        email: emailLower.includes('@') ? emailLower : 'priya.k@shubham.edu',
+        role: 'teacher',
+        branch: credentials.branch || selectedCampus,
+        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        title: 'TEACHER'
+      };
+      localStorage.setItem('accessToken', `mock_token_teacher_${Date.now()}`);
+      localStorage.setItem('user', JSON.stringify(mockTeacher));
+      return { accessToken: 'mock_token_teacher', user: mockTeacher };
+    }
+
+    if (isStudentCreds) {
+      const mockStudent = {
+        id: 'USR-STU-01',
+        name: 'Aarav Deshmukh',
+        email: emailLower.includes('@') ? emailLower : 'aarav.d@shubham.edu',
+        mobile: '9876500001',
+        role: 'student',
+        branch: credentials.branch || selectedCampus,
+        avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+        title: 'STUDENT'
+      };
+      localStorage.setItem('accessToken', `mock_token_student_${Date.now()}`);
+      localStorage.setItem('user', JSON.stringify(mockStudent));
+      return { accessToken: 'mock_token_student', user: mockStudent };
+    }
+
+    if (isAdminCreds) {
       const mockUser = {
         id: isTarabai ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01') : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01'),
         name: isTarabai
@@ -78,7 +161,7 @@ export const authService = {
           : (isSuper ? 'Shubham Sharma' : 'Rajesh Patil'),
         email: emailLower,
         role: isSuper ? 'super-admin' : 'admin',
-        branch: isTarabai ? 'Tarabai Park' : 'Mangalvar Peth',
+        branch: credentials.branch || selectedCampus,
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
         title: isSuper ? 'SUPER_ADMIN' : 'ADMIN'
       };
@@ -117,22 +200,34 @@ export const authService = {
     if (userData.officeRoom) payload.officeRoom = userData.officeRoom;
     if (userData.bio) payload.bio = userData.bio;
 
-    const res = await api.put('/auth/me', payload);
-    const updatedUser = res.data;
-    const formattedUser = {
-      id: updatedUser.id,
-      name: updatedUser.full_name,
-      email: updatedUser.email,
-      role: updatedUser.role.toLowerCase().replace('_', '-'),
-      avatar: userData.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-      title: updatedUser.role,
-      phone: userData.phone,
-      branch: userData.branch,
-      officeRoom: userData.officeRoom,
-      bio: userData.bio
-    };
-    localStorage.setItem('user', JSON.stringify(formattedUser));
-    return formattedUser;
+    try {
+      const res = await api.put('/auth/me', payload);
+      const updatedUser = res.data;
+      const formattedUser = {
+        id: updatedUser.id,
+        name: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role.toLowerCase().replace('_', '-'),
+        avatar: userData.avatar || (updatedUser.role?.toLowerCase() === 'teacher'
+          ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+          : updatedUser.role?.toLowerCase() === 'student'
+          ? 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
+          : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'),
+        title: updatedUser.role,
+        phone: userData.phone,
+        branch: userData.branch,
+        officeRoom: userData.officeRoom,
+        bio: userData.bio
+      };
+      localStorage.setItem('user', JSON.stringify(formattedUser));
+      return formattedUser;
+    } catch (err) {
+      // Local fallback for dev/demo mode
+      const current = authService.getCurrentUser() || {};
+      const merged = { ...current, ...userData };
+      localStorage.setItem('user', JSON.stringify(merged));
+      return merged;
+    }
   },
 
   getCurrentUser: () => {

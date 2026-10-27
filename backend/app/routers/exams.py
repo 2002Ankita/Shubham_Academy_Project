@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from typing import List
+from typing import List, Optional
 from app.schemas.marks import ExamCreate, ExamResponse
 from app.services.mark_service import create_exam, get_all_exams
 from app.services.auth_service import get_current_user

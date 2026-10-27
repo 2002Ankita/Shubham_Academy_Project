@@ -230,36 +230,36 @@ export default function StudentFees() {
               </tr>
             </thead>
             <tbody>
-              ${details.discount_status === 'APPROVED' && Number(details.discount_amount) > 0 ? `
+              ${details.discount_status === 'APPROVED' && Number(details.discount_amount || 0) > 0 ? `
               <tr>
                 <td style="color: #6B7280;">Original Gross Course Fees</td>
-                <td style="text-align: right; color: #6B7280;">₹ ${(Number(details.original_fees) || ((fee.totalFees || 0) + Number(details.discount_amount))).toLocaleString()}</td>
+                <td style="text-align: right; color: #6B7280;">₹ ${(Number(details.original_fees) || ((Number(fee.totalFees) || 0) + (Number(details.discount_amount) || 0))).toLocaleString()}</td>
               </tr>
               <tr style="background-color: #F0FDF4; color: #166534;">
                 <td><strong>Approved Discount Concession</strong> (${details.discount_reason || 'Concession'} - Approved by ${details.discount_approved_by || 'Superadmin'})</td>
-                <td style="text-align: right; font-weight: bold;">-₹ ${Number(details.discount_amount).toLocaleString()}</td>
+                <td style="text-align: right; font-weight: bold;">-₹ ${(Number(details.discount_amount) || 0).toLocaleString()}</td>
               </tr>
               ` : ''}
               <tr>
                 <td><strong>${details.discount_status === 'APPROVED' ? 'Approved Net Course Fees' : 'Total Course & Tuition Fees'}</strong></td>
-                <td style="text-align: right; font-weight: 700;">₹ ${(fee.totalFees || 0).toLocaleString()}</td>
+                <td style="text-align: right; font-weight: 700;">₹ ${(Number(fee.totalFees) || 0).toLocaleString()}</td>
               </tr>
               <tr class="highlight-row">
                 <td>Installment Amount Paid & Cleared</td>
-                <td style="text-align: right;">₹ ${(fee.paidFees || 0).toLocaleString()}</td>
+                <td style="text-align: right;">₹ ${(Number(fee.paidFees) || 0).toLocaleString()}</td>
               </tr>
               ${fee.cumulativePaid && Number(fee.cumulativePaid) !== Number(fee.paidFees) ? `
               <tr>
                 <td style="color: #4B5563;">Cumulative Total Paid to Date</td>
-                <td style="text-align: right; font-weight: 600; color: #166534;">₹ ${Number(fee.cumulativePaid).toLocaleString()}</td>
+                <td style="text-align: right; font-weight: 600; color: #166534;">₹ ${(Number(fee.cumulativePaid) || 0).toLocaleString()}</td>
               </tr>
               ` : ''}
               <tr>
-                <td style="color: ${fee.pendingAmount > 0 ? '#DC2626' : '#16A34A'}; font-weight: bold;">
+                <td style="color: ${(Number(fee.pendingAmount) || 0) > 0 ? '#DC2626' : '#16A34A'}; font-weight: bold;">
                   Outstanding Pending Balance After This Payment
                 </td>
-                <td style="text-align: right; font-weight: bold; color: ${fee.pendingAmount > 0 ? '#DC2626' : '#16A34A'};">
-                  ₹ ${(fee.pendingAmount || 0).toLocaleString()}
+                <td style="text-align: right; font-weight: bold; color: ${(Number(fee.pendingAmount) || 0) > 0 ? '#DC2626' : '#16A34A'};">
+                  ₹ ${(Number(fee.pendingAmount) || 0).toLocaleString()}
                 </td>
               </tr>
             </tbody>

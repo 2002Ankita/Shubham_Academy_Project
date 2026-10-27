@@ -55,7 +55,9 @@ export default function FeeCollection() {
       }
 
       // Navigate to printable receipt
-      navigate(`/admin/fees/receipt?receiptNo=${res.receipt.receiptNo}`);
+      navigate(`/admin/fees/receipt?receiptNo=${res.receipt.receiptNo}`, {
+        state: { receipt: res.receipt }
+      });
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to record fee payment.');
       throw err;
@@ -150,12 +152,12 @@ export default function FeeCollection() {
                   key: 'receiptNo',
                   title: 'Action',
                   align: 'end',
-                  render: (val) => (
+                  render: (val, row) => (
                     <Button
                       size="sm"
                       variant="outline"
                       icon={Printer}
-                      onClick={() => navigate(`/admin/fees/receipt?receiptNo=${val}`)}
+                      onClick={() => navigate(`/admin/fees/receipt?receiptNo=${val}`, { state: { receipt: row } })}
                     >
                       Print Receipt
                     </Button>

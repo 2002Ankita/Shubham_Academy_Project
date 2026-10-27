@@ -34,6 +34,24 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+const CAMPUS_BRANCH_OPTIONS = [
+  'Tarabai Park',
+  'Mangalvar Peth'
+];
+
+const resolveInitialBranch = (userObj) => {
+  if (userObj?.branch) {
+    const s = String(userObj.branch).toLowerCase();
+    if (s.includes('tarabai')) return 'Tarabai Park';
+    if (s.includes('mangal')) return 'Mangalvar Peth';
+  }
+  if (userObj?.email) {
+    const email = String(userObj.email).toLowerCase();
+    if (email.includes('tarabai')) return 'Tarabai Park';
+  }
+  return 'Mangalvar Peth';
+};
+
 export default function AdminProfile() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -49,12 +67,12 @@ export default function AdminProfile() {
     phone: user?.phone || '+91 98220 54321',
     title: user?.title || 'Center Head & Academy Administrator',
     academyName: user?.academyName || 'Shubham Academy',
-    branch: user?.branch || 'Kolhapur Main Campus',
+    branch: resolveInitialBranch(user),
     officeRoom: user?.officeRoom || 'Room 102, Administrative Block',
     qualification: user?.qualification || 'M.Sc. (Physics), MBA Educational Administration',
     joiningDate: user?.joiningDate || '2021-08-01',
     emergencyContact: user?.emergencyContact || '+91 98220 99999',
-    bio: user?.bio || 'Oversees daily academic operations, student admissions, attendance integration, faculty coordination, and fee collection workflows for Kolhapur campus.',
+    bio: user?.bio || 'Oversees daily academic operations, student admissions, attendance integration, faculty coordination, and fee collection workflows.',
     avatar: user?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
   });
 
@@ -80,7 +98,7 @@ export default function AdminProfile() {
         phone: user.phone || prev.phone,
         title: user.title || prev.title,
         avatar: user.avatar || prev.avatar,
-        branch: user.branch || prev.branch,
+        branch: resolveInitialBranch(user) || prev.branch,
         qualification: user.qualification || prev.qualification,
         officeRoom: user.officeRoom || prev.officeRoom,
       }));
@@ -474,11 +492,8 @@ export default function AdminProfile() {
                 }}
                 error={errors.branch}
                 options={[
-                  'Kolhapur Main Campus',
-                  'Pune Main Campus',
-                  'Baner Tech Hub',
-                  'Viman Nagar Extension',
-                  'PCMC Nigdi Campus'
+                  'Tarabai Park',
+                  'Mangalvar Peth'
                 ]}
                 required
               />

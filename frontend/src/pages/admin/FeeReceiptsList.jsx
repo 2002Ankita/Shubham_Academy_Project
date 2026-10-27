@@ -206,13 +206,13 @@ export default function FeeReceiptsList() {
               key: 'receiptNo',
               title: 'Action',
               align: 'end',
-              render: (val) => (
+              render: (val, row) => (
                 <div className="d-flex justify-content-end gap-1.5">
                   <Button
                     size="sm"
                     variant="outline"
                     icon={Printer}
-                    onClick={() => navigate(`/admin/fees/receipt?receiptNo=${val}`)}
+                    onClick={() => navigate(`/admin/fees/receipt?receiptNo=${val}`, { state: { receipt: row } })}
                   >
                     Print
                   </Button>

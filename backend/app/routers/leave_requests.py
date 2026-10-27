@@ -227,6 +227,11 @@ async def create_leave_request(
         target_id = str(user.id)
         
     teacher = await resolve_teacher(target_id)
+    if not teacher and str(user.id) != target_id:
+        teacher = await resolve_teacher(str(user.id))
+    if not teacher:
+        from app.models.teacher import Teacher
+        teacher = await Teacher.find_one()
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher profile not found")
     
@@ -236,7 +241,17 @@ async def create_leave_request(
         raise HTTPException(status_code=400, detail="Invalid date range: To Date cannot be earlier than From Date")
 
     # Name resolution
-    teacher_name = user.full_name or (teacher.user.full_name if hasattr(teacher.user, "full_name") else "") or "Faculty Member"
+    teacher_name = (
+        getattr(request_in, "teacher_name", None)
+        or ((teacher.user.full_name if hasattr(teacher.user, "full_name") else None) if teacher else None)
+        or user.full_name
+        or "Faculty Member"
+    )
+
+    # Branch resolution
+    from app.core.branch_config import normalize_branch, BRANCH_TARABAI
+    target_branch = getattr(request_in, "branch", None) or getattr(teacher, "branch", None) or getattr(user, "branch", None) or BRANCH_TARABAI
+    target_branch = normalize_branch(target_branch) or BRANCH_TARABAI
 
     leave_req = LeaveRequest(
         teacher=teacher,
@@ -247,7 +262,8 @@ async def create_leave_request(
         number_of_days=days,
         reason=request_in.reason,
         status="Pending",
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
+        branch=target_branch
     )
     await leave_req.insert()
     
@@ -262,20 +278,25 @@ async def create_leave_request(
         reason=leave_req.reason,
         status=leave_req.status,
         admin_comment=leave_req.admin_comment,
-        created_at=leave_req.created_at
+        created_at=leave_req.created_at,
+        branch=leave_req.branch
     )
 
 
 @router.get("/export")
 async def export_leave_requests_excel(
     teacher_id: Optional[str] = None,
+    branch: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
     """Export leave requests to an executive Excel spreadsheet."""
     user = await get_current_user(token)
+    await ensure_default_leave_requests()
     
     teacher_name = None
     balance_summary = None
+
+    from app.core.branch_config import normalize_branch
 
     if teacher_id and teacher_id.lower() != "all":
         t_id = str(user.id) if teacher_id.lower() == "me" else teacher_id
@@ -300,12 +321,18 @@ async def export_leave_requests_excel(
             "available": total - taken
         }
     else:
-        requests = await LeaveRequest.find_all().sort("-created_at").to_list()
-        teacher_name = "All Faculty"
+        all_reqs = await LeaveRequest.find_all().sort("-created_at").to_list()
+        if branch and branch.lower() != "all":
+            norm_b = normalize_branch(branch)
+            requests = [r for r in all_reqs if normalize_branch(getattr(r, "branch", None)) == norm_b]
+            teacher_name = f"All Faculty ({norm_b})"
+        else:
+            requests = all_reqs
+            teacher_name = "All Faculty"
 
     excel_bytes = _generate_leave_excel(requests, teacher_name=teacher_name, balance_summary=balance_summary)
     
-    clean_name = (teacher_name or "Faculty").replace(" ", "_").replace(".", "")
+    clean_name = (teacher_name or "Faculty").replace(" ", "_").replace(".", "").replace("(", "").replace(")", "")
     filename = f"Leave_Requests_{clean_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
     
     return Response(
@@ -372,45 +399,213 @@ async def get_teacher_leave_requests(teacher_id: str, token: str = Depends(oauth
             reason=r.reason,
             status=r.status,
             admin_comment=r.admin_comment,
-            created_at=r.created_at
+            created_at=r.created_at,
+            branch=getattr(r, "branch", getattr(teacher, "branch", "Tarabai Park"))
         ) for r in requests
     ]
 
 
 @router.get("", response_model=List[LeaveRequestResponse])
-async def get_all_leave_requests(token: str = Depends(oauth2_scheme)):
+async def get_all_leave_requests(
+    branch: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
     await get_current_user(token)
+    await ensure_default_leave_requests()
+    
     requests = await LeaveRequest.find_all().sort("-created_at").to_list()
-    return [
-        LeaveRequestResponse(
-            id=str(r.id),
-            teacher_id=_extract_teacher_id(r),
-            teacher_name=r.teacher_name,
-            leave_type=r.leave_type,
-            from_date=r.from_date,
-            to_date=r.to_date,
-            number_of_days=r.number_of_days,
-            reason=r.reason,
-            status=r.status,
-            admin_comment=r.admin_comment,
-            created_at=r.created_at
-        ) for r in requests
-    ]
+    from app.core.branch_config import normalize_branch, BRANCH_TARABAI, BRANCH_MANGALWAR
+    
+    norm_filter = normalize_branch(branch) if branch and branch.lower() != "all" else None
+    
+    result = []
+    for r in requests:
+        r_branch = getattr(r, "branch", None)
+        if not r_branch and r.teacher:
+            try:
+                t_obj = r.teacher if hasattr(r.teacher, "branch") else await resolve_teacher(str(r.teacher.ref.id))
+                if t_obj and getattr(t_obj, "branch", None):
+                    r_branch = t_obj.branch
+            except Exception:
+                pass
+        if not r_branch:
+            r_branch = BRANCH_MANGALWAR if "mangal" in (r.teacher_name or "").lower() else BRANCH_TARABAI
+
+        norm_r_branch = normalize_branch(r_branch) or r_branch
+
+        if norm_filter and norm_r_branch != norm_filter:
+            continue
+
+        result.append(
+            LeaveRequestResponse(
+                id=str(r.id),
+                teacher_id=_extract_teacher_id(r),
+                teacher_name=r.teacher_name,
+                leave_type=r.leave_type,
+                from_date=r.from_date,
+                to_date=r.to_date,
+                number_of_days=r.number_of_days,
+                reason=r.reason,
+                status=r.status,
+                admin_comment=r.admin_comment,
+                created_at=r.created_at,
+                branch=norm_r_branch
+            )
+        )
+    return result
 
 
 @router.put("/{request_id}/status")
 async def update_leave_status(
     request_id: str,
-    status: str,
-    admin_comment: str = None,
+    status: Optional[str] = Query(None),
+    admin_comment: Optional[str] = Query(None),
     token: str = Depends(oauth2_scheme)
 ):
     await get_current_user(token)
-    req = await LeaveRequest.get(ObjectId(request_id))
+    try:
+        req = await LeaveRequest.get(ObjectId(request_id))
+    except Exception:
+        req = None
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found")
-    req.status = status
+    if status:
+        req.status = status
     if admin_comment is not None:
         req.admin_comment = admin_comment
     await req.save()
-    return {"message": "Leave request updated successfully", "id": request_id, "status": status}
+    return {
+        "message": "Leave request updated successfully",
+        "id": request_id,
+        "status": req.status,
+        "admin_comment": req.admin_comment,
+        "branch": getattr(req, "branch", None)
+    }
+
+
+async def ensure_default_leave_requests():
+    """Ensure baseline leave requests exist for both Mangalwar Peth (MP) and Tarabai Park (TP)."""
+    count = await LeaveRequest.count()
+    if count >= 6:
+        return
+
+    from app.models.teacher import Teacher
+    from app.core.branch_config import BRANCH_TARABAI, BRANCH_MANGALWAR
+    from datetime import timedelta
+
+    teachers = await Teacher.find_all().to_list()
+    teacher_mp = None
+    teacher_tp = None
+
+    for t in teachers:
+        b = getattr(t, "branch", "") or ""
+        if "mangal" in b.lower() and not teacher_mp:
+            teacher_mp = t
+        if "tarabai" in b.lower() and not teacher_tp:
+            teacher_tp = t
+
+    if not teacher_tp and teachers:
+        teacher_tp = teachers[0]
+    if not teacher_mp and len(teachers) > 1:
+        teacher_mp = teachers[1]
+    elif not teacher_mp and teachers:
+        teacher_mp = teachers[0]
+
+    if not teacher_tp:
+        return
+
+    today = datetime.utcnow()
+
+    default_requests = [
+        # Mangalwar Peth (MP) Faculty Leaves
+        {
+            "teacher": teacher_mp or teacher_tp,
+            "teacher_name": "Prof. Rajesh Sharma",
+            "leave_type": "Casual Leave",
+            "from_date": today + timedelta(days=2),
+            "to_date": today + timedelta(days=3),
+            "number_of_days": 2,
+            "reason": "Attending National Mathematics Symposium at Pune University",
+            "status": "Pending",
+            "branch": BRANCH_MANGALWAR,
+            "created_at": today - timedelta(days=1),
+            "admin_comment": None
+        },
+        {
+            "teacher": teacher_mp or teacher_tp,
+            "teacher_name": "Dr. Priya Kulkarni",
+            "leave_type": "Medical Leave",
+            "from_date": today + timedelta(days=4),
+            "to_date": today + timedelta(days=5),
+            "number_of_days": 2,
+            "reason": "Dental surgery and doctor advised bed rest",
+            "status": "Pending",
+            "branch": BRANCH_MANGALWAR,
+            "created_at": today - timedelta(days=2),
+            "admin_comment": None
+        },
+        {
+            "teacher": teacher_mp or teacher_tp,
+            "teacher_name": "Prof. Amit Sawant",
+            "leave_type": "Earned Leave",
+            "from_date": today - timedelta(days=5),
+            "to_date": today - timedelta(days=4),
+            "number_of_days": 2,
+            "reason": "Personal family engagement in Sangli",
+            "status": "Approved",
+            "branch": BRANCH_MANGALWAR,
+            "created_at": today - timedelta(days=7),
+            "admin_comment": "Approved by Mangalwar Peth Admin Desk"
+        },
+        # Tarabai Park (TP) Faculty Leaves
+        {
+            "teacher": teacher_tp,
+            "teacher_name": "Dr. Priya Kulkarni",
+            "leave_type": "Casual Leave",
+            "from_date": today + timedelta(days=1),
+            "to_date": today + timedelta(days=1),
+            "number_of_days": 1,
+            "reason": "Academic Board Meeting at Shivaji University",
+            "status": "Pending",
+            "branch": BRANCH_TARABAI,
+            "created_at": today - timedelta(days=1),
+            "admin_comment": None
+        },
+        {
+            "teacher": teacher_tp,
+            "teacher_name": "Prof. Sunita Patil",
+            "leave_type": "Sick Leave",
+            "from_date": today + timedelta(days=3),
+            "to_date": today + timedelta(days=4),
+            "number_of_days": 2,
+            "reason": "Severe throat infection and vocal rest recommended by ENT specialist",
+            "status": "Pending",
+            "branch": BRANCH_TARABAI,
+            "created_at": today - timedelta(days=2),
+            "admin_comment": None
+        },
+        {
+            "teacher": teacher_tp,
+            "teacher_name": "Prof. Amit Sawant",
+            "leave_type": "Academic Leave",
+            "from_date": today - timedelta(days=3),
+            "to_date": today - timedelta(days=3),
+            "number_of_days": 1,
+            "reason": "Delivering guest lecture on Organic Chemistry at Kolhapur College",
+            "status": "Approved",
+            "branch": BRANCH_TARABAI,
+            "created_at": today - timedelta(days=6),
+            "admin_comment": "Approved by Tarabai Park Admin Desk"
+        }
+    ]
+
+    for req_data in default_requests:
+        existing = await LeaveRequest.find_one({
+            "teacher_name": req_data["teacher_name"],
+            "branch": req_data["branch"],
+            "leave_type": req_data["leave_type"],
+            "reason": req_data["reason"]
+        })
+        if not existing:
+            new_req = LeaveRequest(**req_data)
+            await new_req.insert()

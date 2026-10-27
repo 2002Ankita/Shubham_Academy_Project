@@ -14,6 +14,7 @@ class LeaveRequest(Document):
     status: str = "Pending"
     created_at: datetime = datetime.utcnow()
     admin_comment: Optional[str] = None
+    branch: Optional[str] = None
 
     class Settings:
         name = "leave_requests"

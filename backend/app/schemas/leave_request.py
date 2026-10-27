@@ -8,6 +8,8 @@ class LeaveRequestCreate(BaseModel):
     from_date: datetime
     to_date: datetime
     reason: Optional[str] = None
+    branch: Optional[str] = None
+    teacher_name: Optional[str] = None
 
 class LeaveRequestResponse(BaseModel):
     id: str
@@ -21,3 +23,4 @@ class LeaveRequestResponse(BaseModel):
     status: str
     admin_comment: Optional[str]
     created_at: datetime
+    branch: Optional[str] = None

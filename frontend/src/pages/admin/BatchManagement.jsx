@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import batchService from '../../services/batchService';
 import teacherService from '../../services/teacherService';
 import { useConfirm } from '../../context/ConfirmContext';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function BatchManagement() {
   const { confirm } = useConfirm();
@@ -49,7 +50,16 @@ export default function BatchManagement() {
         await batchService.updateBatch(editingBatch.id, { ...formData, student_count: Number(formData.student_count) });
         toast.success('Batch updated successfully');
       } else {
-        await batchService.createBatch({ ...formData, student_count: Number(formData.student_count) });
+        const userBranch = getUserBranch();
+        const derivedBranch = (formData.name && formData.name.toLowerCase().includes('tarabai')) 
+          ? 'Tarabai Park' 
+          : ((formData.name && formData.name.toLowerCase().includes('mangal')) ? 'Mangalvar Peth' : (userBranch || 'Mangalvar Peth'));
+
+        await batchService.createBatch({ 
+          ...formData, 
+          branch: derivedBranch,
+          student_count: Number(formData.student_count) 
+        });
         toast.success('Batch created successfully');
       }
       setModalOpen(false);
@@ -81,7 +91,7 @@ export default function BatchManagement() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, batchObj = null) => {
     const isConfirmed = await confirm({
       title: 'Delete Class Batch',
       message: 'Are you sure you want to delete this batch?',
@@ -93,8 +103,8 @@ export default function BatchManagement() {
 
     if (isConfirmed) {
       try {
-        await batchService.deleteBatch(id);
-        toast.success('Batch deleted');
+        await batchService.deleteBatch(id, batchObj);
+        toast.success('Batch deleted successfully');
         fetchBatches();
       } catch (err) {
         toast.error('Failed to delete batch');
@@ -140,7 +150,7 @@ export default function BatchManagement() {
                   <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(row)}>
                     Edit
                   </button>
-                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(val)}>
+                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(val, row)}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -164,18 +174,25 @@ export default function BatchManagement() {
               required
             >
               <option value="">Select Batch Name / Branch</option>
-              <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-              <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-              <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-              <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-              <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-              <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-              <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-              <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-              <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-              <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-              <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-              <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+              {getUserBranch() === 'Mangalvar Peth' ? (
+                <optgroup label="Mangalvar Peth Batches">
+                  <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                  <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                  <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                  <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                  <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                  <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                </optgroup>
+              ) : (
+                <optgroup label="Tarabai Park Batches">
+                  <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                  <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                  <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                  <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                  <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                  <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                </optgroup>
+              )}
             </select>
           </div>
           <div className="row g-2">

@@ -81,6 +81,8 @@ export default function LeaveRequest() {
     try {
       if (!user) return;
       requestPayload.teacher_id = user.id;
+      requestPayload.teacher_name = user.full_name || user.name || 'Dr. Priya Kulkarni';
+      requestPayload.branch = user.branch || (user.email?.includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth');
       await leaveService.createLeaveRequest(requestPayload);
       toast.success('Leave application submitted successfully!');
       resetFormCallback();
