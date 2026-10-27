@@ -41,7 +41,7 @@ export default function FeeReceipt() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const receiptNo = searchParams.get('receiptNo') || 'REC-99120';
+  const receiptNo = searchParams.get('receiptNo') || '';
   const stateReceipt = location.state?.receipt;
 
   const [receipt, setReceipt] = useState(stateReceipt || null);
@@ -53,6 +53,11 @@ export default function FeeReceipt() {
       // If we already have a matching receipt from route state, use it immediately
       if (stateReceipt && (stateReceipt.receiptNo === receiptNo || !receiptNo)) {
         setReceipt(stateReceipt);
+        setLoading(false);
+        return;
+      }
+
+      if (!receiptNo) {
         setLoading(false);
         return;
       }
@@ -84,6 +89,20 @@ export default function FeeReceipt() {
 
   if (loading && !receipt) {
     return <div className="p-5 text-center text-sa-muted">Loading official fee receipt...</div>;
+  }
+
+  if (!loading && !receipt) {
+    return (
+      <div className="p-5 text-center d-flex flex-column align-items-center gap-3">
+        <div className="text-danger fw-bold fs-5">Receipt Not Found</div>
+        <p className="text-muted small">
+          No official receipt could be located matching identifier "{receiptNo || 'N/A'}".
+        </p>
+        <Button variant="outline" onClick={() => navigate('/admin/fees/receipts')}>
+          Return to Fee Receipts Archive
+        </Button>
+      </div>
+    );
   }
 
   // Safe field extractions

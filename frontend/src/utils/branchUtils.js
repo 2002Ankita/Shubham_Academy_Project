@@ -138,14 +138,6 @@ export const isStudentInBranch = (student, targetBranch) => {
     return isTP;
   }
 
-  const nameLower = (student?.name || student?.full_name || student?.student_name || '').toLowerCase();
-  if (nameLower.includes('diya') || nameLower.includes('rohan') || nameLower.includes('sneha') || nameLower.includes('aditya')) {
-    return isMP;
-  }
-  if (nameLower.includes('aarav') || nameLower.includes('ananya') || nameLower.includes('tanvi') || nameLower.includes('aryan')) {
-    return isTP;
-  }
-
   return false;
 };
 
@@ -153,7 +145,7 @@ export const isStudentInBranch = (student, targetBranch) => {
  * Filters an array of students by campus.
  */
 export const filterStudentsByBranch = (students, targetBranch) => {
-  if (!targetBranch) return students;
+  if (!targetBranch || targetBranch === 'ALL') return students;
   return (students || []).filter(s => isStudentInBranch(s, targetBranch));
 };
 
@@ -161,7 +153,7 @@ export const filterStudentsByBranch = (students, targetBranch) => {
  * Filters exams by campus based on exam.batch or exam.standard.
  */
 export const filterExamsByBranch = (exams, targetBranch) => {
-  if (!targetBranch) return exams;
+  if (!targetBranch || targetBranch === 'ALL') return exams;
   const norm = normalizeBranch(targetBranch);
   return (exams || []).filter(e => {
     const br = e?.branch || '';
@@ -189,7 +181,7 @@ export const filterExamsByBranch = (exams, targetBranch) => {
  * Filters attendance records / reports by campus.
  */
 export const filterAttendanceByBranch = (records, targetBranch) => {
-  if (!targetBranch) return records;
+  if (!targetBranch || targetBranch === 'ALL') return records;
   const norm = normalizeBranch(targetBranch);
   return (records || []).filter(r => {
     const br = r?.branch || '';
@@ -203,16 +195,8 @@ export const filterAttendanceByBranch = (records, targetBranch) => {
       if (match) return match === norm;
     }
     const roll = (r?.rollNumber || r?.roll_number || '').toUpperCase();
-    if (roll.includes('MP')) return norm === CAMPUS.MANGALVAR_PETH;
-    if (roll.includes('TP')) return norm === CAMPUS.TARABAI_PARK;
-
-    const sName = (r?.studentName || r?.student_name || '').toLowerCase();
-    if (sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya')) {
-      return norm === CAMPUS.MANGALVAR_PETH;
-    }
-    if (sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan')) {
-      return norm === CAMPUS.TARABAI_PARK;
-    }
+    if (roll.includes('MP') || roll.includes('-MP-') || roll.startsWith('SA-MP')) return norm === CAMPUS.MANGALVAR_PETH;
+    if (roll.includes('TP') || roll.includes('-TP-') || roll.startsWith('SA-TP')) return norm === CAMPUS.TARABAI_PARK;
     return false;
   });
 };
@@ -237,17 +221,9 @@ export const filterFeesByBranch = (fees, targetBranch) => {
       if (match) return match === norm;
     }
     const roll = (f?.rollNumber || f?.roll_number || '').toUpperCase();
-    if (roll.includes('MP')) return norm === CAMPUS.MANGALVAR_PETH;
-    if (roll.includes('TP')) return norm === CAMPUS.TARABAI_PARK;
-
-    const sName = (f?.studentName || f?.student_name || '').toLowerCase();
-    if (sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya') || sName.includes('rajesh') || sName.includes('sawant')) {
-      return norm === CAMPUS.MANGALVAR_PETH;
-    }
-    if (sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan') || sName.includes('omkar') || sName.includes('priya') || sName.includes('sunita')) {
-      return norm === CAMPUS.TARABAI_PARK;
-    }
-    return true;
+    if (roll.includes('MP') || roll.includes('-MP-') || roll.startsWith('SA-MP')) return norm === CAMPUS.MANGALVAR_PETH;
+    if (roll.includes('TP') || roll.includes('-TP-') || roll.startsWith('SA-TP')) return norm === CAMPUS.TARABAI_PARK;
+    return false;
   });
 };
 

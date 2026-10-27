@@ -9,62 +9,6 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import studentService from '../../services/studentService';
-
-const DEFAULT_FEE_STRUCTURES = [
-  {
-    id: 'FS-2026-001',
-    receiptNo: 'REC-2026-8812',
-    feeStructureName: 'HSC Science (12th Standard) - Comprehensive Coaching',
-    feeStructureYear: '2025 - 2026',
-    totalFees: 65000,
-    paidFees: 45000,
-    pendingAmount: 20000,
-    paymentDate: '2026-03-15',
-    paymentMode: 'Online NetBanking / UPI',
-    transactionId: 'TXN-HSC-992381',
-    status: 'Partial'
-  },
-  {
-    id: 'FS-2026-002',
-    receiptNo: 'REC-2026-7540',
-    feeStructureName: 'MHT-CET & JEE Main Target Batch Test Series & Practical Fees',
-    feeStructureYear: '2025 - 2026',
-    totalFees: 25000,
-    paidFees: 25000,
-    pendingAmount: 0,
-    paymentDate: '2026-03-18',
-    paymentMode: 'UPI / GooglePay',
-    transactionId: 'TXN-JEE-881204',
-    status: 'Paid'
-  },
-  {
-    id: 'FS-2026-003',
-    receiptNo: 'REC-2025-6119',
-    feeStructureName: '11th Science Foundation & Entrance Coaching Program',
-    feeStructureYear: '2024 - 2025',
-    totalFees: 55000,
-    paidFees: 55000,
-    pendingAmount: 0,
-    paymentDate: '2025-04-10',
-    paymentMode: 'Online Bank Transfer',
-    transactionId: 'TXN-FND-773412',
-    status: 'Paid'
-  },
-  {
-    id: 'FS-2026-004',
-    receiptNo: 'REC-2026-9201',
-    feeStructureName: 'Special Mathematics & Physics Booster Problem-Solving Module',
-    feeStructureYear: '2025 - 2026',
-    totalFees: 15000,
-    paidFees: 10000,
-    pendingAmount: 5000,
-    paymentDate: '2026-03-22',
-    paymentMode: 'Debit Card / POS',
-    transactionId: 'TXN-MOD-661902',
-    status: 'Partial'
-  }
-];
-
 export default function StudentFees() {
   const { user } = useAuth();
   const [feeStructures, setFeeStructures] = useState([]);

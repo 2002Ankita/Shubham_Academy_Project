@@ -38,15 +38,8 @@ export const feeService = {
       }
       return list;
     } catch (e) {
-      console.warn('Fee fetch fallback for branch:', activeBranch);
-      const isTP = activeBranch === 'Tarabai Park';
-      return isTP ? [
-        { id: 'fee-tp-01', receiptNo: 'REC-TP-8812', studentId: 'stu-tp-101', studentName: 'Aarav Deshmukh', rollNumber: 'SA-TP-1001', batch: '11th pcm tarabai park', branch: 'Tarabai Park', totalFees: 95000, amountPaid: 45000, pendingAmount: 50000, paymentDate: '2026-10-20', paymentMode: 'NetBanking', status: 'Paid', feeHead: 'Term 1 Tuition' },
-        { id: 'fee-tp-02', receiptNo: 'REC-TP-8815', studentId: 'stu-tp-103', studentName: 'Tanvi Shinde', rollNumber: 'SA-TP-1003', batch: '12th pcm tarabai park', branch: 'Tarabai Park', totalFees: 110000, amountPaid: 110000, pendingAmount: 0, paymentDate: '2026-10-21', paymentMode: 'UPI', status: 'Paid', feeHead: 'Annual Comprehensive' }
-      ] : [
-        { id: 'fee-mp-01', receiptNo: 'REC-MP-7712', studentId: 'stu-mp-101', studentName: 'Diya Patil', rollNumber: 'SA-MP-1001', batch: '11th pcm Mangalvar Peth', branch: 'Mangalvar Peth', totalFees: 95000, amountPaid: 45000, pendingAmount: 50000, paymentDate: '2026-10-18', paymentMode: 'UPI', status: 'Paid', feeHead: 'Term 1 Tuition' },
-        { id: 'fee-mp-02', receiptNo: 'REC-MP-7714', studentId: 'stu-mp-103', studentName: 'Sneha Kadam', rollNumber: 'SA-MP-1003', batch: '12th pcm Mangalvar Peth', branch: 'Mangalvar Peth', totalFees: 110000, amountPaid: 110000, pendingAmount: 0, paymentDate: '2026-10-19', paymentMode: 'Cash', status: 'Paid', feeHead: 'Annual Comprehensive' }
-      ];
+      console.warn('Fee fetch failed:', e);
+      return [];
     }
   },
 
@@ -84,15 +77,8 @@ export const feeService = {
       }
       return list;
     } catch (e) {
-      console.warn('Pending fee fallback for branch:', activeBranch);
-      const isTP = activeBranch === 'Tarabai Park';
-      return isTP ? [
-        { id: 'stu-tp-102', receiptNo: 'PENDING', studentId: 'stu-tp-102', studentName: 'Ananya Joshi', rollNumber: 'SA-TP-1002', batch: '11th pcb tarabai park', standard: '11th Science - 11th pcb tarabai park', totalFees: 95000, amountPaid: 50000, pendingAmount: 45000, status: 'Pending', feeHead: 'Pending Fees' },
-        { id: 'stu-tp-104', receiptNo: 'PENDING', studentId: 'stu-tp-104', studentName: 'Aryan Patil', rollNumber: 'SA-TP-1004', batch: '12th pcmb tarabai park', standard: '12th Science - 12th pcmb tarabai park', totalFees: 120000, amountPaid: 30000, pendingAmount: 90000, status: 'Pending', feeHead: 'Pending Fees' }
-      ] : [
-        { id: 'stu-mp-102', receiptNo: 'PENDING', studentId: 'stu-mp-102', studentName: 'Rohan Deshmukh', rollNumber: 'SA-MP-1002', batch: '11th pcb Mangalvar Peth', standard: '11th Science - 11th pcb Mangalvar Peth', totalFees: 95000, amountPaid: 45000, pendingAmount: 50000, status: 'Pending', feeHead: 'Pending Fees' },
-        { id: 'stu-mp-104', receiptNo: 'PENDING', studentId: 'stu-mp-104', studentName: 'Aditya Joshi', rollNumber: 'SA-MP-1004', batch: '12th pcmb Mangalvar Peth', standard: '12th Science - 12th pcmb Mangalvar Peth', totalFees: 120000, amountPaid: 40000, pendingAmount: 80000, status: 'Pending', feeHead: 'Pending Fees' }
-      ];
+      console.warn('Pending fee fetch failed:', e);
+      return [];
     }
   },
 
@@ -102,7 +88,7 @@ export const feeService = {
     // 1. Check local storage receipt cache (e.g. freshly collected receipt)
     try {
       const cached = JSON.parse(localStorage.getItem('sa_last_receipt') || 'null');
-      if (cached && (cached.receiptNo?.toUpperCase() === cleanTarget || !cleanTarget || cleanTarget === 'REC-99120')) {
+      if (cached && (cached.receiptNo?.toUpperCase() === cleanTarget || !cleanTarget)) {
         return cached;
       }
     } catch (_) {}
@@ -164,168 +150,10 @@ export const feeService = {
         return found;
       }
     } catch (e) {
-      console.warn('API error in getReceipt, falling back to local archives:', e);
+      console.warn('API error in getReceipt:', e);
     }
 
-    // 3. Fallback repository of receipts so no receipt ever returns empty/NaN
-    const fallbacks = [
-      {
-        id: '6adaf2188b2fa76f8a5b1112',
-        receiptNo: 'REC-5B1112',
-        studentId: '6adaf2188b2fa76f8a5b1110',
-        studentName: 'OMKAR CHAVAN',
-        rollNumber: 'STU-EB04AA',
-        batch: '11th PCMB',
-        branch: 'Tarabai Park',
-        standard: '11th Science',
-        totalFees: 55000,
-        amountPaid: 15000,
-        pendingAmount: 40000,
-        originalFees: 55000,
-        discountAmount: 5000,
-        discountStatus: 'PENDING',
-        paymentDate: '2026-10-23',
-        paymentMode: 'Cash / Admission Counter',
-        transactionId: 'ADM-INIT-STU-EB04AA',
-        status: 'Paid',
-        feeHead: 'Initial fee paid at admission'
-      },
-      {
-        id: 'fee-tp-01',
-        receiptNo: 'REC-TP-8812',
-        studentId: 'stu-tp-101',
-        studentName: 'Aarav Deshmukh',
-        rollNumber: 'SA-TP-1001',
-        batch: '11th pcm tarabai park',
-        branch: 'Tarabai Park',
-        standard: '11th Science',
-        totalFees: 95000,
-        amountPaid: 45000,
-        pendingAmount: 50000,
-        originalFees: 95000,
-        discountAmount: 0,
-        discountStatus: 'NONE',
-        paymentDate: '2026-10-20',
-        paymentMode: 'NetBanking',
-        transactionId: 'TXN-TP-99101',
-        status: 'Paid',
-        feeHead: 'Term 1 Tuition'
-      },
-      {
-        id: 'fee-tp-02',
-        receiptNo: 'REC-TP-8815',
-        studentId: 'stu-tp-103',
-        studentName: 'Tanvi Shinde',
-        rollNumber: 'SA-TP-1003',
-        batch: '12th pcm tarabai park',
-        branch: 'Tarabai Park',
-        standard: '12th Science',
-        totalFees: 110000,
-        amountPaid: 110000,
-        pendingAmount: 0,
-        originalFees: 110000,
-        discountAmount: 0,
-        discountStatus: 'NONE',
-        paymentDate: '2026-10-21',
-        paymentMode: 'UPI',
-        transactionId: 'TXN-TP-99103',
-        status: 'Paid',
-        feeHead: 'Annual Comprehensive'
-      },
-      {
-        id: 'fee-mp-01',
-        receiptNo: 'REC-MP-7712',
-        studentId: 'stu-mp-101',
-        studentName: 'Diya Patil',
-        rollNumber: 'SA-MP-1001',
-        batch: '11th pcm Mangalvar Peth',
-        branch: 'Mangalvar Peth',
-        standard: '11th Science',
-        totalFees: 95000,
-        amountPaid: 45000,
-        pendingAmount: 50000,
-        originalFees: 95000,
-        discountAmount: 0,
-        discountStatus: 'NONE',
-        paymentDate: '2026-10-18',
-        paymentMode: 'UPI',
-        transactionId: 'TXN-MP-99101',
-        status: 'Paid',
-        feeHead: 'Term 1 Tuition'
-      },
-      {
-        id: 'fee-mp-02',
-        receiptNo: 'REC-MP-7714',
-        studentId: 'stu-mp-103',
-        studentName: 'Sneha Kadam',
-        rollNumber: 'SA-MP-1003',
-        batch: '12th pcm Mangalvar Peth',
-        branch: 'Mangalvar Peth',
-        standard: '12th Science',
-        totalFees: 110000,
-        amountPaid: 110000,
-        pendingAmount: 0,
-        originalFees: 110000,
-        discountAmount: 0,
-        discountStatus: 'NONE',
-        paymentDate: '2026-10-19',
-        paymentMode: 'Cash',
-        transactionId: 'TXN-MP-99103',
-        status: 'Paid',
-        feeHead: 'Annual Comprehensive'
-      },
-      {
-        id: 'fee-default',
-        receiptNo: 'REC-99120',
-        studentId: 'stu-default-01',
-        studentName: 'Aarav Deshmukh',
-        rollNumber: 'SA-TP-1001',
-        batch: '12th Science - HSC PCM',
-        branch: 'Tarabai Park',
-        standard: '12th Science',
-        totalFees: 65000,
-        amountPaid: 45000,
-        pendingAmount: 20000,
-        originalFees: 65000,
-        discountAmount: 0,
-        discountStatus: 'NONE',
-        paymentDate: '2026-10-22',
-        paymentMode: 'UPI / Online Transfer',
-        transactionId: 'TXN-SA-99120',
-        status: 'Paid',
-        feeHead: 'Tuition & Academic Facilities Fee'
-      }
-    ];
-
-    const matchFallback = fallbacks.find(f => {
-      const rNo = f.receiptNo.toUpperCase();
-      const fId = f.id.toUpperCase();
-      return rNo === cleanTarget || fId === cleanTarget || (cleanTarget && rNo.includes(cleanTarget));
-    });
-
-    if (matchFallback) return matchFallback;
-
-    // Guaranteed complete receipt object for any arbitrary receiptNo so it never displays NaN
-    return {
-      id: `REC-${cleanTarget || 'GENERIC'}`,
-      receiptNo: receiptNo || 'REC-99120',
-      studentName: 'Aarav Deshmukh',
-      rollNumber: 'SA-TP-1001',
-      standard: '12th Science - Higher Secondary',
-      batch: '12th Science - HSC PCM',
-      branch: 'Tarabai Park',
-      totalFees: 65000,
-      amountPaid: 45000,
-      pendingAmount: 20000,
-      originalFees: 65000,
-      discountAmount: 0,
-      discountStatus: 'NONE',
-      paymentDate: new Date().toISOString().split('T')[0],
-      paymentMode: 'UPI / Bank Transfer',
-      transactionId: `TXN-${receiptNo || '99120'}`,
-      status: 'Paid',
-      feeHead: 'Tuition & Academic Facilities Fee'
-    };
+    return null;
   },
 
   getFeeDetails: async (studentId, params = {}) => {

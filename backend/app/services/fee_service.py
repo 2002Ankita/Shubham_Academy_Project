@@ -21,22 +21,30 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
     if isinstance(payment.student, Student):
         student_obj = payment.student
     elif payment.student:
-        student_obj = await Student.get(payment.student.ref.id)
+        try:
+            student_obj = await Student.get(payment.student.ref.id)
+        except Exception:
+            student_obj = None
     else:
         student_obj = None
 
     if student_obj:
         student_id_str = str(student_obj.id)
-        roll_number = student_obj.student_id
+        roll_number = student_obj.student_id or "N/A"
         if getattr(student_obj, "user", None):
             from app.models.user import User
             user_obj = None
             if isinstance(student_obj.user, User):
                 user_obj = student_obj.user
             else:
-                user_obj = await User.get(student_obj.user.ref.id)
-            if user_obj:
+                try:
+                    user_obj = await User.get(student_obj.user.ref.id)
+                except Exception:
+                    user_obj = None
+            if user_obj and getattr(user_obj, "full_name", None):
                 student_name = user_obj.full_name
+        if not student_name:
+            student_name = getattr(student_obj, "full_name", "") or "Student"
 
     branch_val = getattr(payment, "branch", None) or (getattr(student_obj, "branch", "") if student_obj else "") or ""
     batch_val = (getattr(student_obj, "batch", "") if student_obj else "") or ""
@@ -358,45 +366,6 @@ async def delete_fee_structure(structure_id: str) -> dict:
 
     await structure.delete()
     return {"success": True, "message": "Fee structure deleted successfully"}
-    student_id_str = ""
-    student_name = ""
-    roll_number = "N/A"
-    if isinstance(payment.student, Student):
-        student_obj = payment.student
-    elif payment.student:
-        student_obj = await Student.get(payment.student.ref.id)
-    else:
-        student_obj = None
-
-    if student_obj:
-        student_id_str = str(student_obj.id)
-        roll_number = student_obj.student_id
-        if getattr(student_obj, "user", None):
-            from app.models.user import User
-            user_obj = None
-            if isinstance(student_obj.user, User):
-                user_obj = student_obj.user
-            else:
-                user_obj = await User.get(student_obj.user.ref.id)
-            if user_obj:
-                student_name = user_obj.full_name
-
-    return {
-        "id": str(payment.id),
-        "student_id": student_id_str,
-        "student_name": student_name,
-        "roll_number": roll_number,
-        "amount_paid": payment.amount_paid,
-        "payment_method": payment.payment_method,
-        "transaction_reference": payment.transaction_reference,
-        "remarks": payment.remarks,
-        "payment_date": payment.payment_date,
-        "original_fees": getattr(student_obj, "original_fees", 0.0) if student_obj else 0.0,
-        "total_fees": getattr(student_obj, "total_fees", 0.0) if student_obj else 0.0,
-        "discount_amount": getattr(student_obj, "discount_amount", 0.0) if student_obj else 0.0,
-        "discount_status": getattr(student_obj, "discount_status", "NONE") if student_obj else "NONE",
-        "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None
-    }
 
 async def _lookup_student_fee(student: Student, struct_list: list = None) -> float:
     # 1. If original_fees is stored, calculate dynamically based on discount approval status
@@ -552,22 +521,30 @@ async def get_all_fee_payments(
     # Resolve student references
     for p in payments:
         if not isinstance(p.student, Student):
-            student_obj = await Student.get(p.student.ref.id)
-            p.student = student_obj
+            try:
+                student_obj = await Student.get(p.student.ref.id)
+                p.student = student_obj
+            except Exception:
+                p.student = None
 
-    # Group payments by student ID
+    # Group payments by student ID (skipping orphan payments or invalid amounts)
     student_payments_map = {}
     for p in payments:
-        s_id = str(p.student.id) if p.student else "unknown"
+        if not p.student:
+            continue
+        if p.amount_paid is None or p.amount_paid <= 0:
+            continue
+
+        s_id = str(p.student.id)
         if student_id:
             raw_s_id = str(getattr(p.student, "student_id", ""))
             if s_id != student_id and raw_s_id != student_id:
                 continue
-        if p.student:
-            if branch and not student_matches_branch(p.student, branch):
-                continue
-            if standard and not student_matches_standard(p.student, standard):
-                continue
+        if branch and not student_matches_branch(p.student, branch):
+            continue
+        if standard and not student_matches_standard(p.student, standard):
+            continue
+
         if s_id not in student_payments_map:
             student_payments_map[s_id] = []
         student_payments_map[s_id].append(p)
