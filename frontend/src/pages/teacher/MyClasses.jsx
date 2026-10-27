@@ -68,16 +68,77 @@ const normalizeTimeString = (t) => {
   return t
     .replace(/\s+/g, ' ')
     .replace(/[–—]/g, '-')
+    .replace(/\b0(\d:\d\d)/g, '$1')
     .trim()
     .toLowerCase();
 };
 
-// Check if two time strings match
+// Check if two time strings match (handling exact match, substring, or overlapping times)
 const timesMatch = (t1, t2) => {
   if (!t1 || !t2) return false;
   const n1 = normalizeTimeString(t1);
   const n2 = normalizeTimeString(t2);
-  return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) return true;
+
+  // Extract start times to compare
+  const p1 = n1.split('-');
+  const p2 = n2.split('-');
+  if (p1[0] && p2[0] && p1[0].trim() === p2[0].trim()) return true;
+
+  return false;
+};
+
+// Branch matching helpers supporting both "Mangalvar Peth" and "Mangalwar Peth"
+const isMangalBranch = (str = '') => {
+  const s = String(str || '').toLowerCase();
+  return s.includes('mangal') || s.includes('mp');
+};
+
+const isTarabaiBranch = (str = '') => {
+  const s = String(str || '').toLowerCase();
+  return s.includes('tara') || s.includes('tp');
+};
+
+const isBranchMatch = (branchStr = '', filter = 'All') => {
+  if (!filter || filter === 'All') return true;
+  if (isMangalBranch(filter)) return isMangalBranch(branchStr);
+  if (isTarabaiBranch(filter)) return isTarabaiBranch(branchStr);
+  return String(branchStr || '').toLowerCase().includes(String(filter).toLowerCase());
+};
+
+// Calculate clean duration label (e.g. 150 mins -> 2h 30m, 60 mins -> 60 mins)
+const getSlotDurationLabel = (slotStr) => {
+  if (!slotStr) return '60 mins';
+  const parts = slotStr.split(/[-–—]/);
+  if (parts.length >= 2) {
+    const start = getMinutesFromTimeString(parts[0]);
+    const end = getMinutesFromTimeString(parts[1]);
+    if (end > start) {
+      const diff = end - start;
+      if (diff % 60 === 0) return `${diff / 60}h (${diff} mins)`;
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return h > 0 ? `${h}h ${m}m` : `${m} mins`;
+    }
+  }
+  return '60 mins';
+};
+
+const getSlotDurationShort = (slotStr) => {
+  if (!slotStr) return '60m';
+  const parts = slotStr.split(/[-–—]/);
+  if (parts.length >= 2) {
+    const start = getMinutesFromTimeString(parts[0]);
+    const end = getMinutesFromTimeString(parts[1]);
+    if (end > start) {
+      const diff = end - start;
+      if (diff % 60 === 0) return `${diff / 60}h`;
+      const h = Math.floor(diff / 60);
+      const m = diff % 60;
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+  }
+  return '60m';
 };
 
 // Parse start time to minutes from midnight for sorting
@@ -274,7 +335,7 @@ export default function MyClasses() {
         time: b.time || '09:00 AM – 10:00 AM',
         room: b.room || 'Room 201',
         date: b.date || '',
-        branch: b.branch || (b.name && b.name.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park'),
+        branch: b.branch || (isMangalBranch(b.name) ? 'Mangalwar Peth' : 'Tarabai Park'),
         teacher_name: b.teacher_name || user?.name || '',
         days: b.days || ['Monday', 'Wednesday', 'Thursday'],
         timetable: b.timetable || []
@@ -342,14 +403,21 @@ export default function MyClasses() {
     monday.setDate(now.getDate() - dayOfWeek + weekOffset * 7);
     monday.setHours(0, 0, 0, 0);
 
+    const hasSundayLectures = classes.some((c) => {
+      if ((c.days || []).some((d) => String(d).toLowerCase() === 'sunday')) return true;
+      if (Array.isArray(c.timetable) && c.timetable.some((s) => String(s.day).toLowerCase() === 'sunday')) return true;
+      return false;
+    });
+    const totalDays = hasSundayLectures ? 7 : 6;
+
     const weekDays = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
       weekDays.push(d);
     }
     return weekDays;
-  }, [weekOffset]);
+  }, [weekOffset, classes]);
 
   // Week range label e.g. "Mon, 12 Oct – Sat, 17 Oct 2026"
   const weekRangeLabel = useMemo(() => {
@@ -453,38 +521,14 @@ export default function MyClasses() {
     toast.success(`Schedule request notification sent to Academic Admin for ${weekRangeLabel}!`);
   };
 
-  // Dynamic Timetable Slots List (Standard periods + any custom/imported slots)
-  const timetableTimeSlots = useMemo(() => {
-    const defaultSlots = [
-      '09:00 AM – 10:00 AM',
-      '10:00 AM – 11:00 AM',
-      '11:00 AM – 12:00 PM',
-      '12:00 PM – 01:00 PM',
-      '03:00 PM – 04:00 PM'
-    ];
-
-    const slotSet = new Set(defaultSlots);
-    classes.forEach((c) => {
-      if (Array.isArray(c.timetable)) {
-        c.timetable.forEach((s) => {
-          if (s.time) {
-            const norm = s.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
-            slotSet.add(norm);
-          }
-        });
-      }
-    });
-
-    return Array.from(slotSet).sort((a, b) => getMinutesFromTimeString(a) - getMinutesFromTimeString(b));
-  }, [classes]);
-
   // All weekly timetable entries across assigned batches (filtered strictly for current teacher)
   const allTimetableEntries = useMemo(() => {
     const list = [];
     const teacherName = user?.name || '';
+    const userSubject = user?.subject || (user?.subjects && user.subjects[0]) || '';
 
     classes.forEach((c) => {
-      const parentBranch = c.branch || (c.name && c.name.toLowerCase().includes('mangalwar') ? 'Mangalwar Peth' : 'Tarabai Park');
+      const parentBranch = c.branch || (isMangalBranch(c.name) ? 'Mangalwar Peth' : 'Tarabai Park');
 
       if (Array.isArray(c.timetable) && c.timetable.length > 0) {
         c.timetable.forEach((slot) => {
@@ -495,10 +539,15 @@ export default function MyClasses() {
             }
           }
 
+          const slotSub = slot.subject || c.subject || userSubject;
+          const finalSub = (slotSub && !slotSub.includes(','))
+            ? slotSub
+            : (userSubject || (isTeacherMatch(teacherName, 'veer') ? 'Mathematics' : slotSub));
+
           list.push({
             ...slot,
             class_code: slot.class_code || c.class_code || c.name,
-            subject: slot.subject || c.subject,
+            subject: finalSub,
             room: slot.room || c.room,
             branch: slot.branch || parentBranch,
             parentClass: c
@@ -512,13 +561,18 @@ export default function MyClasses() {
           }
         }
 
+        const batchSub = c.subject || userSubject;
+        const finalSub = (batchSub && !batchSub.includes(','))
+          ? batchSub
+          : (userSubject || (isTeacherMatch(teacherName, 'veer') ? 'Mathematics' : batchSub));
+
         (c.days || []).forEach((d) => {
           list.push({
             day: d,
             time: c.time,
             room: c.room,
             class_code: c.class_code || c.name,
-            subject: c.subject,
+            subject: finalSub,
             branch: parentBranch,
             parentClass: c
           });
@@ -528,14 +582,49 @@ export default function MyClasses() {
     return list;
   }, [classes, user]);
 
+  // Dynamic Timetable Slots List (Standard periods + any custom/batch slots)
+  const timetableTimeSlots = useMemo(() => {
+    const defaultSlots = [
+      '09:00 AM – 10:00 AM',
+      '10:00 AM – 11:00 AM',
+      '11:00 AM – 12:00 PM',
+      '12:00 PM – 01:00 PM',
+      '03:00 PM – 04:00 PM'
+    ];
+
+    const slotSet = new Set(defaultSlots);
+    classes.forEach((c) => {
+      if (c.time) {
+        const norm = c.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
+        slotSet.add(norm);
+      }
+      if (Array.isArray(c.timetable)) {
+        c.timetable.forEach((s) => {
+          if (s.time) {
+            const norm = s.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
+            slotSet.add(norm);
+          }
+        });
+      }
+    });
+
+    allTimetableEntries.forEach((entry) => {
+      if (entry.time) {
+        const norm = entry.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
+        slotSet.add(norm);
+      }
+    });
+
+    return Array.from(slotSet).sort((a, b) => getMinutesFromTimeString(a) - getMinutesFromTimeString(b));
+  }, [classes, allTimetableEntries]);
+
   // Helper to find slot entry for day and time with optional branch filtering
   const getSlotEntry = (timeSlot, dayName) => {
     return allTimetableEntries.find((e) => {
       if (!e.day || e.day.toLowerCase() !== dayName.toLowerCase()) return false;
       if (!timesMatch(e.time, timeSlot)) return false;
-      if (branchFilter !== 'All') {
-        const br = (e.branch || '').toLowerCase();
-        if (!br.includes(branchFilter.toLowerCase())) return false;
+      if (branchFilter !== 'All' && !isBranchMatch(e.branch, branchFilter)) {
+        return false;
       }
       return true;
     });
@@ -555,11 +644,11 @@ export default function MyClasses() {
   }, [allTimetableEntries]);
 
   const tarabaiCount = useMemo(() => {
-    return allTimetableEntries.filter((e) => (e.branch || '').toLowerCase().includes('tarabai')).length;
+    return allTimetableEntries.filter((e) => isTarabaiBranch(e.branch)).length;
   }, [allTimetableEntries]);
 
   const mangalwarCount = useMemo(() => {
-    return allTimetableEntries.filter((e) => (e.branch || '').toLowerCase().includes('mangalwar')).length;
+    return allTimetableEntries.filter((e) => isMangalBranch(e.branch)).length;
   }, [allTimetableEntries]);
 
   // Filter students for the selected class modal
@@ -771,7 +860,7 @@ export default function MyClasses() {
               <span className="text-sa-muted mt-1 d-block" style={{ fontSize: '11px' }}>
                 {!isWeekPublished && !showRoutinePreview
                   ? 'Awaiting Academic Admin release'
-                  : 'Allocated across Monday to Saturday'}
+                  : `Allocated across Monday to ${currentWeekDays.length === 7 ? 'Sunday' : 'Saturday'}`}
               </span>
             </div>
           </div>
@@ -1230,11 +1319,11 @@ export default function MyClasses() {
                     <th
                       key={idx}
                       style={{
-                        width: '14%',
+                        width: `${100 / (currentWeekDays.length + 1)}%`,
                         minWidth: '135px',
                         backgroundColor: isCurrentDay ? '#FFF5F5' : '#F8FAFC',
                         borderBottom: isCurrentDay ? '2.5px solid #8B1216' : '2px solid #E2E8F0',
-                        borderRight: idx === 5 ? 'none' : '1px solid #E2E8F0',
+                        borderRight: idx === currentWeekDays.length - 1 ? 'none' : '1px solid #E2E8F0',
                         padding: '12px 10px',
                         textAlign: 'center'
                       }}
@@ -1311,7 +1400,7 @@ export default function MyClasses() {
                           </span>
                         )}
                         <span className="badge bg-light text-muted border align-self-start mt-1.5" style={{ fontSize: '9px', padding: '1px 5px' }}>
-                          60 mins
+                          {getSlotDurationLabel(slot)}
                         </span>
                       </div>
                     </td>
@@ -1328,7 +1417,7 @@ export default function MyClasses() {
                             key={dIdx}
                             style={{
                               backgroundColor: isCurrentDay ? '#FFFDFD' : '#FFFFFF',
-                              borderRight: dIdx === 5 ? 'none' : '1px solid #F8FAFC',
+                              borderRight: dIdx === currentWeekDays.length - 1 ? 'none' : '1px solid #F8FAFC',
                               borderBottom: sIdx === timetableTimeSlots.length - 1 ? 'none' : '1px solid #F8FAFC',
                               verticalAlign: 'middle',
                               padding: '8px'
@@ -1343,14 +1432,14 @@ export default function MyClasses() {
 
                       const style = getTimetableSlotStyle(entry.class_code, entry.subject);
                       const slotBranch = entry.branch || entry.parentClass?.branch || 'Tarabai Park';
-                      const isMangalwar = slotBranch.toLowerCase().includes('mangalwar');
+                      const isMangalwar = isMangalBranch(slotBranch);
 
                       return (
                         <td
                           key={dIdx}
                           style={{
                             backgroundColor: isCurrentDay ? '#FFFDFD' : '#FFFFFF',
-                            borderRight: dIdx === 5 ? 'none' : '1px solid #F8FAFC',
+                            borderRight: dIdx === currentWeekDays.length - 1 ? 'none' : '1px solid #F8FAFC',
                             borderBottom: sIdx === timetableTimeSlots.length - 1 ? 'none' : '1px solid #F8FAFC',
                             verticalAlign: 'middle',
                             padding: '6px'
@@ -1448,7 +1537,7 @@ export default function MyClasses() {
                                 className="text-muted small fw-medium"
                                 style={{ fontSize: '9px' }}
                               >
-                                60m
+                                {getSlotDurationShort(entry.time || slot)}
                               </span>
                             </div>
                           </div>

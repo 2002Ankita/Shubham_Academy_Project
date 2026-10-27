@@ -358,8 +358,15 @@ async def get_all_batches(
                     is_match = True
                 elif b.teacher_name and first_name and first_name in b.teacher_name.lower():
                     is_match = True
-                elif not b.teacher_name:
-                    is_match = True
+
+                # Check teacher.assigned_batches
+                if not is_match and getattr(teacher, "assigned_batches", None):
+                    code = getattr(b, "class_code", "") or ""
+                    b_name = getattr(b, "name", "") or ""
+                    for ab in teacher.assigned_batches:
+                        if ab and (ab.lower() == code.lower() or ab.lower() == b_name.lower() or ab.lower() in b_name.lower()):
+                            is_match = True
+                            break
 
                 # Also inspect timetable slots so imported or scheduled slots for this faculty are included
                 if not is_match and b.timetable:
@@ -432,6 +439,14 @@ async def create_batch(data: dict) -> dict:
         status=data.get("status", "Active")
     )
     await batch.insert()
+
+    # Link batch into teacher's assigned_batches
+    if teacher:
+        label = batch.class_code or batch.name
+        if label not in (teacher.assigned_batches or []):
+            teacher.assigned_batches = list(teacher.assigned_batches or []) + [label]
+            await teacher.save()
+
     return _format_batch(batch)
 
 async def update_batch(batch_id: str, data: dict) -> dict:
@@ -448,10 +463,17 @@ async def update_batch(batch_id: str, data: dict) -> dict:
         if hasattr(b, k):
             setattr(b, k, v)
 
-    if data.get("teacher_id"):
-        t = await resolve_teacher(data["teacher_id"])
+    teacher_target = data.get("teacher_id") or data.get("teacher_name")
+    if teacher_target:
+        t = await resolve_teacher(teacher_target)
         if t:
             b.teacher = t
+            if t.user and isinstance(t.user, User):
+                b.teacher_name = t.user.full_name
+            label = b.class_code or b.name
+            if label not in (t.assigned_batches or []):
+                t.assigned_batches = list(t.assigned_batches or []) + [label]
+                await t.save()
 
     await b.save()
     return _format_batch(b)
@@ -542,7 +564,7 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
         subject = (item.get("subject") or item.get("Subject") or "Physics").strip()
         batch_name = (item.get("batch") or item.get("class_batch") or item.get("Class / Batch") or "12th pcm tarabai park").strip()
         room = item.get("room") or item.get("Room") or "Room 201"
-        branch = item.get("branch") or item.get("Branch") or ("Mangalwar Peth" if "mangalwar" in batch_name.lower() else "Tarabai Park")
+        branch = item.get("branch") or item.get("Branch") or ("Mangalvar Peth" if ("mangal" in batch_name.lower() or "mp" in batch_name.lower()) else "Tarabai Park")
         teacher_name = item.get("teacher_name") or item.get("teacher") or item.get("Teacher Name") or ""
 
         if not teacher_name:
