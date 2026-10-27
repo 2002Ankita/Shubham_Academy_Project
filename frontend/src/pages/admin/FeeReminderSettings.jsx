@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import BackButton from '../../components/common/BackButton';
 import reminderService from '../../services/reminderService';
 import studentService from '../../services/studentService';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch, isStudentInBranch } from '../../utils/branchUtils';
 import {
   Bell,
   Check,
@@ -33,11 +35,16 @@ import {
   Megaphone,
   Edit2,
   Settings,
-  IndianRupee
+  IndianRupee,
+  Sun,
+  Sunset,
+  GraduationCap
 } from 'lucide-react';
 
 export default function FeeReminderSettings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
 
   // Settings state
   const [enabled, setEnabled] = useState(true);
@@ -71,6 +78,11 @@ export default function FeeReminderSettings() {
   const [customMobile, setCustomMobile] = useState('');
   const [modalChannel, setModalChannel] = useState('WhatsApp');
 
+  // Quick filter options requested by user: Standard (11th / 12th) and Session (Morning / Afternoon)
+  const [filterStandard, setFilterStandard] = useState('ALL'); // 'ALL' | '11th' | '12th'
+  const [filterSession, setFilterSession] = useState('ALL');   // 'ALL' | 'Morning' | 'Afternoon'
+  const [campusScope, setCampusScope] = useState('BRANCH');    // 'BRANCH' | 'ALL'
+
   // Fetch current settings on load
   useEffect(() => {
     const fetchSettings = async () => {
@@ -100,88 +112,38 @@ export default function FeeReminderSettings() {
     fetchSettings();
   }, []);
 
-  // Fetch registered students list to enable student selection and parent mobile auto-fetching
+  // Fetch registered students list across campuses for fast client-side filtering
   useEffect(() => {
     const loadStudents = async () => {
       setLoadingStudents(true);
       try {
-        const data = await studentService.getAll().catch(() => []);
+        const data = await studentService.getAll({ branch: 'ALL' }).catch(() => []);
         if (Array.isArray(data) && data.length > 0) {
           setStudents(data);
-          // Auto-select first student with parent mobile if available
-          const firstValid = data.find(s => s.parentPhone || s.parent_mobile) || data[0];
+          // Initial select prioritized by branch
+          const branchMatches = data.filter(s => !activeBranch || isStudentInBranch(s, activeBranch));
+          const firstValid = (branchMatches.length > 0 ? branchMatches : data).find(s => s.parentPhone || s.parent_mobile) || branchMatches[0] || data[0];
           if (firstValid) {
             applySelectedStudent(firstValid);
           }
         } else {
-          // Provide realistic fallback students if database is fresh
-          const mockStudents = [
-            {
-              id: 'STU-101',
-              student_id: 'SA-1024',
-              rollNumber: 'SA-1024',
-              name: 'Rahul Sharma',
-              parentName: 'Suresh Sharma',
-              parentPhone: '9822014589',
-              standard: 'Class 10th - State Board',
-              batch: 'Morning Batch A',
-              remainingFees: 15000,
-              fee_due_date: '2026-10-25'
-            },
-            {
-              id: 'STU-102',
-              student_id: 'SA-1025',
-              rollNumber: 'SA-1025',
-              name: 'Sneha Patil',
-              parentName: 'Anand Patil',
-              parentPhone: '9850123456',
-              standard: 'Class 12th - Science (JEE)',
-              batch: 'Evening Batch B',
-              remainingFees: 24000,
-              fee_due_date: '2026-10-28'
-            },
-            {
-              id: 'STU-103',
-              student_id: 'SA-1026',
-              rollNumber: 'SA-1026',
-              name: 'Amit Deshmukh',
-              parentName: 'Vijay Deshmukh',
-              parentPhone: '9423009876',
-              standard: 'Class 9th - CBSE',
-              batch: 'Regular Batch',
-              remainingFees: 8500,
-              fee_due_date: '2026-11-01'
-            },
-            {
-              id: 'STU-104',
-              student_id: 'SA-1027',
-              rollNumber: 'SA-1027',
-              name: 'Pooja Kulkarni',
-              parentName: 'Mahesh Kulkarni',
-              parentPhone: '9765432100',
-              standard: 'Class 11th - NEET',
-              batch: 'Intensive Batch',
-              remainingFees: 32000,
-              fee_due_date: '2026-10-22'
-            }
-          ];
-          setStudents(mockStudents);
-          applySelectedStudent(mockStudents[0]);
+          setStudents([]);
         }
       } catch (err) {
         console.error('Failed to load students:', err);
+        setStudents([]);
       } finally {
         setLoadingStudents(false);
       }
     };
 
     loadStudents();
-  }, []);
+  }, [activeBranch]);
 
   // Helper to populate parent mobile and parent details from student record
   const applySelectedStudent = (stu) => {
     if (!stu) return;
-    const stuId = stu.id || stu.student_id;
+    const stuId = stu.student_id || stu.id;
     setSelectedStudentId(stuId);
     const pName = stu.parentName || stu.parent_name || 'Parent / Guardian';
     setParentName(pName);
@@ -190,19 +152,22 @@ export default function FeeReminderSettings() {
     const cleanMobile = rawMobile.replace(/\D/g, '').slice(-10);
     setParentMobile(cleanMobile);
 
-    const dues = stu.remainingFees ?? stu.pendingFees ?? stu.remaining_fees ?? 15000;
+    const dues = stu.remainingFees ?? stu.pendingFees ?? stu.remaining_fees ?? 0;
     setFeeDueAmount(String(dues));
   };
 
   const handleStudentSelect = (stuId) => {
-    const stu = students.find(s => String(s.id) === String(stuId) || String(s.student_id) === String(stuId));
+    if (!stuId) return;
+    const stu = students.find(
+      s => String(s.student_id) === String(stuId) || String(s.id) === String(stuId) || String(s._id) === String(stuId)
+    );
     if (stu) {
       applySelectedStudent(stu);
       const rawMobile = stu.parentPhone || stu.parent_mobile || stu.phone || stu.mobile_number || '';
       const cleanMobile = rawMobile.replace(/\D/g, '').slice(-10);
-      const dues = stu.remainingFees ?? stu.pendingFees ?? stu.remaining_fees ?? 15000;
+      const dues = stu.remainingFees ?? stu.pendingFees ?? stu.remaining_fees ?? 0;
       if (cleanMobile) {
-        toast.info(`Fetched parent mobile: +91 ${cleanMobile} (${stu.parentName || stu.parent_name || 'Parent'}) | Due: ₹${Number(dues).toLocaleString('en-IN')}`);
+        toast.info(`Selected ${stu.name || stu.full_name} | Parent: ${stu.parentName || 'Parent'} (+91 ${cleanMobile}) | Due: ₹${Number(dues).toLocaleString('en-IN')}`);
       } else {
         toast.warn(`No parent mobile registered for ${stu.name || stu.full_name}. Please type number manually.`);
       }
@@ -211,10 +176,68 @@ export default function FeeReminderSettings() {
     }
   };
 
+  // Compute filtered students based on Standard (11th/12th), Session (Morning/Afternoon), Campus Scope, and Search
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => {
+      // 1. Campus Filter
+      if (campusScope === 'BRANCH' && activeBranch) {
+        if (!isStudentInBranch(s, activeBranch)) return false;
+      }
+
+      // 2. Standard Filter (11th vs 12th)
+      if (filterStandard !== 'ALL') {
+        const stdStr = `${s.standard || ''} ${s.batch || ''}`.toLowerCase();
+        if (filterStandard === '11th' && !stdStr.includes('11')) return false;
+        if (filterStandard === '12th' && !stdStr.includes('12')) return false;
+      }
+
+      // 3. Session Filter (Morning vs Afternoon)
+      if (filterSession !== 'ALL') {
+        const sessStr = `${s.session || ''} ${s.batch || ''}`.toLowerCase();
+        if (filterSession === 'Morning') {
+          if (sessStr.includes('afternoon') || sessStr.includes('evening')) return false;
+        } else if (filterSession === 'Afternoon') {
+          const hasAfternoon = sessStr.includes('afternoon') || sessStr.includes('evening');
+          if (!hasAfternoon) return false;
+        }
+      }
+
+      // 4. Search Filter
+      if (studentSearchTerm) {
+        const term = studentSearchTerm.toLowerCase();
+        const sName = (s.name || s.full_name || '').toLowerCase();
+        const sRoll = (s.rollNumber || s.student_id || '').toLowerCase();
+        const pName = (s.parentName || s.parent_name || '').toLowerCase();
+        const sBatch = (s.batch || '').toLowerCase();
+        if (!sName.includes(term) && !sRoll.includes(term) && !pName.includes(term) && !sBatch.includes(term)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [students, campusScope, activeBranch, filterStandard, filterSession, studentSearchTerm]);
+
+  // Keep selected student synchronized whenever filter narrows down the list
+  useEffect(() => {
+    if (filteredStudents.length > 0) {
+      const isCurrentInList = filteredStudents.some(
+        s => String(s.student_id) === String(selectedStudentId) || String(s.id) === String(selectedStudentId)
+      );
+      if (!isCurrentInList) {
+        applySelectedStudent(filteredStudents[0]);
+      }
+    }
+  }, [filteredStudents]);
+
   // Find currently selected student object
   const currentSelectedStudent = useMemo(() => {
-    return students.find(s => String(s.id) === String(selectedStudentId) || String(s.student_id) === String(selectedStudentId)) || null;
-  }, [students, selectedStudentId]);
+    return (
+      students.find(
+        s => String(s.student_id) === String(selectedStudentId) || String(s.id) === String(selectedStudentId)
+      ) || (filteredStudents.length > 0 ? filteredStudents[0] : null)
+    );
+  }, [students, filteredStudents, selectedStudentId]);
 
   // Generate personalized reminder message preview with dynamic values replaced
   const generatePreviewMessage = (studentObj, pName) => {
@@ -1068,7 +1091,136 @@ export default function FeeReminderSettings() {
 
                 {recipientMode === 'student' ? (
                   <>
-                    {/* Student Selection with Search */}
+                    {/* Quick Filters: Standard (11th/12th) & Session (Morning/Afternoon) */}
+                    <div
+                      className="p-3 rounded-3 mb-3"
+                      style={{
+                        backgroundColor: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
+                      }}
+                    >
+                      <div className="row g-2.5 align-items-center">
+                        {/* 1. Standard (11th or 12th) */}
+                        <div className="col-12 col-md-5">
+                          <span className="small fw-bold text-sa-charcoal d-flex align-items-center gap-1 mb-1.5" style={{ fontSize: '0.80rem' }}>
+                            <GraduationCap size={13} className="text-sa-primary" /> Class / Standard:
+                          </span>
+                          <div className="btn-group btn-group-sm w-100" role="group">
+                            <button
+                              type="button"
+                              onClick={() => setFilterStandard('ALL')}
+                              className={`btn btn-sm ${filterStandard === 'ALL' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterStandard === 'ALL' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterStandard === 'ALL' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              All Classes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFilterStandard('11th')}
+                              className={`btn btn-sm ${filterStandard === '11th' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterStandard === '11th' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterStandard === '11th' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              11th Science
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFilterStandard('12th')}
+                              className={`btn btn-sm ${filterStandard === '12th' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterStandard === '12th' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterStandard === '12th' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              12th Science
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Session (Morning or Afternoon) */}
+                        <div className="col-12 col-md-7">
+                          <span className="small fw-bold text-sa-charcoal d-flex align-items-center gap-1 mb-1.5" style={{ fontSize: '0.80rem' }}>
+                            <Sun size={13} className="text-warning" /> Session / Timing:
+                          </span>
+                          <div className="btn-group btn-group-sm w-100" role="group">
+                            <button
+                              type="button"
+                              onClick={() => setFilterSession('ALL')}
+                              className={`btn btn-sm ${filterSession === 'ALL' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterSession === 'ALL' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterSession === 'ALL' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              All Sessions
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFilterSession('Morning')}
+                              className={`btn btn-sm ${filterSession === 'Morning' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterSession === 'Morning' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterSession === 'Morning' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              ☀️ Morning Session
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFilterSession('Afternoon')}
+                              className={`btn btn-sm ${filterSession === 'Afternoon' ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-outline-secondary bg-white text-dark'}`}
+                              style={{
+                                backgroundColor: filterSession === 'Afternoon' ? 'var(--sa-primary, #8B1216)' : '#FFFFFF',
+                                borderColor: filterSession === 'Afternoon' ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                fontSize: '0.78rem'
+                              }}
+                            >
+                              ⛅ Afternoon Session
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3. Campus Scope Toggle */}
+                        <div className="col-12 d-flex align-items-center justify-content-between pt-2 mt-1 border-top" style={{ borderColor: '#E2E8F0' }}>
+                          <div className="d-flex align-items-center gap-1.5">
+                            <span className="text-muted small" style={{ fontSize: '0.74rem' }}>
+                              Campus: <strong>{campusScope === 'ALL' ? 'All Campuses' : (activeBranch || 'My Branch')}</strong>
+                            </span>
+                          </div>
+                          <div className="d-flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setCampusScope('BRANCH')}
+                              className={`btn btn-xs px-2.5 py-0.5 rounded-pill ${campusScope === 'BRANCH' ? 'btn-dark text-white fw-semibold' : 'btn-outline-secondary bg-white'}`}
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              {activeBranch || 'My Branch'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCampusScope('ALL')}
+                              className={`btn btn-xs px-2.5 py-0.5 rounded-pill ${campusScope === 'ALL' ? 'btn-dark text-white fw-semibold' : 'btn-outline-secondary bg-white'}`}
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              All Campuses
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Student Selection with Search & Quick-Pick */}
                     <div className="mb-3">
                       <div className="d-flex align-items-center justify-content-between mb-1.5">
                         <label className="form-label small fw-semibold m-0" style={{ color: themeStyles.textColor, fontSize: '0.85rem' }}>
@@ -1084,7 +1236,7 @@ export default function FeeReminderSettings() {
                             fontWeight: 600
                           }}
                         >
-                          {students.length} Registered Students
+                          {filteredStudents.length} Student{filteredStudents.length === 1 ? '' : 's'} Available
                         </span>
                       </div>
 
@@ -1124,30 +1276,74 @@ export default function FeeReminderSettings() {
                               fontWeight: 500
                             }}
                           >
-                            <option value="">-- Choose Student --</option>
-                            {students
-                              .filter(s => {
-                                if (!studentSearchTerm) return true;
-                                const term = studentSearchTerm.toLowerCase();
-                                const sName = (s.name || s.full_name || '').toLowerCase();
-                                const sRoll = (s.rollNumber || s.student_id || '').toLowerCase();
-                                const pName = (s.parentName || s.parent_name || '').toLowerCase();
-                                return sName.includes(term) || sRoll.includes(term) || pName.includes(term);
-                              })
-                              .map(s => {
-                                const sId = s.id || s.student_id;
-                                const displayName = s.name || s.full_name || 'Unnamed';
-                                const roll = s.rollNumber || s.student_id || 'N/A';
-                                const std = s.standard || 'Class';
-                                return (
-                                  <option key={sId} value={sId}>
-                                    {displayName} ({roll}) — {std}
-                                  </option>
-                                );
-                              })}
+                            <option value="">-- Choose Student ({filteredStudents.length}) --</option>
+                            {filteredStudents.map(s => {
+                              const sId = s.student_id || s.id;
+                              const displayName = s.name || s.full_name || 'Unnamed';
+                              const roll = s.rollNumber || s.student_id || 'N/A';
+                              const std = s.standard || 'Class';
+                              const sess = s.session || (s.batch?.toLowerCase().includes('afternoon') ? 'Afternoon' : 'Morning');
+                              return (
+                                <option key={sId} value={sId}>
+                                  {displayName} ({roll}) — {std} • {sess}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>
+
+                      {/* Quick Student Selection Chips for Instant 1-Click Choice */}
+                      {filteredStudents.length > 0 && (
+                        <div className="mt-2.5">
+                          <span className="small text-muted d-block mb-1" style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                            Quick-Pick Student ({filteredStudents.length}):
+                          </span>
+                          <div className="d-flex flex-wrap gap-1.5" style={{ maxHeight: '110px', overflowY: 'auto' }}>
+                            {filteredStudents.map(s => {
+                              const sId = s.student_id || s.id;
+                              const isSelected =
+                                String(selectedStudentId) === String(sId) ||
+                                String(selectedStudentId) === String(s.id) ||
+                                String(selectedStudentId) === String(s.student_id);
+                              const sess = s.session || (s.batch?.toLowerCase().includes('afternoon') ? 'Afternoon' : 'Morning');
+                              const isMorning = sess.toLowerCase().includes('morning');
+                              return (
+                                <button
+                                  key={sId}
+                                  type="button"
+                                  onClick={() => handleStudentSelect(sId)}
+                                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 py-1 px-2.5 rounded-pill transition-all ${
+                                    isSelected
+                                      ? 'btn-primary text-white shadow-sm fw-bold'
+                                      : 'btn-outline-secondary bg-white text-sa-charcoal'
+                                  }`}
+                                  style={{
+                                    fontSize: '0.78rem',
+                                    borderColor: isSelected ? 'var(--sa-primary, #8B1216)' : '#CBD5E1',
+                                    backgroundColor: isSelected ? 'var(--sa-primary, #8B1216)' : '#FFFFFF'
+                                  }}
+                                >
+                                  <span>{s.name || s.full_name}</span>
+                                  <span className="opacity-75" style={{ fontSize: '0.70rem' }}>
+                                    ({s.rollNumber || s.student_id})
+                                  </span>
+                                  <span
+                                    className="badge rounded-pill px-1.5 py-0.5"
+                                    style={{
+                                      fontSize: '0.64rem',
+                                      backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : (isMorning ? '#FEF3C7' : '#E0E7FF'),
+                                      color: isSelected ? '#FFFFFF' : (isMorning ? '#92400E' : '#3730A3')
+                                    }}
+                                  >
+                                    {s.standard?.includes('12') ? '12th' : '11th'} • {isMorning ? 'Morning' : 'Afternoon'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Auto-fetched Student & Parent Info Card */}
@@ -1195,10 +1391,35 @@ export default function FeeReminderSettings() {
 
                           <div className="col-12 col-sm-6 mt-1">
                             <span className="small d-block text-muted" style={{ fontSize: '0.74rem' }}>
+                              Class Session / Timing:
+                            </span>
+                            <span
+                              className="badge rounded-pill px-2 py-0.5 fw-bold"
+                              style={{
+                                backgroundColor: (currentSelectedStudent.session || currentSelectedStudent.batch || '').toLowerCase().includes('afternoon') ? '#E0E7FF' : '#FEF3C7',
+                                color: (currentSelectedStudent.session || currentSelectedStudent.batch || '').toLowerCase().includes('afternoon') ? '#3730A3' : '#92400E',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              {(currentSelectedStudent.session || currentSelectedStudent.batch || '').toLowerCase().includes('afternoon') ? '⛅ Afternoon Session' : '☀️ Morning Session'}
+                            </span>
+                          </div>
+
+                          <div className="col-12 col-sm-6 mt-1">
+                            <span className="small d-block text-muted" style={{ fontSize: '0.74rem' }}>
+                              Campus:
+                            </span>
+                            <span className="small fw-semibold text-sa-primary">
+                              {currentSelectedStudent.branch || activeBranch || 'Kolhapur Campus'}
+                            </span>
+                          </div>
+
+                          <div className="col-12 col-sm-6 mt-1">
+                            <span className="small d-block text-muted" style={{ fontSize: '0.74rem' }}>
                               Outstanding Fee Due (थकबाकी):
                             </span>
                             <span className="fw-extrabold text-danger" style={{ fontSize: '0.95rem' }}>
-                              ₹ {Number(feeDueAmount || currentSelectedStudent.remainingFees || 15000).toLocaleString('en-IN')}
+                              ₹ {Number(feeDueAmount || currentSelectedStudent.remainingFees || 0).toLocaleString('en-IN')}
                             </span>
                           </div>
                         </div>

@@ -52,7 +52,7 @@ export const studentService = {
         };
       });
 
-      if (activeBranch) {
+      if (activeBranch && activeBranch !== 'ALL') {
         list = list.filter(st => isStudentInBranch(st, activeBranch));
       }
 
