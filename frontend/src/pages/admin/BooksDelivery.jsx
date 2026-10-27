@@ -121,9 +121,10 @@ export default function BooksDelivery() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const branchParam = isSuperAdmin ? undefined : (isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
       const [delivData, itemsData, studentsData, teachersData] = await Promise.all([
-        inventoryService.getDeliveries(),
-        inventoryService.getItems(),
+        inventoryService.getDeliveries(branchParam ? { branch: branchParam } : {}),
+        inventoryService.getItems(branchParam ? { branch: branchParam } : {}),
         studentService.getAll(),
         teacherService.getAll().catch(() => [])
       ]);
@@ -153,16 +154,22 @@ export default function BooksDelivery() {
     }
   }, [user]);
 
-  // Find currently matched inventory item for category & subject
-  const getSelectedBookItem = (cat, subj) => {
+  // Find currently matched inventory item for category & subject and branch
+  const getSelectedBookItem = (cat, subj, targetBranch = modalBranch) => {
     return inventoryItems.find(it => {
+      const itCat = (it.category || '').toLowerCase();
+      const itSubj = (it.subject || '').toLowerCase();
+      const itBranch = it.branch || BRANCH_TARABAI;
+      const branchMatches = !targetBranch || itBranch.toLowerCase() === targetBranch.toLowerCase();
+      return itCat === (cat || '').toLowerCase() && itSubj === (subj || '').toLowerCase() && branchMatches;
+    }) || inventoryItems.find(it => {
       const itCat = (it.category || '').toLowerCase();
       const itSubj = (it.subject || '').toLowerCase();
       return itCat === (cat || '').toLowerCase() && itSubj === (subj || '').toLowerCase();
     }) || null;
   };
 
-  const selectedItemStock = getSelectedBookItem(newDelivery.category, newDelivery.subject);
+  const selectedItemStock = getSelectedBookItem(newDelivery.category, newDelivery.subject, modalBranch);
 
   // Filter students based on modal selection
   const eligibleStudents = React.useMemo(() => {
@@ -177,8 +184,10 @@ export default function BooksDelivery() {
 
   // Open Log Modal with fresh current time
   const handleOpenAddModal = () => {
-    setModalBranch(BRANCH_TARABAI);
-    setModalSession('');
+    const b = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
+    const s = isMP ? 'Morning' : (b === BRANCH_MANGALWAR ? 'Morning' : '');
+    setModalBranch(b);
+    setModalSession(s);
     setModalAcademicBatch('11th PCM');
     setNewDelivery({
       recipientType: 'Student',
@@ -270,7 +279,7 @@ export default function BooksDelivery() {
         if (tObj) resolvedName = tObj.name || tObj.full_name;
       }
 
-      const bookItem = getSelectedBookItem(newDelivery.category, newDelivery.subject);
+      const bookItem = getSelectedBookItem(newDelivery.category, newDelivery.subject, sObj?.branch || modalBranch);
 
       const payload = {
         recipient_type: newDelivery.recipientType,

@@ -45,10 +45,14 @@ export default function BooksStock() {
   const isSuperAdmin = user?.role === 'SuperAdmin';
   const activeBranch = getUserBranch(user);
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
-  const defaultBranch = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : BRANCH_TARABAI;
+  const userCampus = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : null;
+  const defaultBranch = userCampus || BRANCH_TARABAI;
   const defaultSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Campus filter for stock (SuperAdmin can toggle; Branch Admin is locked to their campus)
+  const [selectedCampus, setSelectedCampus] = useState(userCampus || 'All');
 
   // Tab routing with URL parameter sync
   const tabParam = searchParams.get('tab');
@@ -90,6 +94,7 @@ export default function BooksStock() {
     if (!isSuperAdmin && activeBranch) {
       const b = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
       setHandoverBranch(b);
+      setSelectedCampus(b);
       if (b === BRANCH_MANGALWAR && !handoverSession) {
         setHandoverSession('Morning');
       }
@@ -134,17 +139,22 @@ export default function BooksStock() {
     category: 'Theory',
     subject: 'Physics',
     standard: '11th & 12th Science',
+    branch: defaultBranch,
     inStock: 50,
     reorderLevel: 15,
     unitCost: 350
   });
 
-  const loadData = async () => {
+  const loadData = async (campus = selectedCampus) => {
     try {
       setLoading(true);
+      const branchParam = (!isSuperAdmin && activeBranch)
+        ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI)
+        : (campus !== 'All' ? campus : undefined);
+
       const [itemsData, deliveriesData, studentsData, teachersData] = await Promise.allSettled([
-        inventoryService.getItems(),
-        inventoryService.getDeliveries(),
+        inventoryService.getItems(branchParam ? { branch: branchParam } : {}),
+        inventoryService.getDeliveries(branchParam ? { branch: branchParam } : {}),
         studentService.getAll(),
         teacherService.getAll()
       ]);
@@ -170,16 +180,25 @@ export default function BooksStock() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(selectedCampus);
+  }, [selectedCampus]);
 
   const openHandoverModal = (preselectedItemId = '') => {
     const defaultStaff = user?.name || user?.full_name || (user?.role === 'teacher' ? 'Faculty Member' : 'Academic Admin Desk');
-    setHandoverBranch(BRANCH_TARABAI);
-    setHandoverSession('');
+    const b = (!isSuperAdmin && activeBranch)
+      ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI)
+      : (selectedCampus !== 'All' ? selectedCampus : BRANCH_TARABAI);
+    const s = (!isSuperAdmin && isMangal) ? 'Morning' : (b === BRANCH_MANGALWAR ? 'Morning' : '');
+    setHandoverBranch(b);
+    setHandoverSession(s);
     setHandoverAcademicBatch('11th PCM');
+
+    const matchedItem = stock.find(item => item.id === preselectedItemId) ||
+      stock.find(item => (item.branch || BRANCH_TARABAI) === b) ||
+      stock[0];
+
     setHandoverForm({
-      inventoryItemId: preselectedItemId || (stock[0]?.id || ''),
+      inventoryItemId: matchedItem?.id || '',
       studentId: '', // Clean empty default so user can easily search and select
       manualStudentName: '',
       manualRollNo: '',
@@ -322,23 +341,26 @@ export default function BooksStock() {
     }
 
     try {
+      const bookBranch = newBook.branch || (isSuperAdmin ? (selectedCampus !== 'All' ? selectedCampus : BRANCH_TARABAI) : defaultBranch);
       await inventoryService.createItem({
         title: newBook.title.trim(),
         category: newBook.category || 'Theory',
         subject: newBook.subject,
         standard: newBook.standard,
+        branch: bookBranch,
         in_stock: inStock,
         total_stock: inStock,
         reorder_level: reorderLevel,
         unit_cost: unitCost
       });
-      toast.success(`"${newBook.title.trim()}" added to inventory catalog!`);
+      toast.success(`"${newBook.title.trim()}" added to inventory catalog for ${bookBranch}!`);
       setAddStockModalOpen(false);
       setNewBook({
         title: '',
         category: 'Theory',
         subject: 'Physics',
         standard: '11th & 12th Science',
+        branch: defaultBranch,
         inStock: 50,
         reorderLevel: 15,
         unitCost: 350
@@ -452,6 +474,11 @@ export default function BooksStock() {
               <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
                 Inventory & Distribution
               </span>
+              {!isSuperAdmin && activeBranch && (
+                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-0.5 rounded-pill fw-bold" style={{ fontSize: '11px' }}>
+                  📍 Campus: {isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI}
+                </span>
+              )}
             </div>
             <span className="small text-sa-muted mt-1.5 d-block" style={{ fontSize: '13px' }}>
               Monitor physical stock levels, who handed over books, and to which students materials were distributed
@@ -463,7 +490,7 @@ export default function BooksStock() {
               type="button"
               className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
               style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
-              onClick={loadData}
+              onClick={() => loadData(selectedCampus)}
               title="Reload latest inventory counts"
             >
               <RefreshCw size={14} className="flex-shrink-0" />
@@ -657,11 +684,35 @@ export default function BooksStock() {
             </button>
           </div>
 
-          <span className="small text-muted fw-semibold">
-            {activeTab === 'stock'
-              ? `Showing ${filteredStock.length} of ${stock.length} catalog items`
-              : `Showing ${filteredDeliveries.length} handover transactions`}
-          </span>
+          <div className="d-flex align-items-center gap-2.5 flex-wrap">
+            {isSuperAdmin ? (
+              <div className="d-inline-flex p-1 bg-light rounded-3 border" style={{ backgroundColor: '#F1F5F9' }}>
+                {['All', BRANCH_TARABAI, BRANCH_MANGALWAR].map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setSelectedCampus(c)}
+                    className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold border-0 ${
+                      selectedCampus === c ? 'bg-white shadow-xs text-danger' : 'text-secondary'
+                    }`}
+                    style={{ fontSize: '12px' }}
+                  >
+                    {c === 'All' ? '🏢 All Campuses' : `📍 ${c}`}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5 rounded-2 fw-bold" style={{ fontSize: '12px' }}>
+                📍 {isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI} Locker
+              </span>
+            )}
+
+            <span className="small text-muted fw-semibold">
+              {activeTab === 'stock'
+                ? `Showing ${filteredStock.length} of ${stock.length} catalog items`
+                : `Showing ${filteredDeliveries.length} handover transactions`}
+            </span>
+          </div>
         </div>
 
         {/* Tab 1: Available Books Stock */}
@@ -759,6 +810,19 @@ export default function BooksStock() {
                       {val || 'General Stream'}
                     </span>
                   )
+                },
+                {
+                  key: 'branch',
+                  title: 'Campus Locker',
+                  width: '145px',
+                  render: (val) => {
+                    const isM = (val || '').toLowerCase().includes('mangal');
+                    return (
+                      <span className={`badge px-2 py-1 border text-nowrap ${isM ? 'bg-warning-subtle text-warning-emphasis border-warning-subtle' : 'bg-primary-subtle text-primary border-primary-subtle'}`} style={{ fontSize: '11px' }}>
+                        📍 {val || BRANCH_TARABAI}
+                      </span>
+                    );
+                  }
                 },
                 {
                   key: 'inStock',
@@ -1055,15 +1119,17 @@ export default function BooksStock() {
               id="handover-material-package"
               label="Select Material Package"
               required
-              options={stock.map(item => ({
-                value: item.id,
-                label: item.title,
-                badge: item.standard || 'General',
-                stockBadge: Number(item.inStock) > 0 ? `${item.inStock} copies available` : 'OUT OF STOCK',
-                stockBadgeColor: Number(item.inStock) > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger text-white',
-                disabled: Number(item.inStock) <= 0,
-                keywords: [item.title, item.subject, item.standard, item.category]
-              }))}
+              options={stock
+                .filter(item => isSuperAdmin || !item.branch || item.branch === handoverBranch)
+                .map(item => ({
+                  value: item.id,
+                  label: isSuperAdmin ? `${item.title} (${item.branch || 'Tarabai Park'})` : item.title,
+                  badge: item.standard || 'General',
+                  stockBadge: Number(item.inStock) > 0 ? `${item.inStock} copies available` : 'OUT OF STOCK',
+                  stockBadgeColor: Number(item.inStock) > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger text-white',
+                  disabled: Number(item.inStock) <= 0,
+                  keywords: [item.title, item.subject, item.standard, item.category, item.branch]
+                }))}
               value={handoverForm.inventoryItemId}
               onChange={(val) => setHandoverForm({ ...handoverForm, inventoryItemId: val })}
               placeholder="-- Choose Module --"
@@ -1085,7 +1151,15 @@ export default function BooksStock() {
                 academicBatch={handoverAcademicBatch}
                 onBranchChange={(b) => {
                   setHandoverBranch(b);
-                  setHandoverForm(prev => ({ ...prev, studentId: '', manualStudentName: '' }));
+                  setHandoverForm(prev => {
+                    const currentItem = stock.find(s => s.id === prev.inventoryItemId);
+                    let newItemId = prev.inventoryItemId;
+                    if (currentItem && (currentItem.branch || BRANCH_TARABAI) !== b) {
+                      const corr = stock.find(s => (s.branch || BRANCH_TARABAI) === b && s.category === currentItem.category && s.subject === currentItem.subject);
+                      if (corr) newItemId = corr.id;
+                    }
+                    return { ...prev, inventoryItemId: newItemId, studentId: '', manualStudentName: '' };
+                  });
                 }}
                 onSessionChange={(s) => {
                   setHandoverSession(s);
@@ -1284,6 +1358,24 @@ export default function BooksStock() {
         title="Add New Study Book / Module"
       >
         <form onSubmit={handleAddNewBook} className="d-flex flex-column gap-3">
+          <div>
+            <label className="form-label small fw-bold">Campus / Branch Locker *</label>
+            <select
+              className="form-select"
+              value={newBook.branch || defaultBranch}
+              onChange={(e) => setNewBook({ ...newBook, branch: e.target.value })}
+              disabled={!isSuperAdmin}
+            >
+              <option value={BRANCH_TARABAI}>{BRANCH_TARABAI}</option>
+              <option value={BRANCH_MANGALWAR}>{BRANCH_MANGALWAR}</option>
+            </select>
+            {!isSuperAdmin && (
+              <span className="text-muted small" style={{ fontSize: '11px' }}>
+                Auto-assigned to your campus locker ({defaultBranch})
+              </span>
+            )}
+          </div>
+
           <Input
             label="Module / Book Title *"
             name="title"

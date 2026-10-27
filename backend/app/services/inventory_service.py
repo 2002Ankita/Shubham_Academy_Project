@@ -27,15 +27,45 @@ DEFAULT_BOOKS = [
     {"title": "CET - Mathematics", "category": "CET", "subject": "Maths", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 400.0},
 ]
 
+BRANCH_TARABAI = "Tarabai Park"
+BRANCH_MANGALWAR = "Mangalvar Peth"
+
 async def ensure_default_books():
-    """Ensure existing items have total_stock populated."""
+    """Ensure existing items have total_stock and branch populated, and both branches have their book sets."""
     try:
-        items = await InventoryItem.find(InventoryItem.total_stock == None).to_list()
-        for item in items:
-            item.total_stock = item.in_stock or 0
-            await item.save()
-    except Exception:
-        pass
+        # 1. Update any existing items with missing branch or total_stock
+        await InventoryItem.get_motor_collection().update_many(
+            {"$or": [{"branch": None}, {"branch": {"$exists": False}}]},
+            {"$set": {"branch": BRANCH_TARABAI}}
+        )
+        await InventoryItem.get_motor_collection().update_many(
+            {"$or": [{"total_stock": None}, {"total_stock": {"$exists": False}}]},
+            [{"$set": {"total_stock": "$in_stock"}}]
+        )
+
+        # 2. Ensure each branch has the full set of DEFAULT_BOOKS
+        for branch_name in [BRANCH_TARABAI, BRANCH_MANGALWAR]:
+            for book_spec in DEFAULT_BOOKS:
+                existing = await InventoryItem.find_one({
+                    "branch": branch_name,
+                    "category": book_spec["category"],
+                    "subject": book_spec["subject"]
+                })
+                if not existing:
+                    new_item = InventoryItem(
+                        title=book_spec["title"],
+                        category=book_spec["category"],
+                        subject=book_spec["subject"],
+                        standard=book_spec["standard"],
+                        branch=branch_name,
+                        in_stock=book_spec["in_stock"],
+                        total_stock=book_spec["in_stock"],
+                        reorder_level=book_spec["reorder_level"],
+                        unit_cost=book_spec["unit_cost"]
+                    )
+                    await new_item.insert()
+    except Exception as e:
+        print(f"Error in ensure_default_books: {e}")
 
 async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
     item_dict = item_in.model_dump() if hasattr(item_in, "model_dump") else item_in.dict()
@@ -54,6 +84,9 @@ async def add_inventory_item(item_in: InventoryItemCreate) -> dict:
         cat = item_dict.get("category", "Theory")
         subj = item_dict.get("subject", "Physics")
         item_dict["title"] = f"{cat} - {subj}"
+
+    if not item_dict.get("branch"):
+        item_dict["branch"] = BRANCH_TARABAI
 
     if item_dict.get("total_stock") is None or item_dict.get("total_stock") < in_stock:
         item_dict["total_stock"] = in_stock
@@ -134,8 +167,17 @@ async def restock_inventory_item(item_id: str, restock_in: InventoryItemRestock)
     d["id"] = str(item.id)
     return d
 
-async def get_inventory_items() -> list[dict]:
-    items = await InventoryItem.find_all().to_list()
+async def get_inventory_items(branch: Optional[str] = None) -> list[dict]:
+    await ensure_default_books()
+    if branch and branch.upper() != "ALL":
+        if "mangal" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_MANGALWAR).to_list()
+        elif "tara" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_TARABAI).to_list()
+        else:
+            items = await InventoryItem.find(InventoryItem.branch == branch).to_list()
+    else:
+        items = await InventoryItem.find_all().to_list()
     res = []
     for item in items:
         d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
@@ -146,6 +188,8 @@ async def get_inventory_items() -> list[dict]:
             d["subject"] = "General"
         if not d.get("total_stock"):
             d["total_stock"] = d.get("in_stock", 50)
+        if not d.get("branch"):
+            d["branch"] = BRANCH_TARABAI
         res.append(d)
     return res
 
@@ -302,6 +346,24 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     subject = delivery_in.subject or "Physics"
     book_title = delivery_in.book_title or f"{category} - {subject}"
 
+    # Inherit branch, academic_batch, session from student admission record
+    branch = delivery_in.branch
+    academic_batch = delivery_in.academic_batch
+    session = delivery_in.session
+    batch = delivery_in.batch
+    standard = delivery_in.standard
+
+    if student:
+        branch = branch or getattr(student, "branch", None)
+        academic_batch = academic_batch or getattr(student, "academic_batch", None)
+        session = session or getattr(student, "session", None)
+        batch = batch or getattr(student, "batch", None)
+        standard = standard or getattr(student, "standard", None)
+
+    target_branch = BRANCH_MANGALWAR if (branch and "mangal" in branch.lower()) else BRANCH_TARABAI
+    if not branch:
+        branch = target_branch
+
     item = None
     if delivery_in.inventory_item_id:
         try:
@@ -309,11 +371,26 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         except Exception:
             item = None
 
+    if item and getattr(item, "branch", None) and target_branch and item.branch != target_branch:
+        branch_item = await InventoryItem.find_one(
+            InventoryItem.category == (item.category or category),
+            InventoryItem.subject == (item.subject or subject),
+            InventoryItem.branch == target_branch
+        )
+        if branch_item:
+            item = branch_item
+
     if not item:
         matched_items = await InventoryItem.find(
             InventoryItem.category == category,
-            InventoryItem.subject == subject
+            InventoryItem.subject == subject,
+            InventoryItem.branch == target_branch
         ).to_list()
+        if not matched_items:
+            matched_items = await InventoryItem.find(
+                InventoryItem.category == category,
+                InventoryItem.subject == subject
+            ).to_list()
         if matched_items:
             item = matched_items[0]
 
@@ -336,7 +413,7 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
         if item.in_stock < qty:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient stock! Only {item.in_stock} copies available, but {qty} requested."
+                detail=f"Insufficient stock at {target_branch}! Only {item.in_stock} copies available, but {qty} requested."
             )
 
     handed_by = delivery_in.handed_over_by or delivery_in.verified_by or current_user_name or "Academy Staff"
@@ -344,20 +421,6 @@ async def add_delivery(delivery_in: InventoryDeliveryCreate, current_user_name: 
     handover_date = delivery_in.date
     if not handover_date and status in ["Delivered", "Handed Over"]:
         handover_date = datetime.utcnow()
-
-    # Inherit branch, academic_batch, session from student admission record
-    branch = delivery_in.branch
-    academic_batch = delivery_in.academic_batch
-    session = delivery_in.session
-    batch = delivery_in.batch
-    standard = delivery_in.standard
-
-    if student:
-        branch = branch or getattr(student, "branch", None)
-        academic_batch = academic_batch or getattr(student, "academic_batch", None)
-        session = session or getattr(student, "session", None)
-        batch = batch or getattr(student, "batch", None)
-        standard = standard or getattr(student, "standard", None)
 
     delivery = InventoryDelivery(
         student=student,
@@ -688,9 +751,21 @@ async def get_student_book_delivery_status(student_id_or_user_id: str) -> dict:
         }
     }
 
-async def get_inventory_summary() -> dict:
-    items = await InventoryItem.find_all().to_list()
-    deliveries = await InventoryDelivery.find_all().to_list()
+async def get_inventory_summary(branch: Optional[str] = None) -> dict:
+    await ensure_default_books()
+    if branch and branch.upper() != "ALL":
+        if "mangal" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_MANGALWAR).to_list()
+            deliveries = await InventoryDelivery.find({"branch": {"$regex": "mangal", "$options": "i"}}).to_list()
+        elif "tara" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_TARABAI).to_list()
+            deliveries = await InventoryDelivery.find({"branch": {"$regex": "tara", "$options": "i"}}).to_list()
+        else:
+            items = await InventoryItem.find(InventoryItem.branch == branch).to_list()
+            deliveries = await InventoryDelivery.find(InventoryDelivery.branch == branch).to_list()
+    else:
+        items = await InventoryItem.find_all().to_list()
+        deliveries = await InventoryDelivery.find_all().to_list()
 
     total_available_stock = sum(max(0, item.in_stock or 0) for item in items)
     total_disbursed_copies = sum(
@@ -710,8 +785,18 @@ async def get_inventory_summary() -> dict:
         "low_stock_count": low_stock_count
     }
 
-async def get_low_stock_items() -> list[dict]:
-    items = await InventoryItem.find_all().to_list()
+async def get_low_stock_items(branch: Optional[str] = None) -> list[dict]:
+    await ensure_default_books()
+    if branch and branch.upper() != "ALL":
+        if "mangal" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_MANGALWAR).to_list()
+        elif "tara" in branch.lower():
+            items = await InventoryItem.find(InventoryItem.branch == BRANCH_TARABAI).to_list()
+        else:
+            items = await InventoryItem.find(InventoryItem.branch == branch).to_list()
+    else:
+        items = await InventoryItem.find_all().to_list()
+
     low_stock_items = [
         item for item in items
         if (item.in_stock or 0) <= (item.reorder_level or 0)
@@ -726,5 +811,7 @@ async def get_low_stock_items() -> list[dict]:
             d["subject"] = "General"
         if not d.get("total_stock"):
             d["total_stock"] = d.get("in_stock", 50)
+        if not d.get("branch"):
+            d["branch"] = BRANCH_TARABAI
         res.append(d)
     return res

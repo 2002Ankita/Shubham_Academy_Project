@@ -9,6 +9,7 @@ class InventoryItem(Document):
     category: Optional[str] = "Theory"  # "Theory" | "CET"
     subject: Optional[str] = "Physics"  # "Physics" | "Chemistry" | "Biology" | "Maths"
     standard: str = "11th & 12th Science"
+    branch: Optional[str] = "Tarabai Park"  # "Tarabai Park" | "Mangalvar Peth"
     in_stock: int = 50
     total_stock: Optional[int] = None
     reorder_level: int = 15

@@ -7,6 +7,7 @@ class InventoryItemCreate(BaseModel):
     category: Optional[str] = "Theory"  # "Theory" or "CET"
     subject: Optional[str] = "Physics"  # "Physics", "Chemistry", "Biology", "Maths"
     standard: Optional[str] = "11th & 12th Science"
+    branch: Optional[str] = "Tarabai Park"
     in_stock: int = Field(default=50, ge=0)
     total_stock: Optional[int] = Field(default=None, ge=0)
     reorder_level: int = Field(default=15, ge=0)
@@ -27,6 +28,7 @@ class InventoryItemUpdate(BaseModel):
     category: Optional[str] = None
     subject: Optional[str] = None
     standard: Optional[str] = None
+    branch: Optional[str] = None
     in_stock: Optional[int] = None
     reorder_level: Optional[int] = None
     unit_cost: Optional[float] = None
@@ -37,6 +39,7 @@ class InventoryItemResponse(BaseModel):
     category: Optional[str] = "Theory"
     subject: Optional[str] = "Physics"
     standard: str = "11th & 12th Science"
+    branch: Optional[str] = "Tarabai Park"
     in_stock: int = 50
     total_stock: Optional[int] = None
     reorder_level: int = 15

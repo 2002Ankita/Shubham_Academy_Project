@@ -24,25 +24,48 @@ def check_admin_role(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admin privileges required.")
 
 @router.get("/summary", response_model=InventorySummaryResponse)
-async def inventory_summary(token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    return await get_inventory_summary()
+async def inventory_summary(
+    branch: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = (getattr(user, "role", "") or "").upper().replace("-", "_")
+    user_branch = getattr(user, "branch", None)
+    if role != "SUPER_ADMIN" and not branch and user_branch:
+        branch = user_branch
+    return await get_inventory_summary(branch=branch)
 
 @router.get("/low-stock", response_model=List[InventoryItemResponse])
-async def list_low_stock_items(token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    return await get_low_stock_items()
+async def list_low_stock_items(
+    branch: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = (getattr(user, "role", "") or "").upper().replace("-", "_")
+    user_branch = getattr(user, "branch", None)
+    if role != "SUPER_ADMIN" and not branch and user_branch:
+        branch = user_branch
+    return await get_low_stock_items(branch=branch)
 
 @router.post("/items", response_model=InventoryItemResponse)
 async def create_item(item_in: InventoryItemCreate, token: str = Depends(oauth2_scheme)):
     user = await get_current_user(token)
     check_admin_role(user)
+    if not item_in.branch and getattr(user, "branch", None):
+        item_in.branch = user.branch
     return await add_inventory_item(item_in)
 
 @router.get("/items", response_model=List[InventoryItemResponse])
-async def list_items(token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    return await get_inventory_items()
+async def list_items(
+    branch: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
+    user = await get_current_user(token)
+    role = (getattr(user, "role", "") or "").upper().replace("-", "_")
+    user_branch = getattr(user, "branch", None)
+    if role != "SUPER_ADMIN" and not branch and user_branch:
+        branch = user_branch
+    return await get_inventory_items(branch=branch)
 
 @router.post("/items/{item_id}/restock", response_model=InventoryItemResponse)
 async def restock_item(item_id: str, restock_in: InventoryItemRestock, token: str = Depends(oauth2_scheme)):

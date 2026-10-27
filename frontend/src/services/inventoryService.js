@@ -1,14 +1,24 @@
 import api from './api';
 
 export const inventoryService = {
-  getItems: async () => {
-    const res = await api.get('/inventory/items');
+  getItems: async (params = {}) => {
+    let query = '';
+    if (typeof params === 'string') {
+      query = `?branch=${encodeURIComponent(params)}`;
+    } else if (params && typeof params === 'object') {
+      const q = new URLSearchParams();
+      if (params.branch) q.append('branch', params.branch);
+      const str = q.toString();
+      if (str) query = `?${str}`;
+    }
+    const res = await api.get(`/inventory/items${query}`);
     return (res.data || []).map(item => ({
       id: item.id,
       title: item.title,
       category: item.category || 'Theory',
       standard: item.standard,
       subject: item.subject || 'General',
+      branch: item.branch || 'Tarabai Park',
       inStock: item.in_stock,
       totalStock: item.total_stock || item.in_stock,
       reorderLevel: item.reorder_level,
@@ -44,14 +54,37 @@ export const inventoryService = {
     return res.data;
   },
 
-  getSummary: async () => {
-    const res = await api.get('/inventory/summary');
+  getSummary: async (params = {}) => {
+    let query = '';
+    if (typeof params === 'string') {
+      query = `?branch=${encodeURIComponent(params)}`;
+    } else if (params && params.branch) {
+      query = `?branch=${encodeURIComponent(params.branch)}`;
+    }
+    const res = await api.get(`/inventory/summary${query}`);
     return res.data;
   },
 
-  getLowStockItems: async () => {
-    const res = await api.get('/inventory/low-stock');
-    return res.data;
+  getLowStockItems: async (params = {}) => {
+    let query = '';
+    if (typeof params === 'string') {
+      query = `?branch=${encodeURIComponent(params)}`;
+    } else if (params && params.branch) {
+      query = `?branch=${encodeURIComponent(params.branch)}`;
+    }
+    const res = await api.get(`/inventory/low-stock${query}`);
+    return (res.data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      category: item.category || 'Theory',
+      standard: item.standard,
+      subject: item.subject || 'General',
+      branch: item.branch || 'Tarabai Park',
+      inStock: item.in_stock,
+      totalStock: item.total_stock || item.in_stock,
+      reorderLevel: item.reorder_level,
+      unitCost: item.unit_cost
+    }));
   },
 
   getDeliveries: async (params = {}) => {
