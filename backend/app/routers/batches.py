@@ -43,7 +43,12 @@ async def get_batches(
 ):
     current_user = await get_current_user(token)
     user_role = getattr(current_user, "role", "").upper().replace("-", "_")
-    
+    user_branch = getattr(current_user, "branch", None)
+
+    # If Academy Admin, enforce their branch
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
+
     # If a teacher requests batches without specific filter, pass their id
     if user_role == "TEACHER" and not teacher_id:
         teacher_id = str(current_user.id)

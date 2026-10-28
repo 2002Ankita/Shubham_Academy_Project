@@ -5,12 +5,16 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { Plus, Download, FileText, ArrowLeft } from 'lucide-react';
+import { Plus, Download, FileText, ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import materialService from '../../services/materialService';
+import useAuth from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function TeacherStudyMaterials() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -88,11 +92,26 @@ export default function TeacherStudyMaterials() {
           </button>
 
           <div>
-            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
-              Study Materials & Lecture Notes
-            </h3>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+                Study Materials & Lecture Notes
+              </h3>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
+            </div>
             <span className="small text-sa-muted">
-              Share chapter summaries, practice problems, and laboratory guides
+              Share chapter summaries, practice problems, and laboratory guides with {userBranch} students
             </span>
           </div>
         </div>

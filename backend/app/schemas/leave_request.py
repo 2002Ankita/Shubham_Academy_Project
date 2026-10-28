@@ -8,6 +8,7 @@ class LeaveRequestCreate(BaseModel):
     from_date: datetime
     to_date: datetime
     reason: Optional[str] = None
+    branch: Optional[str] = None
 
 class LeaveRequestResponse(BaseModel):
     id: str
@@ -17,6 +18,7 @@ class LeaveRequestResponse(BaseModel):
     from_date: datetime
     to_date: datetime
     number_of_days: int
+    branch: Optional[str] = None
     reason: Optional[str]
     status: str
     admin_comment: Optional[str]

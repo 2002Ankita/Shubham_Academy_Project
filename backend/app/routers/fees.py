@@ -32,7 +32,11 @@ async def add_fee_structure(structure_in: FeeStructureCreate, token: str = Depen
 
 @router.get("/structures", response_model=List[FeeStructureResponse])
 async def list_fee_structures(branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_fee_structures(branch=branch)
 
 @router.put("/structures/{structure_id}", response_model=FeeStructureResponse)
@@ -62,12 +66,20 @@ async def list_all_fees(
     standard: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_all_fee_payments(student_id=student_id, branch=branch, standard=standard)
 
 @router.get("/pending", response_model=List[PendingFeeResponse])
 async def list_pending_fees(branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_pending_fees(branch=branch)
 
 @router.get("/{student_id}", response_model=FeeDetailsResponse)
@@ -77,5 +89,9 @@ async def fee_details(
     standard: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_fee_details(student_id, branch=branch, standard=standard)

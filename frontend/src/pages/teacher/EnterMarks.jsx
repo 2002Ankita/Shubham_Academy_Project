@@ -8,6 +8,14 @@ import examService from '../../services/examService';
 import batchService from '../../services/batchService';
 import notificationService from '../../services/notificationService';
 import SendMarksModal from '../../components/modals/SendMarksModal';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  getUserBranch,
+  filterMarksByBranch,
+  filterStudentsByBranch,
+  filterExamsByBranch,
+  filterBatchesByBranch
+} from '../../utils/branchUtils';
 import {
   ArrowLeft,
   BookText,
@@ -30,6 +38,10 @@ import { toast } from 'react-toastify';
 
 export default function EnterMarks() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
+
   const [marks, setMarks] = useState([]);
   const [students, setStudents] = useState([]);
   const [exams, setExams] = useState([]);
@@ -40,6 +52,7 @@ export default function EnterMarks() {
   const [viewingMark, setViewingMark] = useState(null);
 
   // Selection filters
+  const [branchFilter, setBranchFilter] = useState(isSuperAdmin ? 'All Branches' : (userBranch || 'All Branches'));
   const [batchFilter, setBatchFilter] = useState('All Batches');
   const [subjectFilter, setSubjectFilter] = useState('All Subjects');
   const [examFilter, setExamFilter] = useState('All Examinations');
@@ -85,36 +98,49 @@ export default function EnterMarks() {
   const marksEntered = marks.length;
   const pending = Math.max(totalStudents - marksEntered, 0);
 
-  // Filter options
+  // Filter options scoped by selected branch
+  const scopedStudents = useMemo(() => {
+    return filterStudentsByBranch(students, branchFilter);
+  }, [students, branchFilter]);
+
+  const scopedExams = useMemo(() => {
+    return filterExamsByBranch(exams, branchFilter);
+  }, [exams, branchFilter]);
+
+  const scopedBatches = useMemo(() => {
+    return filterBatchesByBranch(batches, branchFilter);
+  }, [batches, branchFilter]);
+
   const batchOptions = useMemo(() => {
     const list = new Set();
-    batches.forEach(b => b.name && list.add(b.name));
-    students.forEach(s => s.batch && list.add(s.batch));
+    scopedBatches.forEach(b => b.name && list.add(b.name));
+    scopedStudents.forEach(s => s.batch && list.add(s.batch));
     return ['All Batches', ...Array.from(list)];
-  }, [batches, students]);
+  }, [scopedBatches, scopedStudents]);
 
   const subjectOptions = useMemo(() => {
     const list = new Set();
-    exams.forEach(e => e.subject && list.add(e.subject));
-    batches.forEach(b => b.subject && list.add(b.subject));
+    scopedExams.forEach(e => e.subject && list.add(e.subject));
+    scopedBatches.forEach(b => b.subject && list.add(b.subject));
     marks.forEach(m => m.subject && list.add(m.subject));
     if (list.size === 0) {
       ['Mathematics', 'Physics', 'Chemistry', 'Biology'].forEach(s => list.add(s));
     }
     return ['All Subjects', ...Array.from(list)];
-  }, [exams, batches, marks]);
+  }, [scopedExams, scopedBatches, marks]);
 
   const examOptions = useMemo(() => {
-    const list = exams.map(e => e.title || e.exam_name || e.id);
+    const list = scopedExams.map(e => e.title || e.exam_name || e.id);
     if (list.length === 0) {
       list.push('Midterm Examination 2026');
     }
     return ['All Examinations', ...list];
-  }, [exams]);
+  }, [scopedExams]);
 
   const filteredMarks = useMemo(() => {
+    const branchScoped = filterMarksByBranch(marks, branchFilter);
     const term = searchStudent.trim().toLowerCase();
-    return marks.filter((mark) => {
+    return branchScoped.filter((mark) => {
       // Search term filter
       if (term) {
         const fields = [
@@ -143,13 +169,13 @@ export default function EnterMarks() {
       // Batch filter
       if (batchFilter !== 'All Batches') {
         const student = students.find(s => s.id === mark.studentId || s.student_id === mark.studentId);
-        const stuBatch = student?.batch || student?.standard || mark.standard || '';
+        const stuBatch = student?.batch || student?.standard || mark.batch || mark.standard || '';
         if (!stuBatch.toLowerCase().includes(batchFilter.toLowerCase())) return false;
       }
 
       return true;
     });
-  }, [marks, searchStudent, examFilter, subjectFilter, batchFilter, students]);
+  }, [marks, branchFilter, searchStudent, examFilter, subjectFilter, batchFilter, students]);
 
   // Paginated marks
   const totalRecords = filteredMarks.length;
@@ -500,8 +526,8 @@ export default function EnterMarks() {
       {/* Student Marks Recording Sheet */}
       <div ref={formRef}>
         <MarksForm
-          students={students}
-          exams={exams}
+          students={scopedStudents}
+          exams={scopedExams}
           onSubmit={handleMarksSubmit}
           loading={loading}
           editingMark={editingMark}
@@ -578,6 +604,42 @@ export default function EnterMarks() {
 
         {/* Controls Toolbar: Below Title, 1 Single Line with Full Width Coverage */}
         <div className="d-flex align-items-center gap-2 mb-3 w-100 flex-nowrap" style={{ overflowX: 'auto' }}>
+          {/* Branch Filter - Dropdown for SuperAdmin, Badge for teacher/regular user */}
+          {isSuperAdmin ? (
+            <div style={{ width: '135px', minWidth: '125px', flexShrink: 0 }}>
+              <select
+                className="form-select"
+                value={branchFilter}
+                onChange={(e) => {
+                  setBranchFilter(e.target.value);
+                  setBatchFilter('All Batches');
+                  setExamFilter('All Examinations');
+                  setCurrentPage(1);
+                }}
+                style={{ height: '38px', borderRadius: '8px', borderColor: '#D9E1EA', fontSize: '12.5px', fontWeight: 500 }}
+                aria-label="Filter by Branch"
+              >
+                <option value="All Branches">All Branches</option>
+                <option value="Manglavar Peth">Manglavar Peth</option>
+                <option value="Tarabai Park">Tarabai Park</option>
+              </select>
+            </div>
+          ) : (
+            <div
+              className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill flex-shrink-0"
+              style={{
+                backgroundColor: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                border: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                color: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                fontSize: '12px',
+                fontWeight: 600,
+                height: '38px'
+              }}
+            >
+              <span>{userBranch || 'Mangalvar Peth'}</span>
+            </div>
+          )}
+
           {/* Batch / Class */}
           <div style={{ width: '120px', minWidth: '110px', flexShrink: 0 }}>
             <select
@@ -716,6 +778,12 @@ export default function EnterMarks() {
                   Roll No.
                 </th>
                 <th scope="col" style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, fontSize: '12.5px', borderBottom: '1px solid #E2E8F0' }}>
+                  Branch
+                </th>
+                <th scope="col" style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, fontSize: '12.5px', borderBottom: '1px solid #E2E8F0' }}>
+                  Batch / Class
+                </th>
+                <th scope="col" style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, fontSize: '12.5px', borderBottom: '1px solid #E2E8F0' }}>
                   Examination
                 </th>
                 <th scope="col" style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, fontSize: '12.5px', borderBottom: '1px solid #E2E8F0' }}>
@@ -738,13 +806,13 @@ export default function EnterMarks() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-5 text-muted">
+                  <td colSpan={10} className="text-center py-5 text-muted">
                     Loading records...
                   </td>
                 </tr>
               ) : paginatedMarks.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-5 text-muted">
+                  <td colSpan={10} className="text-center py-5 text-muted">
                     No marks records match your filters.
                   </td>
                 </tr>
@@ -758,6 +826,23 @@ export default function EnterMarks() {
                       </td>
                       <td style={{ padding: '12px 14px', color: '#334155' }}>
                         {row.rollNumber}
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span
+                          className="badge rounded-pill fw-semibold"
+                          style={{
+                            backgroundColor: (row.branch || '').toLowerCase().includes('tarabai') ? '#EFF6FF' : '#FEF2F2',
+                            color: (row.branch || '').toLowerCase().includes('tarabai') ? '#1D4ED8' : '#8B1216',
+                            border: `1px solid ${(row.branch || '').toLowerCase().includes('tarabai') ? '#BFDBFE' : '#FECACA'}`,
+                            fontSize: '11px',
+                            padding: '3px 8px'
+                          }}
+                        >
+                          {row.branch || (row.rollNumber?.startsWith('TP') ? 'Tarabai Park' : 'Manglavar Peth')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: '#334155' }}>
+                        {row.batch || row.standard || 'General'}
                       </td>
                       <td style={{ padding: '12px 14px', color: '#334155' }}>
                         {row.examTitle || row.examName}

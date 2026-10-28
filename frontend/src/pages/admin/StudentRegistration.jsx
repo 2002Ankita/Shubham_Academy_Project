@@ -44,8 +44,9 @@ export const STANDARD_BATCHES = [
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
   const activeBranch = getUserBranch(user);
-  const initialBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const initialBranch = (activeBranch && activeBranch.toLowerCase().includes('mangal')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
@@ -583,7 +584,8 @@ export default function StudentRegistration() {
                   onBatchChange={handleAcademicBatchChange}
                   required={true}
                   disabled={loading}
-                  fixedBranch={Boolean(activeBranch && !user?.role?.toLowerCase().includes('super'))}
+                  fixedBranch={!isSuperAdmin}
+                  allowedBranches={!isSuperAdmin ? [initialBranch] : undefined}
                   showAllOption={false}
                 />
 
@@ -838,8 +840,11 @@ export default function StudentRegistration() {
                       email: '',
                       mobileNumber: '',
                       parentPhone: '',
+                      branch: initialBranch,
+                      session: '',
+                      academicBatch: '11th PCM',
                       standard: '11th Science',
-                      batch: '',
+                      batch: `${initialBranch} • 11th PCM`,
                       originalFees: 45000,
                       discountAmount: 0,
                       discountReason: '',

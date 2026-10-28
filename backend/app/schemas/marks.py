@@ -84,6 +84,9 @@ class MarkResponse(MarkCreate):
     max_marks: Optional[float] = 100
     exam_date: Optional[str] = ""
     teacher: Optional[str] = ""
+    branch: Optional[str] = ""
+    batch: Optional[str] = ""
+    standard: Optional[str] = ""
 
 class SendMarksNotificationRequest(BaseModel):
     exam_id: str

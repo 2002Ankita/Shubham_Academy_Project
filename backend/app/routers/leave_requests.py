@@ -238,6 +238,8 @@ async def create_leave_request(
     # Name resolution
     teacher_name = user.full_name or (teacher.user.full_name if hasattr(teacher.user, "full_name") else "") or "Faculty Member"
 
+    teacher_branch = getattr(request_in, "branch", None) or getattr(teacher, "branch", None) or getattr(user, "campus", None) or getattr(user, "branch", None) or "Mangalvar Peth"
+
     leave_req = LeaveRequest(
         teacher=teacher,
         teacher_name=teacher_name,
@@ -245,6 +247,7 @@ async def create_leave_request(
         from_date=request_in.from_date,
         to_date=request_in.to_date,
         number_of_days=days,
+        branch=teacher_branch,
         reason=request_in.reason,
         status="Pending",
         created_at=datetime.utcnow()
@@ -259,6 +262,7 @@ async def create_leave_request(
         from_date=leave_req.from_date,
         to_date=leave_req.to_date,
         number_of_days=leave_req.number_of_days,
+        branch=leave_req.branch,
         reason=leave_req.reason,
         status=leave_req.status,
         admin_comment=leave_req.admin_comment,
@@ -369,6 +373,7 @@ async def get_teacher_leave_requests(teacher_id: str, token: str = Depends(oauth
             from_date=r.from_date,
             to_date=r.to_date,
             number_of_days=r.number_of_days,
+            branch=getattr(r, "branch", None) or getattr(teacher, "branch", None) or "Mangalvar Peth",
             reason=r.reason,
             status=r.status,
             admin_comment=r.admin_comment,
@@ -390,6 +395,7 @@ async def get_all_leave_requests(token: str = Depends(oauth2_scheme)):
             from_date=r.from_date,
             to_date=r.to_date,
             number_of_days=r.number_of_days,
+            branch=getattr(r, "branch", None) or "Mangalvar Peth",
             reason=r.reason,
             status=r.status,
             admin_comment=r.admin_comment,

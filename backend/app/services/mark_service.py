@@ -228,7 +228,10 @@ async def _format_mark(mark: Mark) -> dict:
         "grade": grade,
         "pass_status": pass_status,
         "exam_date": exam_date_str,
-        "teacher": teacher_name or "Faculty"
+        "teacher": teacher_name or "Faculty",
+        "branch": getattr(exam_obj, "branch", None) or getattr(student_obj, "branch", None) or "",
+        "batch": getattr(exam_obj, "batch", None) or getattr(student_obj, "batch", None) or getattr(student_obj, "standard", None) or "",
+        "standard": getattr(exam_obj, "standard", None) or getattr(student_obj, "standard", None) or ""
     }
 
 async def create_exam(exam_in: ExamCreate, user=None) -> dict:

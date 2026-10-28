@@ -20,7 +20,8 @@ import {
   Briefcase,
   Calendar,
   Printer,
-  RefreshCw
+  RefreshCw,
+  Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -36,6 +37,7 @@ import {
   formatStudentBatchDisplay,
   getStudentAssignment
 } from '../../config/branchBatchConfig';
+import { getUserBranch, isSuperAdminUser } from '../../utils/branchUtils';
 
 // Helper to get local ISO string for datetime-local input (YYYY-MM-DDTHH:mm)
 const getCurrentLocalDateTime = () => {
@@ -60,6 +62,11 @@ export default function BooksDelivery() {
   const { confirm } = useConfirm();
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
 
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = isSuperAdminUser(user);
+  const isMangalwar = (userBranch || '').toLowerCase().includes('mangal');
+  const defaultBranchConstant = isMangalwar ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+
   const [deliveries, setDeliveries] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [students, setStudents] = useState([]);
@@ -72,13 +79,13 @@ export default function BooksDelivery() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [subjectFilter, setSubjectFilter] = useState('All');
   const [recipientFilter, setRecipientFilter] = useState('All');
-  const [filterBranch, setFilterBranch] = useState('');
-  const [filterSession, setFilterSession] = useState('');
+  const [filterBranch, setFilterBranch] = useState(!isSuperAdmin ? defaultBranchConstant : '');
+  const [filterSession, setFilterSession] = useState(!isSuperAdmin && isMangalwar ? 'Morning' : '');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
 
   // Handover Modal Branch & Batch Selection State
-  const [modalBranch, setModalBranch] = useState(BRANCH_TARABAI);
-  const [modalSession, setModalSession] = useState('');
+  const [modalBranch, setModalBranch] = useState(!isSuperAdmin ? defaultBranchConstant : BRANCH_TARABAI);
+  const [modalSession, setModalSession] = useState(!isSuperAdmin && isMangalwar ? 'Morning' : '');
   const [modalAcademicBatch, setModalAcademicBatch] = useState('11th PCM');
 
   // Modal States
@@ -162,8 +169,8 @@ export default function BooksDelivery() {
 
   // Open Log Modal with fresh current time
   const handleOpenAddModal = () => {
-    setModalBranch(BRANCH_TARABAI);
-    setModalSession('');
+    setModalBranch(!isSuperAdmin ? defaultBranchConstant : BRANCH_TARABAI);
+    setModalSession(!isSuperAdmin && isMangalwar ? 'Morning' : '');
     setModalAcademicBatch('11th PCM');
     setNewDelivery({
       recipientType: 'Student',
@@ -365,6 +372,21 @@ export default function BooksDelivery() {
     const matchesSubj = subjectFilter === 'All' || (d.subject || '').toLowerCase() === subjectFilter.toLowerCase();
     const matchesRecipient = recipientFilter === 'All' || (d.recipientType || 'Student').toLowerCase() === recipientFilter.toLowerCase();
 
+    // Strict branch isolation for regular teachers / admins
+    if (!isSuperAdmin && userBranch) {
+      const delBranch = (d.branch || '').toLowerCase();
+      const delBatch = (d.batch || d.standard || '').toLowerCase();
+      if (isMangalwar) {
+        if (delBranch.includes('tarabai') || delBatch.includes('tarabai')) {
+          return false;
+        }
+      } else {
+        if (delBranch.includes('mangal') || delBatch.includes('mangal')) {
+          return false;
+        }
+      }
+    }
+
     // Branch & batch filtering
     if (filterBranch || filterAcademicBatch || filterSession) {
       if ((d.recipientType || 'Student').toLowerCase() === 'student') {
@@ -390,10 +412,18 @@ export default function BooksDelivery() {
       {/* 1. Page Header */}
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
-            <Truck className="text-sa-primary" size={24} />
-            <span>Books Delivery & Handover Desk</span>
-          </h3>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
+              <Truck className="text-sa-primary" size={24} />
+              <span>Books Delivery & Handover Desk</span>
+            </h3>
+            {userBranch && (
+              <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill fw-bold d-inline-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
+                <Building2 size={13} />
+                <span>{userBranch} Campus</span>
+              </span>
+            )}
+          </div>
           <span className="small text-sa-muted">
             Record Theory & CET book handouts to students and teachers, track who handed them over, and save records to database
           </span>
@@ -500,9 +530,10 @@ export default function BooksDelivery() {
             onBranchChange={setFilterBranch}
             onSessionChange={setFilterSession}
             onBatchChange={setFilterAcademicBatch}
-            showAllOption={true}
+            showAllOption={isSuperAdmin}
             allOptionLabel="All"
             size="sm"
+            fixedBranch={!isSuperAdmin}
           />
         </div>
 
@@ -816,6 +847,7 @@ export default function BooksDelivery() {
                     }}
                     size="sm"
                     showAllOption={false}
+                    fixedBranch={!isSuperAdmin}
                   />
                 </div>
 

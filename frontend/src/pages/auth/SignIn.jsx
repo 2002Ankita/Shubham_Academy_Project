@@ -28,8 +28,8 @@ export default function SignIn() {
   const [selectedCampus, setSelectedCampus] = useState('Mangalvar Peth');
 
   const getRoleEmail = (roleId, campus = selectedCampus) => {
-    if (roleId === 'student') return 'aarav.d@shubham.edu';
-    if (roleId === 'teacher') return 'priya.k@shubham.edu';
+    if (roleId === 'student') return campus === 'Tarabai Park' ? 'aarav.tarabai@shubham.edu' : 'aarav.d@shubham.edu';
+    if (roleId === 'teacher') return campus === 'Tarabai Park' ? 'priya.tarabai@shubham.edu' : 'priya.k@shubham.edu';
     if (roleId === 'admin') {
       return campus === 'Tarabai Park' ? 'admin.tarabai@shubham.edu' : 'admin@shubham.edu';
     }
@@ -59,17 +59,17 @@ export default function SignIn() {
 
   const handleCampusChange = (campus) => {
     setSelectedCampus(campus);
-    const roleToUse = (selectedRole === 'admin' || selectedRole === 'superadmin') ? selectedRole : 'admin';
+    const roleToUse = selectedRole || 'admin';
     setSelectedRole(roleToUse);
     setEmail(getRoleEmail(roleToUse, campus));
-    setPassword('password123');
+    setPassword(roleToUse === 'student' ? '9876500001' : 'password123');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await login({ email, password, role: selectedRole });
+      const res = await login({ email, password, role: selectedRole, campus: selectedCampus });
       toast.success(`Welcome back, ${res.user.name}!`);
 
       const userRole = (res.user.role || '').toLowerCase();

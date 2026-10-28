@@ -270,43 +270,87 @@ const DEFAULT_OFFICIAL_STRUCTURES = [
   }
 ];
 
+import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
+
+const resolveAdminCampus = (userObj) => {
+  let br = userObj?.branch;
+  if (!br) {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        br = parsed?.branch;
+      }
+    } catch (e) {}
+  }
+  if (br && br.toLowerCase().includes('mangal')) {
+    return 'Mangalwar Peth';
+  }
+  return 'Tarabai Park';
+};
+
+const resolveIsSuperAdmin = (userObj) => {
+  let role = userObj?.role;
+  if (!role) {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        role = parsed?.role;
+      }
+    } catch (e) {}
+  }
+  return (role || '').toLowerCase().includes('super');
+};
 
 export default function FeeStructure() {
   const navigate = useNavigate();
   const { confirm } = useConfirm();
-  const activeBranch = getUserBranch();
-  const defaultTab = activeBranch === 'Mangalvar Peth' ? 'Mangalwar Peth' : (activeBranch === 'Tarabai Park' ? 'Tarabai Park' : 'ALL');
+  const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
+  
+  const isSuperAdmin = resolveIsSuperAdmin(user);
+  const adminCampus = resolveAdminCampus(user);
+  const [selectedCampusTab, setSelectedCampusTab] = useState(() => (isSuperAdmin ? 'ALL' : adminCampus));
+  const effectiveCampus = !isSuperAdmin ? adminCampus : (selectedCampusTab || 'ALL');
 
   const [structures, setStructures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seedingLoading, setSeedingLoading] = useState(false);
-  const [selectedCampusTab, setSelectedCampusTab] = useState(defaultTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState('ALL');
   const [showComparison, setShowComparison] = useState(true);
+
+  // Automatically keep selectedCampusTab aligned with admin login campus
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setSelectedCampusTab(adminCampus);
+    }
+  }, [isSuperAdmin, adminCampus]);
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStructure, setEditingStructure] = useState(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
+  // Form state initialized with adminCampus
+  const [formData, setFormData] = useState(() => ({
     standard: '12th Science',
-    batch: activeBranch === 'Mangalvar Peth' ? '12th pcm mangalvar peth' : '12th pcm tarabai park',
-    branch: activeBranch === 'Mangalvar Peth' ? 'Mangalwar Peth' : 'Tarabai Park',
+    batch: adminCampus === 'Mangalwar Peth' ? '12th pcm mangalvar peth' : '12th pcm tarabai park',
+    branch: adminCampus,
     academic_year: '2025-2026',
-    total_fee: 65000,
+    total_fee: adminCampus === 'Mangalwar Peth' ? 60000 : 65000,
     number_of_installments: 4,
-    installment_amount: 16250,
+    installment_amount: adminCampus === 'Mangalwar Peth' ? 15000 : 16250,
     due_date: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
     late_fee: 500
-  });
+  }));
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await feeService.getStructures();
+      const branchParam = !isSuperAdmin ? effectiveCampus : (selectedCampusTab !== 'ALL' ? selectedCampusTab : null);
+      const data = await feeService.getStructures(branchParam);
       if (!data || data.length === 0) {
         setStructures(DEFAULT_OFFICIAL_STRUCTURES);
       } else {
@@ -333,7 +377,7 @@ export default function FeeStructure() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [effectiveCampus]);
 
   // Recalculate installment amount on changes
   const handleFeeChange = (val, isEditing = false) => {
@@ -530,7 +574,7 @@ export default function FeeStructure() {
     link.setAttribute('href', encodedUri);
     link.setAttribute(
       'download',
-      `Shubham_Academy_Fee_Structure_${selectedCampusTab.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`
+      `Shubham_Academy_Fee_Structure_${effectiveCampus.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -549,9 +593,9 @@ export default function FeeStructure() {
     const matchesYear = yearFilter === 'ALL' || item.academic_year === yearFilter;
 
     let matchesBranch = true;
-    if (selectedCampusTab === 'Tarabai Park') {
+    if (effectiveCampus === 'Tarabai Park') {
       matchesBranch = item.branch?.toLowerCase().includes('tarabai');
-    } else if (selectedCampusTab === 'Mangalwar Peth') {
+    } else if (effectiveCampus === 'Mangalwar Peth') {
       matchesBranch = item.branch?.toLowerCase().includes('mangal');
     }
 
@@ -583,8 +627,14 @@ export default function FeeStructure() {
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
               Campus Fee Structures
             </h3>
-            <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 small fw-semibold">
-              Tarabai Park • Mangalwar Peth
+            <span
+              className={`badge px-2.5 py-1 small fw-semibold border ${
+                effectiveCampus === 'Mangalwar Peth'
+                  ? 'bg-primary bg-opacity-10 text-primary border-primary border-opacity-25'
+                  : 'bg-danger bg-opacity-10 text-danger border-danger border-opacity-25'
+              }`}
+            >
+              {isSuperAdmin ? 'Tarabai Park • Mangalwar Peth' : `${effectiveCampus} Campus`}
             </span>
           </div>
           <span className="small text-sa-muted">
@@ -616,8 +666,8 @@ export default function FeeStructure() {
             variant="primary"
             icon={Plus}
             onClick={() => {
-              // Pre-select active tab branch if specific campus chosen
-              if (selectedCampusTab === 'Mangalwar Peth') {
+              const targetCampus = effectiveCampus === 'Mangalwar Peth' ? 'Mangalwar Peth' : 'Tarabai Park';
+              if (targetCampus === 'Mangalwar Peth') {
                 setFormData((prev) => ({
                   ...prev,
                   branch: 'Mangalwar Peth',
@@ -642,10 +692,10 @@ export default function FeeStructure() {
         </div>
       </div>
 
-      {/* 2. Campus Selector Tabs */}
-      <div className="sa-card p-2 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          {!activeBranch && (
+      {/* 2. Campus Selector Tabs (Super Admin only) */}
+      {isSuperAdmin && (
+        <div className="sa-card p-2 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
             <button
               type="button"
               className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
@@ -659,9 +709,7 @@ export default function FeeStructure() {
               All Campuses
               <span className="badge bg-secondary rounded-pill ms-1">{structures.length}</span>
             </button>
-          )}
 
-          {(!activeBranch || activeBranch === 'Tarabai Park') && (
             <button
               type="button"
               className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
@@ -680,9 +728,7 @@ export default function FeeStructure() {
               Tarabai Park Campus
               <span className="badge bg-white text-danger rounded-pill ms-1">{countTarabai}</span>
             </button>
-          )}
 
-          {(!activeBranch || activeBranch === 'Mangalvar Peth') && (
             <button
               type="button"
               className={`btn btn-sm px-3 py-2 rounded-3 fw-semibold d-flex align-items-center gap-2 ${
@@ -701,10 +747,8 @@ export default function FeeStructure() {
               Mangalwar Peth Campus
               <span className="badge bg-white text-primary rounded-pill ms-1">{countMangalwar}</span>
             </button>
-          )}
-        </div>
+          </div>
 
-        {!activeBranch && (
           <button
             type="button"
             className="btn btn-sm btn-link text-decoration-none text-sa-muted d-flex align-items-center gap-1"
@@ -713,43 +757,43 @@ export default function FeeStructure() {
             <TrendingUp size={14} />
             {showComparison ? 'Hide Campus Comparison' : 'Show Campus Comparison'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* 3. Campus Highlight Banner (when a specific campus is selected) */}
-      {selectedCampusTab !== 'ALL' && CAMPUS_INFO[selectedCampusTab] && (
+      {/* 3. Campus Highlight Banner */}
+      {effectiveCampus !== 'ALL' && CAMPUS_INFO[effectiveCampus] && (
         <div
           className="sa-card p-3 p-md-4 rounded-4 shadow-sm position-relative overflow-hidden border"
           style={{
             background:
-              selectedCampusTab === 'Tarabai Park'
+              effectiveCampus === 'Tarabai Park'
                 ? 'linear-gradient(135deg, rgba(139, 18, 22, 0.03) 0%, rgba(255, 255, 255, 0.98) 100%)'
                 : 'linear-gradient(135deg, rgba(15, 82, 186, 0.03) 0%, rgba(255, 255, 255, 0.98) 100%)',
             borderColor:
-              selectedCampusTab === 'Tarabai Park'
+              effectiveCampus === 'Tarabai Park'
                 ? 'rgba(139, 18, 22, 0.18)'
                 : 'rgba(15, 82, 186, 0.18)',
-            borderLeft: `5px solid ${selectedCampusTab === 'Tarabai Park' ? '#8B1216' : '#0F52BA'}`
+            borderLeft: `5px solid ${effectiveCampus === 'Tarabai Park' ? '#8B1216' : '#0F52BA'}`
           }}
         >
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <div>
               <span
                 className={`badge px-2.5 py-1 mb-2 text-uppercase fw-bold letter-spacing-1 small ${
-                  selectedCampusTab === 'Tarabai Park'
+                  effectiveCampus === 'Tarabai Park'
                     ? 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20'
                     : 'bg-primary bg-opacity-10 text-primary border border-primary border-opacity-20'
                 }`}
                 style={{ fontSize: '0.72rem' }}
               >
-                {CAMPUS_INFO[selectedCampusTab].tagline}
+                {CAMPUS_INFO[effectiveCampus].tagline}
               </span>
               <h4 className="fw-extrabold m-0 text-sa-charcoal fs-4">
-                {CAMPUS_INFO[selectedCampusTab].name}
+                {CAMPUS_INFO[effectiveCampus].name}
               </h4>
               <p className="m-0 mt-1 text-sa-muted small d-flex align-items-center gap-1">
                 <MapPin size={14} className="text-sa-muted" />
-                {CAMPUS_INFO[selectedCampusTab].address}
+                {CAMPUS_INFO[effectiveCampus].address}
               </p>
             </div>
 
@@ -761,7 +805,7 @@ export default function FeeStructure() {
               <div className="vr opacity-25"></div>
               <div className="text-center px-2">
                 <span className="d-block text-sa-muted small" style={{ fontSize: '0.75rem' }}>Average Fee</span>
-                <span className={`fs-5 fw-bold ${selectedCampusTab === 'Tarabai Park' ? 'text-danger' : 'text-primary'}`}>
+                <span className={`fs-5 fw-bold ${effectiveCampus === 'Tarabai Park' ? 'text-danger' : 'text-primary'}`}>
                   ₹ {avgFee.toLocaleString()}
                 </span>
               </div>
@@ -778,7 +822,7 @@ export default function FeeStructure() {
       )}
 
       {/* 4. Side-by-Side Campus Fee Comparison Matrix */}
-      {!activeBranch && showComparison && (
+      {isSuperAdmin && showComparison && (
         <div className="sa-card p-4 border shadow-sm">
           <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <div>
@@ -918,9 +962,9 @@ export default function FeeStructure() {
             <span className="text-sa-muted small fw-semibold">Filtered Structures</span>
             <h4 className="fw-extrabold text-sa-charcoal m-0 mt-1">{totalCount}</h4>
             <span className="text-muted text-xs">
-              {selectedCampusTab === 'ALL'
+              {effectiveCampus === 'ALL'
                 ? `Tarabai: ${countTarabai} | Mangalwar: ${countMangalwar}`
-                : `${selectedCampusTab} Active Tiers`}
+                : `${effectiveCampus} Active Tiers`}
             </span>
           </div>
         </div>
@@ -972,16 +1016,18 @@ export default function FeeStructure() {
             <option value="2026-2027">2026-2027</option>
           </select>
 
-          <select
-            className="form-select form-select-sm py-2 px-3"
-            style={{ width: 'auto' }}
-            value={selectedCampusTab}
-            onChange={(e) => setSelectedCampusTab(e.target.value)}
-          >
-            <option value="ALL">All Campuses</option>
-            <option value="Tarabai Park">Tarabai Park Campus</option>
-            <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
-          </select>
+          {isSuperAdmin && (
+            <select
+              className="form-select form-select-sm py-2 px-3"
+              style={{ width: 'auto' }}
+              value={selectedCampusTab}
+              onChange={(e) => setSelectedCampusTab(e.target.value)}
+            >
+              <option value="ALL">All Campuses</option>
+              <option value="Tarabai Park">Tarabai Park Campus</option>
+              <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+            </select>
+          )}
         </div>
       </div>
 
@@ -1135,9 +1181,16 @@ export default function FeeStructure() {
                         value={formData.branch}
                         onChange={(e) => handleBranchChange(e.target.value, false)}
                         required
+                        disabled={!isSuperAdmin}
                       >
-                        <option value="Tarabai Park">Tarabai Park Campus</option>
-                        <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+                        {isSuperAdmin ? (
+                          <>
+                            <option value="Tarabai Park">Tarabai Park Campus</option>
+                            <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+                          </>
+                        ) : (
+                          <option value={effectiveCampus}>{effectiveCampus} Campus</option>
+                        )}
                       </select>
                       <span className="text-muted text-xs">
                         Tuition applies specifically to students registered at this campus.
@@ -1356,9 +1409,16 @@ export default function FeeStructure() {
                         value={editingStructure.branch}
                         onChange={(e) => handleBranchChange(e.target.value, true)}
                         required
+                        disabled={!isSuperAdmin}
                       >
-                        <option value="Tarabai Park">Tarabai Park Campus</option>
-                        <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+                        {isSuperAdmin ? (
+                          <>
+                            <option value="Tarabai Park">Tarabai Park Campus</option>
+                            <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
+                          </>
+                        ) : (
+                          <option value={effectiveCampus}>{effectiveCampus} Campus</option>
+                        )}
                       </select>
                     </div>
 

@@ -10,36 +10,66 @@ const batchService = {
       if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All' && Array.isArray(data)) {
         data = filterBatchesByBranch(data, activeBranch);
       }
-      if ((!data || data.length === 0) && activeBranch) {
-        // Fallback default batches for offline/demo mode
-        const defaultNames = activeBranch === 'Mangalvar Peth' ? MANGALVAR_BATCHES : TARABAI_BATCHES;
-        return defaultNames.map((name, idx) => ({
-          id: `batch-seed-${idx + 1}`,
+      if (!data || data.length === 0) {
+        // Fallback default batches for offline/demo mode with correct branch assignments
+        const mpBatches = MANGALVAR_BATCHES.map((name, idx) => ({
+          id: `batch-seed-mp-${idx + 1}`,
           name: name,
           standard: name.includes('12th') ? '12th Science' : '11th Science',
-          subject: 'Comprehensive Science',
-          room: `Room ${101 + idx} (${activeBranch})`,
-          time: '08:00 AM – 10:30 AM',
-          student_count: 24,
+          subject: 'Physics, Chemistry, Mathematics',
+          room: `Room ${101 + idx} (Mangalvar Peth)`,
+          time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
+          student_count: 24 + (idx * 2),
           teacher_name: 'Dr. Priya Kulkarni',
-          branch: activeBranch
+          branch: 'Mangalvar Peth'
         }));
+        const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
+          id: `batch-seed-tp-${idx + 1}`,
+          name: name,
+          standard: name.includes('12th') ? '12th Science' : '11th Science',
+          subject: 'Physics, Chemistry, Mathematics',
+          room: `Room ${201 + idx} (Tarabai Park)`,
+          time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
+          student_count: 26 + (idx * 2),
+          teacher_name: 'Prof. Rajesh Sharma',
+          branch: 'Tarabai Park'
+        }));
+        const allFallback = [...mpBatches, ...tpBatches];
+        if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
+          return filterBatchesByBranch(allFallback, activeBranch);
+        }
+        return allFallback;
       }
       return data;
     } catch (err) {
       console.warn('Batch fetch error, using branch fallback:', err.message);
-      const defaultNames = activeBranch === 'Mangalvar Peth' ? MANGALVAR_BATCHES : (activeBranch === 'Tarabai Park' ? TARABAI_BATCHES : [...MANGALVAR_BATCHES, ...TARABAI_BATCHES]);
-      return defaultNames.map((name, idx) => ({
-        id: `batch-seed-${idx + 1}`,
+      const mpBatches = MANGALVAR_BATCHES.map((name, idx) => ({
+        id: `batch-seed-mp-${idx + 1}`,
         name: name,
         standard: name.includes('12th') ? '12th Science' : '11th Science',
-        subject: 'Comprehensive Science',
-        room: `Room ${101 + idx} (${activeBranch || 'Academy'})`,
-        time: '08:00 AM – 10:30 AM',
-        student_count: 24,
+        subject: 'Physics, Chemistry, Mathematics',
+        room: `Room ${101 + idx} (Mangalvar Peth)`,
+        time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
+        student_count: 24 + (idx * 2),
         teacher_name: 'Dr. Priya Kulkarni',
-        branch: activeBranch || 'Academy'
+        branch: 'Mangalvar Peth'
       }));
+      const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
+        id: `batch-seed-tp-${idx + 1}`,
+        name: name,
+        standard: name.includes('12th') ? '12th Science' : '11th Science',
+        subject: 'Physics, Chemistry, Mathematics',
+        room: `Room ${201 + idx} (Tarabai Park)`,
+        time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
+        student_count: 26 + (idx * 2),
+        teacher_name: 'Prof. Rajesh Sharma',
+        branch: 'Tarabai Park'
+      }));
+      const allFallback = [...mpBatches, ...tpBatches];
+      if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
+        return filterBatchesByBranch(allFallback, activeBranch);
+      }
+      return allFallback;
     }
   },
 

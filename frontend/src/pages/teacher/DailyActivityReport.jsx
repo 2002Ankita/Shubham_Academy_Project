@@ -20,7 +20,8 @@ import {
   Check,
   FileSpreadsheet,
   Download,
-  Upload
+  Upload,
+  Building2
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
@@ -28,6 +29,7 @@ import * as XLSX from 'xlsx';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch, isSuperAdminUser, filterActivitiesByBranch, CAMPUS } from '../../utils/branchUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -167,25 +169,75 @@ export default function DailyActivityReport() {
     return () => window.removeEventListener('sa_daily_activities_updated', fetchActivities);
   }, []);
 
+  // Branch auto-scoping
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = isSuperAdminUser(user);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState('All');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(isSuperAdmin ? 'All' : (userBranch || 'Mangalvar Peth'));
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+
+  useEffect(() => {
+    if (!isSuperAdmin && userBranch) {
+      setSelectedBranchFilter(userBranch);
+    }
+  }, [userBranch, isSuperAdmin]);
 
   // Date selection state (defaults to today's date)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [dateFilterMode, setDateFilterMode] = useState('date'); // 'date' | 'all'
 
+  // Batches strictly scoped to the logged-in campus
+  const availableBatches = useMemo(() => {
+    const isMangal = (userBranch || '').toLowerCase().includes('mangal');
+    if (!isSuperAdmin) {
+      if (isMangal) {
+        return [
+          '11th pcm Mangalvar Peth',
+          '11th pcb Mangalvar Peth',
+          '11th pcmb Mangalvar Peth',
+          '12th pcm Mangalvar Peth',
+          '12th pcb Mangalvar Peth',
+          '12th pcmb Mangalvar Peth'
+        ];
+      } else {
+        return [
+          '11th pcm tarabai park',
+          '11th pcb tarabai park',
+          '11th pcmb tarabai park',
+          '12th pcm tarabai park',
+          '12th pcb tarabai park',
+          '12th pcmb tarabai park'
+        ];
+      }
+    }
+    return [
+      '11th pcm tarabai park',
+      '11th pcb tarabai park',
+      '11th pcmb tarabai park',
+      '12th pcm tarabai park',
+      '12th pcb tarabai park',
+      '12th pcmb tarabai park',
+      '11th pcm Mangalvar Peth',
+      '11th pcb Mangalvar Peth',
+      '11th pcmb Mangalvar Peth',
+      '12th pcm Mangalvar Peth',
+      '12th pcb Mangalvar Peth',
+      '12th pcmb Mangalvar Peth'
+    ];
+  }, [userBranch, isSuperAdmin]);
+
   // Modal State (Add & Edit)
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [newActivity, setNewActivity] = useState({
-    branch: 'Tarabai Park',
+    branch: userBranch || 'Mangalvar Peth',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
-    batch: '12th pcm tarabai park',
+    batch: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park',
     chapter: '',
     topicTaught: '',
     timeSlot: '08:30 AM - 10:00 AM',
@@ -450,18 +502,18 @@ export default function DailyActivityReport() {
     }
   }, [location.state]);
 
-  // Filter activities strictly for the logged-in teacher (if role is teacher)
+  // Filter activities strictly for the logged-in teacher and campus
   const myActivities = useMemo(() => {
     if (!user) return dailyActivities;
-    // Admins and super-admins see all daily activities
+    // Admins and super-admins see all daily activities (or branch-scoped if regular admin)
     if (user.role && user.role !== 'teacher') {
-      return dailyActivities;
+      return isSuperAdmin ? dailyActivities : filterActivitiesByBranch(dailyActivities, userBranch);
     }
 
     const currentTeacherName = (user.name || user.full_name || '').trim();
     const currentTeacherId = user.id ? String(user.id) : '';
 
-    return dailyActivities.filter(item => {
+    const matched = dailyActivities.filter(item => {
       // 1. Direct teacher ID match
       if (item.teacher_id && currentTeacherId && String(item.teacher_id) === currentTeacherId) {
         return true;
@@ -475,7 +527,9 @@ export default function DailyActivityReport() {
 
       return false;
     });
-  }, [dailyActivities, user]);
+
+    return filterActivitiesByBranch(matched, userBranch);
+  }, [dailyActivities, user, userBranch, isSuperAdmin]);
 
   // Activities filtered by the selected date (or all dates if dateFilterMode === 'all')
   const dateActivities = useMemo(() => {
@@ -515,20 +569,22 @@ export default function DailyActivityReport() {
 
       const matchesBranch = selectedBranchFilter === 'All' || item.branch === selectedBranchFilter;
       const matchesActivity = selectedActivityFilter === 'All' || item.activity === selectedActivityFilter;
-      const matchesBatch = selectedBatchFilter === 'All' || item.batch === selectedBatchFilter;
+      const matchesBatch = selectedBatchFilter === 'All'
+        ? (isSuperAdmin ? true : (availableBatches.includes(item.batch) || (item.batch || '').toLowerCase().includes((userBranch || '').toLowerCase().slice(0, 6))))
+        : item.batch === selectedBatchFilter;
       const matchesStatus = selectedStatusFilter === 'All' || item.status === selectedStatusFilter;
 
       return matchesSearch && matchesBranch && matchesActivity && matchesBatch && matchesStatus;
     });
-  }, [dateActivities, searchTerm, selectedBranchFilter, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter]);
+  }, [dateActivities, searchTerm, selectedBranchFilter, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter, availableBatches, isSuperAdmin, userBranch]);
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
     setNewActivity({
-      branch: 'Tarabai Park',
+      branch: userBranch || 'Mangalvar Peth',
       activity: 'Classroom Lecture & Theory',
       subject: (user?.subject || 'Physics'),
-      batch: '12th pcm tarabai park',
+      batch: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park',
       chapter: '',
       topicTaught: '',
       timeSlot: '08:30 AM - 10:00 AM',
@@ -758,7 +814,7 @@ export default function DailyActivityReport() {
           </button>
 
           <div>
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2 flex-wrap">
               <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
                 Teacher Daily Activity Report
               </h1>
@@ -773,9 +829,22 @@ export default function DailyActivityReport() {
               >
                 {dateFilterMode === 'all' ? 'All Recorded Dates' : selectedDate === new Date().toISOString().split('T')[0] ? "Today's Log" : `Log: ${selectedDate}`}
               </span>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
             </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Track completed activities, topics covered, and teaching hours {dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}
+              Track completed activities, topics covered, and teaching hours for {userBranch} Campus {dateFilterMode === 'all' ? 'across all sessions' : `on ${selectedDate}`}
             </p>
           </div>
         </div>
@@ -1085,19 +1154,36 @@ export default function DailyActivityReport() {
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <div className="d-flex align-items-center gap-1.5">
-              <Filter size={14} className="text-muted" />
-              <select
-                className="form-select form-select-sm"
-                value={selectedBranchFilter}
-                onChange={(e) => setSelectedBranchFilter(e.target.value)}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
+            {isSuperAdmin ? (
+              <div className="d-flex align-items-center gap-1.5">
+                <Filter size={14} className="text-muted" />
+                <select
+                  className="form-select form-select-sm"
+                  value={selectedBranchFilter}
+                  onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                  style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
+                >
+                  <option value="All">All Branches</option>
+                  <option value="Tarabai Park">Tarabai Park</option>
+                  <option value="Mangalwar Peth">Mangalwar Peth</option>
+                </select>
+              </div>
+            ) : (
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1.5"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  height: '36px'
+                }}
               >
-                <option value="All">All Branches</option>
-                <option value="Tarabai Park">Tarabai Park</option>
-                <option value="Mangalwar Peth">Mangalwar Peth</option>
-              </select>
-            </div>
+                <Building2 size={13} />
+                <span>{userBranch}</span>
+              </span>
+            )}
 
             <div className="d-flex align-items-center gap-1.5">
               <select
@@ -1120,21 +1206,12 @@ export default function DailyActivityReport() {
               className="form-select form-select-sm"
               value={selectedBatchFilter}
               onChange={(e) => setSelectedBatchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '175px' }}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', minWidth: '175px' }}
             >
-              <option value="All">All Batches</option>
-              <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-              <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-              <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-              <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-              <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-              <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-              <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-              <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-              <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-              <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-              <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-              <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+              <option value="All">All {isSuperAdmin ? '' : `${userBranch} `}Batches</option>
+              {availableBatches.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
             </select>
 
             {/* Status Filter: In Progress vs Completed */}
@@ -1359,15 +1436,25 @@ export default function DailyActivityReport() {
           <div className="row g-3">
             <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
-              <select
-                className="form-select form-select-sm"
-                value={newActivity.branch}
-                onChange={(e) => setNewActivity({ ...newActivity, branch: e.target.value })}
-                required
-              >
-                <option value="Tarabai Park">Tarabai Park Branch</option>
-                <option value="Mangalwar Peth">Mangalwar Peth Branch</option>
-              </select>
+              {isSuperAdmin ? (
+                <select
+                  className="form-select form-select-sm"
+                  value={newActivity.branch}
+                  onChange={(e) => setNewActivity({ ...newActivity, branch: e.target.value })}
+                  required
+                >
+                  <option value="Tarabai Park">Tarabai Park Branch</option>
+                  <option value="Mangalwar Peth">Mangalwar Peth Branch</option>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="form-control form-control-sm bg-light"
+                  value={`${userBranch} Branch`}
+                  disabled
+                  readOnly
+                />
+              )}
             </div>
 
             <div className="col-12 col-md-6">
@@ -1407,19 +1494,9 @@ export default function DailyActivityReport() {
                 onChange={(e) => setNewActivity({ ...newActivity, batch: e.target.value })}
                 required
               >
-                <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                <option value="All Enrolled Batches">All Enrolled Batches</option>
+                {availableBatches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
               </select>
             </div>
 

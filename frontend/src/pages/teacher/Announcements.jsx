@@ -7,11 +7,15 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
-import { Bell, Plus, ArrowLeft } from 'lucide-react';
+import { Bell, Plus, ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import useAuth from '../../hooks/useAuth';
+import { getUserBranch, filterBatchesByBranch } from '../../utils/branchUtils';
 
 export default function TeacherAnnouncements() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
   const [notices, setNotices] = useState([]);
   const [batches, setBatches] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,7 +34,7 @@ export default function TeacherAnnouncements() {
         batchService.getBatches()
       ]);
       setNotices(nData);
-      setBatches(bData);
+      setBatches(filterBatchesByBranch(bData, userBranch));
     } catch (err) {
       console.error(err);
     }
@@ -42,7 +46,8 @@ export default function TeacherAnnouncements() {
 
   const handlePost = async (e) => {
     e.preventDefault();
-    await noticeService.create({ ...newNotice, author: 'Dr. Priya Kulkarni (Physics Faculty)' });
+    const authorName = user?.name || user?.full_name || 'Faculty Member';
+    await noticeService.create({ ...newNotice, author: `${authorName} (${userBranch})` });
     toast.success('Class announcement published!');
     setModalOpen(false);
     fetchNotices();
@@ -73,11 +78,26 @@ export default function TeacherAnnouncements() {
           </button>
 
           <div>
-            <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
-              Class Announcements & Circulars
-            </h1>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
+                Class Announcements & Circulars
+              </h1>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
+            </div>
             <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
-              Send assignment deadlines, lab instructions, and test dates to students
+              Send assignment deadlines, lab instructions, and test dates to {userBranch} students
             </p>
           </div>
         </div>

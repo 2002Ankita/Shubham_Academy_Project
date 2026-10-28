@@ -192,11 +192,18 @@ export default function MarksForm({
 
     try {
       setIsSubmitting(true);
+      const studentBranch = selectedStu?.branch || (selectedStu?.rollNumber?.startsWith('MP') ? 'Mangalvar Peth' : (selectedStu?.rollNumber?.startsWith('TP') ? 'Tarabai Park' : (selectedExam?.branch || '')));
+      const studentBatch = selectedStu?.batch || selectedExam?.batch || selectedStu?.standard || '';
+      const studentStandard = selectedStu?.standard || selectedExam?.standard || '';
+
       await onSubmit({
         ...formData,
         student: selectedStu,
         studentName: selectedStu?.name,
         rollNumber: selectedStu?.rollNumber,
+        branch: studentBranch,
+        batch: studentBatch,
+        standard: studentStandard,
         parentPhone: selectedStu?.parentPhone || selectedStu?.parent_mobile || selectedStu?.phone,
         parentName: selectedStu?.parentName || selectedStu?.parent_name,
         examTitle: selectedExam?.title || selectedExam?.exam_name,
@@ -508,6 +515,19 @@ export default function MarksForm({
                 <span className="text-muted small text-truncate d-none d-sm-inline">
                   • {formatStudentBatchDisplay(selectedStudent)}
                 </span>
+                {selectedStudent.branch && (
+                  <span
+                    className="badge rounded-pill fw-semibold ms-1"
+                    style={{
+                      fontSize: '10px',
+                      backgroundColor: selectedStudent.branch.toLowerCase().includes('tarabai') ? '#EFF6FF' : '#FEF2F2',
+                      color: selectedStudent.branch.toLowerCase().includes('tarabai') ? '#1D4ED8' : '#8B1216',
+                      border: `1px solid ${selectedStudent.branch.toLowerCase().includes('tarabai') ? '#BFDBFE' : '#FECACA'}`
+                    }}
+                  >
+                    {selectedStudent.branch}
+                  </span>
+                )}
               </div>
               <button
                 type="button"

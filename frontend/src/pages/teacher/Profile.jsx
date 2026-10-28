@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
-import { User, Mail, Phone, BookOpen, Award, CheckCircle, Camera, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, Award, CheckCircle, Camera, ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getUserBranch } from '../../utils/branchUtils';
 
 export default function TeacherProfile() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
+  const userBranch = getUserBranch(user);
   const [avatar, setAvatar] = useState(
     user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
   );
@@ -122,7 +124,22 @@ export default function TeacherProfile() {
           </div>
 
           <div>
-            <h4 className="brand-font fw-bold m-0 text-sa-charcoal">{user?.name || 'Teacher'}</h4>
+            <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
+              <h4 className="brand-font fw-bold m-0 text-sa-charcoal">{user?.name || 'Teacher'}</h4>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
+            </div>
             <span className="text-sa-primary fw-semibold small d-block mb-1">
               Senior Faculty • Physics & Applied Mechanics
             </span>
@@ -172,12 +189,22 @@ export default function TeacherProfile() {
               />
             </div>
 
-            <div className="col-12">
+            <div className="col-12 col-md-6">
               <Input
                 label="Department & Subject Domain"
                 name="department"
                 defaultValue="Department of Science & Mathematics (Physics Lead)"
                 icon={BookOpen}
+                disabled
+              />
+            </div>
+
+            <div className="col-12 col-md-6">
+              <Input
+                label="Assigned Campus / Branch"
+                name="branch"
+                defaultValue={`${userBranch} Campus`}
+                icon={Building2}
                 disabled
               />
             </div>

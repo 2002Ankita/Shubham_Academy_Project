@@ -119,4 +119,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+export { useAuth } from '../hooks/useAuth';
 export default AuthContext;

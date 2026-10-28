@@ -3,7 +3,7 @@ import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
-import { Plus, Trash2, Building, Layers, Lock, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Building, Building2, Layers, Lock, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import batchService from '../../services/batchService';
 import teacherService from '../../services/teacherService';
@@ -15,11 +15,15 @@ export default function BatchManagement() {
   const { user } = useAuth();
   const { confirm } = useConfirm();
 
-  const userBranch = getUserBranch(user);
   const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
+  const rawBranch = getUserBranch(user) || user?.branch;
+  const userBranch = rawBranch ? (rawBranch.toLowerCase().includes('mangal') ? CAMPUS.MANGALVAR_PETH : CAMPUS.TARABAI_PARK) : CAMPUS.TARABAI_PARK;
 
-  // Campus context: SuperAdmins can toggle campuses; regular admins are locked to their assigned branch
-  const [selectedCampus, setSelectedCampus] = useState(userBranch || CAMPUS.MANGALVAR_PETH);
+  // Campus context: SuperAdmin can view All, Mangalvar Peth, or Tarabai Park
+  const [selectedCampus, setSelectedCampus] = useState(isSuperAdmin ? 'All' : userBranch);
+
+  // Regular admin is strictly scoped to their logged-in campus
+  const effectiveCampus = isSuperAdmin ? selectedCampus : userBranch;
 
   const [batches, setBatches] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -31,7 +35,7 @@ export default function BatchManagement() {
     name: '',
     standard: '11th Science',
     section: 'PCM',
-    branch: CAMPUS.MANGALVAR_PETH,
+    branch: userBranch,
     subject: 'Physics, Chemistry, Mathematics',
     room: '',
     time: '08:00 AM – 10:30 AM',
@@ -64,8 +68,9 @@ export default function BatchManagement() {
   const fetchBatches = async () => {
     try {
       setLoading(true);
+      const branchParam = isSuperAdmin ? selectedCampus : userBranch;
       const [batchData, teacherData] = await Promise.all([
-        batchService.getBatches({ branch: 'ALL' }),
+        batchService.getBatches({ branch: branchParam }),
         teacherService.getAll()
       ]);
       setBatches(batchData || []);
@@ -79,21 +84,25 @@ export default function BatchManagement() {
 
   useEffect(() => {
     fetchBatches();
-  }, []);
+  }, [effectiveCampus]);
 
-  // Update selectedCampus if user branch becomes available
-  useEffect(() => {
-    if (userBranch && !isSuperAdmin) {
-      setSelectedCampus(userBranch);
-    }
-  }, [userBranch, isSuperAdmin]);
+  // Counts per campus
+  const mpCount = useMemo(() => {
+    return filterBatchesByBranch(batches, CAMPUS.MANGALVAR_PETH).length;
+  }, [batches]);
+
+  const tpCount = useMemo(() => {
+    return filterBatchesByBranch(batches, CAMPUS.TARABAI_PARK).length;
+  }, [batches]);
 
   // Filter batches displayed in the table for active campus
-  const activeBranchFilter = isSuperAdmin ? selectedCampus : (userBranch || CAMPUS.MANGALVAR_PETH);
   const displayedBatches = useMemo(() => {
-    if (!activeBranchFilter || activeBranchFilter === 'All') return batches;
-    return filterBatchesByBranch(batches, activeBranchFilter);
-  }, [batches, activeBranchFilter]);
+    if (!isSuperAdmin) {
+      return filterBatchesByBranch(batches, userBranch);
+    }
+    if (!effectiveCampus || effectiveCampus === 'All') return batches;
+    return filterBatchesByBranch(batches, effectiveCampus);
+  }, [batches, effectiveCampus, isSuperAdmin, userBranch]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -182,13 +191,29 @@ export default function BatchManagement() {
     setModalOpen(true);
   };
 
+  const handleBranchChange = (newBranch) => {
+    const autoName = getAutoBatchName(newBranch, formData.standard, formData.section);
+    const defaultRoom = newBranch.toLowerCase().includes('mangal')
+      ? 'Hall 1 (Manglavar Peth)'
+      : 'Room 101 (Tarabai Park)';
+
+    setFormData(prev => ({
+      ...prev,
+      branch: newBranch,
+      name: autoName,
+      room: prev.room && !prev.room.includes('Hall 1') && !prev.room.includes('Room 101') ? prev.room : defaultRoom
+    }));
+  };
+
   const openCreateModal = () => {
-    const targetBranch = isSuperAdmin ? selectedCampus : (userBranch || CAMPUS.MANGALVAR_PETH);
+    const targetBranch = isSuperAdmin
+      ? (selectedCampus !== 'All' ? selectedCampus : (userBranch || CAMPUS.MANGALVAR_PETH))
+      : (userBranch || CAMPUS.MANGALVAR_PETH);
     const defaultStd = '11th Science';
     const defaultSec = 'PCM';
     const autoName = getAutoBatchName(targetBranch, defaultStd, defaultSec);
     const defaultRoom = targetBranch.toLowerCase().includes('mangal')
-      ? 'Hall 1 (Mangalvar Peth)'
+      ? 'Hall 1 (Manglavar Peth)'
       : 'Room 101 (Tarabai Park)';
 
     setFormData({
@@ -230,59 +255,121 @@ export default function BatchManagement() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      {/* Page Header */}
+      {/* Page Header with Clean Unified Branch Selection */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-          <div className="d-flex align-items-center gap-2">
-            <h3 className="brand-font fw-bold text-sa-charcoal m-0 fs-4">Batch Management</h3>
-            <span
-              className="badge px-2.5 py-1 rounded-pill fw-bold"
-              style={{
-                backgroundColor: activeBranchFilter.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
-                color: activeBranchFilter.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
-                border: activeBranchFilter.toLowerCase().includes('mangal') ? '1px solid #F5C2C7' : '1px solid #BFDBFE',
-                fontSize: '0.78rem'
-              }}
-            >
-              🏛️ {activeBranchFilter} Campus
-            </span>
-          </div>
+          <h3 className="brand-font fw-bold text-sa-charcoal m-0 fs-4">Batch Schedule & Management</h3>
           <span className="small text-sa-muted">
-            Manage class batches, sections, schedules, and faculty allocations
+            {isSuperAdmin
+              ? 'Manage class batches, sections, schedules, and faculty allocations separately for Manglavar Peth and Tarabai Park'
+              : `Manage class batches, sections, schedules, and faculty allocations for ${effectiveCampus}`}
           </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
-          {/* Campus Switcher for SuperAdmin */}
-          {isSuperAdmin && (
-            <div className="btn-group bg-light p-1 rounded-3 border">
-              <button
-                type="button"
-                className={`btn btn-sm px-3 py-1 fw-semibold rounded-2 ${selectedCampus === CAMPUS.MANGALVAR_PETH ? 'btn-primary shadow-sm' : 'btn-light text-muted'}`}
-                style={{ fontSize: '12px' }}
-                onClick={() => setSelectedCampus(CAMPUS.MANGALVAR_PETH)}
-              >
-                Mangalwar Peth (MP)
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm px-3 py-1 fw-semibold rounded-2 ${selectedCampus === CAMPUS.TARABAI_PARK ? 'btn-primary shadow-sm' : 'btn-light text-muted'}`}
-                style={{ fontSize: '12px' }}
-                onClick={() => setSelectedCampus(CAMPUS.TARABAI_PARK)}
-              >
-                Tarabai Park (TP)
-              </button>
+        <div className="d-flex align-items-center gap-2.5">
+          {/* Branch context indicator for regular Admin */}
+          {!isSuperAdmin && (
+            <div
+              className="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs"
+              style={{
+                backgroundColor: effectiveCampus.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                border: effectiveCampus.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                color: effectiveCampus.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                fontSize: '12.5px',
+                fontWeight: 600
+              }}
+            >
+              <Building2 size={14} />
+              <span>{effectiveCampus}</span>
             </div>
           )}
 
-          <Button variant="primary" icon={Plus} onClick={openCreateModal}>
-            Create Batch
-          </Button>
+          {/* Unified Branch Filter Dropdown - Only shown to SuperAdmin */}
+          {isSuperAdmin && (
+            <div className="position-relative d-inline-flex align-items-center" style={{ minWidth: '220px' }}>
+              <Building2
+                size={15}
+                className="position-absolute"
+                style={{
+                  left: '12px',
+                  pointerEvents: 'none',
+                  color: selectedCampus === 'All' ? '#64748B' : (selectedCampus.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8')
+                }}
+              />
+              <select
+                value={selectedCampus}
+                onChange={(e) => setSelectedCampus(e.target.value)}
+                className="form-select fw-semibold"
+                style={{
+                  paddingLeft: '36px',
+                  paddingRight: '32px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  borderColor: '#D8DEE4',
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  fontSize: '13px',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+                  cursor: 'pointer'
+                }}
+                aria-label="Filter by Branch Campus"
+              >
+                <option value="All">All Branches ({batches.length} Batches)</option>
+                <option value={CAMPUS.MANGALVAR_PETH}>Manglavar Peth ({mpCount} Batches)</option>
+                <option value={CAMPUS.TARABAI_PARK}>Tarabai Park ({tpCount} Batches)</option>
+              </select>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs"
+            style={{
+              backgroundColor: '#8B1216',
+              fontSize: '13px',
+              height: '40px',
+              padding: '0 18px',
+              borderRadius: '10px',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              lineHeight: 1
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
+          >
+            <Plus size={16} strokeWidth={2.4} />
+            <span>Create Batch Schedule</span>
+          </button>
         </div>
       </div>
 
       {/* Batches Table Card */}
       <div className="sa-card p-4">
+        <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+          <div className="d-flex align-items-center gap-2">
+            <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+              Active Batch Schedules
+            </h5>
+            <span
+              className="badge rounded-pill fw-semibold"
+              style={{
+                backgroundColor: effectiveCampus === 'All' ? '#F1F5F9' : (effectiveCampus.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF'),
+                color: effectiveCampus === 'All' ? '#475569' : (effectiveCampus.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8'),
+                border: effectiveCampus === 'All' ? '1px solid #E2E8F0' : (effectiveCampus.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE'),
+                fontSize: '11px',
+                padding: '3px 9px'
+              }}
+            >
+              {effectiveCampus === 'All' ? `All Campuses (${displayedBatches.length})` : `${effectiveCampus} (${displayedBatches.length})`}
+            </span>
+          </div>
+          <span className="small text-muted">
+            {isSuperAdmin
+              ? `Showing ${displayedBatches.length} of ${batches.length} total batches`
+              : `Showing ${displayedBatches.length} batches for ${effectiveCampus}`}
+          </span>
+        </div>
         <Table
           columns={[
             {
@@ -292,10 +379,31 @@ export default function BatchManagement() {
                 <div>
                   <div className="fw-bold text-sa-charcoal">{val}</div>
                   <div className="small text-muted" style={{ fontSize: '11px' }}>
-                    {row.branch || activeBranchFilter}
+                    {row.standard || 'Science'} • {row.section || 'General'}
                   </div>
                 </div>
               )
+            },
+            {
+              key: 'branch',
+              title: 'Branch',
+              render: (val, row) => {
+                const br = val || row.branch || (row.name && row.name.toLowerCase().includes('mangal') ? 'Manglavar Peth' : 'Tarabai Park');
+                const isMP = br.toLowerCase().includes('mangal');
+                return (
+                  <span
+                    className="badge rounded-pill fw-semibold px-2.5 py-1"
+                    style={{
+                      backgroundColor: isMP ? '#FDF0F0' : '#EFF6FF',
+                      color: isMP ? '#8B1216' : '#1D4ED8',
+                      border: isMP ? '1px solid #F5C2C7' : '1px solid #BFDBFE',
+                      fontSize: '11px'
+                    }}
+                  >
+                    {isMP ? 'Manglavar Peth' : 'Tarabai Park'}
+                  </span>
+                );
+              }
             },
             { key: 'standard', title: 'Standard' },
             { key: 'subject', title: 'Subject' },
@@ -337,34 +445,43 @@ export default function BatchManagement() {
       <Modal
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditingBatch(null); }}
-        title={editingBatch ? "Edit Batch" : "Create New Batch"}
+        title={editingBatch ? "Edit Batch Schedule" : "Create New Batch Schedule"}
       >
         <form onSubmit={handleSubmit}>
-          {/* Branch (Fixed Automatically based on Campus Context) */}
+          {/* Branch Selection Option */}
           <div className="mb-3">
             <label className="form-label small fw-semibold text-sa-charcoal d-flex align-items-center justify-content-between mb-1">
               <span className="d-flex align-items-center gap-1.5">
                 <Building size={14} className="text-sa-primary" />
-                Branch Location (Fixed)
+                Branch Location *
               </span>
-              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-pill" style={{ fontSize: '11px' }}>
-                <Lock size={10} className="me-1 inline-block" /> Fixed Automatically
+              <span className="badge bg-light text-sa-primary border px-2 py-0.5 rounded-pill" style={{ fontSize: '11px' }}>
+                {isSuperAdmin ? 'Separate Schedule' : 'Fixed to Your Branch'}
               </span>
             </label>
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control bg-light fw-bold text-sa-charcoal"
-                value={formData.branch.toLowerCase().includes('mangal') ? 'Mangalwar Peth (MP)' : 'Tarabai Park (TP)'}
-                readOnly
-                disabled
-              />
-              <span className="input-group-text bg-light text-muted">
-                <Lock size={15} />
-              </span>
-            </div>
+            {isSuperAdmin ? (
+              <select
+                name="branch"
+                value={formData.branch}
+                onChange={(e) => handleBranchChange(e.target.value)}
+                className="form-select fw-semibold"
+                required
+              >
+                <option value={CAMPUS.MANGALVAR_PETH}>Manglavar Peth (MP)</option>
+                <option value={CAMPUS.TARABAI_PARK}>Tarabai Park (TP)</option>
+              </select>
+            ) : (
+              <div className="d-flex align-items-center justify-content-between p-2.5 rounded-3 border bg-light">
+                <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                  {formData.branch.toLowerCase().includes('mangal') ? 'Manglavar Peth (MP)' : 'Tarabai Park (TP)'}
+                </span>
+                <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '11px' }}>
+                  Active Campus
+                </span>
+              </div>
+            )}
             <div className="form-text text-muted small mt-1">
-              Branch is fixed to <strong>{formData.branch.toLowerCase().includes('mangal') ? 'Mangalwar Peth (MP)' : 'Tarabai Park (TP)'}</strong> for this campus. Manual cross-branch selection is disabled.
+              Schedule and batch allocations will be managed for <strong>{formData.branch.toLowerCase().includes('mangal') ? 'Manglavar Peth' : 'Tarabai Park'}</strong>.
             </div>
           </div>
 

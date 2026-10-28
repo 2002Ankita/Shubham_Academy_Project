@@ -221,16 +221,29 @@ async def list_topic_durations(
     status: Optional[str] = None,
     month: Optional[str] = None,
     academic_year: Optional[str] = None,
+    branch: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Retrieve curriculum topic durations with optional filters"""
+    current_user = None
     if token:
         try:
-            await get_current_user(token)
+            current_user = await get_current_user(token)
         except Exception:
             pass
 
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_") if current_user else ""
+    user_branch = getattr(current_user, "branch", None) if current_user else None
+    effective_branch = user_branch if (user_role == "ADMIN" and user_branch) else branch
+
     query = {}
+    if effective_branch and effective_branch != "All":
+        target = effective_branch.lower().strip()
+        if "tarabai" in target:
+            query["batch"] = {"$regex": "tarabai", "$options": "i"}
+        elif "mangal" in target or "manglavar" in target:
+            query["batch"] = {"$regex": "mangal", "$options": "i"}
+
     if subject and subject != "All":
         query["subject"] = {"$regex": subject, "$options": "i"}
     if teacher and teacher != "All":

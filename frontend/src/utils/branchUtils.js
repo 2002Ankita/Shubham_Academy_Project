@@ -34,10 +34,11 @@ export const ALL_BATCHES = [...MANGALVAR_BATCHES, ...TARABAI_BATCHES];
 export const normalizeBranch = (branchStr) => {
   if (!branchStr) return null;
   const s = String(branchStr).trim().toLowerCase();
+  if (s === 'all' || s === 'all branches') return null;
   if (s.includes('tarabai') || s.includes('tarabai park') || /\b(tp)\b/i.test(s) || s.includes('-tp-') || s.startsWith('tp-') || s.startsWith('sa-tp')) {
     return CAMPUS.TARABAI_PARK;
   }
-  if (s.includes('mangalvar') || s.includes('mangalwar') || s.includes('mangalvar peth') || /\b(mp)\b/i.test(s) || s.includes('-mp-') || s.startsWith('mp-') || s.startsWith('sa-mp')) {
+  if (s.includes('mangalvar') || s.includes('mangalwar') || s.includes('manglavar') || s.includes('mangalvar peth') || /\b(mp)\b/i.test(s) || s.includes('-mp-') || s.startsWith('mp-') || s.startsWith('sa-mp')) {
     return CAMPUS.MANGALVAR_PETH;
   }
   return null;
@@ -79,6 +80,24 @@ export const getUserBranch = (user) => {
 };
 
 /**
+ * Checks whether the logged-in user is a SuperAdmin.
+ */
+export const isSuperAdminUser = (user) => {
+  if (!user) {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        user = JSON.parse(stored);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  const role = (user?.role || '').toLowerCase();
+  return role.includes('super');
+};
+
+/**
  * Checks whether a batch name belongs to a target branch.
  */
 export const isBatchInBranch = (batch, targetBranch) => {
@@ -102,8 +121,9 @@ export const isBatchInBranch = (batch, targetBranch) => {
  * Filter an array of batch strings or batch objects by user branch.
  */
 export const filterBatchesByBranch = (batches, targetBranch) => {
-  if (!targetBranch) return batches;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return batches;
   const norm = normalizeBranch(targetBranch);
+  if (!norm) return batches;
   return (batches || []).filter(b => isBatchInBranch(b, norm));
 };
 
@@ -111,7 +131,7 @@ export const filterBatchesByBranch = (batches, targetBranch) => {
  * Checks whether a student belongs to a target branch based on batch or branch field.
  */
 export const isStudentInBranch = (student, targetBranch) => {
-  if (!targetBranch) return true;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return true;
   const normTarget = normalizeBranch(targetBranch);
   if (!normTarget) return true;
 
@@ -153,7 +173,7 @@ export const isStudentInBranch = (student, targetBranch) => {
  * Filters an array of students by campus.
  */
 export const filterStudentsByBranch = (students, targetBranch) => {
-  if (!targetBranch) return students;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return students;
   return (students || []).filter(s => isStudentInBranch(s, targetBranch));
 };
 
@@ -161,8 +181,9 @@ export const filterStudentsByBranch = (students, targetBranch) => {
  * Filters exams by campus based on exam.batch or exam.standard.
  */
 export const filterExamsByBranch = (exams, targetBranch) => {
-  if (!targetBranch) return exams;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return exams;
   const norm = normalizeBranch(targetBranch);
+  if (!norm) return exams;
   return (exams || []).filter(e => {
     const br = e?.branch || '';
     if (br) {
@@ -175,7 +196,7 @@ export const filterExamsByBranch = (exams, targetBranch) => {
       if (match) return match === norm;
     }
     const title = (e?.title || e?.examName || e?.exam_name || '').toLowerCase();
-    if (title.includes('mangalvar') || title.includes('mangalwar')) {
+    if (title.includes('mangalvar') || title.includes('mangalwar') || title.includes('manglavar')) {
       return norm === CAMPUS.MANGALVAR_PETH;
     }
     if (title.includes('tarabai')) {
@@ -186,11 +207,59 @@ export const filterExamsByBranch = (exams, targetBranch) => {
 };
 
 /**
+ * Filters marks records by campus.
+ */
+export const filterMarksByBranch = (marks, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return marks;
+  const norm = normalizeBranch(targetBranch);
+  if (!norm) return marks;
+  return (marks || []).filter(m => {
+    // 1. Direct branch field on mark
+    const br = m?.branch || '';
+    if (br) {
+      const match = normalizeBranch(br);
+      if (match) return match === norm;
+    }
+    // 2. Batch field on mark
+    const b = m?.batch || m?.standard || m?.classBatch || '';
+    if (b) {
+      const match = normalizeBranch(b);
+      if (match) return match === norm;
+    }
+    // 3. Roll number prefix: MP vs TP
+    const roll = (m?.rollNumber || m?.roll_number || '').toUpperCase();
+    if (roll.includes('MP') || roll.startsWith('SA-MP')) return norm === CAMPUS.MANGALVAR_PETH;
+    if (roll.includes('TP') || roll.startsWith('SA-TP')) return norm === CAMPUS.TARABAI_PARK;
+
+    // 4. Exam Name heuristics
+    const examName = (m?.examName || m?.examTitle || m?.exam_name || '').toLowerCase();
+    if (examName.includes('mangalvar') || examName.includes('mangalwar') || examName.includes('manglavar')) {
+      return norm === CAMPUS.MANGALVAR_PETH;
+    }
+    if (examName.includes('tarabai')) {
+      return norm === CAMPUS.TARABAI_PARK;
+    }
+
+    // 5. Student name heuristics for demo records
+    const sName = (m?.studentName || m?.student_name || '').toLowerCase();
+    if (sName.includes('diya') || sName.includes('rohan') || sName.includes('sneha') || sName.includes('aditya')) {
+      return norm === CAMPUS.MANGALVAR_PETH;
+    }
+    if (sName.includes('aarav') || sName.includes('ananya') || sName.includes('tanvi') || sName.includes('aryan')) {
+      return norm === CAMPUS.TARABAI_PARK;
+    }
+
+    return false;
+  });
+};
+
+/**
  * Filters attendance records / reports by campus.
  */
 export const filterAttendanceByBranch = (records, targetBranch) => {
-  if (!targetBranch) return records;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return records;
   const norm = normalizeBranch(targetBranch);
+  if (!norm) return records;
   return (records || []).filter(r => {
     const br = r?.branch || '';
     if (br) {
@@ -221,8 +290,9 @@ export const filterAttendanceByBranch = (records, targetBranch) => {
  * Filters fee records / receipts by campus.
  */
 export const filterFeesByBranch = (fees, targetBranch) => {
-  if (!targetBranch) return fees;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return fees;
   const norm = normalizeBranch(targetBranch);
+  if (!norm) return fees;
   return (fees || []).filter(f => {
     const br = f?.branch || '';
     if (br) {
@@ -248,3 +318,120 @@ export const filterFeesByBranch = (fees, targetBranch) => {
     return false;
   });
 };
+
+/**
+ * Checks whether a teacher belongs to a target branch.
+ */
+export const isTeacherInBranch = (teacher, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return true;
+  const norm = normalizeBranch(targetBranch);
+  if (!norm) return true;
+
+  // 1. Direct branch attribute
+  if (teacher?.branch) {
+    const match = normalizeBranch(teacher.branch);
+    if (match) return match === norm;
+  }
+
+  // 2. Assigned batches
+  const batches = teacher?.assignedClasses || teacher?.assigned_batches || [];
+  if (Array.isArray(batches) && batches.length > 0) {
+    const hasBranchBatch = batches.some(b => {
+      const bNorm = normalizeBranch(b);
+      return bNorm === norm;
+    });
+    if (hasBranchBatch) return true;
+  }
+
+  // 3. Email
+  const email = (teacher?.email || '').toLowerCase();
+  if (email.includes('tarabai')) return norm === CAMPUS.TARABAI_PARK;
+  if (email.includes('mangal') || email.includes('admin@')) return norm === CAMPUS.MANGALVAR_PETH;
+
+  // 4. Name heuristics for demo accounts
+  const name = (teacher?.name || teacher?.full_name || '').toLowerCase();
+  if (name.includes('sunita') || name.includes('more')) return norm === CAMPUS.TARABAI_PARK;
+  if (name.includes('rajesh') || name.includes('sawant') || name.includes('priya')) {
+    if (email.includes('tarabai')) return norm === CAMPUS.TARABAI_PARK;
+    return norm === CAMPUS.MANGALVAR_PETH;
+  }
+
+  return true;
+};
+
+/**
+ * Filters faculty list by branch.
+ */
+export const filterTeachersByBranch = (teachers, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return teachers;
+  return (teachers || []).filter(t => isTeacherInBranch(t, targetBranch));
+};
+
+/**
+ * Filters faculty leave requests by branch.
+ */
+export const filterLeavesByBranch = (leaves, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return leaves;
+  const norm = normalizeBranch(targetBranch);
+  if (!norm) return leaves;
+
+  return (leaves || []).filter(l => {
+    if (l.branch) {
+      const match = normalizeBranch(l.branch);
+      if (match) return match === norm;
+    }
+    const tName = (l.teacher_name || l.teacherName || '').toLowerCase();
+    if (tName.includes('sunita') || tName.includes('more')) return norm === CAMPUS.TARABAI_PARK;
+    if (tName.includes('rajesh') || tName.includes('sawant') || tName.includes('priya')) {
+      const email = (l.teacher_email || l.email || '').toLowerCase();
+      if (email.includes('tarabai')) return norm === CAMPUS.TARABAI_PARK;
+      return norm === CAMPUS.MANGALVAR_PETH;
+    }
+    return false;
+  });
+};
+
+/**
+ * Filters daily activities by branch.
+ */
+export const filterActivitiesByBranch = (activities, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return activities;
+  const norm = normalizeBranch(targetBranch);
+  if (!norm) return activities;
+
+  return (activities || []).filter(act => {
+    if (act.branch) {
+      const match = normalizeBranch(act.branch);
+      if (match) return match === norm;
+    }
+    const batch = act.batch || act.classBatch || act.class_code || '';
+    if (batch) {
+      const match = normalizeBranch(batch);
+      if (match) return match === norm;
+    }
+    return false;
+  });
+};
+
+/**
+ * Filters topic duration plans by branch.
+ */
+export const filterTopicPlansByBranch = (topics, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL' || targetBranch === 'All Branches') return topics;
+  const norm = normalizeBranch(targetBranch);
+  if (!norm) return topics;
+
+  return (topics || []).filter(t => {
+    if (t.branch) {
+      const match = normalizeBranch(t.branch);
+      if (match) return match === norm;
+    }
+    const batch = t.batch || t.batch_name || '';
+    if (batch) {
+      const match = normalizeBranch(batch);
+      if (match) return match === norm;
+    }
+    return false;
+  });
+};
+

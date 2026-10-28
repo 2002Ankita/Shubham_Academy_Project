@@ -33,12 +33,15 @@ import {
   formatStudentBatchDisplay,
   matchesStudentFilters
 } from '../../config/branchBatchConfig';
+import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 
 export default function LectureAttendanceManager() {
   const navigate = useNavigate();
-  const activeBranch = getUserBranch();
-  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
+  const activeBranch = getUserBranch(user);
+  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangal')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
 
   // Standardized Branch & Batch selection (Step 1: Branch -> Step 2: Session if Mangalwar Peth -> Step 3: Academic Batch)
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
@@ -659,6 +662,8 @@ export default function LectureAttendanceManager() {
             academicBatch={selectedAcademicBatch}
             onBatchChange={setSelectedAcademicBatch}
             onAcademicBatchChange={setSelectedAcademicBatch}
+            fixedBranch={!isSuperAdmin}
+            allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
             layout="grid"
           />
         </div>
@@ -1081,6 +1086,8 @@ export default function LectureAttendanceManager() {
                     academicBatch={uploadAcademicBatch}
                     onBatchChange={setUploadAcademicBatch}
                     onAcademicBatchChange={setUploadAcademicBatch}
+                    fixedBranch={!isSuperAdmin}
+                    allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
                     layout="grid"
                   />
                 </div>

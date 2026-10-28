@@ -7,8 +7,9 @@ import attendanceService from '../services/attendanceService';
 import salaryService from '../services/salaryService';
 import teacherService from '../services/teacherService';
 import useAuth from '../hooks/useAuth';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getUserBranch } from '../utils/branchUtils';
 
 export default function WorkingTime() {
   const navigate = useNavigate();
@@ -178,6 +179,20 @@ export default function WorkingTime() {
             </p>
           </div>
         </div>
+
+        <span
+          className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+          style={{
+            backgroundColor: '#FDF0F0',
+            color: '#8B1216',
+            border: '1px solid #F5C2C4',
+            fontSize: '0.82rem',
+            fontWeight: '600'
+          }}
+        >
+          <Building2 size={14} />
+          <span>{teacherDetails?.branch || getUserBranch(user)} Campus</span>
+        </span>
       </div>
 
       {/* 2. Top Summary KPI Cards */}

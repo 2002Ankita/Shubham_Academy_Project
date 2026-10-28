@@ -35,6 +35,7 @@ import studentService from '../../services/studentService';
 import { notificationService } from '../../services/notificationService';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
+import { getUserBranch, filterBatchesByBranch, filterStudentsByBranch, CAMPUS } from '../../utils/branchUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -200,12 +201,17 @@ const getTimetableSlotStyle = (classCode = '', subject = '') => {
 export default function MyClasses() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
 
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
-  const [branchFilter, setBranchFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState(isSuperAdmin ? 'All' : (userBranch || 'All'));
+
+  // Regular teacher is strictly scoped to their logged-in campus
+  const effectiveBranch = isSuperAdmin ? branchFilter : (userBranch || 'All');
 
   // Preview mode toggle when week schedule is not published yet
   const [showRoutinePreview, setShowRoutinePreview] = useState(false);
@@ -247,19 +253,28 @@ export default function MyClasses() {
         studentService.getAll().catch(() => [])
       ]);
 
-      setStudents(Array.isArray(studentData) ? studentData : []);
-
-      // Filter batches assigned to current teacher
+      // Filter batches assigned to current teacher and branch
       let teacherBatches = batchData;
+      if (effectiveBranch && effectiveBranch !== 'All') {
+        teacherBatches = filterBatchesByBranch(teacherBatches, effectiveBranch);
+      }
       if (user && user.role === 'teacher' && user.name) {
-        teacherBatches = batchData.filter((b) => {
+        const byTeacher = teacherBatches.filter((b) => {
           if (b.teacher_name && isTeacherMatch(user.name, b.teacher_name, b.subject)) return true;
           if (Array.isArray(b.timetable)) {
             return b.timetable.some(s => isTeacherMatch(user.name, s.teacher_name || b.teacher_name, s.subject || b.subject));
           }
           return false;
         });
+        if (byTeacher.length > 0) {
+          teacherBatches = byTeacher;
+        }
       }
+
+      const scopedStudents = (effectiveBranch && effectiveBranch !== 'All')
+        ? filterStudentsByBranch(studentData, effectiveBranch)
+        : studentData;
+      setStudents(Array.isArray(scopedStudents) ? scopedStudents : []);
 
       // Map backend data into clean format
       const mapped = teacherBatches.map((b) => ({
@@ -851,7 +866,7 @@ export default function MyClasses() {
           </div>
         </div>
 
-        {/* Card 4: Teaching Campuses */}
+        {/* Card 4: Teaching Campus */}
         <div className="col-12 col-sm-6 col-lg-3">
           <div
             className="p-3 bg-white border rounded-4 shadow-xs h-100 d-flex flex-column justify-content-between"
@@ -859,7 +874,7 @@ export default function MyClasses() {
           >
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-sa-muted fw-semibold" style={{ fontSize: '12px' }}>
-                Campus Distribution
+                Assigned Campus
               </span>
               <div
                 className="rounded-3 d-flex align-items-center justify-content-center"
@@ -869,14 +884,11 @@ export default function MyClasses() {
               </div>
             </div>
             <div>
-              <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '24px', lineHeight: 1.15 }}>
-                {tarabaiCount > 0 && mangalwarCount > 0 ? '2 Campuses' : '1 Campus'}{' '}
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#64748B' }}>
-                  ({tarabaiCount + mangalwarCount} slots)
-                </span>
+              <div className="fw-bold brand-font text-sa-charcoal" style={{ fontSize: '20px', lineHeight: 1.15 }}>
+                {effectiveBranch !== 'All' ? effectiveBranch : 'All Campuses'}
               </div>
               <span className="text-sa-muted mt-1 d-block" style={{ fontSize: '11px' }}>
-                Tarabai Park ({tarabaiCount}) • Mangalwar Peth ({mangalwarCount})
+                {totalWeeklyLectures} weekly lectures allocated
               </span>
             </div>
           </div>
@@ -894,64 +906,80 @@ export default function MyClasses() {
       >
         {/* Toolbar: Campus Filter Tabs + Week Navigation */}
         <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pb-3 border-bottom mb-3.5 no-print">
-          {/* Left: Campus Filter Tabs */}
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <span className="text-sa-muted fw-semibold small d-none d-sm-inline-flex align-items-center gap-1 me-1">
-              <Filter size={13} />
-              <span>Campus:</span>
-            </span>
-
-            <div className="d-flex p-1 bg-light border rounded-3 shadow-xs" style={{ borderColor: '#E2E8F0' }}>
-              <button
-                type="button"
-                onClick={() => setBranchFilter('All')}
-                className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
-                  branchFilter === 'All' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-                }`}
-                style={{
-                  backgroundColor: branchFilter === 'All' ? '#8B1216' : 'transparent',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                All Campuses ({totalWeeklyLectures})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBranchFilter('Tarabai')}
-                className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
-                  branchFilter === 'Tarabai' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-                }`}
-                style={{
-                  backgroundColor: branchFilter === 'Tarabai' ? '#8B1216' : 'transparent',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Tarabai Park ({tarabaiCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBranchFilter('Mangalwar')}
-                className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
-                  branchFilter === 'Mangalwar' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-                }`}
-                style={{
-                  backgroundColor: branchFilter === 'Mangalwar' ? '#8B1216' : 'transparent',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Mangalwar Peth ({mangalwarCount})
-              </button>
+          {/* Left: Campus Filter (Badge for Teacher, Switcher for SuperAdmin) */}
+          {!isSuperAdmin ? (
+            <div
+              className="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs"
+              style={{
+                backgroundColor: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                border: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                color: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                fontSize: '12.5px',
+                fontWeight: 600
+              }}
+            >
+              <Building2 size={14} />
+              <span>{userBranch || 'Mangalvar Peth'} Campus</span>
             </div>
-          </div>
+          ) : (
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <span className="text-sa-muted fw-semibold small d-none d-sm-inline-flex align-items-center gap-1 me-1">
+                <Filter size={13} />
+                <span>Campus:</span>
+              </span>
+
+              <div className="d-flex p-1 bg-light border rounded-3 shadow-xs" style={{ borderColor: '#E2E8F0' }}>
+                <button
+                  type="button"
+                  onClick={() => setBranchFilter('All')}
+                  className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
+                    branchFilter === 'All' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: branchFilter === 'All' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  All Campuses ({totalWeeklyLectures})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBranchFilter('Tarabai')}
+                  className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
+                    branchFilter === 'Tarabai' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: branchFilter === 'Tarabai' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Tarabai Park ({tarabaiCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBranchFilter('Mangalwar')}
+                  className={`btn btn-sm px-2.5 py-1 fw-semibold transition-all ${
+                    branchFilter === 'Mangalwar' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: branchFilter === 'Mangalwar' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Mangalwar Peth ({mangalwarCount})
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Right: Week Navigator */}
           <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
@@ -1464,22 +1492,6 @@ export default function MyClasses() {
       </>
     )}
 
-        {/* 4. Bottom Legend & Helpful Tips */}
-        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pt-3 mt-3 border-top no-print">
-          <div className="d-flex align-items-center gap-3 flex-wrap">
-            <span className="small fw-semibold text-sa-muted" style={{ fontSize: '11.5px' }}>
-              Campus Color Key:
-            </span>
-            <div className="d-flex align-items-center gap-1.5">
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8B1216' }} />
-              <span className="text-sa-charcoal fw-medium small" style={{ fontSize: '11.5px' }}>Tarabai Park</span>
-            </div>
-            <div className="d-flex align-items-center gap-1.5">
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0D9488' }} />
-              <span className="text-sa-charcoal fw-medium small" style={{ fontSize: '11.5px' }}>Mangalwar Peth</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* VIEW CLASS DETAILS MODAL */}

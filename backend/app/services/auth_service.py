@@ -55,6 +55,58 @@ async def authenticate(user_in: UserLogin) -> str:
                 user = await User.find_one(User.email == student.email)
 
     if not user:
+        # Check standard campus accounts on the fly and auto-provision if not yet in database
+        email_clean_lower = clean_identifier.lower()
+        if "priya.tarabai" in email_clean_lower or (email_clean_lower.startswith("priya") and "tarabai" in email_clean_lower):
+            user = await User.find_one(User.email == "priya.tarabai@shubham.edu")
+            if not user:
+                user = User(
+                    email="priya.tarabai@shubham.edu",
+                    full_name="Prof. Sunita Patil",
+                    role="teacher",
+                    branch="Tarabai Park",
+                    hashed_password=get_password_hash("password123"),
+                    is_active=True
+                )
+                await user.insert()
+        elif "aarav.tarabai" in email_clean_lower or (email_clean_lower.startswith("aarav") and "tarabai" in email_clean_lower):
+            user = await User.find_one(User.email == "aarav.tarabai@shubham.edu")
+            if not user:
+                user = User(
+                    email="aarav.tarabai@shubham.edu",
+                    full_name="Aarav Deshmukh",
+                    role="student",
+                    branch="Tarabai Park",
+                    hashed_password=get_password_hash("password123"),
+                    is_active=True
+                )
+                await user.insert()
+        elif "admin.tarabai" in email_clean_lower:
+            user = await User.find_one(User.email == "admin.tarabai@shubham.edu")
+            if not user:
+                user = User(
+                    email="admin.tarabai@shubham.edu",
+                    full_name="Vikram Desai",
+                    role="admin",
+                    branch="Tarabai Park",
+                    hashed_password=get_password_hash("password123"),
+                    is_active=True
+                )
+                await user.insert()
+        elif "superadmin.tarabai" in email_clean_lower:
+            user = await User.find_one(User.email == "superadmin.tarabai@shubham.edu")
+            if not user:
+                user = User(
+                    email="superadmin.tarabai@shubham.edu",
+                    full_name="Sanjay Shinde",
+                    role="super_admin",
+                    branch="Tarabai Park",
+                    hashed_password=get_password_hash("password123"),
+                    is_active=True
+                )
+                await user.insert()
+
+    if not user:
         raise HTTPException(status_code=400, detail="Incorrect email, mobile number, or password")
 
     # Password check
@@ -122,7 +174,7 @@ async def ensure_default_users():
     import re
     
     users = [
-        # Mangalvar Peth Campus Admins
+        # Mangalvar Peth Campus
         {
             "email": "superadmin@shubham.edu",
             "full_name": "Shubham Sharma",
@@ -137,7 +189,21 @@ async def ensure_default_users():
             "branch": "Mangalvar Peth",
             "password": "password123"
         },
-        # Tarabai Park Campus Admins
+        {
+            "email": "priya.k@shubham.edu",
+            "full_name": "Dr. Priya Kulkarni",
+            "role": "teacher",
+            "branch": "Mangalvar Peth",
+            "password": "password123"
+        },
+        {
+            "email": "aarav.d@shubham.edu",
+            "full_name": "Aarav Deshmukh",
+            "role": "student",
+            "branch": "Mangalvar Peth",
+            "password": "9876500001"
+        },
+        # Tarabai Park Campus
         {
             "email": "superadmin.tarabai@shubham.edu",
             "full_name": "Sanjay Shinde",
@@ -152,16 +218,15 @@ async def ensure_default_users():
             "branch": "Tarabai Park",
             "password": "password123"
         },
-        # Faculty & Student Defaults
         {
-            "email": "priya.k@shubham.edu",
-            "full_name": "Dr. Priya Kulkarni",
+            "email": "priya.tarabai@shubham.edu",
+            "full_name": "Prof. Sunita Patil",
             "role": "teacher",
             "branch": "Tarabai Park",
             "password": "password123"
         },
         {
-            "email": "aarav.d@shubham.edu",
+            "email": "aarav.tarabai@shubham.edu",
             "full_name": "Aarav Deshmukh",
             "role": "student",
             "branch": "Tarabai Park",

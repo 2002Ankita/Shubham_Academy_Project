@@ -15,13 +15,15 @@ import {
   ChevronRight,
   Check,
   CalendarDays,
-  MapPin
+  MapPin,
+  Building2
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch, isSuperAdminUser, filterTopicPlansByBranch, CAMPUS } from '../../utils/branchUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -275,18 +277,28 @@ export default function TopicDurationPlanner() {
     return () => window.removeEventListener('sa_topic_plans_updated', fetchTopicPlans);
   }, []);
 
+  // Branch auto-scoping
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = isSuperAdminUser(user);
+
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [branchFilter, setBranchFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState(isSuperAdmin ? 'All' : (userBranch || 'Mangalvar Peth'));
+
+  useEffect(() => {
+    if (!isSuperAdmin && userBranch) {
+      setBranchFilter(userBranch);
+    }
+  }, [userBranch, isSuperAdmin]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    branch: 'Tarabai Park',
+    branch: userBranch || 'Mangalvar Peth',
     subject: 'Physics (Class 12th)',
-    batch: '12th pcm tarabai park',
+    batch: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park',
     chapter: '',
     topicName: '',
     requiredPeriods: '3',
@@ -357,8 +369,9 @@ export default function TopicDurationPlanner() {
 
     // If teacher has explicitly matched topics, show them;
     // Otherwise fallback to showing curriculum topics so teacher dashboard is never 0/empty!
-    return matched.length > 0 ? matched : list;
-  }, [topicPlans, user]);
+    const baseList = matched.length > 0 ? matched : list;
+    return isSuperAdmin ? baseList : filterTopicPlansByBranch(baseList, userBranch);
+  }, [topicPlans, user, userBranch, isSuperAdmin]);
 
   // Metrics
   const totalPlannedTopics = myTopicPlans.length;
@@ -388,9 +401,9 @@ export default function TopicDurationPlanner() {
   const handleOpenAdd = () => {
     setEditingId(null);
     setForm({
-      branch: 'Tarabai Park',
+      branch: userBranch || 'Mangalvar Peth',
       subject: 'Physics (Class 12th)',
-      batch: '12th pcm tarabai park',
+      batch: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '12th pcm Mangalvar Peth' : '12th pcm tarabai park',
       chapter: '',
       topicName: '',
       requiredPeriods: '3',
@@ -578,16 +591,29 @@ export default function TopicDurationPlanner() {
           </button>
 
           <div>
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2 flex-wrap">
               <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
                 Topic Duration & Period Allocation Matrix
               </h1>
               <span className="badge rounded-pill fw-semibold" style={{ backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: '11px', border: '1px solid #C7D2FE' }}>
                 Course Curriculum Pacing
               </span>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
             </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Define how many periods each topic will take, target completion dates, and track teaching progress
+              Define how many periods each topic will take, target completion dates, and track teaching progress for {userBranch} Campus
             </p>
           </div>
         </div>
@@ -765,16 +791,33 @@ export default function TopicDurationPlanner() {
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            <select
-              className="form-select form-select-sm"
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
-            >
-              <option value="All">All Branches</option>
-              <option value="Tarabai Park">Tarabai Park</option>
-              <option value="Mangalwar Peth">Mangalwar Peth</option>
-            </select>
+            {isSuperAdmin ? (
+              <select
+                className="form-select form-select-sm"
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
+              >
+                <option value="All">All Branches</option>
+                <option value="Tarabai Park">Tarabai Park</option>
+                <option value="Mangalwar Peth">Mangalwar Peth</option>
+              </select>
+            ) : (
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1.5"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  height: '36px'
+                }}
+              >
+                <Building2 size={13} />
+                <span>{userBranch}</span>
+              </span>
+            )}
 
             <select
               className="form-select form-select-sm"

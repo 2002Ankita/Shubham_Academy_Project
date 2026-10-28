@@ -38,9 +38,9 @@ const parseDurationToMinutes = (durStr) => {
   return Math.round(parseFloat(match[1]) * 60);
 };
 
-export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] }) {
+export default function ExamForm({ onSubmit, loading, onCancel, teachers = [], initialBranch, fixedBranch = false }) {
   const activeBranch = getUserBranch();
-  const defaultBranch = (activeBranch && activeBranch.toLowerCase().includes('mangalwar')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const defaultBranch = initialBranch || ((activeBranch && activeBranch.toLowerCase().includes('mangal')) ? BRANCH_MANGALWAR : BRANCH_TARABAI);
 
   const [formData, setFormData] = useState({
     title: 'Weekly Test - Mechanics & Kinematics',
@@ -63,6 +63,17 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
   });
 
   const [previewTab, setPreviewTab] = useState('whatsapp'); // 'whatsapp' or 'sms'
+
+  useEffect(() => {
+    if (initialBranch) {
+      const bNorm = initialBranch.toLowerCase().includes('mangal') ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+      setFormData(prev => ({
+        ...prev,
+        branch: bNorm,
+        batch: `${bNorm} • ${prev.academicBatch || ACADEMIC_BATCHES[0]}`
+      }));
+    }
+  }, [initialBranch]);
 
   useEffect(() => {
     if (teachers.length > 0 && !formData.teacher_id) {
@@ -104,11 +115,14 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const resolvedBranch = formData.branch || defaultBranch || 'Tarabai Park';
+    const resolvedBatch = formData.batch || `${resolvedBranch} • ${formData.academicBatch || ACADEMIC_BATCHES[0]}`;
+
     onSubmit({
       ...formData,
-      batch: formData.batch || campusBatches[0] || (activeBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar peth'),
-      branch: activeBranch || ((formData.batch || '').toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth'),
-      standard: formData.standard || formData.batch || '11th Science',
+      batch: resolvedBatch,
+      branch: resolvedBranch,
+      standard: formData.standard || formData.academicBatch || '11th Science',
       notify_parents: activeChannels.length > 0,
       notify_sms: formData.notifySMS,
       notify_whatsapp: formData.notifyWhatsApp,
@@ -155,6 +169,7 @@ export default function ExamForm({ onSubmit, loading, onCancel, teachers = [] })
         <div className="col-12">
           <BranchBatchSelector
             branch={formData.branch || BRANCH_TARABAI}
+            fixedBranch={fixedBranch}
             onBranchChange={(b) => setFormData(prev => ({
               ...prev,
               branch: b,

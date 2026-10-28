@@ -9,6 +9,7 @@ import marksService from '../../services/marksService';
 import batchService from '../../services/batchService';
 import studentService from '../../services/studentService';
 import AuthContext from '../../context/AuthContext';
+import { getUserBranch, filterExamsByBranch } from '../../utils/branchUtils';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -33,6 +34,8 @@ import {
 export default function TeacherExaminations() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
 
   const [exams, setExams] = useState([]);
   const [marks, setMarks] = useState([]);
@@ -45,6 +48,7 @@ export default function TeacherExaminations() {
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
+  const [branchFilter, setBranchFilter] = useState(isSuperAdmin ? 'All Branches' : (userBranch || 'All Branches'));
   const [classFilter, setClassFilter] = useState('All Classes');
   const [subjectFilter, setSubjectFilter] = useState('All Subjects');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -64,6 +68,7 @@ export default function TeacherExaminations() {
   const initialForm = {
     exam_name: '',
     exam_type: 'Regular',
+    branch: userBranch || 'Mangalvar Peth',
     standard: '',
     section: '',
     subject: '',
@@ -287,6 +292,7 @@ export default function TeacherExaminations() {
     setFormData({
       exam_name: '',
       exam_type: 'Regular',
+      branch: branchFilter !== 'All Branches' ? branchFilter : 'Mangalvar Peth',
       standard: defaultClass,
       section: defaultSec,
       subject: defaultSub,
@@ -306,6 +312,7 @@ export default function TeacherExaminations() {
     setFormData({
       exam_name: exam.title || exam.exam_name || '',
       exam_type: exam.examType || exam.exam_type || 'Regular',
+      branch: exam.branch || (exam.title?.toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth'),
       standard: exam.examStandard || exam.standard || availableClasses[0] || '',
       section: exam.section || '',
       subject: exam.subject || availableSubjects[0] || '',
@@ -354,6 +361,7 @@ export default function TeacherExaminations() {
           exam_name: formData.exam_name,
           examType: formData.exam_type,
           exam_type: formData.exam_type,
+          branch: formData.branch || 'Mangalvar Peth',
           standard: formData.standard,
           section: formData.section,
           batch: formData.section || 'General',
@@ -373,6 +381,7 @@ export default function TeacherExaminations() {
           exam_name: formData.exam_name,
           examType: formData.exam_type,
           exam_type: formData.exam_type,
+          branch: formData.branch || 'Mangalvar Peth',
           standard: formData.standard,
           section: formData.section,
           batch: formData.section || 'General',
@@ -444,6 +453,7 @@ export default function TeacherExaminations() {
   // Reset Filters
   const handleResetFilters = () => {
     setSearchTerm('');
+    setBranchFilter('All Branches');
     setClassFilter('All Classes');
     setSubjectFilter('All Subjects');
     setStatusFilter('All Status');
@@ -453,8 +463,9 @@ export default function TeacherExaminations() {
 
   // Filtered examinations list
   const filteredExams = useMemo(() => {
+    const branchScoped = filterExamsByBranch(exams, branchFilter);
     const term = searchTerm.trim().toLowerCase();
-    return exams.filter(exam => {
+    return branchScoped.filter(exam => {
       if (term) {
         const matchName = (exam.title || exam.exam_name || '').toLowerCase().includes(term);
         const matchClass = (exam.standard || exam.examStandard || exam.classBatch || '').toLowerCase().includes(term);
@@ -489,7 +500,7 @@ export default function TeacherExaminations() {
 
       return true;
     });
-  }, [exams, searchTerm, classFilter, subjectFilter, statusFilter, fromDate, toDate]);
+  }, [exams, branchFilter, searchTerm, classFilter, subjectFilter, statusFilter, fromDate, toDate]);
 
   const summaryCards = [
     { label: 'Total Exams', value: totalExams, supporting: 'Assigned to you', icon: NotebookPen, bg: '#EEF3FF', color: '#3B82F6' },
@@ -688,6 +699,38 @@ export default function TeacherExaminations() {
               />
             </div>
 
+            {/* Branch Filter - Dropdown for SuperAdmin, Badge for teacher/regular user */}
+            {isSuperAdmin ? (
+              <div className="position-relative" style={{ minWidth: '160px' }}>
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="form-select"
+                  style={{ borderColor: '#D9E1EA', borderRadius: '10px', height: '42px', appearance: 'none', paddingRight: '38px', fontSize: '13.5px' }}
+                  aria-label="Filter by Branch"
+                >
+                  <option value="All Branches">All Branches</option>
+                  <option value="Mangalvar Peth">Manglavar Peth</option>
+                  <option value="Tarabai Park">Tarabai Park</option>
+                </select>
+                <ChevronDown size={16} className="position-absolute text-sa-muted" style={{ right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
+            ) : (
+              <div
+                className="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs"
+                style={{
+                  backgroundColor: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                  border: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                  color: (userBranch || 'Mangalvar Peth').toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  height: '42px'
+                }}
+              >
+                <span>{userBranch || 'Mangalvar Peth'}</span>
+              </div>
+            )}
+
             {/* Class Filter */}
             <div className="position-relative" style={{ minWidth: '160px' }}>
               <select
@@ -775,18 +818,39 @@ export default function TeacherExaminations() {
                 },
                 {
                   key: 'standard',
-                  title: 'Class',
+                  title: 'Class & Batch',
                   render: (_, row) => (
                     <div>
                       <div className="fw-medium text-sa-charcoal">{row.examStandard || row.standard || 'General'}</div>
                       {(row.section || row.batch) && (
                         <div className="text-sa-muted" style={{ fontSize: '12px' }}>
                           Sec: {row.section || row.batch}
-                          {row.branch ? ` • ${row.branch}` : ''}
                         </div>
                       )}
                     </div>
                   )
+                },
+                {
+                  key: 'branch',
+                  title: 'Branch',
+                  render: (_, row) => {
+                    const br = row.branch || (row.title?.toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Manglavar Peth');
+                    const isTarabai = br.toLowerCase().includes('tarabai');
+                    return (
+                      <span
+                        className="badge rounded-pill fw-semibold"
+                        style={{
+                          backgroundColor: isTarabai ? '#EFF6FF' : '#FEF2F2',
+                          color: isTarabai ? '#1D4ED8' : '#8B1216',
+                          border: `1px solid ${isTarabai ? '#BFDBFE' : '#FECACA'}`,
+                          fontSize: '11px',
+                          padding: '3px 8px'
+                        }}
+                      >
+                        {br}
+                      </span>
+                    );
+                  }
                 },
                 {
                   key: 'subject',
@@ -1020,6 +1084,19 @@ export default function TeacherExaminations() {
               />
             </div>
 
+            {/* Branch Selection */}
+            <div className="col-12 col-md-4">
+              <Select
+                label="Branch / Campus"
+                name="branch"
+                value={formData.branch}
+                onChange={handleFormChange}
+                options={['Mangalvar Peth', 'Tarabai Park']}
+                disabled={!isSuperAdmin}
+                required
+              />
+            </div>
+
             {/* 3. Class */}
             <div className="col-12 col-md-4">
               <Select
@@ -1163,6 +1240,10 @@ export default function TeacherExaminations() {
             </div>
 
             <div className="row g-2.5 pt-1" style={{ fontSize: '13.5px' }}>
+              <div className="col-6">
+                <span className="text-muted d-block small">Branch</span>
+                <span className="fw-semibold text-sa-charcoal">{viewingExam.branch || (viewingExam.title?.toLowerCase().includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth')}</span>
+              </div>
               <div className="col-6">
                 <span className="text-muted d-block small">Class</span>
                 <span className="fw-semibold text-sa-charcoal">{viewingExam.examStandard || viewingExam.standard || 'General'}</span>

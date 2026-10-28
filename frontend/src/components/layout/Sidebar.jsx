@@ -528,6 +528,25 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               </div>
             )}
 
+            {/* Role Badge for Teacher */}
+            {isTeacher && (
+              <div
+                className="d-flex align-items-center justify-content-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-pill fw-bold text-uppercase w-100"
+                style={{
+                  fontSize: '0.74rem',
+                  letterSpacing: '0.08em',
+                  background: 'linear-gradient(135deg, rgba(217, 155, 38, 0.32) 0%, rgba(180, 83, 9, 0.40) 100%)',
+                  border: '1px solid rgba(245, 169, 0, 0.50)',
+                  color: '#FDE047',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+                  borderRadius: '9999px'
+                }}
+              >
+                <BookOpen size={14} style={{ color: '#FDE047' }} />
+                <span>FACULTY {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
+              </div>
+            )}
+
             {/* Role Badge for Student */}
             {isStudent && (
               <div

@@ -28,13 +28,21 @@ import {
   Layers
 } from 'lucide-react';
 
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
+
 export default function FeeForm({
   onSubmit,
   loading: externalLoading,
   onStudentSelectChange
 }) {
+  const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
+  const activeBranch = getUserBranch(user);
+  const initialBranch = (activeBranch && activeBranch.toLowerCase().includes('mangal')) ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+
   // 1. Standardized Branch, Session & Academic Batch State
-  const [selectedBranch, setSelectedBranch] = useState(BRANCH_TARABAI);
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
   const [selectedSession, setSelectedSession] = useState('');
   const [selectedAcademicBatch, setSelectedAcademicBatch] = useState('11th PCM');
 
@@ -283,6 +291,8 @@ export default function FeeForm({
           onBatchChange={setSelectedAcademicBatch}
           required={true}
           showAllOption={false}
+          fixedBranch={!isSuperAdmin}
+          allowedBranches={!isSuperAdmin ? [initialBranch] : undefined}
         />
       </div>
 

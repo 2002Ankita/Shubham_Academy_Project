@@ -20,7 +20,11 @@ async def add_student(
 
 @router.get("/discounts/approvals")
 async def list_discount_approvals(status: Optional[str] = None, branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     from app.services.student_service import get_discount_approvals
     return await get_discount_approvals(status=status, branch=branch)
 
@@ -34,7 +38,11 @@ async def list_students(
     search: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_students(
         branch=branch,
         standard=standard,

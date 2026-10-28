@@ -21,16 +21,37 @@ async def list_daily_activities(
     standard: Optional[str] = None,
     status: Optional[str] = None,
     date: Optional[str] = None,
+    branch: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Retrieve daily teacher activity records with flexible filtering"""
+    current_user = None
     if token:
         try:
-            await get_current_user(token)
+            current_user = await get_current_user(token)
         except Exception:
             pass
 
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_") if current_user else ""
+    user_branch = getattr(current_user, "branch", None) if current_user else None
+    effective_branch = user_branch if (user_role == "ADMIN" and user_branch) else branch
+
     query = {}
+    if effective_branch and effective_branch != "All":
+        target = effective_branch.lower().strip()
+        if "tarabai" in target:
+            query["$or"] = [
+                {"branch": {"$regex": "tarabai", "$options": "i"}},
+                {"batch": {"$regex": "tarabai", "$options": "i"}}
+            ]
+        elif "mangal" in target or "manglavar" in target:
+            query["$or"] = [
+                {"branch": {"$regex": "mangal", "$options": "i"}},
+                {"batch": {"$regex": "mangal", "$options": "i"}},
+                {"branch": {"$regex": "manglavar", "$options": "i"}},
+                {"batch": {"$regex": "manglavar", "$options": "i"}}
+            ]
+
     if teacher_id:
         query["teacher_id"] = teacher_id
     elif teacher_name:
@@ -45,7 +66,11 @@ async def list_daily_activities(
     if status and status != "All":
         query["status"] = status
     if date:
-        query["$or"] = [{"activity_date": date}, {"target_date": date}]
+        date_cond = [{"activity_date": date}, {"target_date": date}]
+        if "$or" in query:
+            query["$and"] = [{"$or": query.pop("$or")}, {"$or": date_cond}]
+        else:
+            query["$or"] = date_cond
 
     activities = await DailyActivity.find(query).sort("-created_at").to_list()
 

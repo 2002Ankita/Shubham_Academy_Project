@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft, Download, Calendar, ChevronDown, ChevronUp, Eye, LogIn, LogOut, Check } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Clock3, ArrowLeft, Download, Calendar, ChevronDown, ChevronUp, Eye, LogIn, LogOut, Check, Building2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { attendanceService } from '../../services/attendanceService';
 import useAuth from '../../hooks/useAuth';
 import Button from '../../components/common/Button';
+import { getUserBranch } from '../../utils/branchUtils';
 
 // Date parsing helper to prevent timezone offset shifts
 const parseRecordDate = (dateStr) => {
@@ -127,6 +128,7 @@ const exportWeeklyAttendanceToExcel = (weekLabel, records, teacherName = 'Teache
 export default function TeacherAttendance() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userBranch = getUserBranch(user);
   const [teacherRecords, setTeacherRecords] = useState([]);
   const [teacherRecordsLoading, setTeacherRecordsLoading] = useState(true);
   const [attendanceActionLoading, setAttendanceActionLoading] = useState(false);
@@ -382,11 +384,28 @@ export default function TeacherAttendance() {
           </button>
 
           <div>
-            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-              Attendance Register
-            </h1>
+            <div className="d-flex align-items-center gap-2">
+              <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+                Attendance Register
+              </h1>
+              {userBranch && (
+                <span
+                  className="badge rounded-pill fw-semibold shadow-xs"
+                  style={{
+                    backgroundColor: userBranch.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                    border: userBranch.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                    color: userBranch.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                    fontSize: '11.5px',
+                    padding: '3px 9px'
+                  }}
+                >
+                  <Building2 size={12} className="me-1" style={{ verticalAlign: 'middle' }} />
+                  {userBranch}
+                </span>
+              )}
+            </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
-              Daily check-in, check-out and attendance records
+              Daily check-in, check-out and attendance records for {userBranch || 'Academy'} faculty
             </p>
           </div>
         </div>

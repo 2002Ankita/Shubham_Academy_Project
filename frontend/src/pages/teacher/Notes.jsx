@@ -29,16 +29,19 @@ import {
   Download,
   Calendar,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useConfirm } from '../../context/ConfirmContext';
+import { getUserBranch, filterBatchesByBranch, filterStudentsByBranch } from '../../utils/branchUtils';
 
 export default function TeacherNotes() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
   const fileInputRef = useRef(null);
+  const userBranch = getUserBranch(user);
 
   // Notes state
   const [notes, setNotes] = useState([]);
@@ -77,7 +80,7 @@ export default function TeacherNotes() {
   const loadBatches = async () => {
     try {
       const data = await batchService.getBatches();
-      setBatches(data);
+      setBatches(filterBatchesByBranch(data, userBranch));
     } catch (err) {
       console.warn('Could not load batches:', err);
     }
@@ -100,7 +103,7 @@ export default function TeacherNotes() {
     try {
       const data = await studentService.getAll();
       if (Array.isArray(data)) {
-        setStudentsList(data);
+        setStudentsList(filterStudentsByBranch(data, userBranch));
       }
     } catch (err) {
       console.warn('Could not load students for dropdown:', err);
@@ -378,11 +381,26 @@ export default function TeacherNotes() {
           </button>
 
           <div>
-            <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
-              Notes
-            </h1>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
+                Notes
+              </h1>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
+            </div>
             <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
-              Create and share notes with your students.
+              Create and share notes with your {userBranch} students.
             </p>
           </div>
         </div>
