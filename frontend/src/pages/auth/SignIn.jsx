@@ -230,7 +230,7 @@ export default function SignIn() {
             className="form-label mb-1.5 fw-semibold"
             style={{ fontSize: '0.78rem', color: '#1F2937' }}
           >
-            Email Address or Student Mobile Number
+            Email Address
           </label>
           <div className="position-relative">
             <span
@@ -241,10 +241,10 @@ export default function SignIn() {
             </span>
             <input
               id="email"
-              type="text"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. 9822011111 or student@shubham.edu"
+              placeholder="e.g. admin@shubham.edu"
               required
               className="form-control"
               style={{
