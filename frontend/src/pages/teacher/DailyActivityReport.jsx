@@ -28,6 +28,7 @@ import * as XLSX from 'xlsx';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -60,12 +61,22 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   return false;
 };
 
+// Helper to check whether an activity belongs to target branch
+const isActivityInBranch = (act, targetBranch) => {
+  if (!targetBranch || targetBranch === 'All') return true;
+  const isTargetMangal = targetBranch.toLowerCase().includes('mangal');
+  const actBranch = (act.branch || '').toLowerCase();
+  const actBatch = (act.batch || '').toLowerCase();
+  const isActMangal = actBranch.includes('mangal') || actBatch.includes('mangal') || actBranch.includes('mp') || actBatch.includes('mp');
+  return isTargetMangal ? isActMangal : (!isActMangal || actBranch.includes('tarabai') || actBatch.includes('tarabai'));
+};
+
 // Helper to normalize and map raw activity items consistently
 const mapActivity = (item) => {
   if (!item) return null;
   const rawBatch = (item.batch || '').toLowerCase();
   const rawBranch = (item.branch || '').toLowerCase();
-  const branch = (rawBatch.includes('mangalwar') || rawBranch.includes('mangalwar'))
+  const branch = (rawBatch.includes('mangal') || rawBranch.includes('mangal'))
     ? 'Mangalwar Peth'
     : (rawBatch.includes('tarabai') || rawBranch.includes('tarabai') ? 'Tarabai Park' : (item.branch || 'Tarabai Park'));
 
@@ -112,6 +123,10 @@ export default function DailyActivityReport() {
   const location = useLocation();
   const { confirm } = useConfirm();
   const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('admin') || location.pathname.startsWith('/admin');
+  const userBranch = getUserBranch(user);
+  const initialBranch = location.state?.branch || (!isSuperAdmin && userBranch ? userBranch : (userBranch || 'Tarabai Park'));
 
   // Storage key shared with Dashboard
   const STORAGE_KEY = 'sa_teacher_daily_activities';
@@ -169,10 +184,18 @@ export default function DailyActivityReport() {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState('All');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(initialBranch);
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+
+  useEffect(() => {
+    if (location.state?.branch) {
+      setSelectedBranchFilter(location.state.branch);
+    } else if (!isSuperAdmin && userBranch) {
+      setSelectedBranchFilter(userBranch);
+    }
+  }, [location.state?.branch, isSuperAdmin, userBranch]);
 
   // Date selection state (defaults to today's date)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -453,38 +476,41 @@ export default function DailyActivityReport() {
   // Filter activities strictly for the logged-in teacher (if role is teacher)
   const myActivities = useMemo(() => {
     if (!user) return dailyActivities;
-    // Admins and super-admins see all daily activities
-    if (user.role && user.role !== 'teacher') {
-      return dailyActivities;
+
+    const isTeacher = user.role === 'teacher';
+
+    if (isTeacher) {
+      const currentTeacherName = (user.name || user.full_name || '').trim();
+      const currentTeacherId = user.id ? String(user.id) : '';
+
+      return dailyActivities.filter(item => {
+        if (item.teacher_id && currentTeacherId && String(item.teacher_id) === currentTeacherId) {
+          return true;
+        }
+        const itemTeacher = (item.teacher_name || item.teacherName || '').trim();
+        if (itemTeacher && isTeacherMatch(currentTeacherName, itemTeacher, item.subject)) {
+          return true;
+        }
+        return false;
+      });
     }
 
-    const currentTeacherName = (user.name || user.full_name || '').trim();
-    const currentTeacherId = user.id ? String(user.id) : '';
-
-    return dailyActivities.filter(item => {
-      // 1. Direct teacher ID match
-      if (item.teacher_id && currentTeacherId && String(item.teacher_id) === currentTeacherId) {
-        return true;
-      }
-
-      // 2. Direct teacher name match
-      const itemTeacher = (item.teacher_name || item.teacherName || '').trim();
-      if (itemTeacher && isTeacherMatch(currentTeacherName, itemTeacher, item.subject)) {
-        return true;
-      }
-
-      return false;
-    });
+    return dailyActivities;
   }, [dailyActivities, user]);
+
+  // Branch-scoped activities (respects selectedBranchFilter so metrics and tables match the active campus)
+  const branchActivities = useMemo(() => {
+    return myActivities.filter(act => isActivityInBranch(act, selectedBranchFilter));
+  }, [myActivities, selectedBranchFilter]);
 
   // Activities filtered by the selected date (or all dates if dateFilterMode === 'all')
   const dateActivities = useMemo(() => {
-    if (dateFilterMode === 'all') return myActivities;
-    return myActivities.filter(act => {
+    if (dateFilterMode === 'all') return branchActivities;
+    return branchActivities.filter(act => {
       const actDate = act.activity_date || act.targetDate || '';
       return actDate === selectedDate;
     });
-  }, [myActivities, selectedDate, dateFilterMode]);
+  }, [branchActivities, selectedDate, dateFilterMode]);
 
   // Computed Metrics based on teacher's activities for the selected date
   const totalTeachingHoursToday = useMemo(() => {
@@ -511,16 +537,16 @@ export default function DailyActivityReport() {
         (item.topicTaught && item.topicTaught.toLowerCase().includes(q)) ||
         (item.chapter && item.chapter.toLowerCase().includes(q)) ||
         (item.subject && item.subject.toLowerCase().includes(q)) ||
-        (item.batch && item.batch.toLowerCase().includes(q));
+        (item.batch && item.batch.toLowerCase().includes(q)) ||
+        (item.teacher_name && item.teacher_name.toLowerCase().includes(q));
 
-      const matchesBranch = selectedBranchFilter === 'All' || item.branch === selectedBranchFilter;
       const matchesActivity = selectedActivityFilter === 'All' || item.activity === selectedActivityFilter;
       const matchesBatch = selectedBatchFilter === 'All' || item.batch === selectedBatchFilter;
       const matchesStatus = selectedStatusFilter === 'All' || item.status === selectedStatusFilter;
 
-      return matchesSearch && matchesBranch && matchesActivity && matchesBatch && matchesStatus;
+      return matchesSearch && matchesActivity && matchesBatch && matchesStatus;
     });
-  }, [dateActivities, searchTerm, selectedBranchFilter, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter]);
+  }, [dateActivities, searchTerm, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter]);
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
@@ -739,7 +765,7 @@ export default function DailyActivityReport() {
         <div className="d-flex align-items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/teacher/dashboard')}
+            onClick={() => navigate((user?.role || '').toLowerCase().includes('admin') ? '/admin/dashboard' : '/teacher/dashboard')}
             className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
             style={{
               width: '40px',
@@ -775,7 +801,9 @@ export default function DailyActivityReport() {
               </span>
             </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Track completed activities, topics covered, and teaching hours {dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}
+              {isAdmin
+                ? `Review completed teacher activities, topics taught, and faculty hours ${dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}`
+                : `Track completed activities, topics covered, and teaching hours ${dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}`}
             </p>
           </div>
         </div>
@@ -827,7 +855,7 @@ export default function DailyActivityReport() {
 
           <button
             type="button"
-            onClick={() => navigate('/teacher/topic-duration')}
+            onClick={() => navigate(isAdmin ? '/admin/topic-duration' : '/teacher/topic-duration')}
             className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
             style={{
               height: '38px',
@@ -865,24 +893,26 @@ export default function DailyActivityReport() {
             <span>Export Excel</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleOpenAddModal}
-            className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
-            style={{
-              height: '38px',
-              backgroundColor: '#8B1216',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              padding: '0 16px',
-              border: 'none',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <Plus size={16} />
-            <span>Log Activity / Topic</span>
-          </button>
+          {!isAdmin && (
+            <button
+              type="button"
+              onClick={handleOpenAddModal}
+              className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+              style={{
+                height: '38px',
+                backgroundColor: '#8B1216',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                padding: '0 16px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Plus size={16} />
+              <span>Log Activity / Topic</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1050,7 +1080,7 @@ export default function DailyActivityReport() {
           {/* Button to redirect to Topic Duration & Period Allocation Matrix Page */}
           <button
             type="button"
-            onClick={() => navigate('/teacher/topic-duration')}
+            onClick={() => navigate((user?.role || '').toLowerCase().includes('admin') ? '/admin/topic-duration' : '/teacher/topic-duration')}
             className="btn btn-sm btn-light border text-sa-maroon d-inline-flex align-items-center gap-2 fw-semibold shadow-xs"
             style={{
               borderColor: '#FBCFE8',
@@ -1099,11 +1129,11 @@ export default function DailyActivityReport() {
                     setSelectedBatchFilter('All');
                   }
                 }}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '150px' }}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '155px' }}
               >
-                <option value="All">All Branches</option>
-                <option value="Tarabai Park">Tarabai Park</option>
-                <option value="Mangalwar Peth">Mangalwar Peth</option>
+                <option value="Tarabai Park">🌲 Tarabai Park</option>
+                <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
+                {isSuperAdmin && <option value="All">All Branches</option>}
               </select>
             </div>
 
@@ -1235,19 +1265,23 @@ export default function DailyActivityReport() {
                 <th style={{ width: '25%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chapter & Topic Covered</th>
                 <th style={{ width: '14%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Duration & Time</th>
                 <th style={{ width: '11%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
-                <th style={{ width: '6%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Action</th>
+                {!isAdmin && (
+                  <th style={{ width: '6%', padding: '10px 14px', fontWeight: 700, color: '#8B1216', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={6 + (dateFilterMode === 'all' ? 1 : 0) + (selectedBranchFilter === 'All' ? 1 : 0)} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
-                    No daily activities found matching your filters for {dateFilterMode === 'all' ? 'any recorded date' : selectedDate}. Click "+ Log Activity / Topic" to record what you taught today!
+                  <td colSpan={5 + (dateFilterMode === 'all' ? 1 : 0) + (selectedBranchFilter === 'All' ? 1 : 0) + (!isAdmin ? 1 : 0)} className="text-center py-5 text-sa-muted" style={{ fontSize: '13px' }}>
+                    {isAdmin
+                      ? `No daily activities found matching your filters for ${dateFilterMode === 'all' ? 'any recorded date' : selectedDate}.`
+                      : `No daily activities found matching your filters for ${dateFilterMode === 'all' ? 'any recorded date' : selectedDate}. Click "+ Log Activity / Topic" to record what you taught today!`}
                   </td>
                 </tr>
               ) : (
                 filteredActivities.map((act) => {
-                  const isMangalwar = (act.branch || '').toLowerCase().includes('mangalwar') || (act.batch || '').toLowerCase().includes('mangalwar');
+                  const isMangalwar = (act.branch || '').toLowerCase().includes('mangal') || (act.batch || '').toLowerCase().includes('mangal');
 
                   return (
                     <tr key={act.id} style={{ height: '58px', borderBottom: '1px solid #F1F5F9' }}>
@@ -1280,9 +1314,16 @@ export default function DailyActivityReport() {
                         <div className="fw-semibold text-sa-charcoal" style={{ fontSize: '13px' }}>
                           {act.activity}
                         </div>
-                        <span className="text-sa-muted small" style={{ fontSize: '11px' }}>
-                          {act.subject}
-                        </span>
+                        <div className="d-flex align-items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="text-sa-muted small" style={{ fontSize: '11px' }}>
+                            {act.subject}
+                          </span>
+                          {act.teacher_name && (
+                            <span className="badge rounded-pill bg-light text-sa-charcoal border" style={{ fontSize: '10px' }}>
+                              👨‍🏫 {act.teacher_name}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <span className="badge bg-light text-secondary border fw-medium px-2 py-1" style={{ fontSize: '11.5px' }}>
@@ -1361,29 +1402,31 @@ export default function DailyActivityReport() {
                           </span>
                         )}
                       </td>
-                      {/* Action Column with Edit and Delete buttons */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div className="d-inline-flex align-items-center justify-content-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(act)}
-                            className="btn btn-sm btn-light border text-primary rounded shadow-xs"
-                            title="Edit this activity log"
-                            style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteActivity(act.id)}
-                            className="btn btn-sm btn-light border text-danger rounded shadow-xs"
-                            title="Delete this activity log"
-                            style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+                      {/* Action Column with Edit and Delete buttons (Only for teachers) */}
+                      {!isAdmin && (
+                        <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div className="d-inline-flex align-items-center justify-content-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(act)}
+                              className="btn btn-sm btn-light border text-primary rounded shadow-xs"
+                              title="Edit this activity log"
+                              style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteActivity(act.id)}
+                              className="btn btn-sm btn-light border text-danger rounded shadow-xs"
+                              title="Delete this activity log"
+                              style={{ borderColor: '#CBD5E1', cursor: 'pointer', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

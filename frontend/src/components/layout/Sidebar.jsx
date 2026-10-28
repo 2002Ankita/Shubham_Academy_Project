@@ -263,13 +263,15 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
   const isFeePath = location.pathname.startsWith('/admin/fees');
   const [openSubmenus, setOpenSubmenus] = React.useState(() => ({
-    'Fee Collection': isFeePath
+    'Fees Collection': true,
+    'Fee Collection': true
   }));
 
   React.useEffect(() => {
     if (location.pathname.startsWith('/admin/fees')) {
       setOpenSubmenus(prev => ({
         ...prev,
+        'Fees Collection': true,
         'Fee Collection': true
       }));
     }
@@ -285,6 +287,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isChildActive = (child) => {
     if (child.exact) {
       return location.pathname === child.path || location.pathname === child.path + '/';
+    }
+    if (child.path === '/admin/fees/pending') {
+      return location.pathname === '/admin/fees/pending' || location.pathname.startsWith('/admin/fees/pending');
     }
     if (child.path === '/admin/fees/receipts') {
       return location.pathname === '/admin/fees/receipts' || location.pathname.startsWith('/admin/fees/receipt');
@@ -302,16 +307,16 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     const role = (user?.role || 'admin').toLowerCase().replace('-', '_');
 
     const feeSubmenuItem = {
-      label: 'Fee Collection',
+      label: 'Fees Collection',
       icon: FeeRupeeIcon,
       isSubmenu: true,
-      menuKey: 'Fee Collection',
+      menuKey: 'Fees Collection',
       path: '/admin/fees',
       matchPrefixes: ['/admin/fees'],
       children: [
         { label: 'Fee Collection', path: '/admin/fees', exact: true },
-        { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Pending Fees', path: '/admin/fees/pending' },
+        { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Fee Receipts', path: '/admin/fees/receipts' },
         { label: 'Fee Reminder Settings', path: '/admin/fees/reminder-settings', isNew: true },
         { label: 'Reminder History', path: '/admin/fees/reminder-history', isNew: true }
@@ -334,7 +339,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Daily Log Activity', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/daily-activities'] },
+        { label: 'Teacher Daily Activities', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/teacher-daily-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/super-admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/super-admin/reports'] },
@@ -377,7 +382,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
         { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
         { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
-        { label: 'Daily Log Activity', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/daily-activities'] },
+        { label: 'Teacher Daily Activities', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/teacher-daily-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
         { label: 'Reports', path: '/admin/reports', icon: ReportsBarIcon, matchPrefixes: ['/admin/reports'] },

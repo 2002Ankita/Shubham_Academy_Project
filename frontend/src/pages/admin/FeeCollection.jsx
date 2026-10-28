@@ -1,19 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FeeForm from '../../components/forms/FeeForm';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import BackButton from '../../components/common/BackButton';
 import feeService from '../../services/feeService';
-import { Printer, AlertCircle, History, Receipt, Info } from 'lucide-react';
+import {
+  Printer,
+  AlertCircle,
+  History,
+  Receipt,
+  Info,
+  Coins,
+  ReceiptIndianRupee,
+  CreditCard,
+  TrendingUp,
+  ChevronRight
+} from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
+import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 export default function FeeCollection() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const activeBranch = getUserBranch(user);
+  const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const currentBranch = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
+  const [selectedCampus, setSelectedCampus] = useState(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [feeDetails, setFeeDetails] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [feeStats, setFeeStats] = useState({
+    totalTarget: 0,
+    collected: 0,
+    pending: 0,
+    collectionRate: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  const fetchStats = async (branchToFetch = selectedCampus) => {
+    try {
+      setLoadingStats(true);
+      const stats = await feeService.getFeeStats(branchToFetch);
+      if (stats) {
+        setFeeStats({
+          totalTarget: Number(stats.totalTarget) || 0,
+          collected: Number(stats.collected) || 0,
+          pending: Number(stats.pending) || 0,
+          collectionRate: stats.collectionRate || 0
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load fee stats:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats(selectedCampus);
+  }, [selectedCampus]);
 
   // Callback triggered when student selection changes in FeeForm
   const handleStudentSelectChange = (student, details, payments) => {
@@ -54,6 +104,9 @@ export default function FeeCollection() {
         }
       }
 
+      // Refresh overall fee stats
+      fetchStats();
+
       // Navigate to printable receipt
       navigate(`/admin/fees/receipt?receiptNo=${res.receipt.receiptNo}`, {
         state: { receipt: res.receipt }
@@ -82,6 +135,203 @@ export default function FeeCollection() {
           <Button variant="outline" onClick={() => navigate('/admin/fees/pending')}>
             <AlertCircle size={16} /> View Pending Overdues
           </Button>
+        </div>
+      </div>
+
+      {/* Fees Overview Section */}
+      <div id="fees-overview" className="d-flex flex-column gap-3">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2">
+          <div className="d-flex align-items-center gap-2">
+            <div
+              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
+              style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg, #D97718 0%, #B45309 100%)' }}
+            >
+              <Coins size={17} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2">
+                <h4 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.05rem', lineHeight: 1.2 }}>
+                  Fees Overview
+                </h4>
+                <span
+                  className="badge rounded-pill fw-semibold px-2 py-0.5"
+                  style={{
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#F0FDFA' : '#FDF0F0',
+                    color: selectedCampus === BRANCH_MANGALWAR ? '#0D9488' : '#8B1216',
+                    border: selectedCampus === BRANCH_MANGALWAR ? '1px solid #99F6E4' : '1px solid #F5C2C4',
+                    fontSize: '0.70rem'
+                  }}
+                >
+                  {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
+                </span>
+              </div>
+              <span className="text-sa-muted" style={{ fontSize: '0.78rem' }}>
+                Summary of total target fees, collections, and pending dues for {selectedCampus}
+              </span>
+            </div>
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
+              <button
+                type="button"
+                onClick={() => setSelectedCampus(BRANCH_TARABAI)}
+                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                  selectedCampus === BRANCH_TARABAI
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary'
+                }`}
+                style={{
+                  fontSize: '0.78rem',
+                  backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
+                  borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                }}
+              >
+                <span>🌲 Tarabai Park</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
+                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                  selectedCampus === BRANCH_MANGALWAR
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary'
+                }`}
+                style={{
+                  fontSize: '0.78rem',
+                  backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
+                  borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                }}
+              >
+                <span>🏛️ Mangalvar Peth</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/admin/fees/pending')}
+              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
+              style={{ fontSize: '0.76rem', fontWeight: 600 }}
+            >
+              <AlertCircle size={13} />
+              <span>Pending Defaulters List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/fees/receipts')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
+              style={{ fontSize: '0.76rem', fontWeight: 600 }}
+            >
+              <Receipt size={13} />
+              <span>All Receipts</span>
+            </button>
+          </div>
+        </div>
+
+        {/* KPI Cards Row */}
+        <div className="row g-3 g-xl-4">
+          {/* 1. Total Target Fees */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="sa-kpi-glass-card theme-blue p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100">
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-blue">
+                  <CreditCard size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Total Target Fees
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {loadingStats ? '...' : `₹${feeStats.totalTarget.toLocaleString('en-IN')}`}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#2563EB' }}>
+                  ↗ Total Academic Revenue
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Monthly Fees Collected (from Dashboard) */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="sa-kpi-glass-card theme-amber p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100">
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
+                  <Coins size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Fees Collected ({isMangal ? 'Mangalvar' : 'Tarabai'})
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {loadingStats ? '...' : `₹${feeStats.collected.toLocaleString('en-IN')}`}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
+                  ▲ {loadingStats ? '0' : feeStats.collectionRate}% Realized Payments
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Pending Fees (from Dashboard) */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div
+              className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100 cursor-pointer"
+              onClick={() => navigate('/admin/fees/pending')}
+              title="Click to view pending defaulters & send reminders"
+            >
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-red">
+                  <ReceiptIndianRupee size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Pending Fees ({isMangal ? 'Mangalvar' : 'Tarabai'})
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {loadingStats ? '...' : `₹${feeStats.pending.toLocaleString('en-IN')}`}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#DC2626' }}>
+                  ▲ Outstanding Overdue • Click to view
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Collection Rate */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div className="sa-kpi-glass-card theme-green p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100">
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
+                  <TrendingUp size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Collection Rate
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {loadingStats ? '...' : `${feeStats.collectionRate}%`}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
+                  ✓ Overall Recovery Progress
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

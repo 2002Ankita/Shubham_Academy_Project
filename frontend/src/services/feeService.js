@@ -43,11 +43,13 @@ export const feeService = {
     }
   },
 
-  getPending: async () => {
-    const activeBranch = getUserBranch();
+  getPending: async (params = {}) => {
+    const activeBranch = params?.branch || getUserBranch();
     try {
       // Backend returns PendingFeeResponse
-      const res = await api.get('/fees/pending');
+      const res = await api.get('/fees/pending', {
+        params: activeBranch && activeBranch !== 'ALL' ? { branch: activeBranch } : {}
+      });
       let list = (res.data || []).map(fee => ({
         id: fee.student_id,
         receiptNo: 'PENDING',
@@ -72,7 +74,7 @@ export const feeService = {
         feeHead: 'Pending Fees'
       }));
 
-      if (activeBranch) {
+      if (activeBranch && activeBranch !== 'ALL') {
         list = filterFeesByBranch(list, activeBranch);
       }
       return list;
@@ -212,18 +214,18 @@ export const feeService = {
     };
   },
 
-  getFeeStats: async () => {
+  getFeeStats: async (branch = null) => {
     try {
-      // Calculate dynamically using branch-scoped payments and overdues
+      const activeBranch = branch || getUserBranch();
       const [pendingList, allFees] = await Promise.all([
-        feeService.getPending(),
-        feeService.getAll()
+        feeService.getPending({ branch: activeBranch }),
+        feeService.getAll({ branch: activeBranch })
       ]);
 
       const pending = (pendingList || []).reduce((acc, curr) => acc + (Number(curr.pendingAmount ?? curr.pending_fees) || 0), 0);
       const collected = (allFees || []).reduce((acc, curr) => acc + (Number(curr.amountPaid ?? curr.amount_paid) || 0), 0);
       const totalTarget = collected + pending;
-      const collectionRate = totalTarget > 0 ? ((collected / totalTarget) * 100).toFixed(2) : 0;
+      const collectionRate = totalTarget > 0 ? Number(((collected / totalTarget) * 100).toFixed(1)) : 0;
 
       return {
         totalTarget,

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import studentService from '../../services/studentService';
 import attendanceService from '../../services/attendanceService';
-import feeService from '../../services/feeService';
 import examService from '../../services/examService';
 import batchService from '../../services/batchService';
 import inventoryService from '../../services/inventoryService';
@@ -10,6 +9,7 @@ import leaveService from '../../services/leaveService';
 import salaryService from '../../services/salaryService';
 import teacherService from '../../services/teacherService';
 import curriculumService from '../../services/curriculumService';
+import feeService from '../../services/feeService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
@@ -21,15 +21,11 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  LabelList,
-  PieChart,
-  Pie,
-  Cell
+  LabelList
 } from 'recharts';
 import {
   Users,
   UserCheck,
-  Coins,
   ReceiptIndianRupee,
   BarChart2,
   Calendar,
@@ -50,7 +46,12 @@ import {
   BookMarked,
   Truck,
   Check,
-  X
+  X,
+  GraduationCap,
+  Coins,
+  CreditCard,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -62,15 +63,25 @@ export default function AdminDashboard() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const currentBranch = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
 
+  // Selected campus state - allows dynamic switching between Tarabai Park & Mangalvar Peth
+  const [selectedCampus, setSelectedCampus] = useState(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+
+  // Dynamic Fee Stats State
+  const [feeStats, setFeeStats] = useState({
+    totalTarget: 0,
+    collected: 0,
+    pending: 0,
+    collectionRate: 0
+  });
+  const [loadingFeeStats, setLoadingFeeStats] = useState(false);
+
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
-  const [feePeriod, setFeePeriod] = useState('This Month');
 
   // Dynamic Data States
   const [totalStudents, setTotalStudents] = useState(0);
   const [allStudents, setAllStudents] = useState([]);
   const [presentToday, setPresentToday] = useState(0);
-  const [monthlyFees, setMonthlyFees] = useState(0);
-  const [pendingFees, setPendingFees] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(0);
   const [recentAdmissions, setRecentAdmissions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
 
@@ -82,7 +93,7 @@ export default function AdminDashboard() {
   const [facultyList, setFacultyList] = useState([]);
   const [leaveActionLoading, setLeaveActionLoading] = useState(false);
   const [teacherActivities, setTeacherActivities] = useState([]);
-  const [activityBranchFilter, setActivityBranchFilter] = useState('All');
+  const [activityBranchFilter, setActivityBranchFilter] = useState('Current Campus');
 
   const [attendanceData, setAttendanceData] = useState([
     { day: 'Mon', present: 0, absent: 0 },
@@ -96,15 +107,34 @@ export default function AdminDashboard() {
   const [scheduleList, setScheduleList] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
 
-  const fetchDashboardData = async () => {
+  const fetchFeeStats = async (branchToFetch = selectedCampus) => {
+    try {
+      setLoadingFeeStats(true);
+      const stats = await feeService.getFeeStats(branchToFetch);
+      if (stats) {
+        setFeeStats({
+          totalTarget: Number(stats.totalTarget) || 0,
+          collected: Number(stats.collected) || 0,
+          pending: Number(stats.pending) || 0,
+          collectionRate: Number(stats.collectionRate) || 0
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching fee stats for dashboard:', err);
+    } finally {
+      setLoadingFeeStats(false);
+    }
+  };
+
+  const fetchDashboardData = async (targetCampus = selectedCampus) => {
     try {
       const todayDate = new Date();
       const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+      const isTargetMangal = Boolean(targetCampus && targetCampus.toLowerCase().includes('mangal'));
 
       const [
         studentsRes,
         attendanceRes,
-        feesRes,
         examsRes,
         batchesRes,
         summaryRes,
@@ -118,9 +148,8 @@ export default function AdminDashboard() {
       ] = await Promise.allSettled([
         studentService.getAll(),
         attendanceService.getLogs(),
-        feeService.getAll(),
         examService.getAll(),
-        batchService.getBatches(),
+        batchService.getBatches({ branch: targetCampus }),
         attendanceService.getReportSummary(),
         inventoryService.getItems(),
         leaveService.getAllLeaveRequests(),
@@ -152,12 +181,10 @@ export default function AdminDashboard() {
 
       if (studentsRes.status === 'fulfilled') {
         const rawStudents = studentsRes.value || [];
-        const students = (!isSuperAdmin && activeBranch)
-          ? rawStudents.filter(s => {
-              const b = (s.branch || '').toLowerCase();
-              return isMangal ? b.includes('mangal') : b.includes('tarabai');
-            })
-          : rawStudents;
+        const students = rawStudents.filter(s => {
+          const b = (s.branch || '').toLowerCase();
+          return isTargetMangal ? b.includes('mangal') : b.includes('tarabai');
+        });
         setTotalStudents(students.length);
         setAllStudents(students);
 
@@ -200,14 +227,6 @@ export default function AdminDashboard() {
         ]);
       }
 
-      if (feesRes.status === 'fulfilled') {
-        try {
-          const stats = await feeService.getFeeStats();
-          setMonthlyFees(stats.collected);
-          setPendingFees(stats.pending);
-        } catch { }
-      }
-
       if (examsRes.status === 'fulfilled') {
         const exams = examsRes.value || [];
         const upcoming = exams.slice(0, 4).map(e => ({
@@ -222,6 +241,7 @@ export default function AdminDashboard() {
 
       if (batchesRes.status === 'fulfilled') {
         const batches = batchesRes.value || [];
+        setTotalBatches(batches.length);
         const formatted = batches.slice(0, 4).map(b => ({
           time: b.time || '10:00 AM',
           subject: b.subject,
@@ -241,42 +261,70 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(selectedCampus);
+    fetchFeeStats(selectedCampus);
 
-    const handleActivitiesUpdate = () => {
-      curriculumService.getDailyActivities().then(data => {
-        if (Array.isArray(data)) {
+    const handleActivitiesUpdate = async () => {
+      try {
+        const data = await curriculumService.getDailyActivities();
+        if (Array.isArray(data) && data.length > 0) {
           setTeacherActivities(data);
+          return;
         }
-      }).catch(() => {});
+      } catch (_) {}
+      try {
+        const saved = localStorage.getItem('sa_teacher_daily_activities');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setTeacherActivities(parsed);
+        }
+      } catch (_) {}
+    };
+
+    const handleFeesUpdate = () => {
+      fetchFeeStats(selectedCampus);
     };
 
     window.addEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
-    window.addEventListener('sa_timetable_updated', fetchDashboardData);
+    window.addEventListener('sa_timetable_updated', () => fetchDashboardData(selectedCampus));
+    window.addEventListener('sa_fees_updated', handleFeesUpdate);
+    window.addEventListener('focus', handleActivitiesUpdate);
+    window.addEventListener('focus', handleFeesUpdate);
+    window.addEventListener('storage', handleActivitiesUpdate);
+
     return () => {
       window.removeEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
-      window.removeEventListener('sa_timetable_updated', fetchDashboardData);
+      window.removeEventListener('sa_timetable_updated', () => fetchDashboardData(selectedCampus));
+      window.removeEventListener('sa_fees_updated', handleFeesUpdate);
+      window.removeEventListener('focus', handleActivitiesUpdate);
+      window.removeEventListener('focus', handleFeesUpdate);
+      window.removeEventListener('storage', handleActivitiesUpdate);
     };
-  }, []);
+  }, [selectedCampus]);
 
-  // Filtered teacher activities for live admin view
-  const filteredTeacherActivities = teacherActivities.filter(act => {
-    const actBranch = (act.branch || '').toLowerCase();
-    const actBatch = (act.batch || '').toLowerCase();
-    if (!isSuperAdmin && activeBranch) {
-      if (isMangal && !actBranch.includes('mangal') && !actBatch.includes('mangal')) return false;
-      if (!isMangal && !actBranch.includes('tarabai') && !actBatch.includes('tarabai')) return false;
-    }
-    if (activityBranchFilter !== 'All') {
+  // Filtered teacher activities for live admin view - dynamically synced to selected branch
+  const filteredTeacherActivities = useMemo(() => {
+    const isCurrentMangal = Boolean(selectedCampus && selectedCampus.toLowerCase().includes('mangal'));
+    return teacherActivities.filter(act => {
+      const actBranch = (act.branch || '').toLowerCase();
+      const actBatch = (act.batch || '').toLowerCase();
+      const isMangalAct = actBranch.includes('mangal') || actBatch.includes('mangal') || actBranch.includes('mp') || actBatch.includes('mp');
+      const isTarabaiAct = actBranch.includes('tarabai') || actBatch.includes('tarabai') || (!isMangalAct);
+
       if (activityBranchFilter === 'Tarabai Park') {
-        return actBranch.includes('tarabai') || actBatch.includes('tarabai');
+        return isTarabaiAct;
       }
-      if (activityBranchFilter === 'Mangalwar Peth') {
-        return actBranch.includes('mangal') || actBatch.includes('mangal');
+      if (activityBranchFilter === 'Mangalwar Peth' || activityBranchFilter === 'Mangalvar Peth') {
+        return isMangalAct;
       }
-    }
-    return true;
-  });
+      if (activityBranchFilter === 'All') {
+        return true;
+      }
+
+      // Default: 'Current Campus' -> follows selectedCampus
+      return isCurrentMangal ? isMangalAct : isTarabaiAct;
+    });
+  }, [teacherActivities, activityBranchFilter, selectedCampus]);
 
   // Faculty calculations
   const pendingLeaves = facultyLeaves.filter(
@@ -346,17 +394,7 @@ export default function AdminDashboard() {
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
   );
 
-  const totalTargetFees = monthlyFees + pendingFees;
-  const collectionPercentage = totalTargetFees > 0
-    ? Math.round((monthlyFees / totalTargetFees) * 100)
-    : 0;
 
-  const feeData = totalTargetFees === 0
-    ? [{ name: 'No Data', value: 1, color: '#E2E8F0' }]
-    : [
-        ...(monthlyFees > 0 ? [{ name: 'Collected', value: monthlyFees, color: '#168554' }] : []),
-        ...(pendingFees > 0 ? [{ name: 'Pending', value: pendingFees, color: '#F5A900' }] : [])
-      ];
 
   const lowStockItems = [];
 
@@ -382,7 +420,7 @@ export default function AdminDashboard() {
             >
               Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
             </h1>
-            <div className="d-flex align-items-center gap-2 mt-2">
+            <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
               <span
                 className="badge py-1.5 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5"
                 style={{
@@ -393,14 +431,48 @@ export default function AdminDashboard() {
                   boxShadow: '0 2px 6px rgba(139,18,22,0.18)'
                 }}
               >
-                {isMangal ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
+                {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
                 <span
                   className="badge bg-white text-dark py-0.5 px-1.5 rounded-pill"
                   style={{ fontSize: '0.68rem', fontWeight: 600 }}
                 >
-                  Fixed from Login
+                  Active Campus
                 </span>
               </span>
+
+              {/* Quick Campus Switcher */}
+              <div className="btn-group p-0.5 rounded-pill bg-white border shadow-xs" role="group" aria-label="Campus quick switch">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampus(BRANCH_TARABAI)}
+                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
+                    selectedCampus === BRANCH_TARABAI
+                      ? 'btn-danger text-white shadow-xs'
+                      : 'text-secondary'
+                  }`}
+                  style={{
+                    fontSize: '0.74rem',
+                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                  }}
+                >
+                  🌲 Tarabai Park
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
+                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
+                    selectedCampus === BRANCH_MANGALWAR
+                      ? 'btn-danger text-white shadow-xs'
+                      : 'text-secondary'
+                  }`}
+                  style={{
+                    fontSize: '0.74rem',
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                  }}
+                >
+                  🏛️ Mangalvar Peth
+                </button>
+              </div>
             </div>
             <p
               className="text-sa-charcoal text-opacity-75 m-0 mt-2"
@@ -418,7 +490,7 @@ export default function AdminDashboard() {
                 style={{ backgroundColor: '#8B1216', fontSize: '0.86rem', border: 'none' }}
               >
                 <UserPlus size={16} />
-                <span>Onboard Student & Decide Fees</span>
+                <span>Onboard Student</span>
               </button>
 
               {pendingDiscounts.length > 0 && (
@@ -516,15 +588,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Monthly Fees */}
+        {/* Total Faculty */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
             className="sa-kpi-glass-card theme-amber p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-            onClick={() => navigate('/admin/fees')}
+            onClick={() => navigate('/admin/teachers')}
           >
             <div className="d-flex align-items-start justify-content-between">
               <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
-                <Coins size={22} />
+                <GraduationCap size={22} />
               </div>
               <div className="sa-card-chevron-btn">
                 <ChevronRight size={15} />
@@ -532,27 +604,27 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-2.5">
               <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                Monthly Fees
+                Total Faculty
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                ₹{monthlyFees.toLocaleString('en-IN')}
+                {totalTeachers}
               </div>
               <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
-                ▲ +0% from last month
+                {presentTeachers > 0 ? `▲ ${presentTeachers} on duty today` : '↗ Qualified Educators'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Pending Fees */}
+        {/* Active Batches */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div
-            className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-            onClick={() => navigate('/admin/fees/pending')}
+            className="sa-kpi-glass-card theme-blue p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+            onClick={() => navigate('/admin/batches')}
           >
             <div className="d-flex align-items-start justify-content-between">
-              <div className="sa-stat-icon-wrapper sa-stat-icon-red">
-                <ReceiptIndianRupee size={22} />
+              <div className="sa-stat-icon-wrapper sa-stat-icon-blue">
+                <BookOpen size={22} />
               </div>
               <div className="sa-card-chevron-btn">
                 <ChevronRight size={15} />
@@ -560,23 +632,260 @@ export default function AdminDashboard() {
             </div>
             <div className="mt-2.5">
               <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                Pending Fees
+                Active Batches
               </span>
               <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                ₹{pendingFees.toLocaleString('en-IN')}
+                {totalBatches}
               </div>
-              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#DC2626' }}>
-                ▲ ₹{pendingFees.toLocaleString('en-IN')} overdue
+              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#2563EB' }}>
+                ↗ Classroom & Crash Batches
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Row 2: Analytics & Schedule (3 Cards) */}
+      {/* Dynamic Fees Collection Overview Section for Tarabai Park and Mangalvar Peth */}
+      <div id="dashboard-fees-overview" className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border shadow-xs">
+        <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 mb-3">
+          <div className="d-flex align-items-center gap-2.5">
+            <div
+              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
+              style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)' }}
+            >
+              <Coins size={20} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.1rem' }}>
+                  Fees Collection Overview
+                </h2>
+                <span
+                  className="badge rounded-pill fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1.5"
+                  style={{
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#F0FDFA' : '#FDF0F0',
+                    color: selectedCampus === BRANCH_MANGALWAR ? '#0D9488' : '#8B1216',
+                    border: selectedCampus === BRANCH_MANGALWAR ? '1px solid #99F6E4' : '1px solid #F5C2C4',
+                    fontSize: '0.74rem'
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: '#168554',
+                      display: 'inline-block'
+                    }}
+                  />
+                  {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
+                </span>
+                <span className="badge bg-light text-muted fw-semibold border" style={{ fontSize: '0.70rem' }}>
+                  Live Dynamic DB
+                </span>
+              </div>
+              <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
+                Real-time collection targets, realized revenue, and pending dues for {selectedCampus}
+              </span>
+            </div>
+          </div>
+
+          {/* Campus Switcher Tabs & Quick Navigation */}
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
+              <button
+                type="button"
+                onClick={() => setSelectedCampus(BRANCH_TARABAI)}
+                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                  selectedCampus === BRANCH_TARABAI
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary'
+                }`}
+                style={{
+                  fontSize: '0.78rem',
+                  backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
+                  borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                }}
+              >
+                <span>🌲 Tarabai Park</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
+                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                  selectedCampus === BRANCH_MANGALWAR
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary'
+                }`}
+                style={{
+                  fontSize: '0.78rem',
+                  backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
+                  borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                }}
+              >
+                <span>🏛️ Mangalvar Peth</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/admin/fees')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+              title="Open Fee Collection Counter"
+            >
+              <CreditCard size={14} />
+              <span>Fee Counter</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/fees/pending')}
+              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+              title="View Pending Fee Overdues"
+            >
+              <AlertCircle size={14} />
+              <span>Pending Dues</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Dynamic KPI Cards */}
+        <div className="row g-3">
+          {/* Fees Collected */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div
+              className="sa-kpi-glass-card theme-green p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+              onClick={() => navigate('/admin/fees')}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
+                  <CreditCard size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Fees Collected
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  ₹{feeStats.collected.toLocaleString('en-IN')}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
+                  ▲ Realized Inflow • {feeStats.collectionRate}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Fees */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div
+              className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+              onClick={() => navigate('/admin/fees/pending')}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-red">
+                  <AlertCircle size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Pending Fees
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  ₹{feeStats.pending.toLocaleString('en-IN')}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#DC2626' }}>
+                  ▲ Overdue Dues in {selectedCampus}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Target Fees */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div
+              className="sa-kpi-glass-card theme-amber p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+              onClick={() => navigate('/admin/fees/structure')}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
+                  <Coins size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Total Target Fees
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  ₹{feeStats.totalTarget.toLocaleString('en-IN')}
+                </div>
+                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#B45309' }}>
+                  ★ Annual Target • 2025-2026
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Collection Rate */}
+          <div className="col-12 col-sm-6 col-xl-3">
+            <div
+              className="sa-kpi-glass-card theme-blue p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
+              onClick={() => navigate('/admin/fees')}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="d-flex align-items-start justify-content-between">
+                <div className="sa-stat-icon-wrapper sa-stat-icon-blue">
+                  <TrendingUp size={22} />
+                </div>
+                <div className="sa-card-chevron-btn">
+                  <ChevronRight size={15} />
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
+                  Collection Rate
+                </span>
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {feeStats.collectionRate}%
+                </div>
+                <div className="mt-1">
+                  <div className="progress" style={{ height: '4px', backgroundColor: '#E2E8F0', borderRadius: '2px' }}>
+                    <div
+                      className="progress-bar"
+                      style={{
+                        width: `${Math.min(100, feeStats.collectionRate)}%`,
+                        backgroundColor: '#2563EB',
+                        borderRadius: '2px'
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="fw-semibold mt-1 d-block" style={{ fontSize: '0.74rem', color: '#2563EB' }}>
+                  ↗ Realization for {selectedCampus}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Analytics & Schedule (2 Cards) */}
       <div className="row g-3 g-xl-4">
         {/* Attendance Overview Card */}
-        <div className="col-12 col-xl-5">
+        <div className="col-12 col-xl-7">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
@@ -660,90 +969,8 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Fee Collection Card */}
-        <div className="col-12 col-xl-3">
-          <div className="sa-card bg-white p-3.5 rounded-3 border h-100 d-flex flex-column">
-            {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <div className="d-flex align-items-center gap-2">
-                <Coins size={18} style={{ color: '#D97718' }} />
-                <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
-                  Fee Collection
-                </h2>
-              </div>
-              <div className="dropdown">
-                <button
-                  className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 rounded-2"
-                  style={{ fontSize: '0.76rem', borderColor: '#E2E8F0', color: '#475569' }}
-                >
-                  <span>{feePeriod}</span>
-                  <ChevronDown size={13} />
-                </button>
-              </div>
-            </div>
-
-            {/* Donut Chart with Centered Value */}
-            <div className="position-relative flex-grow-1 d-flex align-items-center justify-content-center" style={{ minHeight: '180px' }}>
-              <ResponsiveContainer width="100%" height={175}>
-                <PieChart>
-                  <Tooltip
-                    formatter={(value, name) => [`₹${Number(value).toLocaleString('en-IN')}`, name]}
-                    contentStyle={{
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '11px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                    }}
-                  />
-                  <Pie
-                    data={feeData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={48}
-                    outerRadius={70}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {feeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-
-              {/* Center Text */}
-              <div className="position-absolute top-50 start-50 translate-middle text-center" style={{ pointerEvents: 'none', maxWidth: '110px' }}>
-                <div className="fw-semibold text-sa-muted text-uppercase" style={{ fontSize: '0.66rem', letterSpacing: '0.5px' }}>
-                  Total Fees
-                </div>
-                <div className="fw-extrabold text-sa-charcoal" style={{ fontSize: '1.02rem', lineHeight: 1.15 }}>
-                  ₹{totalTargetFees.toLocaleString('en-IN')}
-                </div>
-                <div className="fw-bold mt-0.5" style={{ fontSize: '0.70rem', color: monthlyFees > 0 ? '#168554' : '#D97718' }}>
-                  {collectionPercentage}% Collected
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Legend */}
-            <div className="d-flex align-items-center justify-content-center gap-3 pt-2 border-top mt-1" style={{ fontSize: '0.78rem' }}>
-              <div className="d-flex align-items-center gap-1.5">
-                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#168554' }} />
-                <span className="text-sa-charcoal fw-semibold">Collected ₹{monthlyFees.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="d-flex align-items-center gap-1.5">
-                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#F5A900' }} />
-                <span className="text-sa-charcoal fw-semibold">Pending ₹{pendingFees.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Today's Schedule Card */}
-        <div className="col-12 col-xl-4">
+        <div className="col-12 col-xl-5">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
             <div className="d-flex align-items-center justify-content-between mb-3">
@@ -1263,10 +1490,11 @@ export default function AdminDashboard() {
               <div className="d-flex align-items-center bg-light p-1 rounded-2 border" style={{ fontSize: '0.74rem' }}>
                 <button
                   type="button"
-                  onClick={() => setActivityBranchFilter('All')}
-                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'All' ? 'bg-white text-sa-charcoal shadow-xs' : 'text-sa-muted'}`}
+                  onClick={() => setActivityBranchFilter('Current Campus')}
+                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'Current Campus' ? 'bg-white text-sa-charcoal shadow-xs' : 'text-sa-muted'}`}
+                  title={`View activities for active campus: ${selectedCampus}`}
                 >
-                  All Campuses
+                  📍 Current Campus ({selectedCampus === BRANCH_MANGALWAR ? 'Mangalwar Peth' : 'Tarabai Park'})
                 </button>
                 <button
                   type="button"
@@ -1283,11 +1511,18 @@ export default function AdminDashboard() {
                 >
                   Mangalwar Peth
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityBranchFilter('All')}
+                  className={`btn btn-sm py-0.5 px-2 rounded-1 fw-semibold border-0 ${activityBranchFilter === 'All' ? 'bg-white text-sa-charcoal shadow-xs' : 'text-sa-muted'}`}
+                >
+                  All Campuses
+                </button>
               </div>
 
               <button
                 type="button"
-                onClick={() => navigate('/admin/teacher-activities')}
+                onClick={() => navigate('/admin/teacher-activities', { state: { branch: selectedCampus } })}
                 className="btn btn-sm btn-light border text-sa-charcoal d-inline-flex align-items-center gap-1.5 fw-semibold"
                 style={{ fontSize: '0.75rem', height: '30px' }}
                 title="Open Daily Log Activity Management"
@@ -1378,7 +1613,7 @@ export default function AdminDashboard() {
                             </span>
                             <div className="d-flex align-items-center gap-1 mt-0.5">
                               <span className="text-sa-charcoal fw-semibold" style={{ fontSize: '0.72rem' }}>
-                                {act.batch ? act.batch.replace(/tarabai park|Mangalvar Peth/gi, '').trim() || act.batch : 'General Batch'}
+                                {act.batch ? act.batch.replace(/tarabai\s*park|mangalwar\s*peth|mangalvar\s*peth/gi, '').trim() || act.batch : 'General Batch'}
                               </span>
                               {isMorning && (
                                 <span className="badge bg-warning-subtle text-warning-emphasis p-0 px-1" style={{ fontSize: '9.5px' }}>
@@ -1455,7 +1690,7 @@ export default function AdminDashboard() {
             <span>Showing recent {Math.min(6, filteredTeacherActivities.length)} of {filteredTeacherActivities.length} activities</span>
             <button
               type="button"
-              onClick={() => navigate('/admin/teacher-activities')}
+              onClick={() => navigate('/admin/teacher-activities', { state: { branch: selectedCampus } })}
               className="btn btn-link p-0 text-decoration-none fw-semibold"
               style={{ fontSize: '0.75rem', color: '#8B1216' }}
             >
