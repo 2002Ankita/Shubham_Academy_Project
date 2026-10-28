@@ -633,6 +633,9 @@ async def get_all_teachers_attendance(
                         matched_tid = tid_k
                         break
 
+            if teacher_id and target_teacher and matched_tid != str(target_teacher.id):
+                continue
+
             if (matched_tid, d_str) in existing_combos or (a_tname.lower(), d_str) in existing_combos:
                 continue
 

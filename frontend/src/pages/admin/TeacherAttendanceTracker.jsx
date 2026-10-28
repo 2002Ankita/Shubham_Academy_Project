@@ -32,7 +32,8 @@ import {
   Briefcase,
   FileSpreadsheet,
   Calculator,
-  ArrowUpRight
+  ArrowUpRight,
+  Printer
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -67,6 +68,12 @@ export default function TeacherAttendanceTracker() {
   const [monthlySearch, setMonthlySearch] = useState('');
   const [monthlyFilter, setMonthlyFilter] = useState('All');
   const [syncingPayroll, setSyncingPayroll] = useState(false);
+
+  // Modal State for Day-by-Day Daily Attendance & Month-End Hours Breakdown
+  const [dailyBreakdownModalOpen, setDailyBreakdownModalOpen] = useState(false);
+  const [selectedFacultyForBreakdown, setSelectedFacultyForBreakdown] = useState(null);
+  const [breakdownDailyRecords, setBreakdownDailyRecords] = useState([]);
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false);
 
   // Modal State for Manual / Edit Punch Entry
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -232,6 +239,53 @@ export default function TeacherAttendanceTracker() {
       toast.error('Failed to update faculty hourly rate.');
     } finally {
       setRateSubmitting(false);
+    }
+  };
+
+  // Open Day-by-Day Breakdown Modal for a specific faculty member
+  const handleOpenDailyBreakdown = async (faculty) => {
+    if (!faculty) return;
+    setSelectedFacultyForBreakdown(faculty);
+    setDailyBreakdownModalOpen(true);
+    setLoadingBreakdown(true);
+    try {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
+      const startDate = `${selectedMonth}-01`;
+      const endDate = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+      let recs = [];
+      const tid = faculty.teacher_id;
+      if (tid && !tid.startsWith('ext_')) {
+        recs = await attendanceService.getTeachersAttendance({
+          teacher_id: tid,
+          start_date: startDate,
+          end_date: endDate
+        });
+      }
+
+      if (!recs || recs.length === 0) {
+        // Fallback or external faculty: query all month records and filter
+        const allMonthRecs = await attendanceService.getTeachersAttendance({
+          start_date: startDate,
+          end_date: endDate
+        });
+        const targetName = (faculty.teacher_name || '').toLowerCase().trim();
+        recs = (allMonthRecs || []).filter(r => 
+          (r.teacher_id && r.teacher_id === tid) ||
+          (r.teacher_name && r.teacher_name.toLowerCase().trim() === targetName)
+        );
+      }
+
+      // Sort chronologically ascending
+      const sorted = (recs || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+      setBreakdownDailyRecords(sorted);
+    } catch (err) {
+      console.error('Failed to load faculty daily breakdown', err);
+      toast.error('Could not load daily records for this faculty member.');
+      setBreakdownDailyRecords([]);
+    } finally {
+      setLoadingBreakdown(false);
     }
   };
 
@@ -937,7 +991,7 @@ export default function TeacherAttendanceTracker() {
                     <th scope="col" className="py-3 px-3">Date</th>
                     <th scope="col" className="py-3 px-3">Check-In Time</th>
                     <th scope="col" className="py-3 px-3">Check-Out Time</th>
-                    <th scope="col" className="py-3 px-3">Duration & Month Total</th>
+                    <th scope="col" className="py-3 px-3">Daily Calculated Duration</th>
                     <th scope="col" className="py-3 px-3">Status</th>
                     <th scope="col" className="py-3 px-3">Remarks / Location</th>
                     <th scope="col" className="py-3 px-3 text-end">Action</th>
@@ -1055,24 +1109,23 @@ export default function TeacherAttendanceTracker() {
                             )}
                           </td>
 
-                          {/* Total Duration & Monthly Cumulative */}
+                          {/* Daily Calculated Duration & Monthly Cumulative */}
                           <td className="px-3 py-3">
                             <div className="d-flex flex-column">
-                              <span className="fw-bold text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                              <span className="fw-bold text-sa-charcoal d-inline-flex align-items-center gap-1" style={{ fontSize: '13.5px' }}>
+                                <Clock size={12} className="text-sa-primary" />
                                 {rec.total_hours || '--'}
                               </span>
                               {monthStat && (
                                 <button
                                   type="button"
-                                  onClick={() => setViewMode('monthly')}
+                                  onClick={() => handleOpenDailyBreakdown(monthStat)}
                                   className="btn btn-link text-decoration-none p-0 text-start d-inline-flex align-items-center gap-1 text-primary fw-semibold mt-0.5"
                                   style={{ fontSize: '11px' }}
-                                  title="View faculty monthly working hours & salary"
+                                  title="View full day-by-day calculated breakdown for this month"
                                 >
-                                  <span>Month: {monthStat.total_hours_formatted}</span>
-                                  {monthStat.calculated_salary > 0 && (
-                                    <span className="text-success">(₹{monthStat.calculated_salary.toLocaleString()})</span>
-                                  )}
+                                  <span>Month Total: {monthStat.total_hours_formatted}</span>
+                                  <ArrowUpRight size={11} />
                                 </button>
                               )}
                             </div>
@@ -1107,11 +1160,32 @@ export default function TeacherAttendanceTracker() {
                                 </button>
                               )}
 
+                              {/* View Day-by-Day Monthly Breakdown */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const facultyObj = monthStat || {
+                                    teacher_id: rec.teacher_id,
+                                    teacher_name: rec.teacher_name,
+                                    employee_id: rec.employee_id,
+                                    subjects: rec.subjects,
+                                    hourly_rate: 500
+                                  };
+                                  handleOpenDailyBreakdown(facultyObj);
+                                }}
+                                className="btn btn-sm btn-light border p-1 text-primary"
+                                style={{ borderRadius: '6px' }}
+                                title="View Day-by-Day Monthly Hours Breakdown"
+                                aria-label="View Day-by-Day Monthly Hours Breakdown"
+                              >
+                                <CalendarDays size={14} />
+                              </button>
+
                               {/* View Timesheet */}
                               <button
                                 type="button"
                                 onClick={() => navigate(`/admin/teachers/${rec.teacher_id}/working-time`)}
-                                className="btn btn-sm btn-light border p-1 text-primary"
+                                className="btn btn-sm btn-light border p-1 text-secondary"
                                 style={{ borderRadius: '6px' }}
                                 title="View Full Monthly Timesheet"
                                 aria-label="View Full Monthly Timesheet"
@@ -1370,9 +1444,16 @@ export default function TeacherAttendanceTracker() {
                                   .toUpperCase()}
                               </div>
                               <div>
-                                <div className="fw-bold text-sa-charcoal" style={{ fontSize: '14px' }}>
-                                  {f.teacher_name}
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDailyBreakdown(f)}
+                                  className="btn btn-link text-decoration-none p-0 text-start fw-bold text-sa-charcoal d-inline-flex align-items-center gap-1"
+                                  style={{ fontSize: '14px' }}
+                                  title="Click to view daily attendance breakdown for this month"
+                                >
+                                  <span>{f.teacher_name}</span>
+                                  <ArrowUpRight size={12} className="text-sa-muted" />
+                                </button>
                                 <div className="d-flex align-items-center gap-1.5 mt-0.5">
                                   <span className="badge bg-light text-sa-muted border" style={{ fontSize: '10.5px' }}>
                                     {f.employee_id}
@@ -1389,21 +1470,33 @@ export default function TeacherAttendanceTracker() {
 
                           {/* Duty Days */}
                           <td className="px-3 py-3 text-center">
-                            <span
-                              className={`badge px-2.5 py-1 fw-semibold ${
-                                f.days_worked > 0
-                                  ? 'bg-light text-dark border'
-                                  : 'bg-light text-muted border'
-                              }`}
-                              style={{ fontSize: '12px' }}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDailyBreakdown(f)}
+                              className="btn btn-link text-decoration-none p-0"
+                              title="Click to view day-by-day records"
                             >
-                              {f.days_worked} {f.days_worked === 1 ? 'Day' : 'Days'}
-                            </span>
+                              <span
+                                className={`badge px-2.5 py-1 fw-semibold ${
+                                  f.days_worked > 0
+                                    ? 'bg-light text-dark border'
+                                    : 'bg-light text-muted border'
+                                }`}
+                                style={{ fontSize: '12px', cursor: 'pointer' }}
+                              >
+                                {f.days_worked} {f.days_worked === 1 ? 'Day' : 'Days'}
+                              </span>
+                            </button>
                           </td>
 
                           {/* Monthly Working Hours */}
                           <td className="px-3 py-3">
-                            <div className="d-flex flex-column">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDailyBreakdown(f)}
+                              className="btn btn-link text-decoration-none p-0 text-start d-flex flex-column"
+                              title="Click to view day-by-day daily hours breakdown"
+                            >
                               <span
                                 className={`fw-extrabold ${hasHours ? 'text-sa-charcoal' : 'text-sa-muted'}`}
                                 style={{ fontSize: '14.5px' }}
@@ -1413,7 +1506,7 @@ export default function TeacherAttendanceTracker() {
                               <span className="text-sa-muted" style={{ fontSize: '11px' }}>
                                 {f.total_hours} decimal hours
                               </span>
-                            </div>
+                            </button>
                           </td>
 
                           {/* Hourly Rate */}
@@ -1481,11 +1574,23 @@ export default function TeacherAttendanceTracker() {
                           {/* Actions */}
                           <td className="px-3 py-3 text-end">
                             <div className="d-inline-flex align-items-center gap-1.5 justify-content-end">
+                              {/* Daily Breakdown */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDailyBreakdown(f)}
+                                className="btn btn-sm btn-outline-dark d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                                style={{ fontSize: '11.5px', borderRadius: '6px' }}
+                                title="View day-by-day daily calculated hours for this month"
+                              >
+                                <CalendarDays size={13} className="text-sa-primary" />
+                                <span>Daily Breakdown</span>
+                              </button>
+
                               {/* View Timesheet */}
                               <button
                                 type="button"
                                 onClick={() => navigate(`/admin/teachers/${f.teacher_id}/working-time`)}
-                                className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                                className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 px-2 py-1"
                                 style={{ fontSize: '11.5px', borderRadius: '6px' }}
                                 title="View detailed timesheet for this teacher"
                               >
@@ -1717,6 +1822,359 @@ export default function TeacherAttendanceTracker() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ===================================================================== */}
+      {/* 7. MODAL: DAY-BY-DAY DAILY ATTENDANCE & MONTH-END HOURS BREAKDOWN     */}
+      {/* ===================================================================== */}
+      <Modal
+        isOpen={dailyBreakdownModalOpen}
+        onClose={() => setDailyBreakdownModalOpen(false)}
+        title={
+          selectedFacultyForBreakdown
+            ? `${selectedFacultyForBreakdown.teacher_name} • Daily Attendance & Month-End Hours Breakdown`
+            : 'Faculty Daily Attendance Breakdown'
+        }
+        size="xl"
+      >
+        {selectedFacultyForBreakdown && (
+          <div className="d-flex flex-column gap-3">
+            {/* Header info bar */}
+            <div className="p-3 rounded-4 bg-light border d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0"
+                  style={{ width: '48px', height: '48px', backgroundColor: '#8B1216', fontSize: '16px' }}
+                >
+                  {(selectedFacultyForBreakdown.teacher_name || 'T')
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
+                </div>
+                <div>
+                  <h6 className="fw-bold text-sa-charcoal m-0" style={{ fontSize: '16px' }}>
+                    {selectedFacultyForBreakdown.teacher_name}
+                  </h6>
+                  <div className="d-flex align-items-center gap-2 mt-1">
+                    <span className="badge bg-white text-sa-muted border small">
+                      {selectedFacultyForBreakdown.employee_id || 'ID: --'}
+                    </span>
+                    {selectedFacultyForBreakdown.subjects && selectedFacultyForBreakdown.subjects.length > 0 && (
+                      <span className="badge" style={{ backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '11px' }}>
+                        {selectedFacultyForBreakdown.subjects.join(', ')}
+                      </span>
+                    )}
+                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '11px' }}>
+                      Month: {monthlyData?.month_label || selectedMonth}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenRateModal(selectedFacultyForBreakdown)}
+                  className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5"
+                  style={{ fontSize: '12px' }}
+                  title="Adjust faculty hourly rate"
+                >
+                  <Edit2 size={13} />
+                  <span>Rate: ₹{selectedFacultyForBreakdown.hourly_rate}/hr</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5"
+                  style={{ fontSize: '12px' }}
+                  title="Print monthly timesheet report"
+                >
+                  <Printer size={13} />
+                  <span>Print</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 4 KPI Highlight Metric Cards */}
+            <div className="row g-2">
+              <div className="col-6 col-md-3">
+                <div className="p-2.5 rounded-3 border bg-white text-center">
+                  <div className="text-sa-muted small fw-medium" style={{ fontSize: '11px' }}>
+                    Duty Days in Month
+                  </div>
+                  <div className="brand-font fw-bold text-sa-charcoal" style={{ fontSize: '20px' }}>
+                    {selectedFacultyForBreakdown.days_worked || breakdownDailyRecords.length} Days
+                  </div>
+                  <div className="text-sa-muted" style={{ fontSize: '10.5px' }}>
+                    Daily verified logs
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-6 col-md-3">
+                <div className="p-2.5 rounded-3 border bg-white text-center" style={{ borderColor: '#BBF7D0' }}>
+                  <div className="text-success small fw-medium" style={{ fontSize: '11px' }}>
+                    Total Monthly Hours
+                  </div>
+                  <div className="brand-font fw-bold text-success" style={{ fontSize: '20px' }}>
+                    {selectedFacultyForBreakdown.total_hours_formatted || '0h 00m'}
+                  </div>
+                  <div className="text-sa-muted" style={{ fontSize: '10.5px' }}>
+                    {selectedFacultyForBreakdown.total_hours || 0} decimal hrs
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-6 col-md-3">
+                <div className="p-2.5 rounded-3 border bg-white text-center">
+                  <div className="text-sa-muted small fw-medium" style={{ fontSize: '11px' }}>
+                    Hourly Pay Rate
+                  </div>
+                  <div className="brand-font fw-bold text-primary" style={{ fontSize: '20px' }}>
+                    ₹{Number(selectedFacultyForBreakdown.hourly_rate || 500).toFixed(2)}
+                  </div>
+                  <div className="text-sa-muted" style={{ fontSize: '10.5px' }}>
+                    Per logged hour
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-6 col-md-3">
+                <div className="p-2.5 rounded-3 border bg-white text-center" style={{ borderColor: '#FDE68A' }}>
+                  <div className="text-warning-emphasis small fw-medium" style={{ fontSize: '11px' }}>
+                    Calculated Monthly Salary
+                  </div>
+                  <div className="brand-font fw-bold" style={{ fontSize: '20px', color: '#8B1216' }}>
+                    ₹{Number(selectedFacultyForBreakdown.calculated_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-sa-muted" style={{ fontSize: '10.5px' }}>
+                    Hours × ₹{selectedFacultyForBreakdown.hourly_rate}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Records Breakdown Table */}
+            <div className="border rounded-3 overflow-hidden">
+              <div className="bg-light px-3 py-2 border-bottom d-flex align-items-center justify-content-between">
+                <span className="fw-bold small text-sa-charcoal d-flex align-items-center gap-1.5">
+                  <Calendar size={14} className="text-sa-primary" />
+                  Day-by-Day Calculated Attendance & Cumulative Hours Log
+                </span>
+                <span className="badge bg-white text-sa-muted border small">
+                  {breakdownDailyRecords.length} {breakdownDailyRecords.length === 1 ? 'Day Record' : 'Day Records'}
+                </span>
+              </div>
+
+              <div className="table-responsive" style={{ maxHeight: '340px' }}>
+                <table className="table table-sm align-middle mb-0 table-hover">
+                  <thead style={{ backgroundColor: '#F8FAFC', position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr style={{ fontSize: '11.5px', color: '#64748B', textTransform: 'uppercase' }}>
+                      <th className="py-2.5 px-3">#</th>
+                      <th className="py-2.5 px-3">Date & Day</th>
+                      <th className="py-2.5 px-3">Check-In</th>
+                      <th className="py-2.5 px-3">Check-Out</th>
+                      <th className="py-2.5 px-3">Daily Duration</th>
+                      <th className="py-2.5 px-3">Daily Salary</th>
+                      <th className="py-2.5 px-3">Month Cumulative</th>
+                      <th className="py-2.5 px-3">Status & Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ fontSize: '12.5px' }}>
+                    {loadingBreakdown ? (
+                      <tr>
+                        <td colSpan="8" className="text-center py-4 text-sa-muted">
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                          Loading daily calculated attendance logs…
+                        </td>
+                      </tr>
+                    ) : breakdownDailyRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="text-center py-4 text-sa-muted">
+                          <div className="d-flex flex-column align-items-center justify-content-center gap-1 py-2">
+                            <Clock size={28} className="text-sa-muted opacity-50" />
+                            <div className="fw-semibold text-sa-charcoal">No attendance records logged for this month</div>
+                            <span className="small text-sa-muted">
+                              Attendance will automatically calculate daily when faculty checks in or conducts lectures.
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      (() => {
+                        let runningMins = 0;
+                        const hrRate = Number(selectedFacultyForBreakdown.hourly_rate || 500);
+
+                        return breakdownDailyRecords.map((r, idx) => {
+                          const dObj = new Date(r.date);
+                          const dayName = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+                          const dateFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+                          let dayMins = 0;
+                          const hStr = r.total_hours || '';
+                          if (hStr.includes('h')) {
+                            const p = hStr.split('h');
+                            const h = parseInt(p[0].trim(), 10) || 0;
+                            const m = p[1] && p[1].includes('m') ? parseInt(p[1].replace('m', '').trim(), 10) || 0 : 0;
+                            dayMins = h * 60 + m;
+                          } else if (r.check_in_time && r.check_out_time) {
+                            try {
+                              const cin = new Date(r.check_in_time);
+                              const cout = new Date(r.check_out_time);
+                              dayMins = Math.max(0, Math.floor((cout - cin) / (1000 * 60)));
+                            } catch {}
+                          }
+
+                          runningMins += dayMins;
+                          const runH = Math.floor(runningMins / 60);
+                          const runM = runningMins % 60;
+                          const runningFormatted = `${runH}h ${String(runM).padStart(2, '0')}m`;
+
+                          const dailyDec = dayMins / 60;
+                          const dailySal = dailyDec * hrRate;
+
+                          return (
+                            <tr key={r.id || idx}>
+                              <td className="px-3 py-2 text-sa-muted small">{idx + 1}</td>
+                              <td className="px-3 py-2">
+                                <span className="fw-bold text-sa-charcoal">{dateFormatted}</span>
+                                <span className="text-sa-muted ms-1 small">({dayName})</span>
+                              </td>
+                              <td className="px-3 py-2">
+                                {r.check_in_time ? (
+                                  <span className="fw-semibold text-success d-inline-flex align-items-center gap-1">
+                                    <span className="rounded-circle" style={{ width: '6px', height: '6px', backgroundColor: '#16A34A' }} />
+                                    {formatTime(r.check_in_time)}
+                                  </span>
+                                ) : (
+                                  <span className="text-sa-muted">--</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {r.check_out_time ? (
+                                  <span className="fw-semibold text-danger d-inline-flex align-items-center gap-1">
+                                    <span className="rounded-circle" style={{ width: '6px', height: '6px', backgroundColor: '#DC2626' }} />
+                                    {formatTime(r.check_out_time)}
+                                  </span>
+                                ) : (
+                                  <span className="badge bg-light text-sa-muted border" style={{ fontSize: '10.5px' }}>
+                                    {r.status === 'Working' ? 'In Progress' : '--'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className="badge px-2 py-1 fw-bold"
+                                  style={{
+                                    backgroundColor: dayMins > 0 ? '#EAF6EF' : '#F1F5F9',
+                                    color: dayMins > 0 ? '#168554' : '#64748B',
+                                    border: `1px solid ${dayMins > 0 ? '#B7E4C7' : '#CBD5E1'}`,
+                                    fontSize: '11.5px'
+                                  }}
+                                >
+                                  {r.total_hours || (dayMins > 0 ? `${Math.floor(dayMins / 60)}h ${dayMins % 60}m` : '--')}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="fw-bold text-sa-charcoal">
+                                  ₹{dailySal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-sa-muted small ms-1" style={{ fontSize: '10px' }}>
+                                  ({dailyDec.toFixed(2)}h)
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="fw-extrabold text-primary" style={{ fontSize: '12px' }}>
+                                  {runningFormatted}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2" style={{ maxWidth: '240px' }}>
+                                <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                  {getStatusBadge(r.status, Boolean(r.check_in_time), Boolean(r.check_out_time))}
+                                  {r.remarks && (
+                                    <span className="text-truncate text-sa-muted small" title={r.remarks} style={{ maxWidth: '140px' }}>
+                                      {r.remarks}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Month-End Total Calculation Card */}
+            <div
+              className="p-3 rounded-4 border d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3"
+              style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}
+            >
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center text-success flex-shrink-0"
+                  style={{ width: '42px', height: '42px', backgroundColor: '#DCFCE7' }}
+                >
+                  <Calculator size={22} />
+                </div>
+                <div>
+                  <div className="fw-bold text-success" style={{ fontSize: '14px' }}>
+                    Month-End Hours & Salary Aggregation
+                  </div>
+                  <div className="text-sa-muted small mt-0.5">
+                    Sum of all daily calculated durations in {monthlyData?.month_label || selectedMonth}:{' '}
+                    <strong className="text-sa-charcoal">{selectedFacultyForBreakdown.total_hours_formatted}</strong> ({selectedFacultyForBreakdown.total_hours} decimal hours).
+                  </div>
+                </div>
+              </div>
+
+              {/* Exact Formula Banner */}
+              <div className="bg-white border rounded-3 px-3 py-2 text-md-end flex-shrink-0" style={{ borderColor: '#86EFAC' }}>
+                <div className="text-sa-muted small" style={{ fontSize: '11px' }}>
+                  Total Hours ({selectedFacultyForBreakdown.total_hours} hrs) × ₹{selectedFacultyForBreakdown.hourly_rate}/hr
+                </div>
+                <div className="fw-bold brand-font" style={{ fontSize: '18px', color: '#168554' }}>
+                  = ₹{Number(selectedFacultyForBreakdown.calculated_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="d-flex align-items-center justify-content-between pt-2 border-top">
+              <span className="small text-sa-muted">
+                Official faculty payroll is automatically derived from these verified duty hours.
+              </span>
+              <div className="d-flex align-items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDailyBreakdownModalOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => {
+                    setDailyBreakdownModalOpen(false);
+                    handleSyncPayroll();
+                  }}
+                  disabled={syncingPayroll}
+                >
+                  <RefreshCw size={13} className={syncingPayroll ? 'spin-animation me-1' : 'me-1'} />
+                  {syncingPayroll ? 'Syncing...' : 'Sync With Payroll'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
