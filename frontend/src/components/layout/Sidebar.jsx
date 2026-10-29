@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
 import studentService from '../../services/studentService';
+import feeService from '../../services/feeService';
 import { getUserBranch } from '../../utils/branchUtils';
 import {
   LayoutDashboard,
@@ -212,6 +213,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const location = useLocation();
 
   const [pendingDiscountsCount, setPendingDiscountsCount] = useState(0);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -226,12 +228,31 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         // silent fallback
       }
     };
+    const fetchPendingOffline = async () => {
+      try {
+        const reqs = await feeService.getOfflineFeeRequests();
+        if (isMounted && reqs) {
+          const count = reqs.filter(r => r.status === 'PENDING').length;
+          setPendingOfflineCount(count);
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    };
+
     fetchPendingDiscounts();
-    const handleUpdate = () => fetchPendingDiscounts();
+    fetchPendingOffline();
+
+    const handleUpdate = () => {
+      fetchPendingDiscounts();
+      fetchPendingOffline();
+    };
     window.addEventListener('sa_notifications_updated', handleUpdate);
+    window.addEventListener('sa_offline_fee_requests_updated', handleUpdate);
     return () => {
       isMounted = false;
       window.removeEventListener('sa_notifications_updated', handleUpdate);
+      window.removeEventListener('sa_offline_fee_requests_updated', handleUpdate);
     };
   }, []);
 
@@ -310,6 +331,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       matchPrefixes: ['/admin/fees'],
       children: [
         { label: 'Fee Collection', path: '/admin/fees', exact: true },
+        { label: 'Cash & Cheque Requests', path: '/admin/fees/offline-requests', badge: pendingOfflineCount, isNew: true },
+        { label: 'Branch UPI Scanner & QR', path: '/admin/fees/upi-scanner', isNew: true },
         { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Pending Fees', path: '/admin/fees/pending' },
         { label: 'Fee Receipts', path: '/admin/fees/receipts' },

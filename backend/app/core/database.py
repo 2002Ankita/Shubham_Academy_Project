@@ -10,7 +10,7 @@ async def init_db():
     from app.models.student import Student
     from app.models.teacher import Teacher
     from app.models.attendance import Attendance
-    from app.models.fees import FeeStructure, FeePayment
+    from app.models.fees import FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest
     from app.models.marks import Exam, Mark
     from app.models.notices import Notice
     from app.models.salary import SalaryPayment
@@ -28,6 +28,6 @@ async def init_db():
     await init_beanie(
         database=database, 
         document_models=[
-            User, Student, Teacher, Attendance, FeeStructure, FeePayment, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration
+            User, Student, Teacher, Attendance, FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration
         ]
     )

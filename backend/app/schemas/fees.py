@@ -73,3 +73,54 @@ class PendingFeeResponse(BaseModel):
     total_fees: float
     amount_paid: float
     pending_fees: float
+
+class BranchUpiScannerCreate(BaseModel):
+    branch: str
+    upi_id: str
+    account_name: str
+    bank_name: Optional[str] = "HDFC Bank"
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    qr_image_url: Optional[str] = None
+    instructions: Optional[str] = "Scan and pay using any UPI app (GPay, PhonePe, Paytm, BHIM). Enter UTR ref to complete payment."
+    is_active: Optional[bool] = True
+
+class BranchUpiScannerResponse(BranchUpiScannerCreate):
+    id: str
+    updated_at: datetime
+    updated_by: Optional[str] = None
+
+class OfflineFeeRequestCreate(BaseModel):
+    student_id: str
+    student_name: str
+    roll_number: str
+    branch: str
+    batch: Optional[str] = None
+    standard: Optional[str] = None
+    amount: float
+    payment_mode: str # "Cash" or "Cheque"
+    cheque_number: Optional[str] = None
+    bank_name: Optional[str] = None
+    cheque_date: Optional[str] = None
+    depositor_name: Optional[str] = None
+    notes: Optional[str] = None
+    collected_by_faculty: Optional[str] = None
+
+class OfflineFeeRequestResponse(OfflineFeeRequestCreate):
+    id: str
+    status: str
+    receipt_no: Optional[str] = None
+    admin_remarks: Optional[str] = None
+    collected_by_faculty: Optional[str] = None
+    created_at: datetime
+    verified_at: Optional[datetime] = None
+    verified_by: Optional[str] = None
+
+class OfflineFeeRequestVerify(BaseModel):
+    remarks: Optional[str] = None
+    verified_amount: Optional[float] = None
+    collected_by_faculty: Optional[str] = None
+
+class OfflineFeeRequestReject(BaseModel):
+    rejection_reason: str
+

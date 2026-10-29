@@ -162,6 +162,16 @@ export default function FeeReceipt() {
               <CheckCircle2 size={18} />
               <span className="fw-semibold">Electronically Verified Payment</span>
             </div>
+            {receipt.collectedByFaculty && (
+              <div className="text-muted small" style={{ fontSize: '0.78rem' }}>
+                Collected by Faculty: <strong className="text-dark">{receipt.collectedByFaculty}</strong>
+              </div>
+            )}
+            {receipt.verifiedBy && (
+              <div className="text-muted small" style={{ fontSize: '0.78rem' }}>
+                Verified by Admin: <strong className="text-dark">{receipt.verifiedBy}</strong>
+              </div>
+            )}
             {Number(receipt.discountAmount) > 0 && receipt.discountApprovedBy && (
               <div className="text-muted small" style={{ fontSize: '0.78rem' }}>
                 Discount Concession Approved by:{' '}

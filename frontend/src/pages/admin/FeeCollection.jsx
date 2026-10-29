@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FeeForm from '../../components/forms/FeeForm';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import BackButton from '../../components/common/BackButton';
 import feeService from '../../services/feeService';
-import { Printer, AlertCircle, History, Receipt, Info } from 'lucide-react';
+import { Printer, AlertCircle, History, Receipt, Info, QrCode, FileCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -14,6 +14,23 @@ export default function FeeCollection() {
   const [feeDetails, setFeeDetails] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+
+  useEffect(() => {
+    const fetchOfflineCount = async () => {
+      try {
+        const reqs = await feeService.getOfflineFeeRequests();
+        const count = (reqs || []).filter(r => r.status === 'PENDING').length;
+        setPendingOfflineCount(count);
+      } catch (err) {
+        // silent
+      }
+    };
+    fetchOfflineCount();
+    const handleUpdate = () => fetchOfflineCount();
+    window.addEventListener('sa_offline_fee_requests_updated', handleUpdate);
+    return () => window.removeEventListener('sa_offline_fee_requests_updated', handleUpdate);
+  }, []);
 
   // Callback triggered when student selection changes in FeeForm
   const handleStudentSelectChange = (student, details, payments) => {
@@ -76,7 +93,29 @@ export default function FeeCollection() {
           </span>
         </div>
 
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 flex-wrap">
+          <Button
+            variant="primary"
+            onClick={() => navigate('/admin/fees/offline-requests')}
+            className="d-flex align-items-center gap-1.5"
+          >
+            <FileCheck size={16} />
+            <span>Cash & Cheque Requests</span>
+            {pendingOfflineCount > 0 && (
+              <span className="badge bg-warning text-dark ms-1 px-1.5 py-0.5 rounded-pill fw-bold" style={{ fontSize: '0.72rem' }}>
+                {pendingOfflineCount}
+              </span>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => navigate('/admin/fees/upi-scanner')}
+            className="d-flex align-items-center gap-1.5"
+          >
+            <QrCode size={16} /> Branch UPI Scanner
+          </Button>
+
           <Button variant="outline" onClick={() => navigate('/admin/fees/pending')}>
             <AlertCircle size={16} /> View Pending Overdues
           </Button>

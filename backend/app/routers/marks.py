@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from typing import List
+from typing import List, Optional
 from app.schemas.marks import (
     BulkMarkCreate,
     MarkCreate,
