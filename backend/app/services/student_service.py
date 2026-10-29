@@ -103,6 +103,23 @@ def is_superadmin_user(user: User) -> bool:
     role_clean = (user.role or "").lower().replace("-", "_").strip()
     return role_clean in ["super_admin", "superadmin"]
 
+async def get_next_roll_number(branch: Optional[str] = None) -> str:
+    """
+    Computes the next sequential roll number based on existing student entries.
+    Scans for STD-(\\d+) pattern and increments from the highest number (minimum STD-101).
+    """
+    students = await Student.find_all().to_list()
+    std_nums = []
+    for s in students:
+        roll = (s.student_id or "").strip()
+        m = re.match(r"^STD-(\d+)$", roll, re.IGNORECASE)
+        if m:
+            std_nums.append(int(m.group(1)))
+        elif roll.isdigit():
+            std_nums.append(int(roll))
+    highest = max(std_nums) if std_nums else 100
+    return f"STD-{highest + 1}"
+
 async def create_student(student_in: Any, current_user: Optional[User] = None) -> dict:
     if hasattr(student_in, "dict"):
         data = student_in.dict()
@@ -128,7 +145,11 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     if clean_mobile == clean_parent_mobile:
         raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
 
-    student_id = data.get("student_id") or data.get("rollNumber") or f"STU-{uuid.uuid4().hex[:6].upper()}"
+    raw_roll = str(data.get("rollNumber") or data.get("student_id") or data.get("roll_number") or "").strip()
+    if raw_roll and not (raw_roll.startswith("STU-") and len(raw_roll) == 10 and re.match(r"^STU-[0-9A-Fa-f]{6}$", raw_roll)):
+        student_id = raw_roll
+    else:
+        student_id = await get_next_roll_number(data.get("branch"))
 
     # Fees and Discount parsing
     orig_fees = float(data.get("original_fees") or data.get("originalFees") or data.get("total_fees") or data.get("totalFees") or 0.0)
@@ -159,9 +180,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     else:
         final_total_fees = orig_fees
 
-    # At registration time, if discount is requested (PENDING), only the approved fee
-    # should be applied. While pending approval, the payable course fee is the original course fee.
-    if disc_status == "APPROVED":
+    # Net course fee payable by student after applying concession
+    if disc_amount > 0:
         total_fees = max(0.0, orig_fees - disc_amount)
     else:
         total_fees = orig_fees
@@ -596,15 +616,17 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
 
     else:
         # Admin / Super Admin role: can update all fields including name and fees
-        if "full_name" in student_in or "name" in student_in:
-            new_name = (student_in.get("full_name") or student_in.get("name") or "").strip()
+        if "full_name" in student_in or "name" in student_in or "fullName" in student_in:
+            new_name = (student_in.get("full_name") or student_in.get("name") or student_in.get("fullName") or "").strip()
             if new_name:
+                student.full_name = new_name
+                student_in["full_name"] = new_name
                 if not isinstance(student.user, User):
                     student.user = await User.get(student.user.ref.id)
                 if student.user:
                     student.user.full_name = new_name
                     await student.user.save()
-            student_in.pop("full_name", None)
+            student_in.pop("fullName", None)
             student_in.pop("name", None)
 
         if "email" in student_in and student_in["email"]:
@@ -619,43 +641,190 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                 await student.user.save()
             del student_in["email"]
 
-        # Recalculate remaining fees if fee fields changed
-        if "total_fees" in student_in or "totalFees" in student_in:
-            tf = float(student_in.get("total_fees") or student_in.get("totalFees") or 0.0)
-            student.total_fees = tf
-            student_in["total_fees"] = tf
-            student_in.pop("totalFees", None)
+        # Student ID / Roll Number update
+        if "student_id" in student_in or "rollNumber" in student_in:
+            new_id = (student_in.get("student_id") or student_in.get("rollNumber") or "").strip()
+            if new_id:
+                student.student_id = new_id
+                student_in["student_id"] = new_id
+                appr_records = await DiscountApproval.find(DiscountApproval.student_id == str(student.id)).to_list()
+                for rec in appr_records:
+                    rec.roll_number = new_id
+                    await rec.save()
+            student_in.pop("rollNumber", None)
 
-        if "paid_fees" in student_in or "paidFees" in student_in:
-            pf = float(student_in.get("paid_fees") or student_in.get("paidFees") or 0.0)
-            student.paid_fees = pf
-            student_in["paid_fees"] = pf
-            student_in.pop("paidFees", None)
+        if "mobile_number" in student_in or "phone" in student_in or "mobileNumber" in student_in:
+            clean_mob = re.sub(r"\D", "", str(student_in.get("mobile_number") or student_in.get("phone") or student_in.get("mobileNumber") or ""))
+            if clean_mob:
+                student.mobile_number = clean_mob
+                student_in["mobile_number"] = clean_mob
+            student_in.pop("phone", None)
+            student_in.pop("mobileNumber", None)
 
+        if "parent_mobile" in student_in or "parentPhone" in student_in or "parentMobile" in student_in:
+            clean_p = re.sub(r"\D", "", str(student_in.get("parent_mobile") or student_in.get("parentPhone") or student_in.get("parentMobile") or ""))
+            if clean_p:
+                student.parent_mobile = clean_p
+                student_in["parent_mobile"] = clean_p
+            student_in.pop("parentPhone", None)
+            student_in.pop("parentMobile", None)
+
+        if "parent_name" in student_in or "parentName" in student_in:
+            pname = (student_in.get("parent_name") or student_in.get("parentName") or "").strip()
+            if pname:
+                student.parent_name = pname
+                student_in["parent_name"] = pname
+            student_in.pop("parentName", None)
+
+        if "rfid_tag" in student_in or "rfidCard" in student_in:
+            rcard = (student_in.get("rfid_tag") or student_in.get("rfidCard") or "").strip()
+            student.rfid_tag = rcard or None
+            student_in["rfid_tag"] = rcard or None
+            student_in.pop("rfidCard", None)
+
+        if "dob" in student_in:
+            student_in["date_of_birth"] = student_in.pop("dob")
+        if "academicBatch" in student_in:
+            student_in["academic_batch"] = student_in.pop("academicBatch")
+
+        # Recalculate original fees, discounts, and payments
+        orig_fees = float(student_in.get("original_fees") or student_in.get("originalFees") or getattr(student, "original_fees", 0.0) or 0.0)
+        disc_amount = float(student_in.get("discount_amount") or student_in.get("discountAmount") or student_in.get("discount_requested_amount") or getattr(student, "discount_amount", 0.0) or 0.0)
+        disc_reason = student_in.get("discount_reason") or student_in.get("discountReason") or getattr(student, "discount_reason", "") or "Fee Concession"
+        disc_recommender = student_in.get("discount_recommended_by") or student_in.get("discountRecommendedBy") or student_in.get("discount_offered_by") or getattr(student, "discount_recommended_by", "") or "Miss Shilpa (Counselor)"
+        paid_input = student_in.get("paid_fees") if student_in.get("paid_fees") is not None else student_in.get("paidFees")
+
+        if orig_fees > 0:
+            student.original_fees = orig_fees
+            student_in["original_fees"] = orig_fees
+        student_in.pop("originalFees", None)
+
+        if disc_amount > 0:
+            student.discount_amount = disc_amount
+            student.discount_requested_amount = disc_amount
+            student.discount_reason = disc_reason
+            student.discount_recommended_by = disc_recommender
+            student.discount_offered_by = disc_recommender
+            student_in["discount_amount"] = disc_amount
+            student_in["discount_requested_amount"] = disc_amount
+            student_in["discount_reason"] = disc_reason
+            student_in["discount_recommended_by"] = disc_recommender
+            student_in["discount_offered_by"] = disc_recommender
+
+            if student.discount_status in ["NONE", "", None]:
+                student.discount_status = "PENDING"
+                student_in["discount_status"] = "PENDING"
+
+            appr = await DiscountApproval.find_one(
+                DiscountApproval.student_id == str(student.id),
+                DiscountApproval.status == "PENDING"
+            )
+            if not appr:
+                appr = DiscountApproval(
+                    student_id=str(student.id),
+                    student_name=student.full_name or "Student",
+                    roll_number=student.student_id or "N/A",
+                    standard=student.standard or "11th Science",
+                    original_fees=student.original_fees or orig_fees,
+                    discount_amount=disc_amount,
+                    discount_requested_amount=disc_amount,
+                    final_fees=max(0.0, (student.original_fees or orig_fees) - disc_amount),
+                    discount_reason=disc_reason,
+                    status=student.discount_status or "PENDING",
+                    offered_by=f"{current_user.full_name} ({current_user.role})" if current_user else "Admin",
+                    recommended_by=disc_recommender,
+                    offered_by_email=current_user.email if current_user else None,
+                    offered_at=datetime.utcnow()
+                )
+                await appr.insert()
+            else:
+                appr.discount_amount = disc_amount
+                appr.discount_requested_amount = disc_amount
+                appr.original_fees = student.original_fees or orig_fees
+                appr.final_fees = max(0.0, appr.original_fees - disc_amount)
+                appr.discount_reason = disc_reason
+                appr.recommended_by = disc_recommender
+                await appr.save()
+        elif "discount_amount" in student_in or "discountAmount" in student_in:
+            student.discount_amount = 0.0
+            student.discount_requested_amount = 0.0
+            student.discount_status = "NONE"
+            student_in["discount_amount"] = 0.0
+            student_in["discount_requested_amount"] = 0.0
+            student_in["discount_status"] = "NONE"
+
+        student_in.pop("discountAmount", None)
+        student_in.pop("discountReason", None)
+        student_in.pop("discountRecommendedBy", None)
+
+        if student.discount_amount and student.discount_amount > 0:
+            student.total_fees = max(0.0, (student.original_fees or orig_fees) - student.discount_amount)
+        else:
+            student.total_fees = student.original_fees or orig_fees
+        student_in["total_fees"] = student.total_fees
+        student_in.pop("totalFees", None)
+
+        prev_paid = getattr(student, "paid_fees", 0.0) or 0.0
+        if paid_input is not None:
+            new_paid = float(paid_input)
+            student.paid_fees = new_paid
+            student_in["paid_fees"] = new_paid
+            if new_paid > prev_paid:
+                added_payment = new_paid - prev_paid
+                receipt_no = f"REC-ONBOARD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+                initial_payment = FeePayment(
+                    student=student,
+                    amount_paid=added_payment,
+                    payment_method="Cash / Admission Counter",
+                    transaction_reference=receipt_no,
+                    remarks=f"Downpayment payment during onboarding update by {current_user.full_name if current_user else 'Admin'}",
+                    payment_date=datetime.utcnow()
+                )
+                await initial_payment.insert()
+
+        student_in.pop("paidFees", None)
         student.remaining_fees = max(0.0, student.total_fees - student.paid_fees)
         student_in["remaining_fees"] = student.remaining_fees
+        student_in.pop("remainingFees", None)
+
+        student.profile_completed = True
+        student_in["profile_completed"] = True
 
     # Apply updates to Student document
     if student_in:
         # Handle date conversions if strings passed
-        if "date_of_birth" in student_in and isinstance(student_in["date_of_birth"], str):
-            try:
-                student_in["date_of_birth"] = datetime.fromisoformat(student_in["date_of_birth"].replace('Z', '+00:00'))
-            except Exception:
-                pass
-        if "admission_date" in student_in and isinstance(student_in["admission_date"], str):
-            try:
-                student_in["admission_date"] = datetime.fromisoformat(student_in["admission_date"].replace('Z', '+00:00'))
-            except Exception:
-                pass
+        if "date_of_birth" in student_in:
+            dob_val = student_in["date_of_birth"]
+            if isinstance(dob_val, str) and dob_val.strip():
+                try:
+                    student_in["date_of_birth"] = datetime.fromisoformat(dob_val.replace('Z', '+00:00'))
+                except Exception:
+                    student_in["date_of_birth"] = None
+            elif not dob_val:
+                student_in["date_of_birth"] = None
 
-        try:
-            await student.set(student_in)
-        except DuplicateKeyError as e:
-            if "mobile_number" in str(e):
-                raise HTTPException(status_code=400, detail="Mobile number is already registered to another student.")
-            raise HTTPException(status_code=400, detail="Duplicate key error on student update.")
+        if "admission_date" in student_in:
+            adm_val = student_in["admission_date"]
+            if isinstance(adm_val, str) and adm_val.strip():
+                try:
+                    student_in["admission_date"] = datetime.fromisoformat(adm_val.replace('Z', '+00:00'))
+                except Exception:
+                    student_in["admission_date"] = None
+            elif not adm_val:
+                student_in["admission_date"] = None
 
+        valid_fields = set(Student.model_fields.keys()) - {"id", "revision_id", "user"}
+        cleaned_update = {k: v for k, v in student_in.items() if k in valid_fields}
+
+        if cleaned_update:
+            try:
+                await student.set(cleaned_update)
+            except DuplicateKeyError as e:
+                if "mobile_number" in str(e):
+                    raise HTTPException(status_code=400, detail="Mobile number is already registered to another student.")
+                raise HTTPException(status_code=400, detail="Duplicate key error on student update.")
+
+    await student.save()
     return await _format_student(student)
 
 async def delete_student(id: str):

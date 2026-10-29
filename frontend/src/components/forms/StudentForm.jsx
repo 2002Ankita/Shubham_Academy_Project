@@ -37,7 +37,7 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
       session: defaultSessionVal,
       academicBatch: initialData?.academicBatch || initialData?.academic_batch || parsed.academicBatch
     }),
-    rfidCard: initialData?.rfidCard || 'CARD-' + Math.floor(100000 + Math.random() * 900000),
+    rollNumber: initialData?.rollNumber || initialData?.student_id || '',
     totalFees: initialData?.totalFees || 45000,
     parentName: initialData?.parentName || '',
     parentPhone: initialData?.parentPhone || '',
@@ -147,13 +147,12 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
 
         <div className="col-12 col-md-6">
           <Input
-            label="Assigned Smart Card / UID"
-            name="rfidCard"
-            placeholder="CARD-XXXXXX"
-            value={formData.rfidCard}
+            label="Roll Number / Admission ID"
+            name="rollNumber"
+            placeholder="e.g. STD-111"
+            value={formData.rollNumber}
             onChange={handleChange}
-            helperText="Tap card or enter code"
-            required
+            helperText="Auto-assigned sequentially as per entry sequence"
           />
         </div>
 

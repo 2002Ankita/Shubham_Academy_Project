@@ -112,6 +112,7 @@ export default function StudentRegistration() {
     email: '',
     mobileNumber: '',
     parentPhone: '',
+    rollNumber: '',
     branch: initialBranch,
     session: isMangal ? 'Morning' : '',
     academicBatch: '11th PCM',
@@ -129,6 +130,16 @@ export default function StudentRegistration() {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    studentService.getNextRollNumber(activeBranch)
+      .then((nextRoll) => {
+        if (nextRoll) {
+          setFormData(prev => ({ ...prev, rollNumber: prev.rollNumber || nextRoll }));
+        }
+      })
+      .catch((err) => console.warn('Could not fetch next roll number:', err));
+  }, [activeBranch]);
 
   useEffect(() => {
     if (activeBranch) {
@@ -183,12 +194,10 @@ export default function StudentRegistration() {
     if (name === 'originalFees' || name === 'discountAmount' || name === 'totalFees' || name === 'paidFees') {
       const orig = Number(name === 'originalFees' ? value : updated.originalFees) || 0;
       const disc = Number(name === 'discountAmount' ? value : updated.discountAmount) || 0;
-
-      // At registration time, the payable fee before discount approval is the gross course fee.
-      // Once approved, the discount is officially deducted.
-      updated.totalFees = orig;
+      const net = Math.max(0, orig - disc);
       const paid = Number(name === 'paidFees' ? value : updated.paidFees) || 0;
-      updated.remainingFees = Math.max(0, orig - paid);
+      updated.totalFees = net;
+      updated.remainingFees = Math.max(0, net - paid);
     }
 
     setFormData(updated);
@@ -207,7 +216,7 @@ export default function StudentRegistration() {
 
     const newOriginalFee = getMatchingCourseFee(feeStructures, newBranch, currentAcademic, std, formData.originalFees);
     const disc = Number(formData.discountAmount) || 0;
-    const netTotal = newOriginalFee; // gross course fee payable pending discount approval
+    const netTotal = Math.max(0, newOriginalFee - disc);
     const paid = Number(formData.paidFees) || 0;
 
     setFormData((prev) => ({
@@ -242,7 +251,7 @@ export default function StudentRegistration() {
 
     const newOriginalFee = getMatchingCourseFee(feeStructures, formData.branch, newAcademicBatch, std, formData.originalFees);
     const disc = Number(formData.discountAmount) || 0;
-    const netTotal = newOriginalFee; // gross course fee payable pending discount approval
+    const netTotal = Math.max(0, newOriginalFee - disc);
     const paid = Number(formData.paidFees) || 0;
 
     setFormData((prev) => ({
@@ -336,13 +345,14 @@ export default function StudentRegistration() {
       const discAmount = Number(formData.discountAmount) || 0;
       const origFees = Number(formData.originalFees) || 0;
       const paidFees = Number(formData.paidFees) || 0;
-      // Before discount approval, the effective course fee is the original fees.
-      const effectiveTotalFees = origFees;
+      const effectiveTotalFees = Math.max(0, origFees - discAmount);
       const remainingFees = Math.max(0, effectiveTotalFees - paidFees);
 
       const payload = {
         name: formData.fullName.trim(),
         full_name: formData.fullName.trim(),
+        rollNumber: formData.rollNumber?.trim() || undefined,
+        student_id: formData.rollNumber?.trim() || undefined,
         email: formData.email?.trim() || undefined,
         phone: cleanMobile,
         mobile_number: cleanMobile,
@@ -539,6 +549,35 @@ export default function StudentRegistration() {
                   </div>
                   <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
                     Enter official name as per previous records.
+                  </span>
+                </div>
+
+                {/* Roll Number / Admission ID (Auto-assigned per entry) */}
+                <div className="col-12 col-md-6">
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Roll Number / Admission ID
+                    </label>
+                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-semibold" style={{ fontSize: '0.70rem' }}>
+                      Auto-assigned per entry
+                    </span>
+                  </div>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: '0.85rem' }}>
+                      #
+                    </span>
+                    <input
+                      type="text"
+                      name="rollNumber"
+                      value={formData.rollNumber}
+                      onChange={handleInputChange}
+                      placeholder="e.g. STD-111"
+                      className="form-control"
+                      disabled={loading}
+                    />
+                  </div>
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Sequential entry ID. You can keep the auto-assigned number or customize it.
                   </span>
                 </div>
 
@@ -783,12 +822,24 @@ export default function StudentRegistration() {
 
               <div className="row g-3 mb-4">
                 {/* Discount Amount */}
+                {/* 1. Discount Amount */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Discount / Concession (₹)
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Discount / Concession (₹)
+                    </label>
+                    {Number(formData.discountAmount) > 0 ? (
+                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold" style={{ fontSize: '10px' }}>
+                        - ₹{Number(formData.discountAmount).toLocaleString('en-IN')}
+                      </span>
+                    ) : (
+                      <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                        ₹0
+                      </span>
+                    )}
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted fw-bold">₹</span>
+                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>₹</span>
                     <input
                       type="number"
                       name="discountAmount"
@@ -798,20 +849,26 @@ export default function StudentRegistration() {
                       step="500"
                       placeholder="e.g. 5000"
                       className={`form-control ${errors.discountAmount ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.discountAmount && <div className="invalid-feedback">{errors.discountAmount}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Deducted from gross course fee
                   </span>
                 </div>
 
-                {/* Discount Reason */}
+                {/* 2. Discount Reason */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Concession Reason / Category
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Concession Reason / Category
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      Optional
+                    </span>
+                  </div>
                   <input
                     type="text"
                     name="discountReason"
@@ -819,18 +876,24 @@ export default function StudentRegistration() {
                     onChange={handleInputChange}
                     placeholder="e.g., Merit Scholarship, Sibling"
                     className="form-control"
+                    style={{ height: '38px' }}
                     disabled={loading}
                   />
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Justification for discount approval
                   </span>
                 </div>
 
-                {/* Recommended By */}
+                {/* 3. Recommended By */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Recommended By (Staff / Counselor)
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Recommended By Staff
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      Optional
+                    </span>
+                  </div>
                   <input
                     type="text"
                     name="discountRecommendedBy"
@@ -838,25 +901,76 @@ export default function StudentRegistration() {
                     onChange={handleInputChange}
                     placeholder="e.g., Miss Shilpa (Counselor)"
                     className="form-control"
+                    style={{ height: '38px' }}
                     disabled={loading}
                   />
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Authorizing officer recommending concession
                   </span>
+                </div>
+
+                {/* Full-width Quick Presets Row */}
+                <div className="col-12 mt-1">
+                  <div
+                    className="d-flex align-items-center gap-1.5 flex-wrap p-2 rounded-2"
+                    style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}
+                  >
+                    <span className="text-muted small fw-semibold me-1" style={{ fontSize: '11px' }}>
+                      ⚡ Quick Presets:
+                    </span>
+                    {[
+                      { label: '₹2,000', val: 2000 },
+                      { label: '₹5,000', val: 5000 },
+                      { label: '₹10,000', val: 10000 },
+                      { label: '10% Off', val: '10%' },
+                      { label: '20% Off', val: '20%' },
+                      { label: 'Clear (₹0)', val: 0 }
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          const orig = Number(formData.originalFees) || 0;
+                          let disc = 0;
+                          if (typeof p.val === 'string' && p.val.endsWith('%')) {
+                            disc = Math.round((orig * parseFloat(p.val)) / 100);
+                          } else {
+                            disc = Number(p.val) || 0;
+                          }
+                          disc = Math.min(disc, orig);
+                          const net = Math.max(0, orig - disc);
+                          const paid = Number(formData.paidFees) || 0;
+                          setFormData(prev => ({
+                            ...prev,
+                            discountAmount: disc,
+                            totalFees: net,
+                            remainingFees: Math.max(0, net - paid),
+                            discountReason: disc > 0 ? (prev.discountReason || 'Merit Scholarship') : prev.discountReason
+                          }));
+                        }}
+                        className="btn btn-xs py-0.5 px-2.5 rounded-pill fw-semibold transition-all"
+                        style={{
+                          fontSize: '11px',
+                          backgroundColor: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '#FEF3C7' : '#FFFFFF',
+                          color: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '#B45309' : '#475569',
+                          border: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '1.5px solid #F59E0B' : '1px solid #CBD5E1'
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {Number(formData.discountAmount) > 0 && (
                   <div className="col-12">
                     <div
-                      className="p-2.5 rounded-2 d-flex align-items-center gap-2 text-sa-charcoal small"
-                      style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}
+                      className="p-2.5 rounded-2 d-flex align-items-center gap-2 small"
+                      style={{ backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', color: '#92400E' }}
                     >
-                      <ShieldCheck size={18} className="text-warning-emphasis flex-shrink-0" />
-                      <span>
-                        <strong>Concession Workflow:</strong> Concession request of ₹
-                        {Number(formData.discountAmount).toLocaleString()} is submitted for Superadmin approval. 
-                        The standard fee payable before approval is ₹{Number(formData.originalFees).toLocaleString()}. 
-                        Once approved by Superadmin, the approved fee will update to ₹{Math.max(0, Number(formData.originalFees) - Number(formData.discountAmount)).toLocaleString()}.
+                      <ShieldCheck size={16} className="text-warning-emphasis flex-shrink-0" />
+                      <span style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
+                        <strong>Concession Policy:</strong> Concession request of ₹{Number(formData.discountAmount).toLocaleString('en-IN')} reduces standard course fee from ₹{Number(formData.originalFees).toLocaleString('en-IN')} to ₹{Math.max(0, Number(formData.originalFees) - Number(formData.discountAmount)).toLocaleString('en-IN')}. Super Admin approval is logged automatically.
                       </span>
                     </div>
                   </div>
@@ -871,17 +985,17 @@ export default function StudentRegistration() {
                 <div className="d-flex justify-content-between align-items-center mb-1 small">
                   <span className="text-muted fw-semibold">Fee Collection Progress:</span>
                   <span className="fw-bold text-sa-charcoal">
-                    ₹{Number(formData.paidFees || 0).toLocaleString()} of ₹
-                    {Number(formData.totalFees || 0).toLocaleString()} (
+                    ₹{Number(formData.paidFees || 0).toLocaleString('en-IN')} of ₹
+                    {Number(formData.totalFees || 0).toLocaleString('en-IN')} (
                     {formData.totalFees > 0
                       ? Math.round(((formData.paidFees || 0) / formData.totalFees) * 100)
                       : 0}
                     %)
                   </span>
                 </div>
-                <div className="progress" style={{ height: '8px' }}>
+                <div className="progress" style={{ height: '8px', borderRadius: '4px' }}>
                   <div
-                    className="progress-bar"
+                    className="progress-bar transition-all"
                     role="progressbar"
                     style={{
                       width: `${
@@ -889,9 +1003,71 @@ export default function StudentRegistration() {
                           ? Math.min(100, ((formData.paidFees || 0) / formData.totalFees) * 100)
                           : 0
                       }%`,
-                      backgroundColor: '#8B1216'
+                      backgroundColor: '#8B1216',
+                      borderRadius: '4px'
                     }}
                   />
+                </div>
+
+                {/* 5-Card Financial Breakdown Banner */}
+                <div className="row g-2 mt-2 pt-2 border-top">
+                  <div className="col-6 col-md">
+                    <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs">
+                      <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>1. Gross Tuition</span>
+                      <strong className="text-sa-charcoal d-block mt-0.5" style={{ fontSize: '14.5px' }}>
+                        ₹{Number(formData.originalFees || 0).toLocaleString('en-IN')}
+                      </strong>
+                      <span className="text-muted text-xs" style={{ fontSize: '10px' }}>Standard Fee</span>
+                    </div>
+                  </div>
+
+                  <div className="col-6 col-md">
+                    <div
+                      className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs"
+                      style={{ borderColor: Number(formData.discountAmount) > 0 ? '#FCD34D' : '#E2E8F0' }}
+                    >
+                      <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>2. Concession</span>
+                      <strong className="d-block mt-0.5 text-warning-emphasis" style={{ fontSize: '14.5px' }}>
+                        {Number(formData.discountAmount) > 0 ? `- ₹${Number(formData.discountAmount).toLocaleString('en-IN')}` : '₹0'}
+                      </strong>
+                      <span className="text-muted text-xs" style={{ fontSize: '10px' }}>
+                        {Number(formData.discountAmount) > 0 ? 'Concession Applied' : 'No Concession'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="col-6 col-md">
+                    <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs" style={{ borderColor: '#93C5FD', backgroundColor: '#F0F9FF' }}>
+                      <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>3. Net Course Fee</span>
+                      <strong className="d-block mt-0.5 text-primary fw-bold" style={{ fontSize: '14.5px' }}>
+                        ₹{Math.max(0, Number(formData.originalFees || 0) - Number(formData.discountAmount || 0)).toLocaleString('en-IN')}
+                      </strong>
+                      <span className="text-primary text-opacity-75 text-xs fw-semibold" style={{ fontSize: '10px' }}>Net Payable</span>
+                    </div>
+                  </div>
+
+                  <div className="col-6 col-md">
+                    <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs">
+                      <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>4. Downpayment</span>
+                      <strong className="d-block mt-0.5 text-success" style={{ fontSize: '14.5px' }}>
+                        ₹{Number(formData.paidFees || 0).toLocaleString('en-IN')}
+                      </strong>
+                      <span className="text-success text-opacity-75 text-xs" style={{ fontSize: '10px' }}>Paid to Date</span>
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md">
+                    <div
+                      className="p-2 rounded-2 border text-center h-100 shadow-2xs"
+                      style={{ backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' }}
+                    >
+                      <span className="small text-danger d-block fw-semibold" style={{ fontSize: '10.5px' }}>5. Pending Dues</span>
+                      <strong className="d-block mt-0.5 text-danger fw-extrabold" style={{ fontSize: '15px' }}>
+                        ₹{Math.max(0, Math.max(0, Number(formData.originalFees || 0) - Number(formData.discountAmount || 0)) - Number(formData.paidFees || 0)).toLocaleString('en-IN')}
+                      </strong>
+                      <span className="text-danger text-opacity-75 text-xs" style={{ fontSize: '10px' }}>Net − Paid</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

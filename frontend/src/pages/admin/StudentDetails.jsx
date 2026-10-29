@@ -205,7 +205,7 @@ export default function StudentDetails() {
             </h3>
             <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
               <span className="small text-sa-muted">
-                Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • Card UID: {student.rfid_tag || student.rfidCard || 'N/A'} • Class: {student.standard || 'N/A'}
+                Roll No: <strong className="text-sa-primary">{student.rollNumber}</strong> • Class: {student.standard || 'N/A'}
               </span>
               <span className="badge bg-light text-sa-charcoal border px-2 py-0.5 rounded-pill small fw-bold">
                 📍 {formatStudentBatchDisplay(student)}

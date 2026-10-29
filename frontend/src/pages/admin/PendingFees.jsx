@@ -16,6 +16,13 @@ export default function PendingFees() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const [selectedCampus, setSelectedCampus] = useState(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
 
+  useEffect(() => {
+    if (activeBranch) {
+      const isM = Boolean(activeBranch.toLowerCase().includes('mangal'));
+      setSelectedCampus(isM ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+    }
+  }, [activeBranch]);
+
   const [pendingList, setPendingList] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,41 +80,6 @@ export default function PendingFees() {
           </div>
 
           <div className="d-flex align-items-center gap-3 flex-wrap">
-            {/* Campus Selector */}
-            <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
-              <button
-                type="button"
-                onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                  selectedCampus === BRANCH_TARABAI
-                    ? 'btn-danger text-white shadow-xs'
-                    : 'btn-light text-secondary'
-                }`}
-                style={{
-                  fontSize: '0.78rem',
-                  backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
-                  borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
-                }}
-              >
-                <span>🌲 Tarabai Park</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                  selectedCampus === BRANCH_MANGALWAR
-                    ? 'btn-danger text-white shadow-xs'
-                    : 'btn-light text-secondary'
-                }`}
-                style={{
-                  fontSize: '0.78rem',
-                  backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
-                  borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
-                }}
-              >
-                <span>🏛️ Mangalvar Peth</span>
-              </button>
-            </div>
 
             <div className="p-2.5 px-3 bg-white border rounded-3 d-flex align-items-center gap-3 shadow-sm">
               <AlertCircle size={22} className="text-danger" />

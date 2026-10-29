@@ -6,6 +6,9 @@ import Button from '../../components/common/Button';
 import Pagination from '../../components/common/Pagination';
 import BackButton from '../../components/common/BackButton';
 import studentService from '../../services/studentService';
+import feeService from '../../services/feeService';
+import notificationService from '../../services/notificationService';
+import Modal from '../../components/common/Modal';
 import {
   UserPlus,
   Eye,
@@ -20,7 +23,15 @@ import {
   ShieldCheck,
   Tag,
   AlertTriangle,
-  Clock
+  Clock,
+  Coins,
+  CreditCard,
+  User,
+  Phone,
+  Mail,
+  Building,
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
@@ -31,10 +42,48 @@ import BranchBatchSelector from '../../components/common/BranchBatchSelector';
 import {
   BRANCH_TARABAI,
   BRANCH_MANGALWAR,
+  ACADEMIC_BATCHES,
+  isSessionRequired,
   formatStudentBatchDisplay,
   matchesStudentFilters
 } from '../../config/branchBatchConfig';
 import { getUserBranch, CAMPUS } from '../../utils/branchUtils';
+
+const getMatchingCourseFee = (structures, branch, academicBatch, standard, fallbackFee = 55000) => {
+  if (!structures || structures.length === 0) return fallbackFee;
+  const bLower = (branch || '').toLowerCase();
+  const isMangal = bLower.includes('mangal');
+  const batchStr = (academicBatch || '').toLowerCase();
+  
+  let stream = '';
+  if (batchStr.includes('pcmb')) stream = 'pcmb';
+  else if (batchStr.includes('pcb')) stream = 'pcb';
+  else if (batchStr.includes('pcm')) stream = 'pcm';
+
+  if (stream) {
+    const streamMatch = structures.find(s => {
+      const sBranch = (s.branch || '').toLowerCase();
+      const sBatch = (s.batch || '').toLowerCase();
+      const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
+      if (!branchMatches) return false;
+      if (stream === 'pcmb') return sBatch.includes('pcmb');
+      if (stream === 'pcm') return sBatch.includes('pcm') && !sBatch.includes('pcmb');
+      if (stream === 'pcb') return sBatch.includes('pcb') && !sBatch.includes('pcmb');
+      return false;
+    });
+    if (streamMatch && streamMatch.total_fee > 0) return streamMatch.total_fee;
+  }
+
+  const batchMatch = structures.find(s => {
+    const sBranch = (s.branch || '').toLowerCase();
+    const sBatch = (s.batch || '').toLowerCase();
+    const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
+    return branchMatches && sBatch.includes(batchStr);
+  });
+  if (batchMatch && batchMatch.total_fee > 0) return batchMatch.total_fee;
+
+  return fallbackFee;
+};
 
 export default function StudentList() {
   const navigate = useNavigate();
@@ -58,6 +107,43 @@ export default function StudentList() {
   const [filterBranch, setFilterBranch] = useState(defaultBranch);
   const [filterSession, setFilterSession] = useState('');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
+
+  // Complete Student Onboarding & Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [feeStructures, setFeeStructures] = useState([]);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErrors, setEditErrors] = useState({});
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    rollNumber: '',
+    fullName: '',
+    email: '',
+    mobileNumber: '',
+    parentName: '',
+    parentPhone: '',
+    relation: 'Father',
+    date_of_birth: '',
+    gender: 'Male',
+    address: '',
+    branch: 'Mangalvar Peth',
+    session: 'Morning',
+    academicBatch: '11th PCM',
+    standard: '11th Science',
+    originalFees: 55000,
+    discountAmount: 0,
+    discountReason: 'Academic Merit Scholarship',
+    discountRecommendedBy: 'Miss Shilpa (Counselor)',
+    paidFees: 0,
+    totalFees: 55000,
+    remainingFees: 55000
+  });
+
+  useEffect(() => {
+    feeService.getStructures(activeBranch).then((data) => {
+      if (Array.isArray(data)) setFeeStructures(data);
+    }).catch((err) => console.warn('Could not load fee structures in StudentList:', err));
+  }, [activeBranch]);
 
   useEffect(() => {
     if (activeBranch && !isSuperAdmin) {
@@ -122,6 +208,199 @@ export default function StudentList() {
     }
   };
 
+  const handleOpenEditModal = (stu) => {
+    setEditingStudent(stu);
+    const stuBranch = stu.branch || activeBranch || 'Mangalvar Peth';
+    const isMP = stuBranch.toLowerCase().includes('mangal');
+    const defaultSec = isMP ? 'Morning' : '';
+    const stuSession = stu.session || defaultSec;
+    const academicBatch = stu.academicBatch || stu.academic_batch || stu.batch || '11th PCM';
+    const standard = stu.standard || (academicBatch.startsWith('12') ? '12th Science' : '11th Science');
+    const origFees = Number(stu.originalFees) || (Number(stu.totalFees) > 0 ? Number(stu.totalFees) : getMatchingCourseFee(feeStructures, stuBranch, academicBatch, standard, 55000));
+    const discAmount = Number(stu.discountAmount) || 0;
+    const paidFees = Number(stu.paidFees) || 0;
+    const effectiveTotal = Math.max(0, origFees - discAmount);
+    const remaining = Math.max(0, effectiveTotal - paidFees);
+
+    setEditFormData({
+      id: stu.id,
+      rollNumber: stu.rollNumber || stu.student_id || '',
+      fullName: stu.name || stu.full_name || '',
+      email: stu.email || '',
+      mobileNumber: stu.phone || stu.mobile_number || '',
+      parentName: stu.parentName || stu.parent_name || '',
+      parentPhone: stu.parentPhone || stu.parent_mobile || '',
+      relation: stu.relation || 'Father',
+      date_of_birth: stu.date_of_birth ? new Date(stu.date_of_birth).toISOString().split('T')[0] : '',
+      gender: stu.gender || 'Male',
+      address: stu.address || '',
+      branch: stuBranch,
+      session: stuSession,
+      academicBatch: academicBatch,
+      standard: standard,
+      originalFees: origFees,
+      discountAmount: discAmount,
+      discountReason: stu.discountReason || 'Academic Merit Scholarship',
+      discountRecommendedBy: stu.discountRecommendedBy || 'Miss Shilpa (Counselor)',
+      paidFees: paidFees,
+      totalFees: effectiveTotal,
+      remainingFees: remaining
+    });
+    setEditErrors({});
+    setShowEditModal(true);
+  };
+
+  const handleApplyPresetDiscount = (presetVal) => {
+    const orig = Number(editFormData.originalFees) || 0;
+    const paid = Number(editFormData.paidFees) || 0;
+    let disc = 0;
+    if (typeof presetVal === 'string' && presetVal.endsWith('%')) {
+      const pct = parseFloat(presetVal);
+      disc = Math.round((orig * pct) / 100);
+    } else {
+      disc = Number(presetVal) || 0;
+    }
+    disc = Math.min(disc, orig);
+    const net = Math.max(0, orig - disc);
+    const rem = Math.max(0, net - paid);
+    setEditFormData(prev => ({
+      ...prev,
+      discountAmount: disc,
+      totalFees: net,
+      remainingFees: rem,
+      discountReason: disc > 0 ? (prev.discountReason || 'Academic Merit Scholarship') : prev.discountReason
+    }));
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    let updated = { ...editFormData, [name]: value };
+
+    if (name === 'academicBatch') {
+      const std = value.startsWith('12th') ? '12th Science' : '11th Science';
+      updated.standard = std;
+      const matchedFee = getMatchingCourseFee(feeStructures, updated.branch, value, std, updated.originalFees);
+      if (matchedFee > 0) {
+        updated.originalFees = matchedFee;
+        const disc = Number(updated.discountAmount) || 0;
+        const net = Math.max(0, matchedFee - disc);
+        updated.totalFees = net;
+        const paid = Number(updated.paidFees) || 0;
+        updated.remainingFees = Math.max(0, net - paid);
+      }
+    }
+
+    if (name === 'originalFees' || name === 'discountAmount' || name === 'paidFees') {
+      const orig = Number(name === 'originalFees' ? value : updated.originalFees) || 0;
+      const disc = Number(name === 'discountAmount' ? value : updated.discountAmount) || 0;
+      const paid = Number(name === 'paidFees' ? value : updated.paidFees) || 0;
+      const net = Math.max(0, orig - disc);
+      updated.totalFees = net;
+      updated.remainingFees = Math.max(0, net - paid);
+    }
+
+    setEditFormData(updated);
+    if (editErrors[name]) {
+      setEditErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSaveEdit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const errs = {};
+    if (!editFormData.fullName.trim()) errs.fullName = 'Student Full Name is required';
+    const cleanMobile = editFormData.mobileNumber.replace(/\D/g, '');
+    if (!cleanMobile || cleanMobile.length !== 10) errs.mobileNumber = 'Must be a 10-digit mobile number';
+    const cleanParent = editFormData.parentPhone.replace(/\D/g, '');
+    if (!cleanParent || cleanParent.length !== 10) {
+      errs.parentPhone = 'Parent Mobile Number is required (10 digits)';
+    } else if (cleanMobile && cleanMobile === cleanParent) {
+      errs.parentPhone = 'Parent mobile must be different from student mobile';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setEditErrors(errs);
+      toast.error('Please correct the highlighted fields before saving.');
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      const discAmount = Number(editFormData.discountAmount) || 0;
+      const origFees = Number(editFormData.originalFees) || 0;
+      const paidFees = Number(editFormData.paidFees) || 0;
+      const netTotal = Math.max(0, origFees - discAmount);
+      const remainingFees = Math.max(0, netTotal - paidFees);
+
+      const payload = {
+        fullName: editFormData.fullName.trim(),
+        name: editFormData.fullName.trim(),
+        rollNumber: editFormData.rollNumber.trim() || undefined,
+        mobileNumber: cleanMobile,
+        phone: cleanMobile,
+        email: editFormData.email.trim() || undefined,
+        parentName: editFormData.parentName.trim() || undefined,
+        parentPhone: cleanParent,
+        relation: editFormData.relation,
+        gender: editFormData.gender,
+        dob: editFormData.date_of_birth || undefined,
+        address: editFormData.address.trim() || undefined,
+        branch: editFormData.branch,
+        session: editFormData.session || undefined,
+        academicBatch: editFormData.academicBatch,
+        standard: editFormData.standard,
+        batch: `${editFormData.academicBatch} ${editFormData.branch}${editFormData.session ? ` (${editFormData.session})` : ''}`,
+        originalFees: origFees,
+        discountAmount: discAmount,
+        discountReason: editFormData.discountReason || (discAmount > 0 ? 'Scholarship / Merit Concession' : ''),
+        discountRecommendedBy: discAmount > 0 ? (editFormData.discountRecommendedBy || 'Miss Shilpa (Counselor)') : '',
+        paidFees: paidFees,
+        totalFees: netTotal,
+        remainingFees: remainingFees,
+        profileCompleted: true
+      };
+
+      await studentService.update(editingStudent.id, payload);
+
+      if (discAmount > 0) {
+        notificationService.addNotification({
+          id: `NTF-DISC-${editingStudent.id}-${Date.now()}`,
+          title: `🔔 Fee Concession Approval: ${editFormData.fullName}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedDateTime: new Date().toLocaleString(),
+          type: 'discount_approval',
+          category: 'Discount & Fees',
+          priority: 'High',
+          author: editFormData.discountRecommendedBy?.trim() || 'Miss Shilpa (Counselor)',
+          details: `${editFormData.discountRecommendedBy?.trim() || 'Counselor'} recommended a concession of ₹${discAmount.toLocaleString()} for ${editFormData.fullName} (${editFormData.academicBatch}). Superadmin approval is required.`,
+          read: false,
+          forSuperAdminOnly: true,
+          branch: editFormData.branch,
+          studentId: editingStudent.id,
+          studentName: editFormData.fullName,
+          discountAmount: discAmount,
+          recommendedBy: editFormData.discountRecommendedBy?.trim() || 'Miss Shilpa'
+        });
+      }
+
+      toast.success(`Onboarding & fee confirmation for ${editFormData.fullName} saved successfully!`);
+      setShowEditModal(false);
+      setEditingStudent(null);
+      fetchStudents();
+    } catch (err) {
+      let msg = err.response?.data?.detail;
+      if (Array.isArray(msg)) {
+        msg = msg.map(m => m.msg || JSON.stringify(m)).join(', ');
+      } else if (typeof msg === 'object' && msg !== null) {
+        msg = JSON.stringify(msg);
+      }
+      toast.error(msg || err.message || 'Failed to update student details');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleDelete = async (id, name) => {
     const isConfirmed = await confirm({
       title: 'Remove Student Record',
@@ -145,7 +424,7 @@ export default function StudentList() {
       toast.warning('No student records available to export.');
       return;
     }
-    const headers = ['Roll Number', 'Student Name', 'Email', 'Class/Standard', 'Phone', 'Parent Phone', 'Card UID', 'Attendance %', 'Fee Status'];
+    const headers = ['Roll Number', 'Student Name', 'Email', 'Class/Standard', 'Phone', 'Parent Phone', 'Attendance %', 'Fee Status'];
     const rows = filtered.map(s => [
       `"${s.rollNumber || ''}"`,
       `"${s.name || ''}"`,
@@ -153,7 +432,6 @@ export default function StudentList() {
       `"${s.standard || ''}"`,
       `"${s.phone || ''}"`,
       `"${s.parentPhone || ''}"`,
-      `"${s.rfidCard || ''}"`,
       `"${s.attendancePercent || 0}%"`,
       `"${s.feesStatus || 'Pending'}"`
     ]);
@@ -171,10 +449,10 @@ export default function StudentList() {
 
   // Download Sample Template for import
   const handleDownloadTemplate = () => {
-    const headers = ['Roll Number', 'Full Name', 'Class / Standard', 'Email', 'Student Mobile', 'Parent Mobile', 'Card UID'];
+    const headers = ['Roll Number', 'Full Name', 'Class / Standard', 'Email', 'Student Mobile', 'Parent Mobile'];
     const sample = [
-      ['STD-101', 'Aarav Sharma', '11th Science', 'aarav.sharma@example.com', '+91 98220 11111', '+91 98220 22222', 'RF-90412'],
-      ['STD-102', 'Ananya Deshmukh', '12th Science', 'ananya.d@example.com', '+91 98220 33333', '+91 98220 44444', 'RF-90413']
+      ['STD-101', 'Aarav Sharma', '11th Science', 'aarav.sharma@example.com', '+91 98220 11111', '+91 98220 22222'],
+      ['STD-102', 'Ananya Deshmukh', '12th Science', 'ananya.d@example.com', '+91 98220 33333', '+91 98220 44444']
     ];
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...sample.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -265,7 +543,6 @@ export default function StudentList() {
           phone: parsedPhone,
           parentPhone: parsedParent,
           standard: normalizedRow['classstandard'] || normalizedRow['class'] || normalizedRow['standard'] || 'General',
-          rfidCard: normalizedRow['rfiduid'] || normalizedRow['rfid'] || normalizedRow['rfidbadge'] || '',
           batch: normalizedRow['batch'] || (activeBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar peth'),
           branch: activeBranch || 'Mangalvar Peth',
           totalFees: 0,
@@ -358,7 +635,6 @@ export default function StudentList() {
     return (
       (s.name || '').toLowerCase().includes(q) ||
       (s.rollNumber || '').toLowerCase().includes(q) ||
-      (s.rfidCard || '').toLowerCase().includes(q) ||
       (s.standard || '').toLowerCase().includes(q) ||
       (s.branch || '').toLowerCase().includes(q) ||
       (s.batch || '').toLowerCase().includes(q)
@@ -519,7 +795,7 @@ export default function StudentList() {
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Search by name, roll no, card UID or class..."
+              placeholder="Search by name, roll no, or class..."
               className="flex-grow-1"
             />
             <div className="d-flex align-items-center gap-2">
@@ -560,11 +836,6 @@ export default function StudentList() {
                     </span>
                   </div>
                 )
-              },
-              {
-                key: 'rfidCard',
-                title: 'Card UID',
-                render: (val) => <span className="badge bg-light text-dark border">{val}</span>
               },
               {
                 key: 'profileCompleted',
@@ -638,6 +909,14 @@ export default function StudentList() {
                 align: 'end',
                 render: (val, row) => (
                   <div className="d-flex align-items-center justify-content-end gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light border p-1 text-primary"
+                      title="Edit Student & Complete Onboarding"
+                      onClick={() => handleOpenEditModal(row)}
+                    >
+                      <Edit size={15} />
+                    </button>
                     <button
                       type="button"
                       className="btn btn-sm btn-light border p-1"
@@ -1030,7 +1309,7 @@ export default function StudentList() {
 
                 {/* Instructions */}
                 <div className="small text-muted" style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                  <strong className="text-sa-charcoal">Expected Column Headers:</strong> Roll Number, Full Name, Class / Standard, Email, Student Mobile, Parent Mobile, Card UID.
+                  <strong className="text-sa-charcoal">Expected Column Headers:</strong> Roll Number, Full Name, Class / Standard, Email, Student Mobile, Parent Mobile.
                 </div>
               </div>
 
@@ -1052,6 +1331,668 @@ export default function StudentList() {
           </div>
         </div>
       )}
+
+      {/* Complete Student Onboarding & Edit Modal */}
+      {showEditModal && editingStudent && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => { setShowEditModal(false); setEditingStudent(null); }}
+          title={
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <span>Complete Student Onboarding & Edit</span>
+              <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-pill" style={{ fontSize: '12px' }}>
+                {editFormData.rollNumber || 'Enrolled Student'}
+              </span>
+            </div>
+          }
+          size="xl"
+          maxWidth="940px"
+          footer={
+            <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+              <span className="small text-muted" style={{ fontSize: '12px' }}>
+                ✓ Saving confirms fees, discount recommendation & marks profile <strong>Complete</strong>.
+              </span>
+              <div className="d-flex align-items-center gap-2">
+                <Button variant="light" onClick={() => { setShowEditModal(false); setEditingStudent(null); }}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={handleSaveEdit} disabled={editSaving}>
+                  {editSaving ? 'Saving Changes...' : 'Save & Confirm Onboarding'}
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <form onSubmit={handleSaveEdit} noValidate>
+            {/* Context Notice */}
+            <div
+              className="rounded-3 p-3 mb-3 d-flex align-items-start gap-2.5"
+              style={{ backgroundColor: '#FFF8F0', border: '1px solid #FFE0B2' }}
+            >
+              <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
+              <div className="small text-sa-charcoal" style={{ fontSize: '12.5px', lineHeight: 1.45 }}>
+                <strong>Onboarding Completion:</strong> When students are imported via Excel, basic information is registered while full parent details, fee confirmation, discount approval request, and starting pending dues remain pending. Complete the required remaining information below.
+              </div>
+            </div>
+
+            {/* Section 1: Basic Information */}
+            <div className="bg-light p-3 rounded-3 border mb-3">
+              <div className="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                <User size={16} className="text-sa-primary" />
+                <h6 className="fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                  1. Student Personal & Identification
+                </h6>
+              </div>
+              <div className="row g-2.5">
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Student Full Name <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={editFormData.fullName}
+                    onChange={handleEditInputChange}
+                    className={`form-control form-control-sm ${editErrors.fullName ? 'is-invalid' : ''}`}
+                    placeholder="Official Student Name"
+                    required
+                  />
+                  {editErrors.fullName && <div className="invalid-feedback small">{editErrors.fullName}</div>}
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Student Mobile Number <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="mobileNumber"
+                    value={editFormData.mobileNumber}
+                    onChange={handleEditInputChange}
+                    maxLength={10}
+                    className={`form-control form-control-sm ${editErrors.mobileNumber ? 'is-invalid' : ''}`}
+                    placeholder="10-digit mobile"
+                    required
+                  />
+                  {editErrors.mobileNumber && <div className="invalid-feedback small">{editErrors.mobileNumber}</div>}
+                  <span className="text-muted" style={{ fontSize: '11px' }}>Used as default portal login password</span>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Student Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleEditInputChange}
+                    className="form-control form-control-sm"
+                    placeholder="student@example.com (Optional)"
+                  />
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Roll Number / Admission ID
+                  </label>
+                  <input
+                    type="text"
+                    name="rollNumber"
+                    value={editFormData.rollNumber}
+                    onChange={handleEditInputChange}
+                    className="form-control form-control-sm"
+                    placeholder="e.g. STD-110"
+                  />
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">Gender</label>
+                  <select
+                    name="gender"
+                    value={editFormData.gender}
+                    onChange={handleEditInputChange}
+                    className="form-select form-select-sm"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    value={editFormData.date_of_birth}
+                    onChange={handleEditInputChange}
+                    className="form-control form-control-sm"
+                  />
+                </div>
+
+                <div className="col-12 col-md-8">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">Residential Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={editFormData.address}
+                    onChange={handleEditInputChange}
+                    className="form-control form-control-sm"
+                    placeholder="Local residential address, city"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Guardian & Academic Allocation */}
+            <div className="bg-light p-3 rounded-3 border mb-3">
+              <div className="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                <Phone size={16} className="text-sa-primary" />
+                <h6 className="fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                  2. Parent / Guardian Details & Academic Allocation
+                </h6>
+              </div>
+              <div className="row g-2.5">
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Parent / Guardian Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="parentName"
+                    value={editFormData.parentName}
+                    onChange={handleEditInputChange}
+                    className="form-control form-control-sm"
+                    placeholder="e.g. Ajay Sharma"
+                  />
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Parent Mobile Number <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="parentPhone"
+                    value={editFormData.parentPhone}
+                    onChange={handleEditInputChange}
+                    maxLength={10}
+                    className={`form-control form-control-sm ${editErrors.parentPhone ? 'is-invalid' : ''}`}
+                    placeholder="10-digit mobile"
+                    required
+                  />
+                  {editErrors.parentPhone && <div className="invalid-feedback small">{editErrors.parentPhone}</div>}
+                  <span className="text-muted" style={{ fontSize: '11px' }}>Required for attendance & fee alerts</span>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">Relationship</label>
+                  <select
+                    name="relation"
+                    value={editFormData.relation}
+                    onChange={handleEditInputChange}
+                    className="form-select form-select-sm"
+                  >
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Guardian">Guardian</option>
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Campus / Branch (Fixed)
+                  </label>
+                  <div className="input-group input-group-sm">
+                    <input
+                      type="text"
+                      value={editFormData.branch}
+                      disabled
+                      readOnly
+                      className="form-control form-control-sm bg-white fw-bold text-sa-charcoal"
+                    />
+                    <span className="input-group-text bg-white text-muted">
+                      <Lock size={13} />
+                    </span>
+                  </div>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">Session</label>
+                  <select
+                    name="session"
+                    value={editFormData.session}
+                    onChange={handleEditInputChange}
+                    className="form-select form-select-sm"
+                  >
+                    <option value="Morning">Morning Session</option>
+                    <option value="Afternoon">Afternoon Session</option>
+                    <option value="Evening">Evening Session</option>
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-4">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Academic Batch & Stream <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    name="academicBatch"
+                    value={editFormData.academicBatch}
+                    onChange={handleEditInputChange}
+                    className="form-select form-select-sm fw-semibold"
+                  >
+                    <option value="11th PCM">11th PCM (Physics, Chem, Maths)</option>
+                    <option value="11th PCB">11th PCB (Physics, Chem, Bio)</option>
+                    <option value="11th PCMB">11th PCMB (All Four Subjects)</option>
+                    <option value="12th PCM">12th PCM (Physics, Chem, Maths)</option>
+                    <option value="12th PCB">12th PCB (Physics, Chem, Bio)</option>
+                    <option value="12th PCMB">12th PCMB (All Four Subjects)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Fee Confirmation & Initial Payment */}
+            <div
+              className="p-3.5 rounded-3 border mb-3 shadow-2xs"
+              style={{
+                backgroundColor: '#FFFDF9',
+                borderColor: '#FDBA74'
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ width: '30px', height: '30px', backgroundColor: '#FEF3C7', color: '#D97706' }}
+                  >
+                    <Coins size={16} />
+                  </div>
+                  <div>
+                    <h6 className="fw-bold m-0 text-sa-charcoal" style={{ fontSize: '13.5px' }}>
+                      3. Fee Confirmation & Initial Payment
+                    </h6>
+                    <span className="text-muted text-xs" style={{ fontSize: '11px' }}>
+                      Standard curriculum tuition fee, initial admission payment, and pending dues balance
+                    </span>
+                  </div>
+                </div>
+                <span className="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">
+                  Financial Base
+                </span>
+              </div>
+
+              <div className="row g-3">
+                {/* Gross Course Fee */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1" style={{ minHeight: '20px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Gross Course Fee (₹) <span className="text-danger">*</span>
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      Base Tuition
+                    </span>
+                  </div>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text bg-white fw-bold text-muted border-end-0" style={{ fontSize: '13px' }}>
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      name="originalFees"
+                      value={editFormData.originalFees}
+                      onChange={handleEditInputChange}
+                      min={0}
+                      step={500}
+                      className="form-control form-control-sm fw-bold border-start-0 text-sa-charcoal"
+                      placeholder="e.g. 52000"
+                      required
+                    />
+                  </div>
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Standard curriculum tuition fee</span>
+                </div>
+
+                {/* Initial Downpayment / Paid Fees */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1" style={{ minHeight: '20px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Initial Downpayment / Paid Fees (₹)
+                    </label>
+                    <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold" style={{ fontSize: '10px' }}>
+                      Paid
+                    </span>
+                  </div>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text bg-white fw-bold text-success border-end-0" style={{ fontSize: '13px' }}>
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      name="paidFees"
+                      value={editFormData.paidFees}
+                      onChange={handleEditInputChange}
+                      min={0}
+                      step={500}
+                      className="form-control form-control-sm text-success fw-bold border-start-0"
+                      placeholder="0"
+                    />
+                  </div>
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Starting fee payment received</span>
+                </div>
+
+                {/* Starting Pending Dues */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1" style={{ minHeight: '20px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Starting Pending Dues (₹)
+                    </label>
+                    <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold" style={{ fontSize: '10px' }}>
+                      Balance
+                    </span>
+                  </div>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text bg-light text-danger fw-bold border-end-0" style={{ fontSize: '13px' }}>
+                      ₹
+                    </span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={Number(editFormData.remainingFees || 0).toLocaleString('en-IN')}
+                      className="form-control form-control-sm fw-bold border-start-0 text-danger bg-light"
+                    />
+                  </div>
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>Net payable fee − Initial downpayment</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Fee Concession & Scholarship (Optional) */}
+            <div
+              className="p-3.5 rounded-3 border mb-2 shadow-2xs"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E2E8F0'
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ width: '32px', height: '32px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+                  >
+                    <Tag size={18} />
+                  </div>
+                  <div>
+                    <h6 className="fw-bold m-0 text-sa-charcoal" style={{ fontSize: '14px' }}>
+                      4. Fee Concession & Scholarship (Optional)
+                    </h6>
+                    <span className="text-muted text-xs" style={{ fontSize: '11.5px' }}>
+                      Recommend scholarship discount requiring Super Admin approval
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  {editingStudent?.discountStatus === 'APPROVED' ? (
+                    <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold d-inline-flex align-items-center gap-1">
+                      <CheckCircle size={12} />
+                      Concession Approved by Superadmin
+                    </span>
+                  ) : Number(editFormData.discountAmount) > 0 ? (
+                    <span className="badge bg-warning bg-opacity-20 text-warning-emphasis border border-warning px-2.5 py-1 rounded-pill small fw-semibold d-inline-flex align-items-center gap-1">
+                      <Clock size={12} />
+                      Superadmin Approval Required for Concessions
+                    </span>
+                  ) : (
+                    <span className="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">
+                      Standard Tuition Policy
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="row g-3">
+                {/* 1. Discount / Concession (₹) */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Discount / Concession (₹)
+                    </label>
+                    {Number(editFormData.discountAmount) > 0 ? (
+                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold" style={{ fontSize: '10px' }}>
+                        - ₹{Number(editFormData.discountAmount).toLocaleString('en-IN')}
+                      </span>
+                    ) : (
+                      <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                        ₹0
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text bg-white fw-bold text-muted border-end-0" style={{ fontSize: '13px', height: '34px' }}>
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      name="discountAmount"
+                      value={editFormData.discountAmount}
+                      onChange={handleEditInputChange}
+                      min={0}
+                      max={Number(editFormData.originalFees) || 100000}
+                      step={500}
+                      className="form-control form-control-sm fw-bold border-start-0 text-warning-emphasis"
+                      style={{ height: '34px' }}
+                      placeholder="0"
+                    />
+                  </div>
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                    Deducted from gross course fee
+                  </span>
+                </div>
+
+                {/* 2. Concession Reason / Category (Optional) */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                      Concession Reason / Category
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      Optional
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    name="discountReason"
+                    value={editFormData.discountReason}
+                    onChange={handleEditInputChange}
+                    placeholder="e.g., Merit Scholarship, Sibling"
+                    className="form-control form-control-sm"
+                    style={{ height: '34px' }}
+                  />
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                    Justification for discount approval
+                  </span>
+                </div>
+
+                {/* 3. Recommended By (Staff / Counselor) (Optional) */}
+                <div className="col-12 col-md-4">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Recommended By Staff
+                    </label>
+                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      Optional
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    name="discountRecommendedBy"
+                    value={editFormData.discountRecommendedBy}
+                    onChange={handleEditInputChange}
+                    placeholder="e.g., Miss Shilpa (Counselor)"
+                    className="form-control form-control-sm"
+                    style={{ height: '34px' }}
+                  />
+                  <span className="text-muted d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                    Authorizing officer recommending concession
+                  </span>
+                </div>
+
+                {/* Full-width Quick Concession Presets Row */}
+                <div className="col-12 mt-1">
+                  <div
+                    className="d-flex align-items-center gap-1.5 flex-wrap p-2 rounded-2"
+                    style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}
+                  >
+                    <span className="text-muted small fw-semibold me-1" style={{ fontSize: '11px' }}>
+                      ⚡ Quick Presets:
+                    </span>
+                    {[
+                      { label: '₹2,000', val: 2000 },
+                      { label: '₹5,000', val: 5000 },
+                      { label: '₹10,000', val: 10000 },
+                      { label: '10% Off', val: '10%' },
+                      { label: '20% Off', val: '20%' },
+                      { label: 'Clear (₹0)', val: 0 }
+                    ].map((preset) => {
+                      const orig = Number(editFormData.originalFees) || 0;
+                      const presetAmount = typeof preset.val === 'string' ? Math.round((orig * parseFloat(preset.val)) / 100) : preset.val;
+                      const isSelected = Number(editFormData.discountAmount) === presetAmount;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => handleApplyPresetDiscount(preset.val)}
+                          className="btn btn-xs py-0.5 px-2.5 rounded-pill fw-semibold transition-all"
+                          style={{
+                            fontSize: '11px',
+                            backgroundColor: isSelected ? '#FEF3C7' : '#FFFFFF',
+                            color: isSelected ? '#B45309' : '#475569',
+                            border: isSelected ? '1.5px solid #F59E0B' : '1px solid #CBD5E1'
+                          }}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Concession Notice when discount > 0 */}
+                {Number(editFormData.discountAmount) > 0 && (
+                  <div className="col-12">
+                    <div
+                      className="p-2.5 rounded-2 d-flex align-items-center gap-2 small"
+                      style={{ backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', color: '#92400E' }}
+                    >
+                      <ShieldCheck size={16} className="text-warning-emphasis flex-shrink-0" />
+                      <span style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
+                        <strong>Concession Policy:</strong> Concession request of ₹{Number(editFormData.discountAmount).toLocaleString('en-IN')} reduces standard course fee from ₹{Number(editFormData.originalFees).toLocaleString('en-IN')} to ₹{Math.max(0, Number(editFormData.originalFees) - Number(editFormData.discountAmount)).toLocaleString('en-IN')}. Super Admin approval is logged automatically.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Fee Collection Progress Bar (matching Image 2) */}
+              <div
+                className="mt-3 p-2.5 rounded-3"
+                style={{ backgroundColor: '#F8F9FA', border: '1px solid #E9ECEF' }}
+              >
+                <div className="d-flex justify-content-between align-items-center mb-1 small">
+                  <span className="text-muted fw-semibold" style={{ fontSize: '11.5px' }}>Fee Collection Progress:</span>
+                  <span className="fw-bold text-sa-charcoal" style={{ fontSize: '12px' }}>
+                    ₹{Number(editFormData.paidFees || 0).toLocaleString('en-IN')} of ₹
+                    {Number(editFormData.totalFees || 0).toLocaleString('en-IN')} (
+                    {editFormData.totalFees > 0
+                      ? Math.round(((Number(editFormData.paidFees) || 0) / Number(editFormData.totalFees)) * 100)
+                      : 0}
+                    %)
+                  </span>
+                </div>
+                <div className="progress" style={{ height: '7px', borderRadius: '4px' }}>
+                  <div
+                    className="progress-bar transition-all"
+                    role="progressbar"
+                    style={{
+                      width: `${
+                        editFormData.totalFees > 0
+                          ? Math.min(100, ((Number(editFormData.paidFees) || 0) / Number(editFormData.totalFees)) * 100)
+                          : 0
+                      }%`,
+                      backgroundColor: '#8B1216',
+                      borderRadius: '4px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Real-time 5-Card Financial Breakdown Banner */}
+              <div className="row g-2 mt-2 pt-2 border-top">
+                <div className="col-6 col-md">
+                  <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs">
+                    <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>1. Gross Tuition</span>
+                    <strong className="text-sa-charcoal d-block mt-0.5" style={{ fontSize: '14.5px' }}>
+                      ₹{Number(editFormData.originalFees || 0).toLocaleString('en-IN')}
+                    </strong>
+                    <span className="text-muted text-xs" style={{ fontSize: '10px' }}>Standard Fee</span>
+                  </div>
+                </div>
+
+                <div className="col-6 col-md">
+                  <div
+                    className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs"
+                    style={{ borderColor: Number(editFormData.discountAmount) > 0 ? '#FCD34D' : '#E2E8F0' }}
+                  >
+                    <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>2. Concession</span>
+                    <strong className="d-block mt-0.5 text-warning-emphasis" style={{ fontSize: '14.5px' }}>
+                      {Number(editFormData.discountAmount) > 0 ? `- ₹${Number(editFormData.discountAmount).toLocaleString('en-IN')}` : '₹0'}
+                    </strong>
+                    <span className="text-muted text-xs" style={{ fontSize: '10px' }}>
+                      {Number(editFormData.discountAmount) > 0 ? 'Concession Applied' : 'No Concession'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="col-6 col-md">
+                  <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs" style={{ borderColor: '#93C5FD', backgroundColor: '#F0F9FF' }}>
+                    <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>3. Net Course Fee</span>
+                    <strong className="d-block mt-0.5 text-primary fw-bold" style={{ fontSize: '14.5px' }}>
+                      ₹{Math.max(0, Number(editFormData.originalFees || 0) - Number(editFormData.discountAmount || 0)).toLocaleString('en-IN')}
+                    </strong>
+                    <span className="text-primary text-opacity-75 text-xs fw-semibold" style={{ fontSize: '10px' }}>Net Payable</span>
+                  </div>
+                </div>
+
+                <div className="col-6 col-md">
+                  <div className="p-2 rounded-2 bg-white border text-center h-100 shadow-2xs">
+                    <span className="small text-muted d-block" style={{ fontSize: '10.5px' }}>4. Downpayment</span>
+                    <strong className="d-block mt-0.5 text-success" style={{ fontSize: '14.5px' }}>
+                      ₹{Number(editFormData.paidFees || 0).toLocaleString('en-IN')}
+                    </strong>
+                    <span className="text-success text-opacity-75 text-xs" style={{ fontSize: '10px' }}>Paid to Date</span>
+                  </div>
+                </div>
+
+                <div className="col-12 col-md">
+                  <div
+                    className="p-2 rounded-2 border text-center h-100 shadow-2xs"
+                    style={{ backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' }}
+                  >
+                    <span className="small text-danger d-block fw-semibold" style={{ fontSize: '10.5px' }}>5. Pending Dues</span>
+                    <strong className="d-block mt-0.5 text-danger fw-extrabold" style={{ fontSize: '15px' }}>
+                      ₹{Math.max(0, Math.max(0, Number(editFormData.originalFees || 0) - Number(editFormData.discountAmount || 0)) - Number(editFormData.paidFees || 0)).toLocaleString('en-IN')}
+                    </strong>
+                    <span className="text-danger text-opacity-75 text-xs" style={{ fontSize: '10px' }}>Net − Paid</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
+

@@ -110,6 +110,16 @@ export const studentService = {
     };
   },
 
+  getNextRollNumber: async (branch) => {
+    try {
+      const res = await api.get('/students/next-roll-number', { params: branch ? { branch } : {} });
+      return res.data?.next_roll_number || 'STD-111';
+    } catch (err) {
+      console.warn('Could not fetch next roll number:', err);
+      return 'STD-111';
+    }
+  },
+
   create: async (data) => {
     const totalFees = Number(data.totalFees ?? data.total_fees ?? 0);
     const paidFees = Number(data.paidFees ?? data.paid_fees ?? data.downPayment ?? 0);
@@ -132,6 +142,7 @@ export const studentService = {
 
     const payload = {
       student_id: data.rollNumber || data.student_id || undefined,
+      rollNumber: data.rollNumber || data.student_id || undefined,
       full_name: (data.name || data.full_name || data.fullName || '').trim(),
       email: data.email?.trim() ? data.email.trim() : undefined,
       password: data.password || cleanMobile || undefined,
@@ -150,7 +161,6 @@ export const studentService = {
       session: data.session || undefined,
       branch: data.branch || 'Tarabai Park',
       academic_year: data.academic_year || '2025-2026',
-      rfid_tag: data.rfidCard || data.rfid_tag || undefined,
       admission_date: data.admission_date || data.admissionDate || new Date().toISOString(),
       original_fees: origFees,
       discount_amount: discAmount,
@@ -174,6 +184,7 @@ export const studentService = {
     if (data.parentPhone) payload.parent_mobile = data.parentPhone;
     if (data.parentMobile) payload.parent_mobile = data.parentMobile;
     if (data.parentName) payload.parent_name = data.parentName;
+    if (data.relation) payload.relation = data.relation;
     if (data.standard) payload.standard = data.standard;
     if (data.batch) payload.batch = data.batch;
     if (data.academicBatch) payload.academic_batch = data.academicBatch;
@@ -181,8 +192,26 @@ export const studentService = {
     if (data.session !== undefined) payload.session = data.session;
     if (data.branch) payload.branch = data.branch;
     if (data.dob) payload.date_of_birth = data.dob;
+    if (data.date_of_birth) payload.date_of_birth = data.date_of_birth;
+    if (data.gender) payload.gender = data.gender;
+    if (data.address) payload.address = data.address;
+    if (data.rfidCard) payload.rfid_tag = data.rfidCard;
+    if (data.rfid_tag) payload.rfid_tag = data.rfid_tag;
+    if (data.rollNumber) payload.student_id = data.rollNumber;
+    if (data.originalFees !== undefined) payload.original_fees = Number(data.originalFees);
+    if (data.original_fees !== undefined) payload.original_fees = Number(data.original_fees);
+    if (data.discountAmount !== undefined) payload.discount_amount = Number(data.discountAmount);
+    if (data.discount_amount !== undefined) payload.discount_amount = Number(data.discount_amount);
+    if (data.discountReason) payload.discount_reason = data.discountReason;
+    if (data.discount_reason) payload.discount_reason = data.discount_reason;
+    if (data.discountRecommendedBy) payload.discount_recommended_by = data.discountRecommendedBy;
+    if (data.discount_recommended_by) payload.discount_recommended_by = data.discount_recommended_by;
     if (data.totalFees !== undefined) payload.total_fees = Number(data.totalFees);
+    if (data.total_fees !== undefined) payload.total_fees = Number(data.total_fees);
     if (data.paidFees !== undefined) payload.paid_fees = Number(data.paidFees);
+    if (data.paid_fees !== undefined) payload.paid_fees = Number(data.paid_fees);
+    if (data.remainingFees !== undefined) payload.remaining_fees = Number(data.remainingFees);
+    if (data.profileCompleted !== undefined) payload.profile_completed = Boolean(data.profileCompleted);
     
     const res = await api.put(`/students/${id}`, payload);
     return res.data;

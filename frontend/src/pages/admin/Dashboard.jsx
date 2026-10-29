@@ -63,8 +63,16 @@ export default function AdminDashboard() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const currentBranch = isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI;
 
-  // Selected campus state - allows dynamic switching between Tarabai Park & Mangalvar Peth
+  // Selected campus state - automatically scoped to user's assigned branch
   const [selectedCampus, setSelectedCampus] = useState(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+
+  // Automatically keep campus synchronized with user's assigned branch
+  useEffect(() => {
+    if (activeBranch) {
+      const isM = Boolean(activeBranch.toLowerCase().includes('mangal'));
+      setSelectedCampus(isM ? BRANCH_MANGALWAR : BRANCH_TARABAI);
+    }
+  }, [activeBranch]);
 
   // Dynamic Fee Stats State
   const [feeStats, setFeeStats] = useState({
@@ -439,40 +447,6 @@ export default function AdminDashboard() {
                   Active Campus
                 </span>
               </span>
-
-              {/* Quick Campus Switcher */}
-              <div className="btn-group p-0.5 rounded-pill bg-white border shadow-xs" role="group" aria-label="Campus quick switch">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
-                    selectedCampus === BRANCH_TARABAI
-                      ? 'btn-danger text-white shadow-xs'
-                      : 'text-secondary'
-                  }`}
-                  style={{
-                    fontSize: '0.74rem',
-                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
-                  }}
-                >
-                  🌲 Tarabai Park
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
-                    selectedCampus === BRANCH_MANGALWAR
-                      ? 'btn-danger text-white shadow-xs'
-                      : 'text-secondary'
-                  }`}
-                  style={{
-                    fontSize: '0.74rem',
-                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
-                  }}
-                >
-                  🏛️ Mangalvar Peth
-                </button>
-              </div>
             </div>
             <p
               className="text-sa-charcoal text-opacity-75 m-0 mt-2"
@@ -690,42 +664,44 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Campus Switcher Tabs & Quick Navigation */}
+          {/* Campus Switcher Tabs (SuperAdmin only) & Quick Navigation */}
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
-              <button
-                type="button"
-                onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                  selectedCampus === BRANCH_TARABAI
-                    ? 'btn-danger text-white shadow-xs'
-                    : 'btn-light text-secondary'
-                }`}
-                style={{
-                  fontSize: '0.78rem',
-                  backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
-                  borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
-                }}
-              >
-                <span>🌲 Tarabai Park</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                  selectedCampus === BRANCH_MANGALWAR
-                    ? 'btn-danger text-white shadow-xs'
-                    : 'btn-light text-secondary'
-                }`}
-                style={{
-                  fontSize: '0.78rem',
-                  backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
-                  borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
-                }}
-              >
-                <span>🏛️ Mangalvar Peth</span>
-              </button>
-            </div>
+            {isSuperAdmin && (
+              <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampus(BRANCH_TARABAI)}
+                  className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                    selectedCampus === BRANCH_TARABAI
+                      ? 'btn-danger text-white shadow-xs'
+                      : 'btn-light text-secondary'
+                  }`}
+                  style={{
+                    fontSize: '0.78rem',
+                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
+                    borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                  }}
+                >
+                  <span>🌲 Tarabai Park</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
+                  className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                    selectedCampus === BRANCH_MANGALWAR
+                      ? 'btn-danger text-white shadow-xs'
+                      : 'btn-light text-secondary'
+                  }`}
+                  style={{
+                    fontSize: '0.78rem',
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
+                    borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                  }}
+                >
+                  <span>🏛️ Mangalvar Peth</span>
+                </button>
+              </div>
+            )}
 
             <button
               type="button"

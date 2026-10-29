@@ -47,6 +47,18 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
+import traceback
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {str(exc)}"}
+    )
+
 from app.routers import (
     auth, students, teachers, attendance, marks, exams, fees, salary, notices,
     reports, materials, leave_requests, inventory, batches, reminders,

@@ -278,15 +278,15 @@ export default function TopicDurationPlanner() {
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [branchFilter, setBranchFilter] = useState('All');
+  const [branchFilter, setBranchFilter] = useState('Mangalwar Peth');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    branch: 'Tarabai Park',
+    branch: 'Mangalwar Peth',
     subject: 'Physics (Class 12th)',
-    batch: '12th pcm tarabai park',
+    batch: '11th pcm Mangalvar Peth (Morning)',
     chapter: '',
     topicName: '',
     requiredPeriods: '3',
@@ -765,16 +765,25 @@ export default function TopicDurationPlanner() {
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            <select
-              className="form-select form-select-sm"
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
-            >
-              <option value="All">All Branches</option>
-              <option value="Tarabai Park">Tarabai Park</option>
-              <option value="Mangalwar Peth">Mangalwar Peth</option>
-            </select>
+            {user?.role === 'teacher' ? (
+              <span
+                className="badge bg-white text-sa-charcoal border px-3 py-1.5 rounded-3 d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                style={{ height: '36px', fontSize: '12.5px', borderColor: '#CBD5E1', color: '#1E293B', backgroundColor: '#F8FAFC' }}
+                title="Branch automated to Mangalwar Peth"
+              >
+                🏛️ Mangalwar Peth
+              </span>
+            ) : (
+              <select
+                className="form-select form-select-sm"
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
+              >
+                <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
+                <option value="All">All Branches</option>
+              </select>
+            )}
 
             <select
               className="form-select form-select-sm"
@@ -968,24 +977,19 @@ export default function TopicDurationPlanner() {
           <div className="row g-3">
             <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
-              <select
-                className="form-select form-select-sm"
-                value={form.branch}
-                onChange={(e) => {
-                  const b = e.target.value;
-                  const isMangal = b.toLowerCase().includes('mangal');
-                  setForm({
-                    ...form,
-                    branch: b,
-                    batch: isMangal
-                      ? '11th pcm Mangalvar Peth (Morning)'
-                      : '12th pcm tarabai park'
-                  });
-                }}
-              >
-                <option value="Tarabai Park">Tarabai Park Branch</option>
-                <option value="Mangalwar Peth">Mangalwar Peth Branch</option>
-              </select>
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-light text-muted border-end-0">
+                  <MapPin size={13} className="text-sa-maroon" />
+                </span>
+                <input
+                  type="text"
+                  className="form-control form-control-sm bg-light fw-semibold text-sa-charcoal border-start-0"
+                  value="🏛️ Mangalwar Peth (Fixed)"
+                  readOnly
+                  disabled
+                  style={{ height: '34px', fontSize: '12.5px' }}
+                />
+              </div>
             </div>
 
             <div className="col-12 col-md-6">
@@ -1043,46 +1047,41 @@ export default function TopicDurationPlanner() {
                 onChange={(e) => setForm({ ...form, batch: e.target.value })}
                 required
               >
-                {form.branch?.toLowerCase().includes('mangal') ? (
-                  <>
-                    <optgroup label="☀️ Morning Session">
-                      <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                      <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                      <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                      <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                      <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                      <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-                    </optgroup>
-                    <optgroup label="🌙 Evening Session">
-                      <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                      <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                      <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                      <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                      <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                      <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-                    </optgroup>
-                    {form.batch && !form.batch.includes('(Morning)') && !form.batch.includes('(Evening)') && form.batch.toLowerCase().includes('mangal') && (
-                      <option value={form.batch}>{form.batch}</option>
-                    )}
-                    <option value="All Enrolled Batches">All Enrolled Batches</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                    <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                    <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                    <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                    <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                    <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                    {form.batch && form.batch.toLowerCase().includes('tarabai') && ![
-                      '11th pcm tarabai park', '11th pcb tarabai park', '11th pcmb tarabai park',
-                      '12th pcm tarabai park', '12th pcb tarabai park', '12th pcmb tarabai park'
-                    ].includes(form.batch) && (
-                      <option value={form.batch}>{form.batch}</option>
-                    )}
-                    <option value="All Enrolled Batches">All Enrolled Batches</option>
-                  </>
+                <optgroup label="☀️ Morning Session">
+                  <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                  <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                  <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                  <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                  <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                  <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                </optgroup>
+                <optgroup label="🌙 Evening Session">
+                  <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                  <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                  <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                  <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                  <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                  <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                </optgroup>
+                <optgroup label="General / Other Batches">
+                  <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                  <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                  <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                  <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                  <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                  <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                </optgroup>
+                {form.batch && ![
+                  '11th pcm Mangalvar Peth (Morning)', '11th pcb Mangalvar Peth (Morning)', '11th pcmb Mangalvar Peth (Morning)',
+                  '12th pcm Mangalvar Peth (Morning)', '12th pcb Mangalvar Peth (Morning)', '12th pcmb Mangalvar Peth (Morning)',
+                  '11th pcm Mangalvar Peth (Evening)', '11th pcb Mangalvar Peth (Evening)', '11th pcmb Mangalvar Peth (Evening)',
+                  '12th pcm Mangalvar Peth (Evening)', '12th pcb Mangalvar Peth (Evening)', '12th pcmb Mangalvar Peth (Evening)',
+                  '11th pcm Mangalvar Peth', '11th pcb Mangalvar Peth', '11th pcmb Mangalvar Peth',
+                  '12th pcm Mangalvar Peth', '12th pcb Mangalvar Peth', '12th pcmb Mangalvar Peth'
+                ].includes(form.batch) && (
+                  <option value={form.batch}>{form.batch}</option>
                 )}
+                <option value="All Enrolled Batches">All Enrolled Batches</option>
               </select>
             </div>
 

@@ -53,3 +53,4 @@ var/
 *.egg
 venv/
 .venv/
+*.db

@@ -18,6 +18,16 @@ async def add_student(
         raise HTTPException(status_code=403, detail="Only Admins can register new students")
     return await create_student(student_in, current_user)
 
+@router.get("/next-roll-number")
+async def get_next_roll_number_endpoint(
+    branch: Optional[str] = None,
+    token: str = Depends(oauth2_scheme)
+):
+    await get_current_user(token)
+    from app.services.student_service import get_next_roll_number
+    next_roll = await get_next_roll_number(branch=branch)
+    return {"next_roll_number": next_roll}
+
 @router.get("/discounts/approvals")
 async def list_discount_approvals(status: Optional[str] = None, branch: Optional[str] = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
