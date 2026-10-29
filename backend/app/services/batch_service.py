@@ -89,6 +89,48 @@ async def ensure_default_batches():
                 academic_year="2025-2026",
                 branch="Tarabai Park",
                 status="Active"
+            ),
+            Batch(
+                name="12th pcm mangalvar peth",
+                standard="12th Science",
+                subject="Physics",
+                room="Room 101",
+                time="08:00 AM – 10:30 AM",
+                student_count=25,
+                teacher_name=teacher_name,
+                teacher=teacher,
+                batch_name="PCM",
+                class_code="12-PCM-MP",
+                days=["Monday", "Wednesday", "Friday"],
+                timetable=[
+                    {"day": "Monday", "time": "08:00 AM – 10:30 AM", "room": "Room 101", "subject": "Physics", "class_code": "12-PCM-MP"},
+                    {"day": "Wednesday", "time": "08:00 AM – 10:30 AM", "room": "Room 101", "subject": "Physics", "class_code": "12-PCM-MP"},
+                    {"day": "Friday", "time": "08:00 AM – 10:30 AM", "room": "Room 101", "subject": "Physics", "class_code": "12-PCM-MP"}
+                ],
+                academic_year="2025-2026",
+                branch="Mangalvar Peth",
+                status="Active"
+            ),
+            Batch(
+                name="11th pcm mangalvar peth",
+                standard="11th Science",
+                subject="Physics",
+                room="Room 102",
+                time="10:30 AM – 01:00 PM",
+                student_count=22,
+                teacher_name=teacher_name,
+                teacher=teacher,
+                batch_name="PCM",
+                class_code="11-PCM-MP",
+                days=["Tuesday", "Thursday", "Saturday"],
+                timetable=[
+                    {"day": "Tuesday", "time": "10:30 AM – 01:00 PM", "room": "Room 102", "subject": "Physics", "class_code": "11-PCM-MP"},
+                    {"day": "Thursday", "time": "10:30 AM – 01:00 PM", "room": "Room 102", "subject": "Physics", "class_code": "11-PCM-MP"},
+                    {"day": "Saturday", "time": "10:30 AM – 01:00 PM", "room": "Room 102", "subject": "Physics", "class_code": "11-PCM-MP"}
+                ],
+                academic_year="2025-2026",
+                branch="Mangalvar Peth",
+                status="Active"
             )
         ]
         for b in default_batches:
@@ -322,8 +364,8 @@ async def get_all_batches(
             if "tarabai" in target:
                 if "tarabai" in b_br or "tarabai" in b_name:
                     filtered.append(b)
-            elif "mangal" in target:
-                if "mangal" in b_br or "mangal" in b_name:
+            elif "mangal" in target or "manglavar" in target:
+                if "mangal" in b_br or "manglavar" in b_br or "mangal" in b_name or "manglavar" in b_name:
                     filtered.append(b)
             elif target in b_br or target in b_name:
                 filtered.append(b)

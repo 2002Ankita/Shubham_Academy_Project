@@ -128,6 +128,9 @@ export const examService = {
         const startTimeInput = extractTimeInput(exam.start_time);
         const endTimeInput = extractTimeInput(exam.end_time);
 
+        const checkStr = `${exam.branch || ''} ${exam.batch || ''} ${exam.exam_name || ''} ${exam.standard || ''}`.toLowerCase();
+        const resolvedBranch = exam.branch || (checkStr.includes('tarabai') ? 'Tarabai Park' : (checkStr.includes('mangal') ? 'Mangalvar Peth' : (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All' ? activeBranch : 'Tarabai Park')));
+
         return {
           id: exam.id,
           title: exam.exam_name,
@@ -139,7 +142,7 @@ export const examService = {
           examStandard: exam.standard,
           section: exam.section || '',
           batch: exam.batch || exam.section || 'General',
-          branch: exam.branch || (activeBranch || 'Mangalvar Peth'),
+          branch: resolvedBranch,
           classBatch: exam.section ? `${exam.standard} (${exam.section})` : (exam.batch ? `${exam.standard} (${exam.batch})` : exam.standard),
           subject: exam.subject,
           date: examDateStr,
@@ -161,20 +164,20 @@ export const examService = {
         };
       });
 
-      if (activeBranch) {
+      if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
         list = filterExamsByBranch(list, activeBranch);
       }
       return list;
     } catch (e) {
       console.warn('Exams fetch fallback for branch:', activeBranch);
-      const isTP = activeBranch === 'Tarabai Park';
-      return isTP ? [
+      const allFallbackExams = [
         { id: 'ex-tp-01', title: 'Tarabai Physics Unit Test', examName: 'Tarabai Physics Unit Test', standard: '11th Science', batch: '11th pcm tarabai park', branch: 'Tarabai Park', subject: 'Physics', date: '2026-10-25', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Room 101' },
-        { id: 'ex-tp-02', title: 'Tarabai Mathematics Mid-Term', examName: 'Tarabai Mathematics Mid-Term', standard: '12th Science', batch: '12th pcm tarabai park', branch: 'Tarabai Park', subject: 'Mathematics', date: '2026-10-28', startTime: '02:00 PM', endTime: '05:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Room 201' }
-      ] : [
+        { id: 'ex-tp-02', title: 'Tarabai Mathematics Mid-Term', examName: 'Tarabai Mathematics Mid-Term', standard: '12th Science', batch: '12th pcm tarabai park', branch: 'Tarabai Park', subject: 'Mathematics', date: '2026-10-28', startTime: '02:00 PM', endTime: '05:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Room 201' },
         { id: 'ex-mp-01', title: 'Mangalvar Peth Physics Evaluation', examName: 'Mangalvar Peth Physics Evaluation', standard: '11th Science', batch: '11th pcm Mangalvar Peth', branch: 'Mangalvar Peth', subject: 'Physics', date: '2026-10-25', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Hall 1' },
         { id: 'ex-mp-02', title: 'Mangalvar Peth Chemistry Mock', examName: 'Mangalvar Peth Chemistry Mock', standard: '12th Science', batch: '12th pcb Mangalvar Peth', branch: 'Mangalvar Peth', subject: 'Chemistry', date: '2026-10-29', startTime: '10:00 AM', endTime: '01:00 PM', duration: '3 Hours', maxMarks: 100, passingMarks: 35, status: 'Scheduled', roomNo: 'Hall 2' }
       ];
+      if (!activeBranch || activeBranch === 'ALL' || activeBranch === 'All') return allFallbackExams;
+      return filterExamsByBranch(allFallbackExams, activeBranch);
     }
   },
 

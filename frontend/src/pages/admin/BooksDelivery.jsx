@@ -20,7 +20,8 @@ import {
   Briefcase,
   Calendar,
   Printer,
-  RefreshCw
+  RefreshCw,
+  Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
@@ -36,7 +37,7 @@ import {
   formatStudentBatchDisplay,
   getStudentAssignment
 } from '../../config/branchBatchConfig';
-import { getUserBranch } from '../../utils/branchUtils';
+import { getUserBranch, isSuperAdminUser } from '../../utils/branchUtils';
 
 // Helper to get local ISO string for datetime-local input (YYYY-MM-DDTHH:mm)
 const getCurrentLocalDateTime = () => {
@@ -59,10 +60,13 @@ export default function BooksDelivery() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { confirm } = useConfirm();
-  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin') || (user?.role || '').toLowerCase().includes('super') || isSuperAdminUser(user);
   const activeBranch = getUserBranch(user);
+  const userBranch = activeBranch;
   const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const isMangalwar = isMP;
   const defaultBranch = isSuperAdmin ? '' : (isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
+  const defaultBranchConstant = isMangalwar ? BRANCH_MANGALWAR : BRANCH_TARABAI;
   const currentStaffName = user?.full_name || user?.name || 'Academy Admin';
 
   const [deliveries, setDeliveries] = useState([]);
@@ -78,7 +82,7 @@ export default function BooksDelivery() {
   const [subjectFilter, setSubjectFilter] = useState('All');
   const [recipientFilter, setRecipientFilter] = useState('All');
   const [filterBranch, setFilterBranch] = useState(defaultBranch);
-  const [filterSession, setFilterSession] = useState('');
+  const [filterSession, setFilterSession] = useState(isMP ? 'Morning' : '');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
 
   // Handover Modal Branch & Batch Selection State
@@ -389,6 +393,21 @@ export default function BooksDelivery() {
     const matchesSubj = subjectFilter === 'All' || (d.subject || '').toLowerCase() === subjectFilter.toLowerCase();
     const matchesRecipient = recipientFilter === 'All' || (d.recipientType || 'Student').toLowerCase() === recipientFilter.toLowerCase();
 
+    // Strict branch isolation for regular teachers / admins
+    if (!isSuperAdmin && userBranch) {
+      const delBranch = (d.branch || '').toLowerCase();
+      const delBatch = (d.batch || d.standard || '').toLowerCase();
+      if (isMangalwar) {
+        if (delBranch.includes('tarabai') || delBatch.includes('tarabai')) {
+          return false;
+        }
+      } else {
+        if (delBranch.includes('mangal') || delBatch.includes('mangal')) {
+          return false;
+        }
+      }
+    }
+
     // Branch & batch filtering
     if (filterBranch || filterAcademicBatch || filterSession) {
       if ((d.recipientType || 'Student').toLowerCase() === 'student') {
@@ -414,10 +433,18 @@ export default function BooksDelivery() {
       {/* 1. Page Header */}
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
-            <Truck className="text-sa-primary" size={24} />
-            <span>Books Delivery & Handover Desk</span>
-          </h3>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
+              <Truck className="text-sa-primary" size={24} />
+              <span>Books Delivery & Handover Desk</span>
+            </h3>
+            {userBranch && (
+              <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill fw-bold d-inline-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
+                <Building2 size={13} />
+                <span>{userBranch} Campus</span>
+              </span>
+            )}
+          </div>
           <span className="small text-sa-muted">
             Record Theory & CET book handouts to students and teachers, track who handed them over, and save records to database
           </span>
@@ -525,9 +552,9 @@ export default function BooksDelivery() {
             onSessionChange={setFilterSession}
             onBatchChange={setFilterAcademicBatch}
             showAllOption={isSuperAdmin}
-            fixedBranch={!isSuperAdmin}
             allOptionLabel="All"
             size="sm"
+            fixedBranch={!isSuperAdmin}
           />
         </div>
 

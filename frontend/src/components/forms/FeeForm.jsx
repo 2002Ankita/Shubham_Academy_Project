@@ -37,16 +37,16 @@ export default function FeeForm({
   onStudentSelectChange
 }) {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const activeBranch = getUserBranch(user);
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
-  const defaultBranch = (!isSuperAdmin && activeBranch)
+  const initialBranch = activeBranch
     ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI)
     : BRANCH_TARABAI;
   const defaultSession = (!isSuperAdmin && isMangal) ? 'Morning' : '';
 
   // 1. Standardized Branch, Session & Academic Batch State
-  const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
   const [selectedSession, setSelectedSession] = useState(defaultSession);
   const [selectedAcademicBatch, setSelectedAcademicBatch] = useState('11th PCM');
 
@@ -325,6 +325,7 @@ export default function FeeForm({
           required={true}
           showAllOption={false}
           fixedBranch={!isSuperAdmin}
+          allowedBranches={!isSuperAdmin ? [initialBranch] : undefined}
         />
       </div>
 

@@ -90,10 +90,10 @@ export default function StudentList() {
   const { user } = useAuth();
   const activeBranch = getUserBranch(user);
   const { confirm } = useConfirm();
-  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin') || (user?.role || '').toLowerCase().includes('super');
   const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
+  const userBranchNormalized = activeBranch ? (isMP ? CAMPUS.MANGALVAR_PETH : CAMPUS.TARABAI_PARK) : '';
   const defaultBranch = isSuperAdmin ? '' : (isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI));
-
   const [students, setStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'discounts'
   const [discountFilter, setDiscountFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -107,6 +107,8 @@ export default function StudentList() {
   const [filterBranch, setFilterBranch] = useState(defaultBranch);
   const [filterSession, setFilterSession] = useState('');
   const [filterAcademicBatch, setFilterAcademicBatch] = useState('');
+
+  const effectiveBranch = isSuperAdmin ? filterBranch : (userBranchNormalized || defaultBranch);
 
   // Complete Student Onboarding & Edit Modal State
   const [showEditModal, setShowEditModal] = useState(false);
@@ -155,7 +157,7 @@ export default function StudentList() {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const data = await studentService.getAll();
+      const data = await studentService.getAll({ branch: effectiveBranch });
       const sorted = [...(data || [])].sort((a, b) => {
         const dateA = a.admissionDate ? new Date(a.admissionDate).getTime() : 0;
         const dateB = b.admissionDate ? new Date(b.admissionDate).getTime() : 0;
@@ -170,7 +172,7 @@ export default function StudentList() {
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+  }, [effectiveBranch]);
 
   const handleApproveDiscount = async (id, name) => {
     const isConfirmed = await confirm({
@@ -607,7 +609,7 @@ export default function StudentList() {
 
   const filteredDiscounts = discountStudents.filter((s) => {
     const matchesPlacement = matchesStudentFilters(s, {
-      branch: filterBranch,
+      branch: effectiveBranch,
       session: filterSession,
       academicBatch: filterAcademicBatch
     });
@@ -625,7 +627,7 @@ export default function StudentList() {
 
   const filtered = students.filter(s => {
     const matchesPlacement = matchesStudentFilters(s, {
-      branch: filterBranch,
+      branch: effectiveBranch,
       session: filterSession,
       academicBatch: filterAcademicBatch
     });
@@ -714,7 +716,7 @@ export default function StudentList() {
               color: activeTab === 'all' ? '#8B1216' : '#FFFFFF'
             }}
           >
-            {students.length}
+            {filtered.length}
           </span>
         </button>
 
@@ -748,7 +750,7 @@ export default function StudentList() {
                 color: activeTab === 'discounts' ? '#8B1216' : '#475569'
               }}
             >
-              {discountStudents.length}
+              {filteredDiscounts.length}
             </span>
           )}
         </button>
@@ -779,14 +781,15 @@ export default function StudentList() {
               )}
             </div>
             <BranchBatchSelector
-              branch={filterBranch}
-              onBranchChange={setFilterBranch}
+              branch={effectiveBranch}
+              onBranchChange={isSuperAdmin ? setFilterBranch : undefined}
               session={filterSession}
               onSessionChange={setFilterSession}
               academicBatch={filterAcademicBatch}
               onAcademicBatchChange={setFilterAcademicBatch}
               showAllOption={isSuperAdmin}
               fixedBranch={!isSuperAdmin}
+              allowedBranches={!isSuperAdmin && userBranchNormalized ? [userBranchNormalized] : undefined}
               layout="grid"
             />
           </div>

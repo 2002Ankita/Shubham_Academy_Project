@@ -39,7 +39,7 @@ import { getUserBranch } from '../../utils/branchUtils';
 export default function LectureAttendanceManager() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin') || (user?.role || '').toLowerCase().includes('super');
   const activeBranch = getUserBranch(user);
   const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const defaultBranch = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
@@ -665,6 +665,7 @@ export default function LectureAttendanceManager() {
             onAcademicBatchChange={setSelectedAcademicBatch}
             showAllOption={isSuperAdmin}
             fixedBranch={!isSuperAdmin}
+            allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
             layout="grid"
           />
         </div>
@@ -1089,6 +1090,7 @@ export default function LectureAttendanceManager() {
                     onAcademicBatchChange={setUploadAcademicBatch}
                     showAllOption={isSuperAdmin}
                     fixedBranch={!isSuperAdmin}
+                    allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
                     layout="grid"
                   />
                 </div>

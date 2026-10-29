@@ -8,8 +8,9 @@ import LeaveDetailsModal from '../components/leave/LeaveDetailsModal';
 import Button from '../components/common/Button';
 import leaveService from '../services/leaveService';
 import useAuth from '../hooks/useAuth';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getUserBranch } from '../utils/branchUtils';
 
 export default function LeaveRequest() {
   const navigate = useNavigate();
@@ -80,9 +81,11 @@ export default function LeaveRequest() {
   const handleApplySuccess = async (requestPayload, resetFormCallback) => {
     try {
       if (!user) return;
+      const branchName = user?.branch || getUserBranch(user) || 'Mangalvar Peth';
       requestPayload.teacher_id = user.id;
-      requestPayload.teacher_name = user.full_name || user.name || 'Dr. Priya Kulkarni';
-      requestPayload.branch = user.branch || (user.email?.includes('tarabai') ? 'Tarabai Park' : 'Mangalvar Peth');
+      requestPayload.branch = branchName;
+      requestPayload.campus = branchName;
+      requestPayload.teacher_name = user?.full_name || user?.name || 'Dr. Priya Kulkarni';
       await leaveService.createLeaveRequest(requestPayload);
       toast.success('Leave application submitted successfully!');
       resetFormCallback();
@@ -211,13 +214,28 @@ export default function LeaveRequest() {
           <ArrowLeft size={18} />
         </button>
 
-        <div>
-          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '23px', lineHeight: 1.25 }}>
-            Leave Request
-          </h1>
-          <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
-            Apply for leave and track your leave requests
-          </p>
+        <div className="d-flex align-items-center justify-content-between flex-grow-1 flex-wrap gap-2">
+          <div>
+            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '23px', lineHeight: 1.25 }}>
+              Leave Request
+            </h1>
+            <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
+              Apply for leave and track your leave requests
+            </p>
+          </div>
+          <span
+            className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+            style={{
+              backgroundColor: '#FDF0F0',
+              color: '#8B1216',
+              border: '1px solid #F5C2C4',
+              fontSize: '0.82rem',
+              fontWeight: '600'
+            }}
+          >
+            <Building2 size={14} />
+            <span>{getUserBranch(user)} Campus</span>
+          </span>
         </div>
       </div>
 

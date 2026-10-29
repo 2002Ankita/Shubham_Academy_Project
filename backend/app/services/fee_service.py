@@ -1,6 +1,10 @@
-from app.models.fees import FeePayment, FeeStructure
+from app.models.fees import FeePayment, FeeStructure, BranchUpiScanner, OfflineFeeRequest
 from app.models.student import Student
-from app.schemas.fees import FeePaymentCreate, FeeDetailsResponse, FeeStructureCreate, FeeStructureUpdate, PendingFeeResponse
+from app.schemas.fees import (
+    FeePaymentCreate, FeeDetailsResponse, FeeStructureCreate, FeeStructureUpdate, PendingFeeResponse,
+    BranchUpiScannerCreate, BranchUpiScannerResponse, OfflineFeeRequestCreate, OfflineFeeRequestResponse,
+    OfflineFeeRequestVerify, OfflineFeeRequestReject
+)
 from fastapi import HTTPException
 from bson import ObjectId
 from typing import Optional
@@ -704,3 +708,348 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
             ))
             
     return pending_list
+
+DEFAULT_BRANCH_SCANNERS = {
+    "Tarabai Park": {
+        "branch": "Tarabai Park",
+        "upi_id": "shubham.tarabaipark@upi",
+        "account_name": "Shubham Academy - Tarabai Park Campus",
+        "bank_name": "HDFC Bank (Tarabai Park, Kolhapur)",
+        "account_number": "50200088921045",
+        "ifsc_code": "HDFC0001824",
+        "instructions": "Scan QR using Google Pay, PhonePe, Paytm or BHIM UPI. Enter exact installment amount and submit UTR reference.",
+        "qr_image_url": None,
+        "is_active": True
+    },
+    "Mangalvar Peth": {
+        "branch": "Mangalvar Peth",
+        "upi_id": "shubham.mangalvarpeth@upi",
+        "account_name": "Shubham Academy - Mangalvar Peth Campus",
+        "bank_name": "ICICI Bank (Mangalvar Peth, Kolhapur)",
+        "account_number": "031405009821",
+        "ifsc_code": "ICIC0000314",
+        "instructions": "Scan QR using Google Pay, PhonePe, Paytm or BHIM UPI. Enter exact installment amount and submit UTR reference.",
+        "qr_image_url": None,
+        "is_active": True
+    }
+}
+
+async def get_branch_upi_scanner(branch: Optional[str] = None) -> BranchUpiScannerResponse:
+    norm_branch = normalize_branch_name(branch or "Tarabai Park")
+    scanner = await BranchUpiScanner.find_one(BranchUpiScanner.branch == norm_branch)
+    if not scanner:
+        # Check case-insensitive
+        scanners = await BranchUpiScanner.find_all().to_list()
+        for s in scanners:
+            if normalize_branch_name(s.branch) == norm_branch:
+                scanner = s
+                break
+                
+    if scanner:
+        return BranchUpiScannerResponse(
+            id=str(scanner.id),
+            branch=scanner.branch,
+            upi_id=scanner.upi_id,
+            account_name=scanner.account_name,
+            bank_name=scanner.bank_name,
+            account_number=scanner.account_number,
+            ifsc_code=scanner.ifsc_code,
+            qr_image_url=scanner.qr_image_url,
+            instructions=scanner.instructions,
+            is_active=scanner.is_active,
+            updated_at=scanner.updated_at,
+            updated_by=scanner.updated_by
+        )
+        
+    # Return default initialized config for the branch
+    default_data = DEFAULT_BRANCH_SCANNERS.get(norm_branch, DEFAULT_BRANCH_SCANNERS["Tarabai Park"]).copy()
+    return BranchUpiScannerResponse(
+        id=f"default-{norm_branch.lower().replace(' ', '-')}",
+        branch=norm_branch,
+        upi_id=default_data["upi_id"],
+        account_name=default_data["account_name"],
+        bank_name=default_data["bank_name"],
+        account_number=default_data["account_number"],
+        ifsc_code=default_data["ifsc_code"],
+        qr_image_url=default_data["qr_image_url"],
+        instructions=default_data["instructions"],
+        is_active=True,
+        updated_at=datetime.utcnow(),
+        updated_by="System Default"
+    )
+
+async def save_branch_upi_scanner(scanner_in: BranchUpiScannerCreate, user_name: Optional[str] = None) -> BranchUpiScannerResponse:
+    norm_branch = normalize_branch_name(scanner_in.branch)
+    existing = await BranchUpiScanner.find_one(BranchUpiScanner.branch == norm_branch)
+    if not existing:
+        scanners = await BranchUpiScanner.find_all().to_list()
+        for s in scanners:
+            if normalize_branch_name(s.branch) == norm_branch:
+                existing = s
+                break
+
+    if existing:
+        existing.upi_id = scanner_in.upi_id
+        existing.account_name = scanner_in.account_name
+        existing.bank_name = scanner_in.bank_name
+        existing.account_number = scanner_in.account_number
+        existing.ifsc_code = scanner_in.ifsc_code
+        if scanner_in.qr_image_url is not None:
+            existing.qr_image_url = scanner_in.qr_image_url
+        if scanner_in.instructions:
+            existing.instructions = scanner_in.instructions
+        existing.is_active = scanner_in.is_active if scanner_in.is_active is not None else True
+        existing.updated_at = datetime.utcnow()
+        existing.updated_by = user_name or "Academic Admin"
+        await existing.save()
+        scanner = existing
+    else:
+        scanner = BranchUpiScanner(
+            branch=norm_branch,
+            upi_id=scanner_in.upi_id,
+            account_name=scanner_in.account_name,
+            bank_name=scanner_in.bank_name,
+            account_number=scanner_in.account_number,
+            ifsc_code=scanner_in.ifsc_code,
+            qr_image_url=scanner_in.qr_image_url,
+            instructions=scanner_in.instructions or "Scan and pay using any UPI app.",
+            is_active=scanner_in.is_active if scanner_in.is_active is not None else True,
+            updated_at=datetime.utcnow(),
+            updated_by=user_name or "Academic Admin"
+        )
+        await scanner.insert()
+
+    return BranchUpiScannerResponse(
+        id=str(scanner.id),
+        branch=scanner.branch,
+        upi_id=scanner.upi_id,
+        account_name=scanner.account_name,
+        bank_name=scanner.bank_name,
+        account_number=scanner.account_number,
+        ifsc_code=scanner.ifsc_code,
+        qr_image_url=scanner.qr_image_url,
+        instructions=scanner.instructions,
+        is_active=scanner.is_active,
+        updated_at=scanner.updated_at,
+        updated_by=scanner.updated_by
+    )
+
+async def create_offline_fee_request(req_in: OfflineFeeRequestCreate) -> OfflineFeeRequestResponse:
+    norm_branch = normalize_branch_name(req_in.branch)
+    req = OfflineFeeRequest(
+        student_id=req_in.student_id,
+        student_name=req_in.student_name,
+        roll_number=req_in.roll_number,
+        branch=norm_branch,
+        batch=req_in.batch,
+        standard=req_in.standard,
+        amount=req_in.amount,
+        payment_mode=req_in.payment_mode,
+        cheque_number=req_in.cheque_number,
+        bank_name=req_in.bank_name,
+        cheque_date=req_in.cheque_date,
+        depositor_name=req_in.depositor_name,
+        notes=req_in.notes,
+        collected_by_faculty=req_in.collected_by_faculty,
+        status="PENDING",
+        created_at=datetime.utcnow()
+    )
+    await req.insert()
+    return OfflineFeeRequestResponse(
+        id=str(req.id),
+        student_id=req.student_id,
+        student_name=req.student_name,
+        roll_number=req.roll_number,
+        branch=req.branch,
+        batch=req.batch,
+        standard=req.standard,
+        amount=req.amount,
+        payment_mode=req.payment_mode,
+        cheque_number=req.cheque_number,
+        bank_name=req.bank_name,
+        cheque_date=req.cheque_date,
+        depositor_name=req.depositor_name,
+        notes=req.notes,
+        collected_by_faculty=req.collected_by_faculty,
+        status=req.status,
+        receipt_no=req.receipt_no,
+        admin_remarks=req.admin_remarks,
+        created_at=req.created_at,
+        verified_at=req.verified_at,
+        verified_by=req.verified_by
+    )
+
+async def get_offline_fee_requests(
+    branch: Optional[str] = None,
+    status: Optional[str] = None
+) -> list[OfflineFeeRequestResponse]:
+    requests = await OfflineFeeRequest.find_all().sort("-created_at").to_list()
+    res = []
+    norm_branch = normalize_branch_name(branch) if branch and str(branch).upper() != "ALL" else None
+    
+    for r in requests:
+        if norm_branch and normalize_branch_name(r.branch) != norm_branch:
+            continue
+        if status and status.upper() != "ALL" and r.status.upper() != status.upper():
+            continue
+            
+        res.append(OfflineFeeRequestResponse(
+            id=str(r.id),
+            student_id=r.student_id,
+            student_name=r.student_name,
+            roll_number=r.roll_number,
+            branch=r.branch,
+            batch=r.batch,
+            standard=r.standard,
+            amount=r.amount,
+            payment_mode=r.payment_mode,
+            cheque_number=r.cheque_number,
+            bank_name=r.bank_name,
+            cheque_date=r.cheque_date,
+            depositor_name=r.depositor_name,
+            notes=r.notes,
+            collected_by_faculty=r.collected_by_faculty,
+            status=r.status,
+            receipt_no=r.receipt_no,
+            admin_remarks=r.admin_remarks,
+            created_at=r.created_at,
+            verified_at=r.verified_at,
+            verified_by=r.verified_by
+        ))
+    return res
+
+async def verify_offline_fee_request(
+    request_id: str,
+    verifier_name: str,
+    remarks: Optional[str] = None,
+    verified_amount: Optional[float] = None,
+    collected_by_faculty: Optional[str] = None
+) -> OfflineFeeRequestResponse:
+    try:
+        req = await OfflineFeeRequest.get(ObjectId(request_id))
+    except Exception:
+        req = None
+    if not req:
+        raise HTTPException(status_code=404, detail="Offline fee request not found")
+
+    if req.status == "APPROVED":
+        return OfflineFeeRequestResponse(
+            id=str(req.id),
+            student_id=req.student_id,
+            student_name=req.student_name,
+            roll_number=req.roll_number,
+            branch=req.branch,
+            batch=req.batch,
+            standard=req.standard,
+            amount=req.amount,
+            payment_mode=req.payment_mode,
+            cheque_number=req.cheque_number,
+            bank_name=req.bank_name,
+            cheque_date=req.cheque_date,
+            depositor_name=req.depositor_name,
+            notes=req.notes,
+            collected_by_faculty=req.collected_by_faculty,
+            status=req.status,
+            receipt_no=req.receipt_no,
+            admin_remarks=req.admin_remarks,
+            created_at=req.created_at,
+            verified_at=req.verified_at,
+            verified_by=req.verified_by
+        )
+
+    # Collect fee through official add_fee_payment
+    amount_to_collect = verified_amount if verified_amount and verified_amount > 0 else req.amount
+    ref_suffix = req.cheque_number or str(req.id)[-6:]
+    txn_ref = f"OFF-{req.payment_mode.upper()}-{ref_suffix}"
+    
+    faculty_note = f" [Received By: {collected_by_faculty}]" if collected_by_faculty else ""
+    fee_in = FeePaymentCreate(
+        student_id=req.student_id,
+        amount_paid=amount_to_collect,
+        payment_method=req.payment_mode,
+        transaction_reference=txn_ref,
+        remarks=f"Offline {req.payment_mode} Verified: {remarks or req.notes or 'Admin Approval'}{faculty_note}".strip(),
+        branch=req.branch,
+        standard=req.standard
+    )
+    
+    try:
+        payment_res = await add_fee_payment(fee_in)
+        receipt_no = f"REC-{payment_res['id'][-6:].upper()}" if 'id' in payment_res else f"REC-{str(req.id)[-6:].upper()}"
+    except Exception as fee_err:
+        print(f"Offline fee payment notice: {fee_err}")
+        receipt_no = f"REC-{str(req.id)[-6:].upper()}"
+    
+    req.status = "APPROVED"
+    req.receipt_no = receipt_no
+    req.admin_remarks = remarks or "Verified and collected by branch admin"
+    if collected_by_faculty:
+        req.collected_by_faculty = collected_by_faculty
+    req.verified_at = datetime.utcnow()
+    req.verified_by = verifier_name
+    await req.save()
+
+    return OfflineFeeRequestResponse(
+        id=str(req.id),
+        student_id=req.student_id,
+        student_name=req.student_name,
+        roll_number=req.roll_number,
+        branch=req.branch,
+        batch=req.batch,
+        standard=req.standard,
+        amount=amount_to_collect,
+        payment_mode=req.payment_mode,
+        cheque_number=req.cheque_number,
+        bank_name=req.bank_name,
+        cheque_date=req.cheque_date,
+        depositor_name=req.depositor_name,
+        notes=req.notes,
+        status=req.status,
+        receipt_no=req.receipt_no,
+        admin_remarks=req.admin_remarks,
+        created_at=req.created_at,
+        verified_at=req.verified_at,
+        verified_by=req.verified_by
+    )
+
+async def reject_offline_fee_request(
+    request_id: str,
+    verifier_name: str,
+    rejection_reason: str
+) -> OfflineFeeRequestResponse:
+    try:
+        req = await OfflineFeeRequest.get(ObjectId(request_id))
+    except Exception:
+        req = None
+    if not req:
+        raise HTTPException(status_code=404, detail="Offline fee request not found")
+
+    req.status = "REJECTED"
+    req.admin_remarks = rejection_reason
+    req.verified_at = datetime.utcnow()
+    req.verified_by = verifier_name
+    await req.save()
+
+    return OfflineFeeRequestResponse(
+        id=str(req.id),
+        student_id=req.student_id,
+        student_name=req.student_name,
+        roll_number=req.roll_number,
+        branch=req.branch,
+        batch=req.batch,
+        standard=req.standard,
+        amount=req.amount,
+        payment_mode=req.payment_mode,
+        cheque_number=req.cheque_number,
+        bank_name=req.bank_name,
+        cheque_date=req.cheque_date,
+        depositor_name=req.depositor_name,
+        notes=req.notes,
+        status=req.status,
+        receipt_no=req.receipt_no,
+        admin_remarks=req.admin_remarks,
+        created_at=req.created_at,
+        verified_at=req.verified_at,
+        verified_by=req.verified_by
+    )
+

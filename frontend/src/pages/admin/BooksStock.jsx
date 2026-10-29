@@ -24,14 +24,13 @@ import {
   User,
   ShieldCheck,
   RefreshCw,
-  Truck
+  Truck,
+  Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import inventoryService from '../../services/inventoryService';
 import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
-import { useAuth } from '../../hooks/useAuth';
-import { getUserBranch } from '../../utils/branchUtils';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
 import {
   BRANCH_TARABAI,
@@ -39,6 +38,8 @@ import {
   matchesStudentFilters,
   formatStudentBatchDisplay
 } from '../../config/branchBatchConfig';
+import { getUserBranch, isSuperAdminUser } from '../../utils/branchUtils';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function BooksStock() {
   const { user } = useAuth();
@@ -53,6 +54,8 @@ export default function BooksStock() {
 
   // Campus filter for stock (SuperAdmin can toggle; Branch Admin is locked to their campus)
   const [selectedCampus, setSelectedCampus] = useState(userCampus || 'All');
+  const defaultBranchConstant = defaultBranch;
+  const isMangalwar = isMangal;
 
   // Tab routing with URL parameter sync
   const tabParam = searchParams.get('tab');
@@ -134,6 +137,10 @@ export default function BooksStock() {
   const [restockQty, setRestockQty] = useState(25);
   const [restockRemarks, setRestockRemarks] = useState('');
 
+  const defaultStandard = !isSuperAdmin
+    ? (isMangalwar ? '11th pcm Mangalvar peth' : '11th pcm tarabai park')
+    : '11th & 12th Science';
+
   const [newBook, setNewBook] = useState({
     title: '',
     category: 'Theory',
@@ -198,7 +205,7 @@ export default function BooksStock() {
       stock[0];
 
     setHandoverForm({
-      inventoryItemId: matchedItem?.id || '',
+      inventoryItemId: matchedItem?.id || preselectedItemId || (stock[0]?.id || ''),
       studentId: '', // Clean empty default so user can easily search and select
       manualStudentName: '',
       manualRollNo: '',
@@ -347,7 +354,7 @@ export default function BooksStock() {
         category: newBook.category || 'Theory',
         subject: newBook.subject,
         standard: newBook.standard,
-        branch: bookBranch,
+        branch: bookBranch || (!isSuperAdmin ? defaultBranch : undefined),
         in_stock: inStock,
         total_stock: inStock,
         reorder_level: reorderLevel,
@@ -388,30 +395,88 @@ export default function BooksStock() {
     }
   };
 
-  // KPI calculations
-  const totalAvailableStock = stock.reduce((sum, item) => sum + (Number(item.inStock) || 0), 0);
-  const totalHandedOverCopies = deliveries.reduce((sum, del) => (del.status === 'Handed Over' || del.status === 'Delivered') ? sum + (Number(del.quantity) || 1) : sum, 0);
-  const lowStockCount = stock.filter(item => Number(item.inStock) <= Number(item.reorderLevel)).length;
-  const totalModulesCount = stock.length;
+  // Standard streams per campus
+  const MANGALWAR_STREAMS = [
+    '11th pcm Mangalvar peth',
+    '11th pcb Mangalvar peth',
+    '11th pcmb Mangalvar peth',
+    '12th pcm Mangalvar peth',
+    '12th pcb Mangalvar peth',
+    '12th pcmb Mangalvar peth'
+  ];
 
-  // Dynamic streams extracted from stock catalog + standard academy options
-  const streamOptions = Array.from(
-    new Set([
-      '11th & 12th Science',
-      '12th pcm tarabai park',
-      '12th pcb tarabai park',
-      '12th pcmb tarabai park',
-      '11th pcm tarabai park',
-      '11th pcb tarabai park',
-      '11th pcmb tarabai park',
-      '12th pcm Mangalvar peth',
-      '12th pcb Mangalvar peth',
-      ...stock.map(s => s.standard).filter(Boolean)
-    ])
-  );
+  const TARABAI_STREAMS = [
+    '11th pcm tarabai park',
+    '11th pcb tarabai park',
+    '11th pcmb tarabai park',
+    '12th pcm tarabai park',
+    '12th pcb tarabai park',
+    '12th pcmb tarabai park'
+  ];
+
+  // Branch-scoped stock & deliveries to guarantee zero cross-campus leakage
+  const branchScopedStock = React.useMemo(() => {
+    if (isSuperAdmin || !userBranch) return stock;
+    return stock.filter(item => {
+      const itemBranch = (item.branch || '').toLowerCase();
+      const itemStd = (item.standard || '').toLowerCase();
+      if (isMangalwar) {
+        return !itemBranch.includes('tarabai') && !itemStd.includes('tarabai');
+      } else {
+        return !itemBranch.includes('mangal') && !itemStd.includes('mangal');
+      }
+    });
+  }, [stock, isSuperAdmin, userBranch, isMangalwar]);
+
+  const branchScopedDeliveries = React.useMemo(() => {
+    if (isSuperAdmin || !userBranch) return deliveries;
+    return deliveries.filter(del => {
+      const delBranch = (del.branch || '').toLowerCase();
+      const delBatch = (del.batch || del.standard || '').toLowerCase();
+      if (isMangalwar) {
+        return !delBranch.includes('tarabai') && !delBatch.includes('tarabai');
+      } else {
+        return !delBranch.includes('mangal') && !delBatch.includes('mangal');
+      }
+    });
+  }, [deliveries, isSuperAdmin, userBranch, isMangalwar]);
+
+  // KPI calculations based strictly on branch-scoped data
+  const totalAvailableStock = branchScopedStock.reduce((sum, item) => sum + (Number(item.inStock) || 0), 0);
+  const totalHandedOverCopies = branchScopedDeliveries.reduce((sum, del) => (del.status === 'Handed Over' || del.status === 'Delivered') ? sum + (Number(del.quantity) || 1) : sum, 0);
+  const lowStockCount = branchScopedStock.filter(item => Number(item.inStock) <= Number(item.reorderLevel)).length;
+  const totalModulesCount = branchScopedStock.length;
+
+  // Dynamic streams strictly scoped to user's branch unless SuperAdmin
+  const streamOptions = React.useMemo(() => {
+    if (isSuperAdmin || !userBranch) {
+      return Array.from(
+        new Set([
+          '11th & 12th Science',
+          ...TARABAI_STREAMS,
+          ...MANGALWAR_STREAMS,
+          ...stock.map(s => s.standard).filter(Boolean)
+        ])
+      );
+    }
+
+    if (isMangalwar) {
+      const extra = branchScopedStock
+        .map(s => s.standard)
+        .filter(Boolean)
+        .filter(std => !std.toLowerCase().includes('tarabai'));
+      return Array.from(new Set([...MANGALWAR_STREAMS, ...extra]));
+    } else {
+      const extra = branchScopedStock
+        .map(s => s.standard)
+        .filter(Boolean)
+        .filter(std => !std.toLowerCase().includes('mangal'));
+      return Array.from(new Set([...TARABAI_STREAMS, ...extra]));
+    }
+  }, [branchScopedStock, stock, isSuperAdmin, userBranch, isMangalwar]);
 
   // Filtered stock list
-  const filteredStock = stock.filter(item => {
+  const filteredStock = branchScopedStock.filter(item => {
     const q = searchStock.trim().toLowerCase();
     const matchesSearch = !q ||
       (item.title && item.title.toLowerCase().includes(q)) ||
@@ -438,7 +503,7 @@ export default function BooksStock() {
   });
 
   // Filtered deliveries list
-  const filteredDeliveries = deliveries.filter(del => {
+  const filteredDeliveries = branchScopedDeliveries.filter(del => {
     const q = searchHandover.toLowerCase();
     const matchesSearch =
       (del.bookTitle && del.bookTitle.toLowerCase().includes(q)) ||
@@ -471,6 +536,12 @@ export default function BooksStock() {
               <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
                 Books Stock & Handover Tracking
               </h2>
+              {userBranch && (
+                <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill fw-bold d-inline-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
+                  <Building2 size={13} />
+                  <span>{userBranch} Campus</span>
+                </span>
+              )}
               <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '11px' }}>
                 Inventory & Distribution
               </span>
@@ -659,7 +730,7 @@ export default function BooksStock() {
               <Package size={15} />
               <span>Available Books Stock</span>
               <span className={`badge rounded-pill ${activeTab === 'stock' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`} style={{ fontSize: '11px' }}>
-                {stock.length}
+                {branchScopedStock.length}
               </span>
             </button>
 
@@ -679,7 +750,7 @@ export default function BooksStock() {
               <UserCheck size={15} />
               <span>Handover Tracking Register</span>
               <span className={`badge rounded-pill ${activeTab === 'handovers' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`} style={{ fontSize: '11px' }}>
-                {deliveries.length}
+                {branchScopedDeliveries.length}
               </span>
             </button>
           </div>
@@ -741,7 +812,9 @@ export default function BooksStock() {
                   value={selectedStockStream}
                   onChange={(e) => setSelectedStockStream(e.target.value)}
                 >
-                  <option value="All">All Streams & Centers</option>
+                  <option value="All">
+                    {isSuperAdmin ? 'All Streams & Centers' : `All ${userBranch || 'Campus'} Streams`}
+                  </option>
                   {streamOptions.map(st => (
                     <option key={st} value={st}>{st}</option>
                   ))}

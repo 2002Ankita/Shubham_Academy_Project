@@ -19,8 +19,8 @@ class LeaveRequestResponse(BaseModel):
     from_date: datetime
     to_date: datetime
     number_of_days: int
+    branch: Optional[str] = None
     reason: Optional[str]
     status: str
     admin_comment: Optional[str]
     created_at: datetime
-    branch: Optional[str] = None

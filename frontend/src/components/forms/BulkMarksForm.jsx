@@ -366,7 +366,23 @@ export default function BulkMarksForm({
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             <div className="fw-semibold text-sa-charcoal">{student.name}</div>
-                            <div className="small text-muted" style={{ fontSize: '11px' }}>{student.standard || student.batch || ''}</div>
+                            <div className="small text-muted d-flex align-items-center gap-1 flex-wrap" style={{ fontSize: '11px' }}>
+                              <span>{student.standard || student.batch || ''}</span>
+                              {student.branch && (
+                                <span
+                                  className="badge rounded-pill fw-medium"
+                                  style={{
+                                    fontSize: '9.5px',
+                                    padding: '1px 6px',
+                                    backgroundColor: student.branch.toLowerCase().includes('tarabai') ? '#EFF6FF' : '#FEF2F2',
+                                    color: student.branch.toLowerCase().includes('tarabai') ? '#1D4ED8' : '#8B1216',
+                                    border: `1px solid ${student.branch.toLowerCase().includes('tarabai') ? '#BFDBFE' : '#FECACA'}`
+                                  }}
+                                >
+                                  {student.branch}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             <div className="position-relative">

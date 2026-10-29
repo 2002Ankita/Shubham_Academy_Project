@@ -45,6 +45,8 @@ import FeeStructure from '../pages/admin/FeeStructure';
 import FeeReceiptsList from '../pages/admin/FeeReceiptsList';
 import FeeReminderSettings from '../pages/admin/FeeReminderSettings';
 import FeeReminderHistory from '../pages/admin/FeeReminderHistory';
+import BranchUpiScannerSettings from '../pages/admin/BranchUpiScannerSettings';
+import OfflineFeeRequests from '../pages/admin/OfflineFeeRequests';
 import CreateExam from '../pages/admin/CreateExam';
 import MarksEntry from '../pages/admin/MarksEntry';
 import Results from '../pages/admin/Results';
@@ -166,6 +168,8 @@ export default function AppRoutes() {
         <Route path="/admin/attendance" element={<AttendanceManagement />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
         <Route path="/admin/fees" element={<FeeCollection />} />
+        <Route path="/admin/fees/offline-requests" element={<OfflineFeeRequests />} />
+        <Route path="/admin/fees/upi-scanner" element={<BranchUpiScannerSettings />} />
         <Route path="/admin/fees/structure" element={<FeeStructure />} />
         <Route path="/admin/fees/pending" element={<PendingFees />} />
         <Route path="/admin/fees/receipts" element={<FeeReceiptsList />} />

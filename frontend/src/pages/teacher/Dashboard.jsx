@@ -10,6 +10,14 @@ import curriculumService from '../../services/curriculumService';
 import teacherService from '../../services/teacherService';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
+import {
+  getUserBranch,
+  filterStudentsByBranch,
+  filterBatchesByBranch,
+  filterExamsByBranch,
+  filterTeachersByBranch,
+  filterActivitiesByBranch
+} from '../../utils/branchUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -60,12 +68,14 @@ import {
   BarChart2,
   Tv,
   Check,
-  UserPlus
+  UserPlus,
+  Building2
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userBranch = getUserBranch(user);
 
   const [attendancePeriod, setAttendancePeriod] = useState('This Month');
 
@@ -196,7 +206,8 @@ export default function TeacherDashboard() {
         ]);
 
         if (teachersRes.status === 'fulfilled') {
-          setWorkingFaculty(teachersRes.value || []);
+          const scopedTeachers = filterTeachersByBranch(teachersRes.value || [], userBranch);
+          setWorkingFaculty(scopedTeachers);
         }
 
         if (user && user.id) {
@@ -218,16 +229,17 @@ export default function TeacherDashboard() {
         }
 
         if (studentsRes.status === 'fulfilled') {
-          const students = studentsRes.value || [];
-          setTotalStudents(students.length);
+          const scopedStudents = filterStudentsByBranch(studentsRes.value || [], userBranch);
+          setTotalStudents(scopedStudents.length);
         }
 
-        // Daily Activities for this teacher
+        // Daily Activities for this teacher (branch-scoped)
         if (activitiesRes.status === 'fulfilled') {
           const allActs = activitiesRes.value || [];
-          if (Array.isArray(allActs) && allActs.length > 0) {
+          const branchActs = filterActivitiesByBranch(allActs, userBranch);
+          if (Array.isArray(branchActs) && branchActs.length > 0) {
             const teacherName = user?.name || '';
-            const myActs = allActs.filter(item => {
+            const myActs = branchActs.filter(item => {
               const itemTeacher = item.teacher_name || item.teacherName || '';
               if (itemTeacher && isTeacherMatch(teacherName, itemTeacher, item.subject)) return true;
               const sub = (item.subject || '').toLowerCase();
@@ -244,7 +256,8 @@ export default function TeacherDashboard() {
 
         let examsList = [];
         if (examsRes.status === 'fulfilled') {
-          examsList = examsRes.value || [];
+          const allExams = examsRes.value || [];
+          examsList = filterExamsByBranch(allExams, userBranch);
           setTotalExams(examsList.length);
 
           // Filter for scheduled / upcoming exams
@@ -292,9 +305,10 @@ export default function TeacherDashboard() {
 
         if (batchesRes.status === 'fulfilled') {
           const batches = batchesRes.value || [];
-          let filteredBatches = batches;
+          const branchBatches = filterBatchesByBranch(batches, userBranch);
+          let filteredBatches = branchBatches;
           if (user && user.role === 'teacher' && user.name) {
-            filteredBatches = batches.filter(b => {
+            filteredBatches = branchBatches.filter(b => {
               if (b.teacher_name && isTeacherMatch(user.name, b.teacher_name, b.subject)) return true;
               if (Array.isArray(b.timetable)) {
                 return b.timetable.some(s => isTeacherMatch(user.name, s.teacher_name || b.teacher_name, s.subject || b.subject));
@@ -468,18 +482,33 @@ export default function TeacherDashboard() {
             >
               Ready to inspire young minds today?
             </p>
-            <div
-              className="d-inline-flex align-items-center gap-2 mt-3 px-3 py-1.5 rounded-pill"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                border: '1px solid rgba(220, 38, 38, 0.12)',
-                fontSize: '0.85rem',
-                color: '#8B1216',
-                fontWeight: 600
-              }}
-            >
-              <span>✨</span>
-              <span>"Better Teachers • Brighter Futures"</span>
+            <div className="d-flex align-items-center gap-2 flex-wrap mt-3">
+              <div
+                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  border: '1px solid rgba(220, 38, 38, 0.12)',
+                  fontSize: '0.85rem',
+                  color: '#8B1216',
+                  fontWeight: 600
+                }}
+              >
+                <span>✨</span>
+                <span>"Better Teachers • Brighter Futures"</span>
+              </div>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#8B1216',
+                  border: '1px solid rgba(220, 38, 38, 0.25)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}
+              >
+                <Building2 size={14} />
+                <span>{userBranch} Campus</span>
+              </span>
             </div>
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">

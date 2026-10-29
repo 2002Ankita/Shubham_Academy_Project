@@ -42,7 +42,11 @@ async def get_batch_attendance_ledger(
     batch: Optional[str] = Query(None, description="Batch filter fallback"),
     token: str = Depends(oauth2_scheme)
 ):
-    await get_current_user(token)
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch:
+        branch = user_branch
     return await get_batch_date_attendance(
         date_str=date,
         branch=branch,

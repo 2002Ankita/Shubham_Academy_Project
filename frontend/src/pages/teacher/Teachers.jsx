@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import Table from '../../components/common/Table';
 import SearchBar from '../../components/common/SearchBar';
 import teacherService from '../../services/teacherService';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import useAuth from '../../hooks/useAuth';
+import { ArrowLeft, UserPlus, Building2 } from 'lucide-react';
+import { getUserBranch, filterTeachersByBranch } from '../../utils/branchUtils';
 
 export default function TeacherDirectory() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
   const [teachers, setTeachers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,12 +46,16 @@ export default function TeacherDirectory() {
     fetchTeachers();
   }, []);
 
+  const scopedTeachers = useMemo(() => {
+    return filterTeachersByBranch(teachers, userBranch);
+  }, [teachers, userBranch]);
+
   const filteredTeachers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return teachers;
+    if (!query) return scopedTeachers;
 
-    return teachers.filter((teacher) => {
+    return scopedTeachers.filter((teacher) => {
       const name = teacher.name || '';
       const subject = teacher.subject || '';
       const email = teacher.email || '';
@@ -59,7 +67,7 @@ export default function TeacherDirectory() {
         .toLowerCase()
         .includes(query);
     });
-  }, [teachers, search]);
+  }, [scopedTeachers, search]);
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
@@ -86,11 +94,26 @@ export default function TeacherDirectory() {
           </button>
 
           <div>
-            <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
-              Faculty Directory
-            </h1>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h1 className="brand-font fw-bold m-0" style={{ fontSize: '23px', lineHeight: 1.25, color: '#0F172A' }}>
+                Faculty Directory
+              </h1>
+              <span
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                style={{
+                  backgroundColor: '#FDF0F0',
+                  color: '#8B1216',
+                  border: '1px solid #F5C2C4',
+                  fontSize: '11.5px',
+                  fontWeight: 600
+                }}
+              >
+                <Building2 size={12} />
+                <span>{userBranch} Campus</span>
+              </span>
+            </div>
             <p className="m-0 mt-0.5" style={{ fontSize: '13.5px', color: '#64748B' }}>
-              Teacher profiles, subjects, and contact details for your academy
+              Teacher profiles and faculty details for {userBranch} Campus ({filteredTeachers.length} total)
             </p>
           </div>
         </div>

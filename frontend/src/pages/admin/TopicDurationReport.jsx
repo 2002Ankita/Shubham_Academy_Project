@@ -16,13 +16,16 @@ import {
   ChevronRight,
   RotateCcw,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Building2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import curriculumService from '../../services/curriculumService';
 import teacherService from '../../services/teacherService';
 import batchService from '../../services/batchService';
+import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch, isSuperAdminUser, filterBatchesByBranch, filterTeachersByBranch, CAMPUS } from '../../utils/branchUtils';
 
 export const REGISTRATION_BATCHES = [
   '11th pcm tarabai park',
@@ -513,6 +516,22 @@ export default function AdminTopicDurationReport() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const isSuper = isSuperAdminUser(user);
+  const activeBranch = getUserBranch(user);
+
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(() => {
+    if (!isSuper && activeBranch) {
+      return activeBranch;
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    if (!isSuper && activeBranch) {
+      setSelectedBranchFilter(activeBranch);
+    }
+  }, [isSuper, activeBranch]);
 
   // Helper to merge topics from master, localStorage, and backend
   const mergeTopics = (baseMaster, localList, backendList) => {
@@ -612,7 +631,8 @@ export default function AdminTopicDurationReport() {
 
   // Fetch batches from backend and combine with standard registration batches
   useEffect(() => {
-    batchService.getBatches()
+    const branchParam = !isSuper && activeBranch ? activeBranch : undefined;
+    batchService.getBatches(branchParam)
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const names = data.map(b => b.name || b.batch_name).filter(Boolean);
@@ -626,7 +646,7 @@ export default function AdminTopicDurationReport() {
         }
       })
       .catch((err) => console.warn('Could not fetch batches:', err));
-  }, []);
+  }, [isSuper, activeBranch]);
 
   // Sync with backend topic-durations on component mount
   useEffect(() => {
@@ -637,7 +657,8 @@ export default function AdminTopicDurationReport() {
         if (s) local = JSON.parse(s);
       } catch (_) {}
 
-      curriculumService.getTopicDurations().then(data => {
+      const branchParam = !isSuper && activeBranch ? activeBranch : undefined;
+      curriculumService.getTopicDurations({ branch: branchParam }).then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const merged = mergeTopics([], local, data);
           setTopicList(merged);
@@ -650,7 +671,7 @@ export default function AdminTopicDurationReport() {
     syncTopics();
     window.addEventListener('sa_topic_plans_updated', syncTopics);
     return () => window.removeEventListener('sa_topic_plans_updated', syncTopics);
-  }, []);
+  }, [isSuper, activeBranch]);
 
   // Daily teacher activities from database for cross-verifying actual periods
   const [dailyActivities, setDailyActivities] = useState(() => {
@@ -662,12 +683,13 @@ export default function AdminTopicDurationReport() {
   });
 
   useEffect(() => {
-    curriculumService.getDailyActivities().then(data => {
+    const branchParam = !isSuper && activeBranch ? activeBranch : undefined;
+    curriculumService.getDailyActivities({ branch: branchParam }).then(data => {
       if (Array.isArray(data)) {
         setDailyActivities(data);
       }
     });
-  }, []);
+  }, [isSuper, activeBranch]);
 
   // The 3 MANDATORY FILTERS: Subject, Faculty, Batch (Supports Auto-Prefill via Redirect)
   const [selectedSubject, setSelectedSubject] = useState(() => {
@@ -733,6 +755,12 @@ export default function AdminTopicDurationReport() {
       ];
     }
 
+    if (!isSuper && activeBranch) {
+      pool = filterTeachersByBranch(pool, activeBranch);
+    } else if (selectedBranchFilter) {
+      pool = filterTeachersByBranch(pool, selectedBranchFilter);
+    }
+
     if (selectedSubject) {
       const selNorm = selectedSubject.toLowerCase();
       const matched = pool.filter(f => {
@@ -747,11 +775,17 @@ export default function AdminTopicDurationReport() {
     }
 
     return Array.from(new Set(pool.map(f => f.name || f.full_name).filter(Boolean))).sort();
-  }, [registeredFaculty, selectedSubject]);
+  }, [registeredFaculty, selectedSubject, isSuper, activeBranch, selectedBranchFilter]);
 
   // 3. Available Batches: strictly the BATCHES USED AT REGISTRATION
   const availableBatches = useMemo(() => {
     let pool = allBatches;
+    if (!isSuper && activeBranch) {
+      pool = filterBatchesByBranch(pool, activeBranch);
+    } else if (selectedBranchFilter) {
+      pool = filterBatchesByBranch(pool, selectedBranchFilter);
+    }
+
     if (selectedSubject) {
       const subLower = selectedSubject.toLowerCase();
       if (subLower.includes('math')) {
@@ -775,8 +809,8 @@ export default function AdminTopicDurationReport() {
       }
     }
 
-    return pool.length > 0 ? pool : allBatches;
-  }, [allBatches, selectedSubject]);
+    return pool;
+  }, [allBatches, selectedSubject, isSuper, activeBranch, selectedBranchFilter]);
 
   // Reset teacher or batch if they become invalid after subject change
   const handleSubjectChange = (subj) => {
@@ -1243,10 +1277,44 @@ export default function AdminTopicDurationReport() {
           )}
         </div>
 
-        {/* The 3 Required Dropdowns in a Responsive Row */}
+        {/* The Required Filters in a Responsive Row */}
         <div className="row g-3">
+          {/* Branch Filter */}
+          <div className="col-12 col-md-3">
+            <label className="form-label small fw-bold text-dark d-flex align-items-center gap-1">
+              <span>Select Branch</span>
+              <span className="text-danger">*</span>
+              <Building2 size={13} className="text-muted ms-auto" />
+            </label>
+            {!isSuper ? (
+              <div
+                className="form-control bg-light d-flex align-items-center justify-content-between text-dark fw-semibold"
+                style={{ fontSize: '13.5px', height: '42px' }}
+              >
+                <span>{activeBranch || 'Tarabai Park'}</span>
+                <span className="badge bg-secondary-subtle text-secondary py-1 px-2 rounded-pill" style={{ fontSize: '11px' }}>
+                  Fixed
+                </span>
+              </div>
+            ) : (
+              <select
+                className="form-select border-secondary-subtle"
+                value={selectedBranchFilter}
+                onChange={(e) => {
+                  setSelectedBranchFilter(e.target.value);
+                  setSelectedBatch('');
+                }}
+                style={{ fontSize: '13.5px', height: '42px' }}
+              >
+                <option value="">All Branches</option>
+                <option value={CAMPUS.TARABAI_PARK}>Tarabai Park</option>
+                <option value={CAMPUS.MANGALVAR_PETH}>Mangalvar Peth</option>
+              </select>
+            )}
+          </div>
+
           {/* 1. Subject Filter (Mandatory) */}
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-3">
             <label className="form-label small fw-bold text-dark d-flex align-items-center gap-1">
               <span>1. Select Subject</span>
               <span className="text-danger">*</span>
@@ -1268,7 +1336,7 @@ export default function AdminTopicDurationReport() {
           </div>
 
           {/* 2. Faculty Filter (Mandatory) */}
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-3">
             <label className="form-label small fw-bold text-dark d-flex align-items-center gap-1">
               <span>2. Select Faculty / Teacher</span>
               <span className="text-danger">*</span>
@@ -1290,7 +1358,7 @@ export default function AdminTopicDurationReport() {
           </div>
 
           {/* 3. Batch Filter (Mandatory) */}
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-3">
             <label className="form-label small fw-bold text-dark d-flex align-items-center gap-1">
               <span>3. Select Batch</span>
               <span className="text-danger">*</span>

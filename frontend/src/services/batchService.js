@@ -39,7 +39,6 @@ const batchService = {
       if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All' && Array.isArray(data)) {
         data = filterBatchesByBranch(data, activeBranch);
       }
-
       // Filter out any locally deleted batches
       if (Array.isArray(data)) {
         data = data.filter(b => {
@@ -53,40 +52,66 @@ const batchService = {
         return data;
       }
 
-      // Only fallback to mock seed list if offline or demo, and not explicitly deleted
-      if ((!data || data.length === 0) && activeBranch && deletedList.length === 0) {
-        const defaultNames = activeBranch === 'Mangalvar Peth' ? MANGALVAR_BATCHES : TARABAI_BATCHES;
-        return defaultNames
-          .map((name, idx) => ({
-            id: `batch-seed-${idx + 1}`,
-            name: name,
-            standard: name.includes('12th') ? '12th Science' : '11th Science',
-            subject: 'Comprehensive Science',
-            room: `Room ${101 + idx} (${activeBranch})`,
-            time: '08:00 AM – 10:30 AM',
-            student_count: 24,
-            teacher_name: 'Dr. Priya Kulkarni',
-            branch: activeBranch
-          }))
-          .filter(b => !deletedList.includes(b.id) && !deletedList.includes(b.name.trim().toLowerCase()));
+      if ((!data || data.length === 0) && deletedList.length === 0) {
+        // Fallback default batches for offline/demo mode with correct branch assignments
+        const mpBatches = MANGALVAR_BATCHES.map((name, idx) => ({
+          id: `batch-seed-mp-${idx + 1}`,
+          name: name,
+          standard: name.includes('12th') ? '12th Science' : '11th Science',
+          subject: 'Physics, Chemistry, Mathematics',
+          room: `Room ${101 + idx} (Mangalvar Peth)`,
+          time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
+          student_count: 24 + (idx * 2),
+          teacher_name: 'Dr. Priya Kulkarni',
+          branch: 'Mangalvar Peth'
+        }));
+        const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
+          id: `batch-seed-tp-${idx + 1}`,
+          name: name,
+          standard: name.includes('12th') ? '12th Science' : '11th Science',
+          subject: 'Physics, Chemistry, Mathematics',
+          room: `Room ${201 + idx} (Tarabai Park)`,
+          time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
+          student_count: 26 + (idx * 2),
+          teacher_name: 'Prof. Rajesh Sharma',
+          branch: 'Tarabai Park'
+        }));
+        let allFallback = [...mpBatches, ...tpBatches];
+        if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
+          allFallback = filterBatchesByBranch(allFallback, activeBranch);
+        }
+        return allFallback.filter(b => !deletedList.includes(b.id) && !deletedList.includes(b.name.trim().toLowerCase()));
       }
       return data || [];
     } catch (err) {
       console.warn('Batch fetch error, using branch fallback:', err.message);
-      const defaultNames = activeBranch === 'Mangalvar Peth' ? MANGALVAR_BATCHES : (activeBranch === 'Tarabai Park' ? TARABAI_BATCHES : [...MANGALVAR_BATCHES, ...TARABAI_BATCHES]);
-      return defaultNames
-        .map((name, idx) => ({
-          id: `batch-seed-${idx + 1}`,
-          name: name,
-          standard: name.includes('12th') ? '12th Science' : '11th Science',
-          subject: 'Comprehensive Science',
-          room: `Room ${101 + idx} (${activeBranch || 'Academy'})`,
-          time: '08:00 AM – 10:30 AM',
-          student_count: 24,
-          teacher_name: 'Dr. Priya Kulkarni',
-          branch: activeBranch || 'Academy'
-        }))
-        .filter(b => !deletedList.includes(b.id) && !deletedList.includes(b.name.trim().toLowerCase()));
+      const mpBatches = MANGALVAR_BATCHES.map((name, idx) => ({
+        id: `batch-seed-mp-${idx + 1}`,
+        name: name,
+        standard: name.includes('12th') ? '12th Science' : '11th Science',
+        subject: 'Physics, Chemistry, Mathematics',
+        room: `Room ${101 + idx} (Mangalvar Peth)`,
+        time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
+        student_count: 24 + (idx * 2),
+        teacher_name: 'Dr. Priya Kulkarni',
+        branch: 'Mangalvar Peth'
+      }));
+      const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
+        id: `batch-seed-tp-${idx + 1}`,
+        name: name,
+        standard: name.includes('12th') ? '12th Science' : '11th Science',
+        subject: 'Physics, Chemistry, Mathematics',
+        room: `Room ${201 + idx} (Tarabai Park)`,
+        time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
+        student_count: 26 + (idx * 2),
+        teacher_name: 'Prof. Rajesh Sharma',
+        branch: 'Tarabai Park'
+      }));
+      let allFallback = [...mpBatches, ...tpBatches];
+      if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
+        allFallback = filterBatchesByBranch(allFallback, activeBranch);
+      }
+      return allFallback.filter(b => !deletedList.includes(b.id) && !deletedList.includes(b.name.trim().toLowerCase()));
     }
   },
 

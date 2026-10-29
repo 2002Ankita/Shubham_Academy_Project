@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
 import studentService from '../../services/studentService';
+import feeService from '../../services/feeService';
 import { getUserBranch } from '../../utils/branchUtils';
 import {
   LayoutDashboard,
@@ -212,6 +213,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const location = useLocation();
 
   const [pendingDiscountsCount, setPendingDiscountsCount] = useState(0);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -226,12 +228,31 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         // silent fallback
       }
     };
+    const fetchPendingOffline = async () => {
+      try {
+        const reqs = await feeService.getOfflineFeeRequests();
+        if (isMounted && reqs) {
+          const count = reqs.filter(r => r.status === 'PENDING').length;
+          setPendingOfflineCount(count);
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    };
+
     fetchPendingDiscounts();
-    const handleUpdate = () => fetchPendingDiscounts();
+    fetchPendingOffline();
+
+    const handleUpdate = () => {
+      fetchPendingDiscounts();
+      fetchPendingOffline();
+    };
     window.addEventListener('sa_notifications_updated', handleUpdate);
+    window.addEventListener('sa_offline_fee_requests_updated', handleUpdate);
     return () => {
       isMounted = false;
       window.removeEventListener('sa_notifications_updated', handleUpdate);
+      window.removeEventListener('sa_offline_fee_requests_updated', handleUpdate);
     };
   }, []);
 
@@ -315,6 +336,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       matchPrefixes: ['/admin/fees'],
       children: [
         { label: 'Fee Collection', path: '/admin/fees', exact: true },
+        { label: 'Cash & Cheque Requests', path: '/admin/fees/offline-requests', badge: pendingOfflineCount, isNew: true },
+        { label: 'Branch UPI Scanner & QR', path: '/admin/fees/upi-scanner', isNew: true },
         { label: 'Pending Fees', path: '/admin/fees/pending' },
         { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Fee Receipts', path: '/admin/fees/receipts' },
@@ -533,6 +556,25 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               >
                 <Shield size={14} style={{ color: '#FDE047' }} />
                 <span>ACADEMY ADMIN {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
+              </div>
+            )}
+
+            {/* Role Badge for Teacher */}
+            {isTeacher && (
+              <div
+                className="d-flex align-items-center justify-content-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-pill fw-bold text-uppercase w-100"
+                style={{
+                  fontSize: '0.74rem',
+                  letterSpacing: '0.08em',
+                  background: 'linear-gradient(135deg, rgba(217, 155, 38, 0.32) 0%, rgba(180, 83, 9, 0.40) 100%)',
+                  border: '1px solid rgba(245, 169, 0, 0.50)',
+                  color: '#FDE047',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+                  borderRadius: '9999px'
+                }}
+              >
+                <BookOpen size={14} style={{ color: '#FDE047' }} />
+                <span>FACULTY {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
               </div>
             )}
 

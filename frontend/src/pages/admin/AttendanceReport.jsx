@@ -37,7 +37,7 @@ import { getUserBranch } from '../../utils/branchUtils';
 export default function AttendanceReport() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
+  const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin') || (user?.role || '').toLowerCase().includes('super');
   const activeBranch = getUserBranch(user);
   const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const defaultBranch = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
@@ -296,6 +296,7 @@ export default function AttendanceReport() {
               onAcademicBatchChange={setReportAcademicBatch}
               showAllOption={isSuperAdmin}
               fixedBranch={!isSuperAdmin}
+              allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
               layout="grid"
             />
           </div>

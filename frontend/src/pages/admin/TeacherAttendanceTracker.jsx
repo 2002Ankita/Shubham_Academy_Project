@@ -33,14 +33,31 @@ import {
   FileSpreadsheet,
   Calculator,
   ArrowUpRight,
-  Printer
+  Printer,
+  Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useConfirm } from '../../context/ConfirmContext';
+import useAuth from '../../hooks/useAuth';
+import { getUserBranch, isSuperAdminUser, filterTeachersByBranch, isTeacherInBranch, CAMPUS } from '../../utils/branchUtils';
 
 export default function TeacherAttendanceTracker() {
   const navigate = useNavigate();
   const { confirm } = useConfirm();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = isSuperAdminUser(user);
+
+  // Branch filter state
+  const [selectedBranch, setSelectedBranch] = useState(isSuperAdmin ? 'ALL' : userBranch);
+
+  useEffect(() => {
+    if (!isSuperAdmin && userBranch) {
+      setSelectedBranch(userBranch);
+    }
+  }, [userBranch, isSuperAdmin]);
+
+  const effectiveBranch = isSuperAdmin ? selectedBranch : userBranch;
 
   // View Mode: 'daily' (Daily Punch Ledger) or 'monthly' (Monthly Working Hours & Salary Calculator)
   const [viewMode, setViewMode] = useState('daily');
@@ -94,7 +111,7 @@ export default function TeacherAttendanceTracker() {
   const [rateEditTeacher, setRateEditTeacher] = useState({ id: '', name: '', hourly_rate: 500 });
   const [rateSubmitting, setRateSubmitting] = useState(false);
 
-  // 1. Load teachers list for dropdowns
+  // 1. Load teachers list for dropdowns (scoped by branch)
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
@@ -106,6 +123,10 @@ export default function TeacherAttendanceTracker() {
     };
     fetchTeachers();
   }, []);
+
+  const scopedTeachers = useMemo(() => {
+    return filterTeachersByBranch(teachersList, effectiveBranch);
+  }, [teachersList, effectiveBranch]);
 
   // 2. Fetch Daily Attendance Records and Summary
   const fetchDailyData = async () => {
@@ -522,9 +543,19 @@ export default function TeacherAttendanceTracker() {
     toast.success('Attendance report downloaded successfully!');
   };
 
-  // Filtered Daily Records
+  // Filtered Daily Records (scoped by branch & search)
   const filteredDailyRecords = useMemo(() => {
+    const branchTeacherIds = new Set(scopedTeachers.map(t => String(t.id)));
     return records.filter((r) => {
+      // Branch check
+      if (effectiveBranch && effectiveBranch !== 'ALL') {
+        const matchesTeacher = r.teacher_id && branchTeacherIds.has(String(r.teacher_id));
+        const matchesBranchField = isTeacherInBranch(r, effectiveBranch);
+        if (!matchesTeacher && !matchesBranchField && scopedTeachers.length > 0) {
+          return false;
+        }
+      }
+
       const matchesSearch =
         (r.teacher_name || '').toLowerCase().includes(search.toLowerCase()) ||
         (r.employee_id || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -544,7 +575,7 @@ export default function TeacherAttendanceTracker() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [records, search, statusFilter]);
+  }, [records, search, statusFilter, effectiveBranch, scopedTeachers]);
 
   // Filtered Monthly Records
   const filteredMonthlyFaculty = useMemo(() => {
@@ -651,11 +682,44 @@ export default function TeacherAttendanceTracker() {
         <div className="d-flex align-items-center gap-3">
           <BackButton to="/admin/teachers" label="Back to Faculty" />
           <div>
-            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-              Teacher Check-In & Check-Out Tracking
-            </h1>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+                Teacher Check-In & Check-Out Tracking
+              </h1>
+              {isSuperAdmin ? (
+                <div className="d-flex align-items-center gap-1.5 ms-2">
+                  <span className="small fw-semibold text-sa-muted d-flex align-items-center gap-1">
+                    <Building2 size={14} /> Campus:
+                  </span>
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="form-select form-select-sm shadow-xs border"
+                    style={{ minWidth: '160px', borderRadius: '8px', height: '32px', fontSize: '12px' }}
+                  >
+                    <option value="ALL">All Campuses</option>
+                    <option value={CAMPUS.MANGALVAR_PETH}>{CAMPUS.MANGALVAR_PETH}</option>
+                    <option value={CAMPUS.TARABAI_PARK}>{CAMPUS.TARABAI_PARK}</option>
+                  </select>
+                </div>
+              ) : (
+                <span
+                  className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                  style={{
+                    backgroundColor: '#FDF0F0',
+                    color: '#8B1216',
+                    border: '1px solid #F5C2C4',
+                    fontSize: '11.5px',
+                    fontWeight: 600
+                  }}
+                >
+                  <Building2 size={12} />
+                  <span>{userBranch} Campus</span>
+                </span>
+              )}
+            </div>
             <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
-              Real-time faculty punch records, monthly on-duty hours & automated salary compensation ledger
+              Real-time faculty punch records, monthly on-duty hours & automated salary compensation ledger for {effectiveBranch === 'ALL' ? 'all campuses' : `${effectiveBranch} Campus`}
             </p>
           </div>
         </div>

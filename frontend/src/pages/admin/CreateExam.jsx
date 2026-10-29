@@ -7,13 +7,22 @@ import examService from '../../services/examService';
 import teacherService from '../../services/teacherService';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
-import { Calendar, Trash2, Bell } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { Calendar, Trash2, Bell, Building, Building2 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import { getUserBranch, filterExamsByBranch, CAMPUS } from '../../utils/branchUtils';
 
 export default function CreateExam() {
   const navigate = useNavigate();
   const { confirm } = useConfirm();
+  const { user } = useAuth();
+  const userBranch = getUserBranch(user);
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
+  const [selectedBranch, setSelectedBranch] = useState(isSuperAdmin ? 'All' : (userBranch || CAMPUS.MANGALVAR_PETH));
+
+  // Regular admin is strictly auto-scoped to their login campus
+  const effectiveBranch = isSuperAdmin ? selectedBranch : (userBranch || CAMPUS.MANGALVAR_PETH);
+
   const [exams, setExams] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,11 +34,11 @@ export default function CreateExam() {
     setLoading(true);
     try {
       const [eList, tList] = await Promise.all([
-        examService.getAll(),
+        examService.getAll({ branch: 'ALL' }),
         teacherService.getAll()
       ]);
-      setExams(eList);
-      setTeachers(tList);
+      setExams(eList || []);
+      setTeachers(tList || []);
     } catch (err) {
       console.error('Failed to load examinations data:', err);
     } finally {
@@ -40,6 +49,20 @@ export default function CreateExam() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Branch statistics
+  const mpCount = React.useMemo(() => {
+    return filterExamsByBranch(exams, CAMPUS.MANGALVAR_PETH).length;
+  }, [exams]);
+
+  const tpCount = React.useMemo(() => {
+    return filterExamsByBranch(exams, CAMPUS.TARABAI_PARK).length;
+  }, [exams]);
+
+  const displayedExams = React.useMemo(() => {
+    if (!effectiveBranch || effectiveBranch === 'All') return exams;
+    return filterExamsByBranch(exams, effectiveBranch);
+  }, [exams, effectiveBranch]);
 
   const handleCreate = async (formData) => {
     setCreateLoading(true);
@@ -147,7 +170,61 @@ export default function CreateExam() {
           </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {/* Branch badge for regular admin */}
+          {!isSuperAdmin && (
+            <div
+              className="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs"
+              style={{
+                backgroundColor: effectiveBranch.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
+                border: effectiveBranch.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
+                color: effectiveBranch.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
+                fontSize: '12.5px',
+                fontWeight: 600
+              }}
+            >
+              <Building2 size={14} />
+              <span>{effectiveBranch}</span>
+            </div>
+          )}
+
+          {/* Unified Branch Filter Dropdown - Only shown to SuperAdmin */}
+          {isSuperAdmin && (
+            <div className="position-relative d-inline-flex align-items-center" style={{ minWidth: '220px' }}>
+              <Building2
+                size={15}
+                className="position-absolute"
+                style={{
+                  left: '12px',
+                  pointerEvents: 'none',
+                  color: selectedBranch === 'All' ? '#64748B' : (selectedBranch.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8')
+                }}
+              />
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="form-select fw-semibold"
+                style={{
+                  paddingLeft: '36px',
+                  paddingRight: '32px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  borderColor: '#D8DEE4',
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  fontSize: '13px',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+                  cursor: 'pointer'
+                }}
+                aria-label="Filter by Branch Campus"
+              >
+                <option value="All">All Branches ({exams.length} Exams)</option>
+                <option value={CAMPUS.MANGALVAR_PETH}>Manglavar Peth ({mpCount} Exams)</option>
+                <option value={CAMPUS.TARABAI_PARK}>Tarabai Park ({tpCount} Exams)</option>
+              </select>
+            </div>
+          )}
+
           <Button
             variant="outline"
             icon={Bell}
@@ -168,6 +245,8 @@ export default function CreateExam() {
       {showCreateForm && (
         <ExamForm
           teachers={teachers}
+          initialBranch={effectiveBranch !== 'All' ? effectiveBranch : undefined}
+          fixedBranch={!isSuperAdmin}
           onSubmit={handleCreate}
           loading={createLoading}
           onCancel={() => setShowCreateForm(false)}
@@ -196,7 +275,12 @@ export default function CreateExam() {
       <div className="sa-card p-4">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
-            Scheduled & Completed Examinations ({exams.length})
+            Scheduled & Completed Examinations ({displayedExams.length})
+            {!isSuperAdmin && (
+              <span className="text-sa-muted fw-normal ms-2" style={{ fontSize: '13px' }}>
+                ({effectiveBranch})
+              </span>
+            )}
           </h5>
           <span className="small text-muted d-flex align-items-center gap-1">
             <span className="badge bg-success-subtle text-success border border-success-subtle">
@@ -213,6 +297,27 @@ export default function CreateExam() {
                 <span className="small text-muted">{row.duration || '2 Hours'}</span>
               </div>
             )},
+            {
+              key: 'branch',
+              title: 'Branch',
+              render: (val, row) => {
+                const br = val || row.branch || (row.batch && row.batch.toLowerCase().includes('mangal') ? 'Manglavar Peth' : 'Tarabai Park');
+                const isMP = br.toLowerCase().includes('mangal');
+                return (
+                  <span
+                    className="badge rounded-pill fw-semibold px-2.5 py-1"
+                    style={{
+                      backgroundColor: isMP ? '#FDF0F0' : '#EFF6FF',
+                      color: isMP ? '#8B1216' : '#1D4ED8',
+                      border: isMP ? '1px solid #F5C2C7' : '1px solid #BFDBFE',
+                      fontSize: '11px'
+                    }}
+                  >
+                    {isMP ? 'Manglavar Peth' : 'Tarabai Park'}
+                  </span>
+                );
+              }
+            },
             { key: 'batch', title: 'Batch / Class', render: (val, row) => (
               <span className="badge bg-light text-dark border fw-medium">
                 {val || row.standard || 'General'}
@@ -267,7 +372,7 @@ export default function CreateExam() {
               )
             }
           ]}
-          data={exams}
+          data={displayedExams}
           loading={loading}
         />
       </div>

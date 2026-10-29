@@ -10,6 +10,7 @@ class LeaveRequest(Document):
     from_date: datetime
     to_date: datetime
     number_of_days: int
+    branch: Optional[str] = None
     reason: Optional[str] = None
     status: str = "Pending"
     created_at: datetime = datetime.utcnow()

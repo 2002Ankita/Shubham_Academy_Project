@@ -30,6 +30,7 @@ export default function BranchBatchSelector({
   required = false,
   disabled = false,
   fixedBranch = false,
+  allowedBranches = null,
   size = 'md', // 'sm' | 'md'
   layout = 'row', // 'row' | 'stacked' | 'grid'
   labels = {},
@@ -50,6 +51,13 @@ export default function BranchBatchSelector({
 
   const selectClass = size === 'sm' ? 'form-select form-select-sm' : 'form-select';
   const labelClass = 'form-label small fw-semibold text-sa-charcoal d-flex align-items-center gap-1.5 mb-1 text-nowrap';
+
+  // Available branch choices
+  const branchOptions = allowedBranches && allowedBranches.length > 0
+    ? allowedBranches
+    : (fixedBranch && branch ? [branch] : BRANCHES);
+
+  const shouldShowAll = showAllOption && !fixedBranch;
 
   return (
     <div className={`branch-batch-selector ${className}`}>
@@ -115,12 +123,12 @@ export default function BranchBatchSelector({
               disabled={disabled}
               required={required}
             >
-              {showAllOption ? (
+              {shouldShowAll ? (
                 <option value="">{allOptionLabel} Branches</option>
               ) : (
                 <option value="">-- Choose Branch --</option>
               )}
-              {BRANCHES.map((b) => (
+              {branchOptions.map((b) => (
                 <option key={b} value={b}>
                   {b}
                 </option>

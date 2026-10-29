@@ -6,7 +6,8 @@ import SalaryHistory from '../components/salary/SalaryHistory';
 import salaryService from '../services/salaryService';
 import useAuth from '../hooks/useAuth';
 import { downloadSalaryReceipt } from '../utils/salaryReceipt';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Building2 } from 'lucide-react';
+import { getUserBranch } from '../utils/branchUtils';
 
 // Helper to match months (e.g., "October 2026" with "Oct 2026")
 const matchesMonth = (m1, m2) => {
@@ -203,13 +204,28 @@ export default function Salary() {
           <ArrowLeft size={18} />
         </button>
 
-        <div>
-          <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-            My Salary
-          </h1>
-          <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
-            View your salary and payment details
-          </p>
+        <div className="d-flex align-items-center justify-content-between flex-grow-1 flex-wrap gap-2">
+          <div>
+            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+              My Salary
+            </h1>
+            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
+              View your salary and payment details
+            </p>
+          </div>
+          <span
+            className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+            style={{
+              backgroundColor: '#FDF0F0',
+              color: '#8B1216',
+              border: '1px solid #F5C2C4',
+              fontSize: '0.82rem',
+              fontWeight: '600'
+            }}
+          >
+            <Building2 size={14} />
+            <span>{getUserBranch(user)} Campus</span>
+          </span>
         </div>
       </div>
 

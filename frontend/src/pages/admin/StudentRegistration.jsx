@@ -97,6 +97,7 @@ export const getMatchingCourseFee = (structures, branch, academicBatch, standard
 export default function StudentRegistration() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isSuperAdmin = (user?.role || '').toLowerCase().includes('super');
   const activeBranch = getUserBranch(user);
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const initialBranch = isMangal ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
@@ -690,7 +691,8 @@ export default function StudentRegistration() {
                   onBatchChange={handleAcademicBatchChange}
                   required={true}
                   disabled={loading}
-                  fixedBranch={Boolean(activeBranch && !user?.role?.toLowerCase().includes('super'))}
+                  fixedBranch={!isSuperAdmin}
+                  allowedBranches={!isSuperAdmin ? [initialBranch] : undefined}
                   showAllOption={false}
                 />
 
