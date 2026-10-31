@@ -20,14 +20,33 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      // If user types faculty name and email is either empty or matches admin email, suggest faculty email
+      if (name === 'name' && (!prev.email || prev.email.includes('admin@shubham.edu'))) {
+        const cleanName = value.trim().toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.');
+        if (cleanName) {
+          updated.email = `${cleanName}@shubham.edu`;
+        }
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Teacher name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email address is required';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (
+      formData.email.trim().toLowerCase() === 'admin@shubham.edu' ||
+      formData.email.trim().toLowerCase() === 'superadmin@shubham.edu'
+    ) {
+      newErrors.email = "Please enter the faculty member's personal or official email (cannot use the academy admin account email).";
+    }
+
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
@@ -40,7 +59,7 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-1">
+    <form onSubmit={handleSubmit} className="p-1" autoComplete="off">
       <div className="row g-3">
         <div className="col-12 col-md-6">
           <Input
@@ -50,19 +69,22 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
             value={formData.name}
             onChange={handleChange}
             error={errors.name}
+            autoComplete="off"
             required
           />
         </div>
 
         <div className="col-12 col-md-6">
           <Input
-            label="Official Email"
+            label="Faculty Official Email"
             name="email"
             type="email"
-            placeholder="faculty@shubham.edu"
+            placeholder="e.g. faculty.name@shubham.edu"
             value={formData.email}
             onChange={handleChange}
             error={errors.email}
+            autoComplete="new-password"
+            helperText="Provide a unique email for the teacher's login"
             required
           />
         </div>
@@ -81,6 +103,7 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
               placeholder="+91 98220 XXXXX"
               value={formData.phone}
               onChange={handleChange}
+              autoComplete="off"
               className={`sa-custom-input ${errors.phone ? 'border-danger' : ''}`}
             />
           </div>
@@ -89,13 +112,14 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
 
         <div className="col-12 col-md-6">
           <Input
-            label="Password"
+            label="Portal Password"
             name="password"
             type="password"
-            placeholder="Enter password"
+            placeholder="Create password for faculty login"
             value={formData.password}
             onChange={handleChange}
             error={errors.password}
+            autoComplete="new-password"
             required={!initialData}
           />
         </div>

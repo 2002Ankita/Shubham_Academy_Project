@@ -22,7 +22,6 @@ async def list_daily_activities(
     branch: Optional[str] = None,
     status: Optional[str] = None,
     date: Optional[str] = None,
-    branch: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Retrieve daily teacher activity records with flexible filtering"""

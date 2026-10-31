@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "shubham_academy_super_secret_key_dev_2026"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200 # 30 days
     
     # Database
     MONGODB_URL: str = "mongodb://localhost:27017"
