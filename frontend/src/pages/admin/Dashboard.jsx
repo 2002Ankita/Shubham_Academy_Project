@@ -50,7 +50,11 @@ import {
   Truck,
   Check,
   X,
-  GraduationCap
+  GraduationCap,
+  Coins,
+  CreditCard,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 export default function AdminDashboard() {
   const navigate = useNavigate();
