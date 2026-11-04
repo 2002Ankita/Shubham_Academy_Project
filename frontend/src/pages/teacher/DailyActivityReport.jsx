@@ -761,15 +761,15 @@ export default function DailyActivityReport() {
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '20px' }}>
       {/* 1. Page Header with Back Button */}
-      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-1">
-        <div className="d-flex align-items-center gap-3">
+      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1">
+        <div className="d-flex align-items-start gap-2.5 w-100 w-lg-auto">
           <button
             type="button"
             onClick={() => navigate((user?.role || '').toLowerCase().includes('admin') ? '/admin/dashboard' : '/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-xs flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -783,9 +783,9 @@ export default function DailyActivityReport() {
             <ArrowLeft size={18} />
           </button>
 
-          <div>
-            <div className="d-flex align-items-center gap-2">
-              <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+          <div className="flex-grow-1">
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <h1 className="fw-bold brand-font text-sa-charcoal m-0 fs-5" style={{ lineHeight: 1.25 }}>
                 Teacher Daily Activity Report
               </h1>
               <span
@@ -794,13 +794,15 @@ export default function DailyActivityReport() {
                   backgroundColor: dateFilterMode === 'all' ? '#EFF6FF' : '#EAF6EF',
                   color: dateFilterMode === 'all' ? '#1E40AF' : '#168554',
                   fontSize: '11px',
-                  border: dateFilterMode === 'all' ? '1px solid #BFDBFE' : '1px solid #C6E7D2'
+                  border: dateFilterMode === 'all' ? '1px solid #BFDBFE' : '1px solid #C6E7D2',
+                  padding: '4px 9px',
+                  lineHeight: 1
                 }}
               >
                 {dateFilterMode === 'all' ? 'All Recorded Dates' : selectedDate === new Date().toISOString().split('T')[0] ? "Today's Log" : `Log: ${selectedDate}`}
               </span>
             </div>
-            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px' }}>
+            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13px', lineHeight: 1.4 }}>
               {isAdmin
                 ? `Review completed teacher activities, topics taught, and faculty hours ${dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}`
                 : `Track completed activities, topics covered, and teaching hours ${dateFilterMode === 'all' ? 'across all sessions' : `for ${selectedDate}`}`}
@@ -808,10 +810,10 @@ export default function DailyActivityReport() {
           </div>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
+        <div className="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto">
           {/* Interactive Date Picker */}
           <div
-            className="border px-2.5 d-inline-flex align-items-center gap-2 shadow-xs bg-white text-sa-charcoal"
+            className="border px-2.5 d-flex align-items-center justify-content-between gap-2 shadow-xs bg-white text-sa-charcoal w-100 w-sm-auto"
             style={{
               height: '38px',
               borderRadius: '8px',
@@ -819,18 +821,20 @@ export default function DailyActivityReport() {
               whiteSpace: 'nowrap'
             }}
           >
-            <Calendar size={15} style={{ color: '#8B1216' }} />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                setDateFilterMode('date');
-              }}
-              className="form-control form-control-sm border-0 p-0 fw-semibold text-sa-charcoal bg-transparent"
-              style={{ width: '130px', fontSize: '12.5px', cursor: 'pointer', outline: 'none' }}
-              title="Select date to track activities"
-            />
+            <div className="d-flex align-items-center gap-2">
+              <Calendar size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setDateFilterMode('date');
+                }}
+                className="form-control form-control-sm border-0 p-0 fw-semibold text-sa-charcoal bg-transparent"
+                style={{ width: '130px', fontSize: '12.5px', cursor: 'pointer', outline: 'none' }}
+                title="Select date to track activities"
+              />
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -841,7 +845,7 @@ export default function DailyActivityReport() {
                   setDateFilterMode('date');
                 }
               }}
-              className={`btn btn-xs fw-semibold px-2 py-0.5 rounded-2 ${
+              className={`btn btn-xs fw-semibold px-2 py-0.5 rounded-2 flex-shrink-0 ${
                 dateFilterMode === 'all'
                   ? 'btn-dark text-white'
                   : 'btn-light border text-muted'
@@ -856,7 +860,7 @@ export default function DailyActivityReport() {
           <button
             type="button"
             onClick={() => navigate(isAdmin ? '/admin/topic-duration' : '/teacher/topic-duration')}
-            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
+            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center gap-1.5 fw-medium text-sa-charcoal shadow-xs flex-grow-1 flex-sm-grow-0 text-nowrap"
             style={{
               height: '38px',
               borderRadius: '8px',
@@ -864,19 +868,18 @@ export default function DailyActivityReport() {
               padding: '0 14px',
               backgroundColor: '#FFFFFF',
               borderColor: '#CBD5E1',
-              whiteSpace: 'nowrap',
               cursor: 'pointer'
             }}
             title="Open Topic Duration & Period Allocation Matrix"
           >
-            <Clock size={15} style={{ color: '#8B1216' }} />
+            <Clock size={15} style={{ color: '#8B1216' }} className="flex-shrink-0" />
             <span>Topic Duration Matrix</span>
           </button>
 
           <button
             type="button"
             onClick={handleExportExcel}
-            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 fw-medium text-sa-charcoal shadow-xs"
+            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center gap-1.5 fw-medium text-sa-charcoal shadow-xs flex-grow-1 flex-sm-grow-0 text-nowrap"
             style={{
               height: '38px',
               borderRadius: '8px',
@@ -884,12 +887,11 @@ export default function DailyActivityReport() {
               padding: '0 14px',
               backgroundColor: '#FFFFFF',
               borderColor: '#CBD5E1',
-              whiteSpace: 'nowrap',
               cursor: 'pointer'
             }}
             title="Export daily activities to Excel (.xlsx)"
           >
-            <Download size={15} style={{ color: '#2563EB' }} />
+            <Download size={15} style={{ color: '#2563EB' }} className="flex-shrink-0" />
             <span>Export Excel</span>
           </button>
 
@@ -897,7 +899,7 @@ export default function DailyActivityReport() {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+              className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold shadow-xs w-100 w-sm-auto text-nowrap"
               style={{
                 height: '38px',
                 backgroundColor: '#8B1216',
@@ -905,11 +907,10 @@ export default function DailyActivityReport() {
                 fontSize: '12.5px',
                 padding: '0 16px',
                 border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                cursor: 'pointer'
               }}
             >
-              <Plus size={16} />
+              <Plus size={16} className="flex-shrink-0" />
               <span>Log Activity / Topic</span>
             </button>
           )}
@@ -1063,7 +1064,7 @@ export default function DailyActivityReport() {
 
       {/* 4. Filter, Search & Table Card */}
       <div
-        className="sa-card bg-white border rounded-4 p-4 shadow-xs d-flex flex-column gap-3"
+        className="sa-card bg-white border rounded-4 p-3.5 p-sm-4 shadow-xs d-flex flex-column gap-3"
         style={{ borderColor: '#E2E8F0' }}
       >
         {/* Table Header with Redirect Button to Topic Duration & Period Allocation Matrix */}
@@ -1081,7 +1082,7 @@ export default function DailyActivityReport() {
           <button
             type="button"
             onClick={() => navigate((user?.role || '').toLowerCase().includes('admin') ? '/admin/topic-duration' : '/teacher/topic-duration')}
-            className="btn btn-sm btn-light border text-sa-maroon d-inline-flex align-items-center gap-2 fw-semibold shadow-xs"
+            className="btn btn-sm btn-light border text-sa-maroon d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-xs w-100 w-sm-auto text-nowrap"
             style={{
               borderColor: '#FBCFE8',
               backgroundColor: '#FDF2F8',
@@ -1099,8 +1100,8 @@ export default function DailyActivityReport() {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3 pb-3 border-bottom">
-          <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: '380px' }}>
+        <div className="d-flex flex-column flex-xl-row align-items-stretch align-items-xl-center justify-content-between gap-3 pb-3 border-bottom">
+          <div className="d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
             <div className="position-relative w-100">
               <Search size={15} className="position-absolute text-muted" style={{ top: '10px', left: '12px' }} />
               <input
@@ -1114,11 +1115,12 @@ export default function DailyActivityReport() {
             </div>
           </div>
 
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <div className="d-flex align-items-center gap-1.5">
-              <Filter size={14} className="text-muted" />
+          {/* 4 Responsive Filters: 2x2 grid on mobile (col-6), clean horizontal row on tablet/desktop (col-sm-auto) */}
+          <div className="row g-2 align-items-center justify-content-xl-end flex-grow-1">
+            {/* 1. Branch Filter */}
+            <div className="col-6 col-sm-auto">
               <select
-                className="form-select form-select-sm"
+                className="form-select form-select-sm border shadow-xs w-100"
                 value={selectedBranchFilter}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1129,7 +1131,7 @@ export default function DailyActivityReport() {
                     setSelectedBatchFilter('All');
                   }
                 }}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '155px' }}
+                style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '135px' }}
               >
                 <option value="Tarabai Park">🌲 Tarabai Park</option>
                 <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
@@ -1137,12 +1139,13 @@ export default function DailyActivityReport() {
               </select>
             </div>
 
-            <div className="d-flex align-items-center gap-1.5">
+            {/* 2. Activity Filter */}
+            <div className="col-6 col-sm-auto">
               <select
-                className="form-select form-select-sm"
+                className="form-select form-select-sm border shadow-xs w-100"
                 value={selectedActivityFilter}
                 onChange={(e) => setSelectedActivityFilter(e.target.value)}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '165px' }}
+                style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '135px' }}
               >
                 <option value="All">All Activities</option>
                 <option value="Classroom Lecture & Theory">Classroom Lecture</option>
@@ -1154,98 +1157,103 @@ export default function DailyActivityReport() {
               </select>
             </div>
 
-            <select
-              className="form-select form-select-sm"
-              value={selectedBatchFilter}
-              onChange={(e) => setSelectedBatchFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '185px' }}
-            >
-              <option value="All">All Batches</option>
-              {selectedBranchFilter === 'Tarabai Park' ? (
-                <>
-                  <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                  <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                  <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                  <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                  <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                  <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                </>
-              ) : selectedBranchFilter === 'Mangalwar Peth' ? (
-                <>
-                  <optgroup label="☀️ Morning Session">
-                    <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                    <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                    <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                    <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                    <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                    <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-                  </optgroup>
-                  <optgroup label="🌙 Evening Session">
-                    <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                    <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                    <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                    <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                    <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                    <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-                  </optgroup>
-                  <optgroup label="General / Other Batches">
-                    <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                    <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                    <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                    <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                    <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                    <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                  </optgroup>
-                </>
-              ) : (
-                <>
-                  <optgroup label="Tarabai Park Batches">
+            {/* 3. Batch Filter */}
+            <div className="col-6 col-sm-auto">
+              <select
+                className="form-select form-select-sm border shadow-xs w-100"
+                value={selectedBatchFilter}
+                onChange={(e) => setSelectedBatchFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '135px' }}
+              >
+                <option value="All">All Batches</option>
+                {selectedBranchFilter === 'Tarabai Park' ? (
+                  <>
                     <option value="11th pcm tarabai park">11th pcm tarabai park</option>
                     <option value="11th pcb tarabai park">11th pcb tarabai park</option>
                     <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
                     <option value="12th pcm tarabai park">12th pcm tarabai park</option>
                     <option value="12th pcb tarabai park">12th pcb tarabai park</option>
                     <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                  </optgroup>
-                  <optgroup label="Mangalwar Peth ☀️ Morning Session">
-                    <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                    <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                    <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                    <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                    <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                    <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-                  </optgroup>
-                  <optgroup label="Mangalwar Peth 🌙 Evening Session">
-                    <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                    <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                    <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                    <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                    <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                    <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-                  </optgroup>
-                  <optgroup label="Mangalwar Peth General">
-                    <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                    <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                    <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                    <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                    <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                    <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                  </optgroup>
-                </>
-              )}
-            </select>
+                  </>
+                ) : selectedBranchFilter === 'Mangalwar Peth' ? (
+                  <>
+                    <optgroup label="☀️ Morning Session">
+                      <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                      <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                      <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                      <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                    </optgroup>
+                    <optgroup label="🌙 Evening Session">
+                      <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                      <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                      <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                      <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                    </optgroup>
+                    <optgroup label="General / Other Batches">
+                      <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                      <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                      <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                      <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                      <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                      <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                    </optgroup>
+                  </>
+                ) : (
+                  <>
+                    <optgroup label="Tarabai Park Batches">
+                      <option value="11th pcm tarabai park">11th pcm tarabai park</option>
+                      <option value="11th pcb tarabai park">11th pcb tarabai park</option>
+                      <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
+                      <option value="12th pcm tarabai park">12th pcm tarabai park</option>
+                      <option value="12th pcb tarabai park">12th pcb tarabai park</option>
+                      <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
+                    </optgroup>
+                    <optgroup label="Mangalwar Peth ☀️ Morning Session">
+                      <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
+                      <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
+                      <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
+                      <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
+                      <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
+                    </optgroup>
+                    <optgroup label="Mangalwar Peth 🌙 Evening Session">
+                      <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
+                      <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
+                      <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
+                      <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
+                      <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
+                    </optgroup>
+                    <optgroup label="Mangalwar Peth General">
+                      <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
+                      <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
+                      <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
+                      <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
+                      <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
+                      <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
+                    </optgroup>
+                  </>
+                )}
+              </select>
+            </div>
 
-            {/* Status Filter: In Progress vs Completed */}
-            <select
-              className="form-select form-select-sm"
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '145px' }}
-            >
-              <option value="All">All Statuses</option>
-              <option value="In Progress">⏳ In Progress</option>
-              <option value="Completed">✓ Completed</option>
-            </select>
+            {/* 4. Status Filter */}
+            <div className="col-6 col-sm-auto">
+              <select
+                className="form-select form-select-sm border shadow-xs w-100"
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '125px' }}
+              >
+                <option value="All">All Statuses</option>
+                <option value="In Progress">⏳ In Progress</option>
+                <option value="Completed">✓ Completed</option>
+              </select>
+            </div>
           </div>
         </div>
 

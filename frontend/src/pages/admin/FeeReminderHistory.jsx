@@ -271,14 +271,12 @@ export default function FeeReminderHistory() {
             </span>
           </div>
 
-          <div
-            className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0"
-            style={{ marginTop: '-2px' }}
-          >
+          <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto mt-2 mt-md-0">
             <Button
               variant="outline"
               icon={Sliders}
               onClick={() => navigate('/admin/fees/reminder-settings')}
+              className="flex-grow-1 flex-sm-grow-0 justify-content-center"
             >
               Reminder Settings
             </Button>
@@ -287,6 +285,7 @@ export default function FeeReminderHistory() {
               icon={Play}
               onClick={handleRunScheduler}
               loading={runningScheduler}
+              className="flex-grow-1 flex-sm-grow-0 justify-content-center"
             >
               Run Scheduler Now
             </Button>

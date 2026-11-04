@@ -449,15 +449,15 @@ export default function DiscountApprovals() {
       <div className="sa-card bg-white rounded-3 border shadow-sm overflow-hidden mb-1" style={{ borderColor: '#E2E8F0' }}>
         {/* Card Header */}
         <div
-          className="p-3.5 px-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3"
+          className="p-3.5 px-3 px-sm-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3"
           style={{
             background: 'linear-gradient(135deg, rgba(139, 18, 22, 0.04) 0%, rgba(254, 242, 242, 0.5) 100%)',
             borderBottom: '1px solid #F1F5F9'
           }}
         >
-          <div className="d-flex align-items-center gap-3">
+          <div className="d-flex align-items-start gap-2.5 gap-sm-3">
             <div
-              className="rounded-3 d-flex align-items-center justify-content-center text-white flex-shrink-0 shadow-xs"
+              className="rounded-3 d-flex align-items-center justify-content-center text-white flex-shrink-0 shadow-xs mt-0.5"
               style={{ width: '42px', height: '42px', backgroundColor: '#8B1216' }}
             >
               <ShieldCheck size={22} />
@@ -492,7 +492,7 @@ export default function DiscountApprovals() {
             </div>
           </div>
 
-          <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto mt-2 mt-md-0">
             <button
               type="button"
               onClick={() => {
@@ -501,7 +501,7 @@ export default function DiscountApprovals() {
                 const el = document.getElementById('discount-approvals-table');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="btn btn-sm btn-warning text-dark fw-bold px-3 py-1.5 d-inline-flex align-items-center gap-1.5 rounded-2 shadow-xs"
+              className="btn btn-sm btn-warning text-dark fw-bold px-3 py-2 d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 shadow-xs w-100 w-sm-auto text-nowrap"
               style={{ fontSize: '0.78rem' }}
               title="Display all pending discounts on the approval console"
             >
@@ -516,7 +516,7 @@ export default function DiscountApprovals() {
                 const el = document.getElementById('discount-approvals-table');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="btn btn-sm btn-light border px-3 py-1.5 fw-semibold text-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
+              className="btn btn-sm btn-light border px-3 py-2 fw-semibold text-secondary d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 w-100 w-sm-auto text-nowrap"
               style={{ fontSize: '0.78rem' }}
             >
               <span>View Full Approval Registry</span>

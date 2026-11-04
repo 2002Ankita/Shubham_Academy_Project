@@ -528,11 +528,14 @@ export default function LectureAttendanceManager() {
       {/* Top Banner & Action Controls */}
       <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 bg-white p-3.5 rounded-4 border shadow-2xs">
         <div>
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
             <h4 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-5">
               Lecture Attendance & Data Ledger
             </h4>
-            <span className="badge bg-danger-subtle text-danger border border-danger-subtle">
+            <span
+              className="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill fw-semibold text-nowrap"
+              style={{ fontSize: '11.5px' }}
+            >
               2 Lectures / Day Multi-Slot
             </span>
           </div>
@@ -713,112 +716,156 @@ export default function LectureAttendanceManager() {
 
       {/* Quick Attendance Marking Action Bar */}
       <div className="sa-card p-3 bg-white border border-secondary-subtle shadow-2xs">
-        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        <div className="d-flex flex-column flex-xl-row align-items-start align-items-xl-center justify-content-between gap-3">
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <span className="small fw-bold text-sa-charcoal d-flex align-items-center gap-1.5 me-1">
-              <CheckCircle2 size={16} className="text-success" />
+            <span className="small fw-bold text-sa-charcoal d-inline-flex align-items-center gap-1.5 me-1 text-nowrap" style={{ fontSize: '12.5px', height: '34px' }}>
+              <CheckCircle2 size={16} className="text-success flex-shrink-0" />
               <span>Quick Actions:</span>
             </span>
 
             <button
               type="button"
-              className="btn btn-sm btn-success fw-bold text-white d-inline-flex align-items-center gap-1.5 shadow-2xs px-3"
+              className="btn btn-sm btn-success fw-bold text-white d-inline-flex align-items-center justify-content-center gap-1.5 shadow-2xs px-3 text-nowrap"
               onClick={() => handleMarkAll('all', 'Present')}
               disabled={attendanceRows.length === 0}
               title="Mark all students in this batch as Present for both lectures"
+              style={{ height: '34px', fontSize: '12.5px', borderRadius: '6px' }}
             >
-              <CheckCheck size={15} />
+              <CheckCheck size={14} className="flex-shrink-0" />
               <span>Select All and Present</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 px-2.5 text-nowrap"
               onClick={() => handleMarkAll(1, 'Present')}
               disabled={attendanceRows.length === 0}
               title="Mark all students Present for Lecture 1 (Morning)"
+              style={{ height: '34px', fontSize: '12.5px', borderRadius: '6px' }}
             >
-              <Check size={13} />
+              <Check size={13} className="flex-shrink-0" />
               <span>Mark All Present (L1)</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              className="btn btn-sm btn-outline-success bg-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 px-2.5 text-nowrap"
               onClick={() => handleMarkAll(2, 'Present')}
               disabled={attendanceRows.length === 0}
               title="Mark all students Present for Lecture 2 (Afternoon)"
+              style={{ height: '34px', fontSize: '12.5px', borderRadius: '6px' }}
             >
-              <Check size={13} />
+              <Check size={13} className="flex-shrink-0" />
               <span>Mark All Present (L2)</span>
             </button>
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-danger bg-white fw-semibold d-inline-flex align-items-center gap-1"
+              className="btn btn-sm btn-outline-danger bg-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 px-2.5 text-nowrap"
               onClick={() => handleMarkAll('all', 'Absent')}
               disabled={attendanceRows.length === 0}
               title="Mark all students as Absent"
+              style={{ height: '34px', fontSize: '12.5px', borderRadius: '6px' }}
             >
-              <X size={13} />
+              <X size={13} className="flex-shrink-0" />
               <span>Mark All Absent</span>
             </button>
           </div>
 
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap align-self-start align-self-xl-center ms-xl-auto">
             {hasUnsavedChanges ? (
-              <span className="badge bg-warning-subtle text-dark border border-warning-subtle py-1.5 px-2.5 d-inline-flex align-items-center gap-1">
-                <AlertCircle size={12} className="text-warning" />
+              <span
+                className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 d-inline-flex align-items-center gap-1.5 fw-semibold text-nowrap"
+                style={{ height: '34px', fontSize: '12px', borderRadius: '6px', lineHeight: 1 }}
+              >
+                <AlertCircle size={13} className="text-warning flex-shrink-0" />
                 <span>Unsaved Changes</span>
               </span>
             ) : (
-              <span className="badge bg-success-subtle text-success border border-success-subtle py-1.5 px-2.5 d-inline-flex align-items-center gap-1">
-                <CheckCircle2 size={12} />
+              <span
+                className="badge bg-success-subtle text-success-emphasis border border-success-subtle px-2.5 d-inline-flex align-items-center gap-1.5 fw-semibold text-nowrap"
+                style={{ height: '34px', fontSize: '12px', borderRadius: '6px', lineHeight: 1 }}
+              >
+                <CheckCircle2 size={13} className="text-success flex-shrink-0" />
                 <span>Saved & Fixed ({selectedDate})</span>
               </span>
             )}
 
-            <Button
-              variant={hasUnsavedChanges ? 'primary' : 'outline'}
-              icon={Save}
-              loading={savingAttendance}
+            <button
+              type="button"
               onClick={handleSaveAttendance}
-              disabled={attendanceRows.length === 0}
+              disabled={attendanceRows.length === 0 || savingAttendance}
+              className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 fw-bold transition-all text-nowrap shadow-xs ${
+                hasUnsavedChanges
+                  ? 'text-white'
+                  : 'bg-white'
+              }`}
+              style={{
+                backgroundColor: hasUnsavedChanges ? '#8B1216' : '#FFFFFF',
+                border: hasUnsavedChanges ? '1.5px solid #5C0A0D' : '1.5px solid #8B1216',
+                color: hasUnsavedChanges ? '#FFFFFF' : '#8B1216',
+                height: '34px',
+                fontSize: '12.5px',
+                borderRadius: '6px',
+                cursor: attendanceRows.length === 0 ? 'not-allowed' : 'pointer',
+                lineHeight: 1,
+                boxShadow: hasUnsavedChanges ? '0 2px 6px rgba(139, 18, 22, 0.25)' : 'none',
+                transition: 'all 0.15s ease-in-out'
+              }}
+              onMouseEnter={(e) => {
+                if (!hasUnsavedChanges && attendanceRows.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#FDF0F0';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!hasUnsavedChanges && attendanceRows.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#FFFFFF';
+                }
+              }}
               title="Save all lecture attendance records"
             >
-              Save Attendance
-            </Button>
+              {savingAttendance ? (
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+              ) : (
+                <Save size={14} className="flex-shrink-0" />
+              )}
+              <span>Save Attendance</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Attendance Ledger Table */}
-      <div className="sa-card p-4 bg-white">
-        <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-          <div>
-            <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+      <div className="sa-card p-3.5 p-md-4 bg-white">
+        <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 border-bottom pb-3">
+          <div className="w-100 w-md-auto">
+            <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6" style={{ letterSpacing: '-0.2px' }}>
               Daily Lecture Attendance Ledger ({filteredRecords.length} Students in Batch)
             </h5>
-            <span className="small text-muted">
+            <span className="small text-muted d-block mt-1" style={{ fontSize: '12.5px', lineHeight: 1.4 }}>
               {reportData?.formatted_date || selectedDate} — Students may attend 2 separate lectures daily. Click 'Present' or 'Absent' to mark individually.
             </span>
           </div>
 
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto">
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5"
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold text-nowrap rounded-2 shadow-2xs flex-grow-1 flex-md-grow-0"
+              style={{ fontSize: '12.5px', height: '36px', borderColor: '#CBD5E1' }}
               onClick={() => navigate('/admin/attendance/report')}
+              title="View comprehensive attendance analytics and reports"
             >
-              <BarChart3 size={14} />
+              <BarChart3 size={15} className="flex-shrink-0 text-sa-primary" />
               <span>Full Analytics Report</span>
             </button>
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5"
-              onClick={() => navigate('/admin/notifications')}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold text-nowrap rounded-2 shadow-2xs flex-grow-1 flex-md-grow-0"
+              style={{ fontSize: '12.5px', height: '36px', borderColor: '#CBD5E1' }}
+              onClick={() => navigate('/admin/notifications?tab=history&type=absence_alert')}
+              title="View absence WhatsApp & SMS notification dispatch history"
             >
-              <Bell size={14} />
+              <Bell size={15} className="flex-shrink-0" />
               <span>SMS History</span>
             </button>
           </div>

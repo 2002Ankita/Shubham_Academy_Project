@@ -413,64 +413,72 @@ export default function AdminDashboard() {
       >
         <div className="row g-0 align-items-center">
           {/* Left Text */}
-          <div className="col-12 col-md-6 col-lg-6 p-4 ps-md-4 ps-xl-5 py-md-4">
+          <div className="col-12 col-md-7 col-lg-8 p-4 ps-md-4 ps-xl-5 py-md-4">
             <h1
               className="fw-bold brand-font text-sa-charcoal m-0"
               style={{ fontSize: '1.85rem', letterSpacing: '-0.01em', lineHeight: 1.25 }}
             >
               Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
             </h1>
-            <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
+            <div className="d-flex align-items-center gap-2.5 mt-2.5 flex-wrap">
               <span
-                className="badge py-1.5 px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5"
+                className="badge px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5 text-nowrap flex-shrink-0"
                 style={{
                   backgroundColor: '#8B1216',
                   color: '#FFFFFF',
                   fontSize: '0.80rem',
                   letterSpacing: '0.02em',
+                  height: '32px',
                   boxShadow: '0 2px 6px rgba(139,18,22,0.18)'
                 }}
               >
-                {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
+                <span>{selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}</span>
                 <span
-                  className="badge bg-white text-dark py-0.5 px-1.5 rounded-pill"
-                  style={{ fontSize: '0.68rem', fontWeight: 600 }}
+                  className="badge bg-white text-dark px-1.5 py-0.5 rounded-pill d-inline-flex align-items-center justify-content-center"
+                  style={{ fontSize: '0.68rem', fontWeight: 600, lineHeight: 1 }}
                 >
                   Active Campus
                 </span>
               </span>
 
               {/* Quick Campus Switcher */}
-              <div className="btn-group p-0.5 rounded-pill bg-white border shadow-xs" role="group" aria-label="Campus quick switch">
+              <div
+                className="btn-group p-0.5 rounded-pill bg-white border shadow-xs d-inline-flex align-items-center text-nowrap flex-shrink-0"
+                role="group"
+                aria-label="Campus quick switch"
+                style={{ borderColor: '#E2E8F0', height: '32px' }}
+              >
                 <button
                   type="button"
                   onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
+                  className={`btn btn-xs px-2.5 rounded-pill fw-semibold border-0 transition-all d-inline-flex align-items-center justify-content-center gap-1 h-100 ${
                     selectedCampus === BRANCH_TARABAI
-                      ? 'btn-danger text-white shadow-xs'
+                      ? 'text-white shadow-xs'
                       : 'text-secondary'
                   }`}
                   style={{
                     fontSize: '0.74rem',
-                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
+                    lineHeight: 1
                   }}
                 >
-                  🌲 Tarabai Park
+                  <span>🌲 Tarabai Park</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                  className={`btn btn-xs px-2.5 py-0.5 rounded-pill fw-semibold border-0 transition-all ${
+                  className={`btn btn-xs px-2.5 rounded-pill fw-semibold border-0 transition-all d-inline-flex align-items-center justify-content-center gap-1 h-100 ${
                     selectedCampus === BRANCH_MANGALWAR
-                      ? 'btn-danger text-white shadow-xs'
+                      ? 'text-white shadow-xs'
                       : 'text-secondary'
                   }`}
                   style={{
                     fontSize: '0.74rem',
-                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
+                    lineHeight: 1
                   }}
                 >
-                  🏛️ Mangalvar Peth
+                  <span>🏛️ Mangalvar Peth</span>
                 </button>
               </div>
             </div>
@@ -514,7 +522,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Right Hero Illustration */}
-          <div className="col-12 col-md-6 col-lg-6 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3">
+          <div className="col-12 col-md-5 col-lg-4 d-flex justify-content-end align-items-end pe-0 pe-md-2 pe-xl-3">
             <img
               src="/assets/superadminhero.png"
               alt="Shubham Academy Celebration"
@@ -648,16 +656,16 @@ export default function AdminDashboard() {
       {/* Dynamic Fees Collection Overview Section for Tarabai Park and Mangalvar Peth */}
       <div id="dashboard-fees-overview" className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border shadow-xs">
         <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 mb-3">
-          <div className="d-flex align-items-center gap-2.5">
+          <div className="d-flex align-items-start gap-2.5">
             <div
-              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
+              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs flex-shrink-0 mt-0.5"
               style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)' }}
             >
               <Coins size={20} />
             </div>
             <div>
               <div className="d-flex align-items-center gap-2 flex-wrap">
-                <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.1rem' }}>
+                <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.1rem', lineHeight: 1.25 }}>
                   Fees Collection Overview
                 </h2>
                 <span
@@ -684,19 +692,19 @@ export default function AdminDashboard() {
                   Live Dynamic DB
                 </span>
               </div>
-              <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
+              <span className="text-sa-muted d-block mt-1" style={{ fontSize: '0.80rem', lineHeight: 1.4 }}>
                 Real-time collection targets, realized revenue, and pending dues for {selectedCampus}
               </span>
             </div>
           </div>
 
           {/* Campus Switcher Tabs & Quick Navigation */}
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
+          <div className="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto">
+            <div className="btn-group p-0.5 rounded-2 bg-light border w-100 w-sm-auto d-flex" role="group" aria-label="Campus selector">
               <button
                 type="button"
                 onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                className={`btn btn-sm px-2.5 py-1.5 rounded-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 transition-all flex-fill text-nowrap ${
                   selectedCampus === BRANCH_TARABAI
                     ? 'btn-danger text-white shadow-xs'
                     : 'btn-light text-secondary'
@@ -712,7 +720,7 @@ export default function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                className={`btn btn-sm px-2.5 py-1.5 rounded-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 transition-all flex-fill text-nowrap ${
                   selectedCampus === BRANCH_MANGALWAR
                     ? 'btn-danger text-white shadow-xs'
                     : 'btn-light text-secondary'
@@ -727,26 +735,28 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigate('/admin/fees')}
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-              title="Open Fee Collection Counter"
-            >
-              <CreditCard size={14} />
-              <span>Fee Counter</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/fees/pending')}
-              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-              title="View Pending Fee Overdues"
-            >
-              <AlertCircle size={14} />
-              <span>Pending Dues</span>
-            </button>
+            <div className="d-flex align-items-center gap-2 w-100 w-sm-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/fees')}
+                className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 px-2.5 py-1.5 flex-fill text-nowrap"
+                style={{ fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+                title="Open Fee Collection Counter"
+              >
+                <CreditCard size={14} className="flex-shrink-0" />
+                <span>Fee Counter</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/fees/pending')}
+                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 px-2.5 py-1.5 flex-fill text-nowrap"
+                style={{ fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+                title="View Pending Fee Overdues"
+              >
+                <AlertCircle size={14} className="flex-shrink-0" />
+                <span>Pending Dues</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1015,10 +1025,10 @@ export default function AdminDashboard() {
       {/* FACULTY OPERATIONS: LEAVES, WORKING TIME & SALARY */}
       <div className="d-flex flex-column gap-3 pt-2">
         {/* Section Header */}
-        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 pb-1 border-bottom" style={{ borderColor: 'rgba(220, 38, 38, 0.12)' }}>
-          <div className="d-flex align-items-center gap-2.5">
+        <div className="d-flex flex-column flex-xl-row align-items-start align-items-xl-center justify-content-between gap-3 pb-2 border-bottom" style={{ borderColor: 'rgba(220, 38, 38, 0.12)' }}>
+          <div className="d-flex align-items-start gap-2.5">
             <div
-              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
+              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs flex-shrink-0 mt-0.5"
               style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)' }}
             >
               <Users size={19} />
@@ -1027,58 +1037,66 @@ export default function AdminDashboard() {
               <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.20rem', lineHeight: 1.25 }}>
                 Faculty Operations: Working Time, Leaves & Daily Logs
               </h2>
-              <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
+              <span className="text-sa-muted d-block mt-1" style={{ fontSize: '0.80rem', lineHeight: 1.4 }}>
                 Real-time tracking of staff working hours, teacher classroom activity logs, and payroll records
               </span>
             </div>
           </div>
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/teachers/attendance')}
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-            >
-              <Clock size={13} />
-              <span>Full Attendance</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/teachers/leave-approvals')}
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-            >
-              <Calendar size={13} />
-              <span>Leave Approvals</span>
-              {pendingLeaves.length > 0 && (
-                <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
-                  {pendingLeaves.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/teacher-activities')}
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-            >
-              <FileText size={13} />
-              <span>Daily Log Activity</span>
-              {teacherActivities.length > 0 && (
-                <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
-                  {teacherActivities.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/teachers/salary')}
-              className="btn btn-sm text-white d-inline-flex align-items-center gap-1.5 rounded-2 shadow-xs"
-              style={{ backgroundColor: '#8B1216', fontSize: '0.78rem', fontWeight: 600 }}
-            >
-              <ReceiptIndianRupee size={13} />
-              <span>Salary Register</span>
-            </button>
+          <div className="row g-2 w-100 w-xl-auto align-items-center">
+            <div className="col-6 col-sm-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/teachers/attendance')}
+                className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 w-100 text-nowrap"
+                style={{ fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+              >
+                <Clock size={13} className="flex-shrink-0" />
+                <span>Full Attendance</span>
+              </button>
+            </div>
+            <div className="col-6 col-sm-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/teachers/leave-approvals')}
+                className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 w-100 text-nowrap"
+                style={{ fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+              >
+                <Calendar size={13} className="flex-shrink-0" />
+                <span>Leave Approvals</span>
+                {pendingLeaves.length > 0 && (
+                  <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
+                    {pendingLeaves.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="col-6 col-sm-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/teacher-activities')}
+                className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 w-100 text-nowrap"
+                style={{ fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+              >
+                <FileText size={13} className="flex-shrink-0" />
+                <span>Daily Log Activity</span>
+                {teacherActivities.length > 0 && (
+                  <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: '10px' }}>
+                    {teacherActivities.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="col-6 col-sm-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/teachers/salary')}
+                className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 shadow-xs w-100 text-nowrap"
+                style={{ backgroundColor: '#8B1216', fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
+              >
+                <ReceiptIndianRupee size={13} className="flex-shrink-0" />
+                <span>Salary Register</span>
+              </button>
+            </div>
           </div>
         </div>
 

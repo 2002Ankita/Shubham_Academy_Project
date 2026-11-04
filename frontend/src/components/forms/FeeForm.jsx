@@ -281,12 +281,12 @@ export default function FeeForm({
   };
 
   return (
-    <div className="sa-card p-4 p-lg-4 border shadow-sm">
+    <div className="sa-card p-3 p-sm-4 border shadow-sm">
       {/* Top Card Header */}
       <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
         <div>
           <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-5 d-flex align-items-center gap-2">
-            <Receipt className="text-sa-primary" size={22} />
+            <Receipt className="text-sa-primary flex-shrink-0" size={22} />
             Student Fee Collection Counter
           </h5>
           <p className="text-muted small m-0 mt-1">
@@ -301,13 +301,17 @@ export default function FeeForm({
       </div>
 
       {/* 1. Standardized Branch & Academic Batch Selector */}
-      <div className="p-3.5 p-md-4 rounded-3 border bg-light-subtle mb-4">
-        <div className="d-flex align-items-center justify-content-between mb-2">
-          <label className="form-label fw-bold small text-sa-charcoal d-flex align-items-center gap-1.5 m-0">
-            <Building size={16} className="text-sa-primary" /> Branch & Batch Selection (Admission Filter)
+      <div className="p-3 p-md-4 rounded-3 border bg-light-subtle mb-4">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-2.5">
+          <label className="form-label fw-bold small text-sa-charcoal d-inline-flex align-items-center gap-1.5 m-0">
+            <Building size={16} className="text-sa-primary flex-shrink-0" />
+            <span>Branch & Batch Selection (Admission Filter)</span>
           </label>
           {isFilterComplete && (
-            <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
+            <span
+              className="badge py-1 px-2.5 rounded-pill fw-bold text-wrap text-start"
+              style={{ backgroundColor: '#8B1216', color: '#FFFFFF', maxWidth: '100%' }}
+            >
               {selectedBranch} • {selectedSession ? `${selectedSession} • ` : ''}{selectedAcademicBatch}
             </span>
           )}
@@ -345,15 +349,15 @@ export default function FeeForm({
 
       {/* 3. Student Search and Dropdown Selection (When Filter Complete) */}
       {isFilterComplete && (
-        <div className="p-3.5 p-md-4 rounded-3 border bg-white shadow-xs mb-4">
-          <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <div className="p-3 p-md-4 rounded-3 border bg-white shadow-xs mb-4">
+          <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
             <div className="d-flex align-items-center gap-2">
-              <User size={16} className="text-sa-primary" />
+              <User size={16} className="text-sa-primary flex-shrink-0" />
               <h6 className="fw-bold text-sa-charcoal m-0 small">
                 Search & Select Student from Enrolled Batch
               </h6>
             </div>
-            <span className="badge bg-light text-sa-charcoal border small">
+            <span className="badge bg-light text-sa-charcoal border small text-wrap text-start" style={{ maxWidth: '100%' }}>
               Campus: <strong>{selectedBranch}</strong> • <strong>{selectedSession ? `${selectedSession} • ` : ''}{selectedAcademicBatch}</strong>
             </span>
           </div>
@@ -458,7 +462,7 @@ export default function FeeForm({
       {selectedStudent && (
         <div className="mb-4">
           {/* Selected Student Banner */}
-          <div className="p-3.5 p-md-4 mb-4 rounded-3 bg-white border d-flex flex-wrap align-items-center justify-content-between gap-3 shadow-xs">
+          <div className="p-3 p-md-4 mb-4 rounded-3 bg-white border d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 shadow-xs">
             <div className="d-flex align-items-center gap-3">
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs flex-shrink-0"
@@ -632,10 +636,10 @@ export default function FeeForm({
           </div>
 
           {/* 6. Payment Collection Input Fields (When Student is Selected) */}
-          <div className="p-3.5 p-md-4 rounded-3 border bg-light-subtle">
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+          <div className="p-3 p-md-4 rounded-3 border bg-light-subtle">
+            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-1 gap-sm-2 mb-3 pb-2 border-bottom">
               <div className="d-flex align-items-center gap-2">
-                <Receipt size={18} className="text-sa-primary" />
+                <Receipt size={18} className="text-sa-primary flex-shrink-0" />
                 <h6 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
                   Record New Payment Entry
                 </h6>

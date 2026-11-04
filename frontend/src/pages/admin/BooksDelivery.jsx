@@ -412,29 +412,42 @@ export default function BooksDelivery() {
   return (
     <div className="d-flex flex-column gap-4 pb-4">
       {/* 1. Page Header */}
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
-            <Truck className="text-sa-primary" size={24} />
-            <span>Books Delivery & Handover Desk</span>
-          </h3>
-          <span className="small text-sa-muted">
-            Record Theory & CET book handouts to students and teachers, track who handed them over, and save records to database
-          </span>
+      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3">
+        <div className="d-flex align-items-start gap-2.5">
+          <Truck className="text-sa-primary flex-shrink-0 mt-0.5" size={24} />
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
+              Books Delivery & Handover Desk
+            </h3>
+            <span className="small text-sa-muted d-block mt-1" style={{ fontSize: '13px', lineHeight: 1.4 }}>
+              Record Theory & CET book handouts to students and teachers, track who handed them over, and save records to database
+            </span>
+          </div>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto">
           <Button
             variant="outline"
             icon={Package}
             onClick={() => navigate(user?.role === 'teacher' ? '/teacher/books/stock' : '/admin/books/stock')}
+            className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
           >
             Books Stock
           </Button>
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData}>
+          <Button
+            variant="outline"
+            icon={RefreshCw}
+            onClick={fetchData}
+            className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
+          >
             Refresh
           </Button>
-          <Button variant="primary" icon={Plus} onClick={handleOpenAddModal}>
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={handleOpenAddModal}
+            className="w-100 w-sm-auto d-inline-flex align-items-center justify-content-center text-nowrap"
+          >
             Log New Book Handover
           </Button>
         </div>
@@ -601,8 +614,9 @@ export default function BooksDelivery() {
       </div>
 
       {/* 4. Deliveries Table */}
-      <div className="sa-card p-4 bg-white border">
+      <div className="sa-card p-3.5 p-sm-4 bg-white border">
         <Table
+          minWidth="950px"
           columns={[
             {
               key: 'recipientName',

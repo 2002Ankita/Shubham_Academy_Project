@@ -15,7 +15,8 @@ import {
   GraduationCap,
   Users,
   Tag,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
@@ -896,10 +897,11 @@ export default function StudentRegistration() {
               </div>
 
               {/* Submit Button Section */}
-              <div className="d-flex align-items-center justify-content-between gap-3 mt-4 pt-3 border-top">
+              <div className="d-flex flex-column-reverse flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 mt-4 pt-3 border-top">
                 <button
                   type="button"
-                  className="btn btn-outline-secondary px-4"
+                  className="btn btn-outline-secondary px-4 py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-2 text-nowrap rounded-3 transition-all"
+                  style={{ minHeight: '44px', fontSize: '14px' }}
                   onClick={() => {
                     const isMP = activeBranch && activeBranch.toLowerCase().includes('mangal');
                     const branchToUse = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
@@ -927,23 +929,37 @@ export default function StudentRegistration() {
                   }}
                   disabled={loading}
                 >
-                  Clear Form
+                  <RotateCcw size={16} className="flex-shrink-0" />
+                  <span>Clear Form</span>
                 </button>
 
                 <button
                   type="submit"
-                  className="btn text-white px-5 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
-                  style={{ backgroundColor: '#8B1216' }}
+                  className="btn text-white px-4 py-2.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-2 text-nowrap rounded-3 shadow-sm transition-all"
+                  style={{
+                    backgroundColor: '#8B1216',
+                    border: '1.5px solid #8B1216',
+                    minHeight: '44px',
+                    fontSize: '14px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#700E12';
+                    e.currentTarget.style.borderColor = '#700E12';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#8B1216';
+                    e.currentTarget.style.borderColor = '#8B1216';
+                  }}
                   disabled={loading}
                 >
                   {loading ? (
                     <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                      <span className="spinner-border spinner-border-sm flex-shrink-0" role="status" aria-hidden="true" />
                       <span>Creating Student Account...</span>
                     </>
                   ) : (
                     <>
-                      <UserCheck size={18} />
+                      <UserCheck size={18} className="flex-shrink-0" />
                       <span>Register Student Account</span>
                     </>
                   )}
