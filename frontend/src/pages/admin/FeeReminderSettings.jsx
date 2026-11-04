@@ -403,11 +403,11 @@ export default function FeeReminderSettings() {
             </span>
           </div>
 
-          {/* Action Controls - aligned in single clean row with exact same heights */}
-          <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0">
+          {/* Action Controls - responsive wrap on mobile */}
+          <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto mt-2 mt-md-0">
             <button
               type="button"
-              className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1.5 px-3 rounded-3 bg-white shadow-sm text-nowrap transition-all"
+              className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 rounded-3 bg-white shadow-sm text-nowrap transition-all flex-grow-1 flex-sm-grow-0"
               onClick={() => setTestModalOpen(true)}
               style={{
                 borderColor: '#D1D5DB',
@@ -422,7 +422,7 @@ export default function FeeReminderSettings() {
 
             <button
               type="button"
-              className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1.5 px-3 rounded-3 bg-white shadow-sm text-nowrap transition-all"
+              className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 rounded-3 bg-white shadow-sm text-nowrap transition-all flex-grow-1 flex-sm-grow-0"
               onClick={() => navigate('/admin/fees/reminder-history')}
               style={{
                 borderColor: '#D1D5DB',
@@ -437,7 +437,7 @@ export default function FeeReminderSettings() {
 
             <button
               type="button"
-              className="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3.5 rounded-3 fw-bold text-white shadow-sm text-nowrap transition-all"
+              className="btn btn-primary btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 rounded-3 fw-bold text-white shadow-sm text-nowrap transition-all w-100 w-sm-auto"
               onClick={handleSave}
               disabled={saving}
               style={{
@@ -555,15 +555,15 @@ export default function FeeReminderSettings() {
               </h4>
             </div>
 
-            <div className="d-flex flex-column gap-3 ps-md-2" style={{ marginLeft: '54px' }}>
+            <div className="d-flex flex-column gap-3 ms-0 ms-sm-4 ps-sm-3">
               {/* WhatsApp Option */}
               <label
-                className="d-flex align-items-center gap-3 cursor-pointer user-select-none"
+                className="d-flex align-items-start align-items-sm-center gap-2.5 gap-sm-3 cursor-pointer user-select-none"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setChannel('WhatsApp')}
               >
                 <div
-                  className="d-flex align-items-center justify-content-center flex-shrink-0"
+                  className="d-flex align-items-center justify-content-center flex-shrink-0 mt-0.5 mt-sm-0"
                   style={{
                     width: '20px',
                     height: '20px',
@@ -584,17 +584,18 @@ export default function FeeReminderSettings() {
                     />
                   )}
                 </div>
-                <div className="d-flex align-items-center gap-2.5">
+                <div className="d-flex align-items-center gap-2 flex-wrap">
                   <span className="fw-semibold" style={{ color: themeStyles.textColor, fontSize: '0.94rem' }}>
                     WhatsApp
                   </span>
                   <span
-                    className="badge rounded-pill px-2.5 py-1"
+                    className="badge rounded-pill px-2.5 py-1 text-wrap text-start"
                     style={{
                       fontSize: '0.70rem',
                       backgroundColor: '#DCFCE7',
                       color: '#15803D',
-                      fontWeight: 600
+                      fontWeight: 600,
+                      maxWidth: '100%'
                     }}
                   >
                     Recommended • 98% Completion
@@ -604,7 +605,7 @@ export default function FeeReminderSettings() {
 
               {/* SMS Option */}
               <label
-                className="d-flex align-items-center gap-3 cursor-pointer user-select-none"
+                className="d-flex align-items-center gap-2.5 gap-sm-3 cursor-pointer user-select-none"
                 style={{ cursor: 'pointer' }}
                 onClick={() => setChannel('SMS')}
               >
@@ -630,11 +631,11 @@ export default function FeeReminderSettings() {
                     />
                   )}
                 </div>
-                <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-2 flex-wrap">
                   <span className="fw-semibold" style={{ color: themeStyles.textColor, fontSize: '0.94rem' }}>
                     SMS
                   </span>
-                  <span className="small" style={{ color: themeStyles.mutedColor, fontSize: '0.84rem' }}>
+                  <span className="small text-muted" style={{ color: themeStyles.mutedColor, fontSize: '0.84rem' }}>
                     (Carrier SMS Gateway)
                   </span>
                 </div>
@@ -672,7 +673,7 @@ export default function FeeReminderSettings() {
               </div>
             </div>
 
-            <div className="d-flex flex-column gap-3.5" style={{ marginLeft: '54px' }}>
+            <div className="d-flex flex-column gap-3.5 ms-0 ms-sm-4 ps-sm-3">
               {/* First Reminder */}
               <div>
                 <label className="d-block small fw-medium mb-1.5" style={{ color: themeStyles.textColor, fontSize: '0.84rem' }}>

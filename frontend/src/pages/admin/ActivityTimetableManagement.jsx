@@ -1728,32 +1728,65 @@ export default function ActivityTimetableManagement() {
       >
         {/* Sheet Top Info Banner */}
         <div
-          className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+          className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between p-2.5 px-3 border-bottom gap-2"
           style={{ backgroundColor: '#F8FAFC', borderColor: '#475569' }}
         >
-          <div className="d-flex align-items-center gap-2">
+          {/* Row 1 on mobile: Sheet Badge on left, Action buttons on right */}
+          <div className="d-flex align-items-center justify-content-between w-100 w-md-auto gap-2">
             <span
-              className="badge px-2.5 py-1 fw-bold text-white shadow-xs"
+              className="badge px-2.5 py-1.5 fw-bold text-white shadow-xs text-nowrap"
               style={{
                 backgroundColor: facultyColorMap[subjectName] || '#1E293B',
                 fontSize: '11.5px',
                 letterSpacing: '0.3px',
-                borderRadius: '5px'
+                borderRadius: '6px'
               }}
             >
               📑 Sheet: {subjectName}
             </span>
-            <span className="text-sa-muted" style={{ fontSize: '12px' }}>
-              • {chapters.length} Chapters • {boardsTotal} Boards + {entranceTotal} Entrance = {lecturesTotal} Total Lectures
+
+            {/* Action buttons (Add Chapter & Import) on mobile view */}
+            <div className="d-flex d-md-none align-items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleOpenAddChapterModal(subjectName)}
+                className="btn btn-sm text-sa-charcoal fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap shadow-2xs"
+                style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '6px', height: '30px' }}
+                title={`Add Chapter to ${subjectName}`}
+              >
+                <Plus size={13} color="#8B1216" />
+                <span>Add Chapter</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleTriggerSyllabusExcel}
+                className="btn btn-sm text-success fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap shadow-2xs"
+                style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '6px', height: '30px' }}
+                title="Upload / Re-import Excel"
+              >
+                <FileSpreadsheet size={13} />
+                <span>Import</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Summary: Clean badges that wrap naturally without text squeezing */}
+          <div className="d-flex align-items-center flex-wrap gap-1.5 text-sa-muted" style={{ fontSize: '12px' }}>
+            <span className="badge bg-white text-dark border px-2 py-1 rounded-pill fw-medium" style={{ fontSize: '11px', borderColor: '#CBD5E1' }}>
+              {chapters.length} Chapters
+            </span>
+            <span className="badge bg-white text-dark border px-2 py-1 rounded-pill fw-medium" style={{ fontSize: '11px', borderColor: '#CBD5E1' }}>
+              {boardsTotal} Boards + {entranceTotal} Entrance = {lecturesTotal} Total Lectures
             </span>
           </div>
 
-          <div className="d-flex align-items-center gap-2">
+          {/* Action buttons on Desktop view (md and above) */}
+          <div className="d-none d-md-flex align-items-center gap-2">
             <button
               type="button"
               onClick={() => handleOpenAddChapterModal(subjectName)}
-              className="btn btn-sm text-sa-charcoal fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
-              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '5px' }}
+              className="btn btn-sm text-sa-charcoal fw-semibold px-2.5 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
+              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '6px', height: '30px' }}
               title={`Add Chapter to ${subjectName}`}
             >
               <Plus size={13} color="#8B1216" />
@@ -1762,8 +1795,8 @@ export default function ActivityTimetableManagement() {
             <button
               type="button"
               onClick={handleTriggerSyllabusExcel}
-              className="btn btn-sm text-success fw-semibold px-2 py-1 d-inline-flex align-items-center gap-1"
-              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '5px' }}
+              className="btn btn-sm text-success fw-semibold px-2.5 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
+              style={{ fontSize: '11.5px', backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '6px', height: '30px' }}
               title="Upload / Re-import Excel"
             >
               <FileSpreadsheet size={13} />
@@ -2143,8 +2176,8 @@ export default function ActivityTimetableManagement() {
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '22px' }}>
-      {/* 1. Page Header */}
-      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pt-1">
+      {/* 1. Page Header & View Mode Navigation */}
+      <div className="d-flex flex-column gap-3 pt-1">
         <div>
           <div className="d-flex align-items-center gap-2">
             <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '23px', lineHeight: 1.2 }}>
@@ -2156,100 +2189,132 @@ export default function ActivityTimetableManagement() {
           </p>
         </div>
 
-        {/* Top Tab Switcher: Daily Logs vs Weekly Timetable */}
-        <div
-          className="d-flex p-1 bg-white border rounded-3 shadow-xs"
-          style={{ borderColor: '#E2E8F0', height: '42px' }}
-        >
-          {/* Tab 1: Daily Logs */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('daily')}
-            className={`btn btn-sm d-flex align-items-center gap-2 px-3 fw-semibold transition-all ${
-              activeTab === 'daily' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-            }`}
-            style={{
-              backgroundColor: activeTab === 'daily' ? '#8B1216' : 'transparent',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              border: 'none',
-              cursor: 'pointer'
-            }}
+        {/* Primary View Switcher Tabs (Responsive: full-width segmented list on mobile, inline single-line tabs on desktop) */}
+        <div className="w-100">
+          <div
+            className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center p-1.5 p-md-1 bg-white border rounded-3 shadow-xs w-100 w-md-auto"
+            style={{ borderColor: '#E2E8F0', minHeight: '42px', gap: '4px' }}
           >
-            <CalendarDays size={14} />
-            <span>Daily Logs</span>
-            <span
-              className="badge rounded-pill"
+            {/* Tab 1: Daily Logs */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('daily')}
+              className={`btn btn-sm d-flex d-md-inline-flex align-items-center justify-content-between justify-content-md-center gap-2 px-3 py-2 py-md-1.5 fw-semibold text-nowrap transition-all ${
+                activeTab === 'daily' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+              }`}
               style={{
-                backgroundColor: activeTab === 'daily' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
-                color: activeTab === 'daily' ? '#FFFFFF' : '#475569',
-                fontSize: '10.5px'
+                backgroundColor: activeTab === 'daily' ? '#8B1216' : 'transparent',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '36px',
+                lineHeight: 1
               }}
             >
-              {dailyActivities.length}
-            </span>
-          </button>
+              <div className="d-flex align-items-center gap-2">
+                <CalendarDays size={14} className="flex-shrink-0" />
+                <span style={{ whiteSpace: 'nowrap' }}>Daily Logs</span>
+              </div>
+              <span
+                className="badge rounded-pill flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                style={{
+                  backgroundColor: activeTab === 'daily' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
+                  color: activeTab === 'daily' ? '#FFFFFF' : '#475569',
+                  fontSize: '10.5px',
+                  fontWeight: 600,
+                  minWidth: '20px',
+                  height: '20px',
+                  padding: '0 6px',
+                  lineHeight: 1
+                }}
+              >
+                {dailyActivities.length}
+              </span>
+            </button>
 
-          {/* Tab 2: Master Weekly Timetable */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('timetable')}
-            className={`btn btn-sm d-flex align-items-center gap-2 px-3 fw-semibold transition-all ${
-              activeTab === 'timetable' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-            }`}
-            style={{
-              backgroundColor: activeTab === 'timetable' ? '#8B1216' : 'transparent',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <CalendarCheck size={14} />
-            <span>Weekly Timetable</span>
-            <span
-              className="badge rounded-pill"
+            {/* Tab 2: Master Weekly Timetable */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('timetable')}
+              className={`btn btn-sm d-flex d-md-inline-flex align-items-center justify-content-between justify-content-md-center gap-2 px-3 py-2 py-md-1.5 fw-semibold text-nowrap transition-all ${
+                activeTab === 'timetable' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+              }`}
               style={{
-                backgroundColor: activeTab === 'timetable' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
-                color: activeTab === 'timetable' ? '#FFFFFF' : '#475569',
-                fontSize: '10.5px'
+                backgroundColor: activeTab === 'timetable' ? '#8B1216' : 'transparent',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '36px',
+                lineHeight: 1
               }}
             >
-              {allTimetableSlots.length}
-            </span>
-          </button>
+              <div className="d-flex align-items-center gap-2">
+                <CalendarCheck size={14} className="flex-shrink-0" />
+                <span style={{ whiteSpace: 'nowrap' }}>Weekly Timetable</span>
+              </div>
+              <span
+                className="badge rounded-pill flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                style={{
+                  backgroundColor: activeTab === 'timetable' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
+                  color: activeTab === 'timetable' ? '#FFFFFF' : '#475569',
+                  fontSize: '10.5px',
+                  fontWeight: 600,
+                  minWidth: '20px',
+                  height: '20px',
+                  padding: '0 6px',
+                  lineHeight: 1
+                }}
+              >
+                {allTimetableSlots.length}
+              </span>
+            </button>
 
-          {/* Tab 3: Syllabus & Lecture Plan (mp/tp) */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('syllabus');
-              loadSyllabusData(syllabusSubject);
-            }}
-            className={`btn btn-sm d-flex align-items-center gap-2 px-3 fw-semibold transition-all ${
-              activeTab === 'syllabus' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-            }`}
-            style={{
-              backgroundColor: activeTab === 'syllabus' ? '#8B1216' : 'transparent',
-              borderRadius: '6px',
-              fontSize: '12.5px',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <BookOpen size={14} />
-            <span>Syllabus & Lecture Plan (mp/tp)</span>
-            <span
-              className="badge rounded-pill"
+            {/* Tab 3: Syllabus & Lecture Plan (mp/tp) */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('syllabus');
+                loadSyllabusData(syllabusSubject);
+              }}
+              className={`btn btn-sm d-flex d-md-inline-flex align-items-center justify-content-between justify-content-md-center gap-2 px-3 py-2 py-md-1.5 fw-semibold text-nowrap transition-all ${
+                activeTab === 'syllabus' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+              }`}
               style={{
-                backgroundColor: activeTab === 'syllabus' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
-                color: activeTab === 'syllabus' ? '#FFFFFF' : '#475569',
-                fontSize: '10.5px'
+                backgroundColor: activeTab === 'syllabus' ? '#8B1216' : 'transparent',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '36px',
+                lineHeight: 1
               }}
             >
-              {syllabusList.length}
-            </span>
-          </button>
+              <div className="d-flex align-items-center gap-2">
+                <BookOpen size={14} className="flex-shrink-0" />
+                <span style={{ whiteSpace: 'nowrap' }}>Syllabus & Lecture Plan (mp/tp)</span>
+              </div>
+              <span
+                className="badge rounded-pill flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                style={{
+                  backgroundColor: activeTab === 'syllabus' ? 'rgba(255,255,255,0.25)' : '#F1F5F9',
+                  color: activeTab === 'syllabus' ? '#FFFFFF' : '#475569',
+                  fontSize: '10.5px',
+                  fontWeight: 600,
+                  minWidth: '20px',
+                  height: '20px',
+                  padding: '0 6px',
+                  lineHeight: 1
+                }}
+              >
+                {syllabusList.length}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2715,13 +2780,18 @@ export default function ActivityTimetableManagement() {
 
           {/* View Format Switcher */}
           <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2.5 pt-1">
-            <div className="d-flex align-items-center gap-2">
-              <span className="fw-bold text-sa-charcoal" style={{ fontSize: '12.5px' }}>View Format:</span>
-              <div className="d-flex align-items-center p-0.5 bg-light border rounded-3" style={{ borderColor: '#CBD5E1' }}>
+            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 w-100 w-md-auto">
+              <span className="fw-bold text-sa-charcoal text-nowrap" style={{ fontSize: '12.5px' }}>
+                View Format:
+              </span>
+              <div
+                className="d-flex align-items-center p-0.5 bg-light border rounded-3 w-100 w-sm-auto shadow-2xs"
+                style={{ borderColor: '#CBD5E1' }}
+              >
                 <button
                   type="button"
                   onClick={() => setDailyViewMode('excel')}
-                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 ${
+                  className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
                     dailyViewMode === 'excel' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
                   }`}
                   style={{
@@ -2729,16 +2799,19 @@ export default function ActivityTimetableManagement() {
                     borderRadius: '6px',
                     fontSize: '12px',
                     border: 'none',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    height: '34px',
+                    lineHeight: 1
                   }}
                 >
-                  <FileSpreadsheet size={13} />
-                  <span>Excel Sheet Structure (As-It-Is)</span>
+                  <FileSpreadsheet size={13} className="flex-shrink-0" />
+                  <span className="d-none d-sm-inline">Excel Sheet Structure (As-It-Is)</span>
+                  <span className="d-inline d-sm-none">Excel Structure</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setDailyViewMode('logs')}
-                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1 ${
+                  className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
                     dailyViewMode === 'logs' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
                   }`}
                   style={{
@@ -2746,17 +2819,20 @@ export default function ActivityTimetableManagement() {
                     borderRadius: '6px',
                     fontSize: '12px',
                     border: 'none',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    height: '34px',
+                    lineHeight: 1
                   }}
                 >
-                  <CalendarDays size={13} />
-                  <span>Detailed Activity Logs</span>
+                  <CalendarDays size={13} className="flex-shrink-0" />
+                  <span className="d-none d-sm-inline">Detailed Activity Logs</span>
+                  <span className="d-inline d-sm-none">Activity Logs</span>
                 </button>
               </div>
             </div>
 
             {dailyViewMode === 'excel' && (
-              <div className="d-flex align-items-center gap-1.5 flex-wrap">
+              <div className="d-flex align-items-center gap-1.5 flex-wrap w-100 w-md-auto mt-1 mt-md-0">
                 {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
                   const isSelected = syllabusSubject === sub;
                   return (
@@ -2767,7 +2843,7 @@ export default function ActivityTimetableManagement() {
                         setSyllabusSubject(sub);
                         loadSyllabusData(sub);
                       }}
-                      className="btn btn-sm px-2.5 py-1 fw-semibold"
+                      className="btn btn-sm px-2.5 py-1.5 fw-semibold flex-grow-1 flex-md-grow-0 text-center text-nowrap transition-all shadow-2xs"
                       style={{
                         backgroundColor: isSelected ? '#8B1216' : '#FFFFFF',
                         color: isSelected ? '#FFFFFF' : '#475569',
@@ -2777,7 +2853,7 @@ export default function ActivityTimetableManagement() {
                         cursor: 'pointer'
                       }}
                     >
-                      {sub}
+                      {sub === 'All' ? 'All Subjects' : sub}
                     </button>
                   );
                 })}
@@ -3697,7 +3773,7 @@ export default function ActivityTimetableManagement() {
           {/* Action Buttons Toolbar */}
           <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pb-3 border-bottom">
             <div>
-              <div className="d-flex align-items-center gap-2">
+              <div className="d-flex align-items-center gap-2 flex-wrap">
                 <h2 className="brand-font fw-bold m-0" style={{ fontSize: '18px', color: '#0F172A' }}>
                   Syllabus Breakdown & Lecture Plan (mp/tp)
                 </h2>
@@ -3708,12 +3784,12 @@ export default function ActivityTimetableManagement() {
                   Mangalwar Peth & Tarabai Park
                 </span>
               </div>
-              <span className="text-sa-muted small" style={{ fontSize: '12.5px' }}>
+              <span className="text-sa-muted small d-block mt-1" style={{ fontSize: '12.5px' }}>
                 Upload and view curriculum chapters with Boards and Entrance lecture allocations exactly as structured in the academic master sheet.
               </span>
             </div>
 
-            <div className="d-flex align-items-center gap-2 flex-wrap">
+            <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto">
               {/* Hidden File Input for Syllabus Excel Import */}
               <input
                 type="file"
@@ -3806,9 +3882,9 @@ export default function ActivityTimetableManagement() {
           </div>
 
           {/* Subject Navigation Tabs & Search Controls */}
-          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 flex-wrap">
+          <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
             {/* Subject Tabs - Authentic Excel Sheet Tabs */}
-            <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap" style={{ borderColor: '#E2E8F0' }}>
+            <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap w-100 w-md-auto" style={{ borderColor: '#E2E8F0', maxWidth: '100%' }}>
               {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
                 const count = sub === 'All'
                   ? syllabusList.length
@@ -3850,8 +3926,8 @@ export default function ActivityTimetableManagement() {
             </div>
 
             {/* Chapter Search Filter */}
-            <div className="d-flex align-items-center gap-2" style={{ minWidth: '260px' }}>
-              <div className="input-group input-group-sm">
+            <div className="d-flex align-items-center gap-2 w-100 w-md-auto" style={{ maxWidth: '100%' }}>
+              <div className="input-group input-group-sm w-100">
                 <span className="input-group-text bg-white border-end-0" style={{ borderColor: '#CBD5E1', color: '#64748B' }}>
                   <Search size={14} />
                 </span>

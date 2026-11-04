@@ -182,15 +182,18 @@ export default function Notifications() {
       {/* Top Header */}
       <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 bg-white p-3.5 rounded-4 border shadow-2xs">
         <div>
-          <div className="d-flex align-items-center gap-2">
-            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
               Notifications, WhatsApp & SMS Dispatch Center
             </h3>
-            <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1">
+            <span
+              className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold d-inline-flex align-items-center gap-1.5"
+              style={{ fontSize: '11.5px' }}
+            >
               <span>💬 WhatsApp & 📱 SMS Gateways Active</span>
             </span>
           </div>
-          <span className="small text-sa-muted">
+          <span className="small text-sa-muted mt-1.5 d-block" style={{ fontSize: '13px' }}>
             Track real-time delivery status of parent WhatsApp & SMS absence alerts (Lecture 1 & 2), test schedules, and receipts.
           </span>
         </div>
@@ -211,7 +214,7 @@ export default function Notifications() {
       {/* Main Tabs Navigation */}
       <div
         className="d-flex flex-wrap align-items-center gap-2 p-1.5 bg-white border rounded-4 shadow-2xs"
-        style={{ width: 'fit-content' }}
+        style={{ width: 'fit-content', maxWidth: '100%' }}
       >
         <button
           type="button"

@@ -177,7 +177,7 @@ export default function CreateExam() {
           </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2 flex-wrap">
+<div className="d-flex flex-wrap align-items-center gap-2 w-100 w-sm-auto">
           {/* Branch badge for regular admin */}
           {!isSuperAdmin && (
             <div
@@ -231,11 +231,11 @@ export default function CreateExam() {
               </select>
             </div>
           )}
-
           <Button
             variant="outline"
             icon={Bell}
             onClick={() => navigate('/admin/notifications?tab=history&type=test_schedule')}
+            className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
           >
             SMS Dispatch History
           </Button>
@@ -243,6 +243,7 @@ export default function CreateExam() {
           <Button
             variant="primary"
             onClick={() => setShowCreateForm(!showCreateForm)}
+            className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
           >
             {showCreateForm ? 'Close Form' : '+ Schedule Test'}
           </Button>
@@ -279,8 +280,8 @@ export default function CreateExam() {
         </form>
       )}
 
-      <div className="sa-card p-4">
-        <div className="d-flex align-items-center justify-content-between mb-3">
+      <div className="sa-card p-3.5 p-sm-4">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 mb-3">
           <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
             Scheduled & Completed Examinations ({displayedExams.length})
             {!isSuperAdmin && (
@@ -289,14 +290,13 @@ export default function CreateExam() {
               </span>
             )}
           </h5>
-          <span className="small text-muted d-flex align-items-center gap-1">
-            <span className="badge bg-success-subtle text-success border border-success-subtle">
-              Parent SMS Gateway Active
-            </span>
+          <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold px-2.5 py-1 text-nowrap" style={{ fontSize: '11px' }}>
+            Parent SMS Gateway Active
           </span>
         </div>
 
         <Table
+          minWidth="1000px"
           columns={[
             { key: 'title', title: 'Test / Exam Name', render: (val, row) => (
               <div>

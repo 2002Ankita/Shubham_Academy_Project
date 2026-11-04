@@ -7,17 +7,18 @@ export default function Table({
   loading = false,
   emptyMessage = 'No records found',
   className = '',
+  minWidth = '800px',
 }) {
   return (
     <div className={`sa-table-wrapper ${className}`}>
       <div className="table-responsive">
-        <table className="sa-table table mb-0">
+        <table className="sa-table table mb-0" style={{ minWidth }}>
           <thead>
             <tr>
               {columns.map((col, idx) => (
                 <th
                   key={col.key || idx}
-                  className={`text-${col.align || 'start'}`}
+                  className={`text-${col.align || 'start'} text-nowrap`}
                   style={col.width ? { width: col.width } : {}}
                 >
                   {col.title}

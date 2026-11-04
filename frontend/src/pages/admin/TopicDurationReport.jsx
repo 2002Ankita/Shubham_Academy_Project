@@ -1200,49 +1200,51 @@ export default function AdminTopicDurationReport() {
   return (
     <div className="d-flex flex-column gap-4 pb-5">
       {/* Top Header */}
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-        <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
-            <BookOpen className="text-sa-primary" size={24} />
-            Topic Duration & Period Allocation Report
-          </h3>
-          <span className="small text-muted">
-            Select Subject, Faculty, and Batch to generate topic timeline and download pacing reports.
-          </span>
+      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+        <div className="d-flex align-items-start gap-2.5">
+          <BookOpen className="text-sa-primary flex-shrink-0 mt-0.5" size={24} />
+          <div>
+            <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
+              Topic Duration & Period Allocation Report
+            </h3>
+            <span className="small text-muted d-block mt-1" style={{ fontSize: '13px', lineHeight: 1.4 }}>
+              Select Subject, Faculty, and Batch to generate topic timeline and download pacing reports.
+            </span>
+          </div>
         </div>
 
         {/* ONLY show Export Options when the 3 mandatory filters are selected */}
         {isSelectionComplete && (
-          <div className="d-flex flex-wrap align-items-center gap-2 animate-fadeIn">
+          <div className="d-flex flex-wrap align-items-center gap-2 animate-fadeIn w-100 w-md-auto">
             {/* Monthly Export Button */}
             <button
               type="button"
-              className="btn btn-outline-danger d-flex align-items-center gap-2 fw-semibold px-3 py-2 rounded-3 shadow-sm"
+              className="btn btn-outline-danger d-inline-flex align-items-center justify-content-center gap-2 fw-semibold px-3 py-2 rounded-3 shadow-sm flex-grow-1 flex-md-grow-0 text-nowrap"
               onClick={handleExportMonthly}
               title="Download Monthly Curriculum Pacing Excel Sheet"
             >
-              <Download size={16} />
+              <Download size={16} className="flex-shrink-0" />
               <span>Monthly Export (.xlsx)</span>
             </button>
 
             {/* Yearly Export Button */}
             <button
               type="button"
-              className="btn text-white d-flex align-items-center gap-2 fw-semibold px-3 py-2 rounded-3 shadow-sm hover-shadow"
-              style={{ backgroundColor: '#A91F1F', border: 'none' }}
+              className="btn text-white d-inline-flex align-items-center justify-content-center gap-2 fw-semibold px-3 py-2 rounded-3 shadow-sm hover-shadow flex-grow-1 flex-md-grow-0 text-nowrap"
+              style={{ backgroundColor: '#8B1216', border: 'none' }}
               onClick={handleExportYearly}
               title="Download Full Academic Year Matrix for Next-Year Planning"
             >
-              <FileSpreadsheet size={16} />
-              <span>Yearly Export (Annual Plan .xlsx)</span>
+              <FileSpreadsheet size={16} className="flex-shrink-0" />
+              <span>Yearly Export (.xlsx)</span>
             </button>
           </div>
         )}
       </div>
 
       {/* FILTER CARD (Always Visible as the Primary Action Interface) */}
-      <div className="sa-card p-4 border rounded-3 bg-white shadow-sm">
-        <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+      <div className="sa-card p-3.5 p-md-4 border rounded-3 bg-white shadow-sm">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 mb-3 pb-3 border-bottom">
           <div className="d-flex align-items-center gap-3">
             <div
               className="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0 shadow-xs"
@@ -1251,7 +1253,7 @@ export default function AdminTopicDurationReport() {
                 height: '38px',
                 minWidth: '38px',
                 minHeight: '38px',
-                backgroundColor: '#A91F1F'
+                backgroundColor: '#8B1216'
               }}
             >
               <Filter size={18} strokeWidth={2.2} />
@@ -1424,32 +1426,64 @@ export default function AdminTopicDurationReport() {
 
       {/* STATE 1: INITIAL STATE (Before all 3 filters are selected) */}
       {!isSelectionComplete && (
-        <div className="sa-card p-5 border rounded-3 bg-white text-center shadow-xs">
-          <div className="d-flex flex-column align-items-center justify-content-center py-4" style={{ maxWidth: '520px', margin: '0 auto' }}>
+        <div className="sa-card p-4 p-sm-5 border rounded-3 bg-white text-center shadow-xs">
+          <div className="d-flex flex-column align-items-center justify-content-center py-2 py-sm-3" style={{ maxWidth: '520px', margin: '0 auto' }}>
             <div
-              className="rounded-circle d-flex align-items-center justify-content-center mb-3"
-              style={{ width: '68px', height: '68px', backgroundColor: '#fbeeed', color: '#A91F1F' }}
+              className="rounded-circle d-flex align-items-center justify-content-center mb-3 shadow-2xs"
+              style={{ width: '64px', height: '64px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
             >
-              <BookOpen size={32} />
+              <BookOpen size={30} />
             </div>
 
-            <h5 className="fw-bold text-sa-charcoal mb-2">No Curriculum Matrix Loaded Yet</h5>
-            <p className="text-muted small mb-4 lh-base">
+            <h5 className="fw-bold text-sa-charcoal mb-2 fs-5">No Curriculum Matrix Loaded Yet</h5>
+            <p className="text-muted small mb-4 lh-base" style={{ maxWidth: '440px' }}>
               To view topic start/end dates, required periods, and export reports, please select a{' '}
               <strong className="text-dark">Subject</strong>, assigned{' '}
               <strong className="text-dark">Faculty</strong>, and target{' '}
               <strong className="text-dark">Batch</strong> from the filter card above.
             </p>
 
-            <div className="d-flex flex-wrap align-items-center justify-content-center gap-2">
-              <span className={`badge px-3 py-1.5 rounded-pill ${selectedSubject ? 'bg-success text-white' : 'bg-light text-secondary border'}`}>
-                1. Subject {selectedSubject ? `(${selectedSubject})` : 'Pending'}
+            <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-center gap-2 w-100" style={{ maxWidth: '480px' }}>
+              <span
+                className={`badge px-3 py-2 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 text-nowrap w-100 w-sm-auto shadow-2xs ${
+                  selectedSubject ? 'bg-success text-white' : 'bg-light text-secondary border'
+                }`}
+                style={{ fontSize: '12px' }}
+              >
+                {selectedSubject ? (
+                  <Check size={14} className="flex-shrink-0" />
+                ) : (
+                  <span className="rounded-circle bg-secondary opacity-50 d-inline-block flex-shrink-0" style={{ width: '6px', height: '6px' }} />
+                )}
+                <span>1. Subject {selectedSubject ? `(${selectedSubject})` : 'Pending'}</span>
               </span>
-              <span className={`badge px-3 py-1.5 rounded-pill ${selectedTeacher ? 'bg-success text-white' : 'bg-light text-secondary border'}`}>
-                2. Faculty {selectedTeacher ? `(${selectedTeacher})` : 'Pending'}
+
+              <span
+                className={`badge px-3 py-2 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 text-nowrap w-100 w-sm-auto shadow-2xs ${
+                  selectedTeacher ? 'bg-success text-white' : 'bg-light text-secondary border'
+                }`}
+                style={{ fontSize: '12px' }}
+              >
+                {selectedTeacher ? (
+                  <Check size={14} className="flex-shrink-0" />
+                ) : (
+                  <span className="rounded-circle bg-secondary opacity-50 d-inline-block flex-shrink-0" style={{ width: '6px', height: '6px' }} />
+                )}
+                <span>2. Faculty {selectedTeacher ? `(${selectedTeacher})` : 'Pending'}</span>
               </span>
-              <span className={`badge px-3 py-1.5 rounded-pill ${selectedBatch ? 'bg-success text-white' : 'bg-light text-secondary border'}`}>
-                3. Batch {selectedBatch ? 'Selected' : 'Pending'}
+
+              <span
+                className={`badge px-3 py-2 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 text-nowrap w-100 w-sm-auto shadow-2xs ${
+                  selectedBatch ? 'bg-success text-white' : 'bg-light text-secondary border'
+                }`}
+                style={{ fontSize: '12px' }}
+              >
+                {selectedBatch ? (
+                  <Check size={14} className="flex-shrink-0" />
+                ) : (
+                  <span className="rounded-circle bg-secondary opacity-50 d-inline-block flex-shrink-0" style={{ width: '6px', height: '6px' }} />
+                )}
+                <span>3. Batch {selectedBatch ? 'Selected' : 'Pending'}</span>
               </span>
             </div>
           </div>

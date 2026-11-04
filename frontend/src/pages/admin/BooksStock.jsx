@@ -531,7 +531,7 @@ export default function BooksStock() {
           label="Back to Notes"
           className="mb-2"
         />
-        <div className="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 pt-0.5">
+        <div className="d-flex flex-column flex-xl-row align-items-start align-items-xl-center justify-content-between gap-3 pt-0.5">
           <div style={{ minWidth: 0 }}>
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <h2 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
@@ -557,11 +557,11 @@ export default function BooksStock() {
             </span>
           </div>
 
-          <div className="d-flex align-items-center gap-2 flex-nowrap flex-shrink-0" style={{ marginTop: '0px' }}>
+          <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-xl-auto" style={{ marginTop: '0px' }}>
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
-              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap flex-grow-1 flex-sm-grow-0"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
               onClick={() => loadData(selectedCampus)}
               title="Reload latest inventory counts"
             >
@@ -571,8 +571,8 @@ export default function BooksStock() {
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
-              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap flex-grow-1 flex-sm-grow-0"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
               onClick={() => navigate(user?.role === 'teacher' ? '/teacher/books/delivery' : '/admin/books/delivery')}
               title="Go to Books Delivery Register & History"
             >
@@ -582,9 +582,10 @@ export default function BooksStock() {
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap"
-              style={{ borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              className="btn btn-sm btn-outline-secondary bg-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap flex-grow-1 flex-sm-grow-0"
+              style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
               onClick={() => setAddStockModalOpen(true)}
+              title="Register a new book or module in inventory"
             >
               <Plus size={14} className="flex-shrink-0" />
               <span>Add New Module</span>
@@ -592,9 +593,10 @@ export default function BooksStock() {
 
             <button
               type="button"
-              className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 py-1.5 fw-semibold shadow-xs text-nowrap"
-              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px', whiteSpace: 'nowrap' }}
+              className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 px-3.5 py-1.5 fw-semibold shadow-xs text-nowrap flex-grow-1 flex-sm-grow-0"
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px' }}
               onClick={() => openHandoverModal()}
+              title="Log book handover to a student"
             >
               <Send size={14} className="flex-shrink-0" />
               <span>Log Handover</span>
@@ -713,24 +715,34 @@ export default function BooksStock() {
       {/* 3. Main Content Container (Tabs + Filter Bar + Table) */}
       <div className="sa-card p-3 p-md-4">
         {/* Modern Segmented Tab Switcher */}
-        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-3 mb-3 border-bottom">
-          <div className="d-inline-flex p-1 bg-light rounded-3 border" style={{ backgroundColor: '#F8FAFC' }}>
+        <div className="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center justify-content-between gap-3 pb-3 mb-3 border-bottom">
+          <div
+            className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center p-1.5 p-sm-1 bg-light rounded-3 border w-100 w-lg-auto"
+            style={{ backgroundColor: '#F8FAFC', gap: '4px' }}
+          >
             <button
               type="button"
               onClick={() => handleTabChange('stock')}
-              className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${
+              className={`btn btn-sm d-flex align-items-center justify-content-between justify-content-sm-center gap-2 px-3 py-2 py-sm-1.5 rounded-2 fw-semibold transition-all border-0 text-nowrap ${
                 activeTab === 'stock'
                   ? 'bg-white shadow-xs'
                   : 'text-secondary hover-bg-light'
               }`}
               style={{
                 color: activeTab === 'stock' ? '#8B1216' : '#64748B',
-                boxShadow: activeTab === 'stock' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+                boxShadow: activeTab === 'stock' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                height: '38px',
+                fontSize: '12.5px'
               }}
             >
-              <Package size={15} />
-              <span>Available Books Stock</span>
-              <span className={`badge rounded-pill ${activeTab === 'stock' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`} style={{ fontSize: '11px' }}>
+<div className="d-flex align-items-center gap-2">
+                <Package size={15} className="flex-shrink-0" />
+                <span className="text-nowrap">Available Books Stock</span>
+              </div>
+              <span
+                className={`badge rounded-pill flex-shrink-0 ${activeTab === 'stock' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`}
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+              >
                 {branchScopedStock.length}
               </span>
             </button>
@@ -738,25 +750,32 @@ export default function BooksStock() {
             <button
               type="button"
               onClick={() => handleTabChange('handovers')}
-              className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${
+              className={`btn btn-sm d-flex align-items-center justify-content-between justify-content-sm-center gap-2 px-3 py-2 py-sm-1.5 rounded-2 fw-semibold transition-all border-0 text-nowrap ${
                 activeTab === 'handovers'
                   ? 'bg-white shadow-xs'
                   : 'text-secondary hover-bg-light'
               }`}
               style={{
                 color: activeTab === 'handovers' ? '#8B1216' : '#64748B',
-                boxShadow: activeTab === 'handovers' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+                boxShadow: activeTab === 'handovers' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                height: '38px',
+                fontSize: '12.5px'
               }}
             >
-              <UserCheck size={15} />
-              <span>Handover Tracking Register</span>
-              <span className={`badge rounded-pill ${activeTab === 'handovers' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`} style={{ fontSize: '11px' }}>
+<div className="d-flex align-items-center gap-2">
+                <UserCheck size={15} className="flex-shrink-0" />
+                <span className="text-nowrap">Handover Tracking Register</span>
+              </div>
+              <span
+                className={`badge rounded-pill flex-shrink-0 ${activeTab === 'handovers' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary'}`}
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+              >
                 {branchScopedDeliveries.length}
               </span>
             </button>
           </div>
 
-          <div className="d-flex align-items-center gap-2.5 flex-wrap">
+          <div className="d-flex align-items-center justify-content-between justify-content-lg-end gap-2.5 flex-wrap w-100 w-lg-auto">
             {isSuperAdmin ? (
               <div className="d-inline-flex p-1 bg-light rounded-3 border" style={{ backgroundColor: '#F1F5F9' }}>
                 {['All', BRANCH_TARABAI, BRANCH_MANGALWAR].map(c => (
@@ -779,7 +798,7 @@ export default function BooksStock() {
               </span>
             )}
 
-            <span className="small text-muted fw-semibold">
+            <span className="small text-muted fw-semibold" style={{ fontSize: '12.5px' }}>
               {activeTab === 'stock'
                 ? `Showing ${filteredStock.length} of ${stock.length} catalog items`
                 : `Showing ${filteredDeliveries.length} handover transactions`}
@@ -791,53 +810,62 @@ export default function BooksStock() {
         {activeTab === 'stock' && (
           <div className="d-flex flex-column gap-3">
             {/* Filter Bar with Matching Heights */}
-            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2.5">
-              <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '850px' }}>
-                <div className="input-group" style={{ minWidth: '240px', flex: '1 1 240px', height: '36px' }}>
-                  <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
-                    <Search size={15} />
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control border-start-0 ps-0 text-sm"
-                    style={{ height: '36px', fontSize: '13px' }}
-                    placeholder="Search package title, subject, or code..."
-                    value={searchStock}
-                    onChange={(e) => setSearchStock(e.target.value)}
-                  />
+            <div className="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center justify-content-between gap-2.5">
+              <div className="row g-2 align-items-center flex-grow-1">
+                {/* Search */}
+                <div className="col-12 col-md-5">
+                  <div className="input-group w-100" style={{ height: '38px' }}>
+                    <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
+                      <Search size={15} />
+                    </span>
+                    <input
+                      type="text"
+                      className="form-control border-start-0 ps-0 text-sm"
+                      style={{ height: '38px', fontSize: '13px' }}
+                      placeholder="Search package title, subject, or code..."
+                      value={searchStock}
+                      onChange={(e) => setSearchStock(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto', minWidth: '190px', height: '36px', fontSize: '13px' }}
-                  value={selectedStockStream}
-                  onChange={(e) => setSelectedStockStream(e.target.value)}
-                >
-                  <option value="All">
-                    {isSuperAdmin ? 'All Streams & Centers' : `All ${userBranch || 'Campus'} Streams`}
-                  </option>
-                  {streamOptions.map(st => (
-                    <option key={st} value={st}>{st}</option>
-                  ))}
-                </select>
+{/* Stream / Center Filter */}
+                <div className="col-6 col-md-3.5">
+                  <select
+                    className="form-select form-select-sm w-100"
+                    style={{ height: '38px', fontSize: '12.5px' }}
+                    value={selectedStockStream}
+                    onChange={(e) => setSelectedStockStream(e.target.value)}
+                  >
+                    <option value="All">
+                      {isSuperAdmin ? 'All Streams & Centers' : `All ${userBranch || 'Campus'} Streams`}
+                    </option>
+                    {streamOptions.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
 
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto', minWidth: '150px', height: '36px', fontSize: '13px' }}
-                  value={selectedStockStatus}
-                  onChange={(e) => setSelectedStockStatus(e.target.value)}
-                >
-                  <option value="All">All Stock Levels</option>
-                  <option value="In Stock">In Stock</option>
-                  <option value="Low Stock">Low Stock</option>
-                  <option value="Out of Stock">Out of Stock</option>
-                </select>
+                {/* Stock Level Filter */}
+                <div className="col-6 col-md-3.5">
+                  <select
+                    className="form-select form-select-sm w-100"
+                    style={{ height: '38px', fontSize: '12.5px' }}
+                    value={selectedStockStatus}
+                    onChange={(e) => setSelectedStockStatus(e.target.value)}
+                  >
+                    <option value="All">All Stock Levels</option>
+                    <option value="In Stock">In Stock</option>
+                    <option value="Low Stock">Low Stock</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                  </select>
+                </div>
               </div>
 
               <button
                 type="button"
-                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs"
-                style={{ borderRadius: '8px', fontSize: '13px', height: '36px' }}
+                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold shadow-xs text-nowrap w-100 w-lg-auto"
+                style={{ borderRadius: '8px', fontSize: '13px', height: '38px' }}
                 onClick={() => setAddStockModalOpen(true)}
               >
                 <Plus size={14} />
@@ -985,51 +1013,60 @@ export default function BooksStock() {
         {activeTab === 'handovers' && (
           <div className="d-flex flex-column gap-3">
             {/* Filter Bar with Matching Heights */}
-            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2.5">
-              <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1" style={{ maxWidth: '850px' }}>
-                <div className="input-group" style={{ minWidth: '240px', flex: '1 1 240px', height: '36px' }}>
-                  <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
-                    <Search size={15} />
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control border-start-0 ps-0 text-sm"
-                    style={{ height: '36px', fontSize: '13px' }}
-                    placeholder="Search by student, faculty (who handed over), or module..."
-                    value={searchHandover}
-                    onChange={(e) => setSearchHandover(e.target.value)}
-                  />
+            <div className="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center justify-content-between gap-2.5">
+              <div className="row g-2 align-items-center flex-grow-1">
+                {/* Search */}
+                <div className="col-12 col-md-5">
+                  <div className="input-group w-100" style={{ height: '38px' }}>
+                    <span className="input-group-text bg-white border-end-0 text-muted py-0 d-flex align-items-center">
+                      <Search size={15} />
+                    </span>
+                    <input
+                      type="text"
+                      className="form-control border-start-0 ps-0 text-sm"
+                      style={{ height: '38px', fontSize: '13px' }}
+                      placeholder="Search by student, faculty, or module..."
+                      value={searchHandover}
+                      onChange={(e) => setSearchHandover(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto', minWidth: '190px', height: '36px', fontSize: '13px' }}
-                  value={selectedHandoverFaculty}
-                  onChange={(e) => setSelectedHandoverFaculty(e.target.value)}
-                >
-                  <option value="All">All Faculty & Staff</option>
-                  <option value="Priya Kulkarni">Dr. Priya Kulkarni</option>
-                  <option value="Shubham">Prof. Shubham Sharma</option>
-                  <option value="Rajesh Patil">Prof. Rajesh Patil</option>
-                  <option value="Sneha Deshmukh">Dr. Sneha Deshmukh</option>
-                </select>
+                {/* Faculty Filter */}
+                <div className="col-6 col-md-3.5">
+                  <select
+                    className="form-select form-select-sm w-100"
+                    style={{ height: '38px', fontSize: '12.5px' }}
+                    value={selectedHandoverFaculty}
+                    onChange={(e) => setSelectedHandoverFaculty(e.target.value)}
+                  >
+                    <option value="All">All Faculty & Staff</option>
+                    <option value="Priya Kulkarni">Dr. Priya Kulkarni</option>
+                    <option value="Shubham">Prof. Shubham Sharma</option>
+                    <option value="Rajesh Patil">Prof. Rajesh Patil</option>
+                    <option value="Sneha Deshmukh">Dr. Sneha Deshmukh</option>
+                  </select>
+                </div>
 
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto', minWidth: '150px', height: '36px', fontSize: '13px' }}
-                  value={selectedHandoverStatus}
-                  onChange={(e) => setSelectedHandoverStatus(e.target.value)}
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="Handed Over">Handed Over</option>
-                  <option value="Pending Pickup">Pending Pickup</option>
-                </select>
+                {/* Handover Status Filter */}
+                <div className="col-6 col-md-3.5">
+                  <select
+                    className="form-select form-select-sm w-100"
+                    style={{ height: '38px', fontSize: '12.5px' }}
+                    value={selectedHandoverStatus}
+                    onChange={(e) => setSelectedHandoverStatus(e.target.value)}
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Handed Over">Handed Over</option>
+                    <option value="Pending Pickup">Pending Pickup</option>
+                  </select>
+                </div>
               </div>
 
               <button
                 type="button"
-                className="btn btn-sm text-white px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 text-nowrap"
-                style={{ backgroundColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '36px' }}
+                className="btn btn-sm text-white px-3 py-1.5 fw-bold d-inline-flex align-items-center justify-content-center gap-1.5 text-nowrap w-100 w-lg-auto"
+                style={{ backgroundColor: '#8B1216', borderRadius: '8px', fontSize: '13px', height: '38px' }}
                 onClick={() => openHandoverModal()}
               >
                 <Send size={14} />
