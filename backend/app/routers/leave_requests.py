@@ -285,8 +285,7 @@ async def create_leave_request(
         reason=leave_req.reason,
         status=leave_req.status,
         admin_comment=leave_req.admin_comment,
-        created_at=leave_req.created_at,
-        branch=leave_req.branch
+        created_at=leave_req.created_at
     )
 
 
@@ -407,8 +406,7 @@ async def get_teacher_leave_requests(teacher_id: str, token: str = Depends(oauth
             reason=r.reason,
             status=r.status,
             admin_comment=r.admin_comment,
-            created_at=r.created_at,
-            branch=getattr(r, "branch", getattr(teacher, "branch", "Tarabai Park"))
+            created_at=r.created_at
         ) for r in requests
     ]
 

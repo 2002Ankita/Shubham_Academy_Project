@@ -86,12 +86,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Quick switch for demo testing in development
-  const switchRole = (roleKey) => {
+  const switchRole = async (roleKey) => {
     const target = DEMO_USERS[roleKey];
     if (target) {
-      localStorage.setItem('accessToken', `mock_token_${roleKey}`);
-      localStorage.setItem('user', JSON.stringify(target));
       setUser(target);
+      localStorage.setItem('user', JSON.stringify(target));
+      try {
+        const res = await authService.login({
+          email: target.email,
+          password: 'password123',
+          role: roleKey,
+          branch: target.branch
+        });
+        if (res?.accessToken) {
+          localStorage.setItem('accessToken', res.accessToken);
+        }
+      } catch (e) {
+        localStorage.setItem('accessToken', `mock_token_${roleKey}`);
+      }
     }
   };
 

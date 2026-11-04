@@ -189,11 +189,38 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     paid_fees = float(data.get("paid_fees") or data.get("paidFees") or data.get("downPayment") or 0.0)
     remaining_fees = max(0.0, total_fees - paid_fees)
 
-    # Email handling - optional for student; auto-generate internal mailbox if omitted
-    email = data.get("email")
-    if not email or not str(email).strip():
-        email = f"stu_{clean_mobile[-10:]}@shubham.edu"
-    email = str(email).strip().lower()
+    # Email handling - required as student's unique portal User ID
+    raw_email = data.get("email")
+    if not raw_email or not str(raw_email).strip():
+        raise HTTPException(status_code=400, detail="Student Email ID is required (Used as portal User ID)")
+    email = str(raw_email).strip().lower()
+
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address for Student User ID")
+
+    # Uniqueness check for Email (User ID)
+    existing_user_email = await User.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+    existing_student_email = await Student.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+    if existing_user_email or existing_student_email:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The Email ID '{email}' is already registered in the system. Student User ID must be unique."
+        )
+
+    # Uniqueness check for Mobile Number (Password)
+    clean_mobile_last10 = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
+    existing_student_mobile = await Student.find_one({
+        "$or": [
+            {"mobile_number": clean_mobile},
+            {"mobile_number": clean_mobile_last10}
+        ]
+    })
+    if existing_student_mobile:
+        student_name = getattr(existing_student_mobile, "full_name", "") or "another student"
+        raise HTTPException(
+            status_code=400,
+            detail=f"The Mobile Number '{clean_mobile}' is already registered for {student_name}. Mobile Number must be unique."
+        )
 
     # Password handling - default is student's mobile number so every student has unique ID & password
     mobile_pass_digits = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
@@ -202,16 +229,6 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         password = mobile_pass_digits
     else:
         password = str(raw_pass).strip()
-
-    # UPSERT LOGIC
-    existing_user = await User.find_one(User.email == email)
-    existing_mobile = await Student.find_one(Student.mobile_number == clean_mobile)
-
-    existing_student = None
-    if existing_user:
-        existing_student = await Student.find_one(Student.user.id == existing_user.id)
-    elif existing_mobile:
-        existing_student = existing_mobile
 
     # Parse and validate standardized branch, academic_batch, and session
     raw_branch = data.get("branch")
@@ -227,91 +244,6 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         validate_branch_batch_selection(norm_branch, norm_batch, norm_session)
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
-
-    if existing_student:
-        linked_user = None
-        if existing_user:
-            linked_user = existing_user
-        elif existing_student.user:
-            if isinstance(existing_student.user, User):
-                linked_user = existing_student.user
-            else:
-                try:
-                    linked_user = await User.get(existing_student.user.ref.id)
-                except Exception:
-                    pass
-
-        if linked_user:
-            linked_user.full_name = full_name
-            if email:
-                linked_user.email = email
-            # If the user's password was the generic password123, update to their unique mobile number
-            if verify_password("password123", linked_user.hashed_password):
-                linked_user.hashed_password = get_password_hash(mobile_pass_digits)
-            await linked_user.save()
-            existing_student.user = linked_user
-
-        existing_student.full_name = full_name
-        existing_student.mobile_number = clean_mobile
-        existing_student.parent_mobile = clean_parent_mobile
-        existing_student.email = email
-        existing_student.total_fees = total_fees
-        existing_student.paid_fees = paid_fees
-        existing_student.remaining_fees = remaining_fees
-        existing_student.original_fees = orig_fees
-        existing_student.branch = norm_branch
-        existing_student.academic_batch = norm_batch
-        existing_student.session = norm_session
-        existing_student.batch = norm_batch
-        existing_student.standard = norm_std
-        if data.get("date_of_birth"):
-            existing_student.date_of_birth = data["date_of_birth"]
-        if data.get("gender"):
-            existing_student.gender = data["gender"]
-        if data.get("address"):
-            existing_student.address = data["address"]
-        if disc_amount > 0:
-            existing_student.discount_amount = disc_amount
-            existing_student.discount_requested_amount = disc_amount
-            existing_student.discount_reason = disc_reason
-            existing_student.discount_status = disc_status
-            existing_student.discount_offered_by = disc_offered_by
-            existing_student.discount_recommended_by = disc_recommended_by
-            existing_student.discount_offered_at = disc_offered_at
-
-            # Ensure DiscountApproval record is also created or updated for existing student
-            appr_rec = await DiscountApproval.find_one(
-                DiscountApproval.student_id == str(existing_student.id),
-                DiscountApproval.status == "PENDING"
-            )
-            if not appr_rec:
-                appr_rec = DiscountApproval(
-                    student_id=str(existing_student.id),
-                    student_name=full_name,
-                    roll_number=existing_student.student_id,
-                    standard=existing_student.standard or "11th Science",
-                    original_fees=orig_fees,
-                    discount_amount=disc_amount,
-                    discount_requested_amount=disc_amount,
-                    final_fees=max(0.0, orig_fees - disc_amount),
-                    discount_reason=disc_reason or "Fee Concession",
-                    status=disc_status,
-                    offered_by=disc_offered_by or "Admin",
-                    recommended_by=disc_recommended_by or disc_offered_by or "Miss Shilpa",
-                    offered_by_email=current_user.email if current_user else None,
-                    offered_at=disc_offered_at or datetime.utcnow()
-                )
-                await appr_rec.insert()
-            else:
-                appr_rec.discount_amount = disc_amount
-                appr_rec.discount_requested_amount = disc_amount
-                appr_rec.original_fees = orig_fees
-                appr_rec.final_fees = max(0.0, orig_fees - disc_amount)
-                appr_rec.discount_reason = disc_reason or "Fee Concession"
-                await appr_rec.save()
-
-        await existing_student.save()
-        return await _format_student(existing_student)
 
     # 1. Create User account
     user = User(

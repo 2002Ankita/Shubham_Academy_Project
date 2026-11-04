@@ -10,6 +10,8 @@ import salaryService from '../../services/salaryService';
 import teacherService from '../../services/teacherService';
 import curriculumService from '../../services/curriculumService';
 import feeService from '../../services/feeService';
+import notificationService from '../../services/notificationService';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
@@ -27,6 +29,7 @@ import {
   Users,
   UserCheck,
   ReceiptIndianRupee,
+  Banknote,
   BarChart2,
   Calendar,
   UserPlus,
@@ -47,14 +50,8 @@ import {
   Truck,
   Check,
   X,
-  GraduationCap,
-  Coins,
-  CreditCard,
-  TrendingUp,
-  AlertCircle
+  GraduationCap
 } from 'lucide-react';
-import { toast } from 'react-toastify';
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -74,22 +71,21 @@ export default function AdminDashboard() {
     }
   }, [activeBranch]);
 
-  // Dynamic Fee Stats State
-  const [feeStats, setFeeStats] = useState({
-    totalTarget: 0,
-    collected: 0,
-    pending: 0,
-    collectionRate: 0
-  });
-  const [loadingFeeStats, setLoadingFeeStats] = useState(false);
-
   const [attendancePeriod, setAttendancePeriod] = useState('This Week');
+  const [periodDropdownOpen, setPeriodDropdownOpen] = useState(false);
 
   // Dynamic Data States
   const [totalStudents, setTotalStudents] = useState(0);
   const [allStudents, setAllStudents] = useState([]);
   const [presentToday, setPresentToday] = useState(0);
+  const [absentToday, setAbsentToday] = useState(0);
+  const [attendanceRate, setAttendanceRate] = useState(0);
   const [totalBatches, setTotalBatches] = useState(0);
+  const [allBatches, setAllBatches] = useState([]);
+  const DAY_NAMES = useMemo(() => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], []);
+  const SHORT_DAYS = useMemo(() => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], []);
+  const currentRealDayIndex = new Date().getDay();
+  const [selectedScheduleDayIndex, setSelectedScheduleDayIndex] = useState(currentRealDayIndex);
   const [recentAdmissions, setRecentAdmissions] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
 
@@ -114,25 +110,10 @@ export default function AdminDashboard() {
   ]);
   const [scheduleList, setScheduleList] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
-
-  const fetchFeeStats = async (branchToFetch = selectedCampus) => {
-    try {
-      setLoadingFeeStats(true);
-      const stats = await feeService.getFeeStats(branchToFetch);
-      if (stats) {
-        setFeeStats({
-          totalTarget: Number(stats.totalTarget) || 0,
-          collected: Number(stats.collected) || 0,
-          pending: Number(stats.pending) || 0,
-          collectionRate: Number(stats.collectionRate) || 0
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching fee stats for dashboard:', err);
-    } finally {
-      setLoadingFeeStats(false);
-    }
-  };
+  const [offlineFeeRequests, setOfflineFeeRequests] = useState([]);
+  const [verifyModalReq, setVerifyModalReq] = useState(null);
+  const [verifyRemarks, setVerifyRemarks] = useState('');
+  const [isVerifyingOffline, setIsVerifyingOffline] = useState(false);
 
   const fetchDashboardData = async (targetCampus = selectedCampus) => {
     try {
@@ -152,21 +133,27 @@ export default function AdminDashboard() {
         teachersRes,
         teacherAttRes,
         teacherSumRes,
-        activitiesRes
+        activitiesRes,
+        offlineRes
       ] = await Promise.allSettled([
         studentService.getAll(),
-        attendanceService.getLogs(),
+        attendanceService.getLogs({ branch: targetCampus }),
         examService.getAll(),
         batchService.getBatches({ branch: targetCampus }),
-        attendanceService.getReportSummary(),
+        attendanceService.getReportSummary({ branch: targetCampus, period: attendancePeriod }),
         inventoryService.getItems(),
         leaveService.getAllLeaveRequests(),
         salaryService.getAll(),
         teacherService.getAll(),
         attendanceService.getTeachersAttendance({ date: todayStr }),
         attendanceService.getTeachersSummary({ date: todayStr }),
-        curriculumService.getDailyActivities().catch(() => [])
+        curriculumService.getDailyActivities(targetCampus ? { branch: targetCampus } : {}).catch(() => []),
+        feeService.getOfflineFeeRequests({ branch: targetCampus }).catch(() => [])
       ]);
+
+      if (offlineRes.status === 'fulfilled' && Array.isArray(offlineRes.value)) {
+        setOfflineFeeRequests(offlineRes.value);
+      }
 
       if (leavesRes.status === 'fulfilled') {
         setFacultyLeaves(leavesRes.value || []);
@@ -213,26 +200,25 @@ export default function AdminDashboard() {
         setRecentAdmissions(sorted);
       }
 
-      if (attendanceRes.status === 'fulfilled') {
-        const logs = attendanceRes.value || [];
-        const present = logs.filter(l => l.status === 'Present').length;
-        setPresentToday(present > 0 ? present : logs.length);
-      }
-
-      if (summaryRes.status === 'fulfilled' && summaryRes.value?.weeklyData?.length > 0) {
-        setAttendanceData(summaryRes.value.weeklyData);
+      if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+        const sum = summaryRes.value;
+        const p = Number(sum.presentToday) || 0;
+        const ab = Number(sum.absentToday) || 0;
+        const tot = Number(sum.totalStudents) || 0;
+        setPresentToday(p);
+        setAbsentToday(ab);
+        setAttendanceRate(Number(sum.attendanceRate) || (tot > 0 ? Math.round((p / tot) * 100) : 0));
+        if (Array.isArray(sum.weeklyData) && sum.weeklyData.length > 0) {
+          setAttendanceData(sum.weeklyData);
+        }
       } else if (attendanceRes.status === 'fulfilled') {
         const logs = attendanceRes.value || [];
-        const present = logs.filter(l => l.status === 'Present').length || logs.length || 0;
-        setAttendanceData([
-          { day: 'Mon', present: Math.max(0, present - 2), absent: 2 },
-          { day: 'Tue', present: Math.max(0, present - 1), absent: 1 },
-          { day: 'Wed', present: present, absent: 0 },
-          { day: 'Thu', present: Math.max(0, present - 3), absent: 3 },
-          { day: 'Fri', present: Math.max(0, present - 2), absent: 2 },
-          { day: 'Sat', present: Math.max(0, present - 4), absent: 4 },
-          { day: 'Sun', present: 0, absent: 0 },
-        ]);
+        const p = logs.filter(l => l.status === 'Present').length;
+        const ab = logs.filter(l => l.status === 'Absent').length;
+        setPresentToday(p);
+        setAbsentToday(ab);
+        const tot = p + ab || 1;
+        setAttendanceRate(Math.round((p / tot) * 100));
       }
 
       if (examsRes.status === 'fulfilled') {
@@ -250,14 +236,7 @@ export default function AdminDashboard() {
       if (batchesRes.status === 'fulfilled') {
         const batches = batchesRes.value || [];
         setTotalBatches(batches.length);
-        const formatted = batches.slice(0, 4).map(b => ({
-          time: b.time || '10:00 AM',
-          subject: b.subject,
-          classBatch: b.name,
-          teacher: b.teacher_name || 'TBD',
-          status: 'Upcoming'
-        }));
-        setScheduleList(formatted);
+        setAllBatches(batches);
       }
 
       if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
@@ -268,13 +247,163 @@ export default function AdminDashboard() {
     }
   };
 
+  const handlePeriodChange = async (newPeriod) => {
+    setAttendancePeriod(newPeriod);
+    setPeriodDropdownOpen(false);
+    try {
+      const summary = await attendanceService.getReportSummary({
+        branch: selectedCampus,
+        period: newPeriod
+      });
+      if (summary && Array.isArray(summary.weeklyData) && summary.weeklyData.length > 0) {
+        setAttendanceData(summary.weeklyData);
+      }
+    } catch (err) {
+      console.warn('Failed to update period summary:', err);
+    }
+  };
+
+  // Dynamic day-by-day date label for schedule card
+  const selectedScheduleDateString = useMemo(() => {
+    const today = new Date();
+    const todayIndex = today.getDay();
+    const dayDiff = selectedScheduleDayIndex - todayIndex;
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + dayDiff);
+    return targetDate.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }, [selectedScheduleDayIndex]);
+
+  // Selected day's ISO date string (YYYY-MM-DD)
+  const selectedScheduleDateIso = useMemo(() => {
+    const today = new Date();
+    const todayIndex = today.getDay();
+    const dayDiff = selectedScheduleDayIndex - todayIndex;
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + dayDiff);
+    const y = targetDate.getFullYear();
+    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const d = String(targetDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [selectedScheduleDayIndex]);
+
+  // Helper to normalize any date input to YYYY-MM-DD
+  const normalizeDateStr = (dateVal) => {
+    if (!dateVal) return null;
+    const s = String(dateVal).trim();
+    const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+    const dmyMatch = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+    if (dmyMatch) {
+      return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+    }
+    try {
+      const parsed = new Date(dateVal);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  // Day-by-day schedule dynamically filtered from batch dates and timetables
+  const scheduleForSelectedDay = useMemo(() => {
+    const targetDayName = DAY_NAMES[selectedScheduleDayIndex];
+    if (!Array.isArray(allBatches) || allBatches.length === 0) return [];
+
+    const targetDayLower = targetDayName.toLowerCase();
+    const result = [];
+    const colors = ['#8B1216', '#2563EB', '#168554', '#D97706'];
+
+    allBatches.forEach((b) => {
+      // Skip inactive batches
+      if (b.status && b.status.toLowerCase() !== 'active') return;
+
+      let batchAdded = false;
+
+      // 1. Check if batch has specific timetable slots for this day of week (Master Timetable)
+      if (Array.isArray(b.timetable) && b.timetable.length > 0) {
+        const slots = b.timetable.filter(
+          (t) => t.day && t.day.toLowerCase() === targetDayLower
+        );
+        slots.forEach((slot, sIdx) => {
+          result.push({
+            id: `${b.id || b.name}-tt-${sIdx}`,
+            time: slot.time || b.time || '10:00 AM – 12:30 PM',
+            subject: slot.subject || b.subject || 'Class Lecture',
+            classBatch: b.name || slot.class_code || 'Academic Batch',
+            teacher: slot.teacher_name || b.teacher_name || 'Faculty Assigned',
+            room: slot.room || b.room || (b.branch ? `${b.branch}` : 'Classroom'),
+            color: colors[result.length % colors.length]
+          });
+          batchAdded = true;
+        });
+      }
+
+      // 2. Check if batch was explicitly scheduled for this specific date (Batch Management)
+      const normBatchDate = normalizeDateStr(b.date);
+      if (normBatchDate && normBatchDate === selectedScheduleDateIso && !batchAdded) {
+        result.push({
+          id: `${b.id || b.name}-date`,
+          time: b.time || '10:00 AM – 01:00 PM',
+          subject: b.subject || 'Class Lecture',
+          classBatch: b.name,
+          teacher: b.teacher_name || 'Faculty Assigned',
+          room: b.room || (b.branch ? `${b.branch}` : 'Main Classroom'),
+          color: colors[result.length % colors.length]
+        });
+        batchAdded = true;
+      }
+
+      // 3. Check if b.date explicitly specified the day name (e.g. "Wednesday")
+      if (!batchAdded && b.date && String(b.date).toLowerCase() === targetDayLower) {
+        result.push({
+          id: `${b.id || b.name}-dayname`,
+          time: b.time || '10:00 AM – 01:00 PM',
+          subject: b.subject || 'Class Lecture',
+          classBatch: b.name,
+          teacher: b.teacher_name || 'Faculty Assigned',
+          room: b.room || (b.branch ? `${b.branch}` : 'Main Classroom'),
+          color: colors[result.length % colors.length]
+        });
+      }
+    });
+
+    // Sort chronologically by start time
+    result.sort((a, b) => {
+      const getMin = (timeStr) => {
+        const clean = String(timeStr).replace(/[–—]/g, '-');
+        const first = clean.split('-')[0].trim();
+        const m = first.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (!m) return 0;
+        let h = parseInt(m[1], 10);
+        const mn = parseInt(m[2], 10);
+        const mer = (m[3] || '').toUpperCase();
+        if (mer === 'PM' && h < 12) h += 12;
+        if (mer === 'AM' && h === 12) h = 0;
+        return h * 60 + mn;
+      };
+      return getMin(a.time) - getMin(b.time);
+    });
+
+    return result;
+  }, [allBatches, selectedScheduleDayIndex, DAY_NAMES, selectedScheduleDateIso]);
+
   useEffect(() => {
     fetchDashboardData(selectedCampus);
-    fetchFeeStats(selectedCampus);
 
     const handleActivitiesUpdate = async () => {
       try {
-        const data = await curriculumService.getDailyActivities();
+        const data = await curriculumService.getDailyActivities(selectedCampus ? { branch: selectedCampus } : {});
         if (Array.isArray(data) && data.length > 0) {
           setTeacherActivities(data);
           return;
@@ -289,35 +418,31 @@ export default function AdminDashboard() {
       } catch (_) {}
     };
 
-    const handleFeesUpdate = () => {
-      fetchFeeStats(selectedCampus);
+    const handleTimetableUpdate = () => {
+      fetchDashboardData(selectedCampus);
     };
 
     window.addEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
-    window.addEventListener('sa_timetable_updated', () => fetchDashboardData(selectedCampus));
-    window.addEventListener('sa_fees_updated', handleFeesUpdate);
+    window.addEventListener('sa_timetable_updated', handleTimetableUpdate);
     window.addEventListener('focus', handleActivitiesUpdate);
-    window.addEventListener('focus', handleFeesUpdate);
     window.addEventListener('storage', handleActivitiesUpdate);
 
     return () => {
       window.removeEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
-      window.removeEventListener('sa_timetable_updated', () => fetchDashboardData(selectedCampus));
-      window.removeEventListener('sa_fees_updated', handleFeesUpdate);
+      window.removeEventListener('sa_timetable_updated', handleTimetableUpdate);
       window.removeEventListener('focus', handleActivitiesUpdate);
-      window.removeEventListener('focus', handleFeesUpdate);
       window.removeEventListener('storage', handleActivitiesUpdate);
     };
   }, [selectedCampus]);
 
   // Filtered teacher activities for live admin view - dynamically synced to selected branch
   const filteredTeacherActivities = useMemo(() => {
-    const isCurrentMangal = Boolean(selectedCampus && selectedCampus.toLowerCase().includes('mangal'));
+    const isCurrentMangal = Boolean(selectedCampus && (selectedCampus.toLowerCase().includes('mangal') || selectedCampus.toLowerCase().includes('mp')));
     return teacherActivities.filter(act => {
       const actBranch = (act.branch || '').toLowerCase();
       const actBatch = (act.batch || '').toLowerCase();
       const isMangalAct = actBranch.includes('mangal') || actBatch.includes('mangal') || actBranch.includes('mp') || actBatch.includes('mp');
-      const isTarabaiAct = actBranch.includes('tarabai') || actBatch.includes('tarabai') || (!isMangalAct);
+      const isTarabaiAct = actBranch.includes('tarabai') || actBatch.includes('tarabai') || actBranch.includes('tp') || actBatch.includes('tp');
 
       if (activityBranchFilter === 'Tarabai Park') {
         return isTarabaiAct;
@@ -402,7 +527,72 @@ export default function AdminDashboard() {
     (s) => s.discountStatus === 'PENDING' && Number(s.discountAmount) > 0
   );
 
+  const pendingOfflineRequests = useMemo(() => {
+    const isTargetMangal = Boolean(selectedCampus && selectedCampus.toLowerCase().includes('mangal'));
+    return (offlineFeeRequests || []).filter(r => {
+      if (r.status !== 'PENDING') return false;
+      const b = (r.branch || '').toLowerCase();
+      return isTargetMangal ? b.includes('mangal') : (b.includes('tarabai') || b.includes('tp'));
+    });
+  }, [offlineFeeRequests, selectedCampus]);
 
+  useEffect(() => {
+    const handleFeeUpdate = () => {
+      feeService.getOfflineFeeRequests({ branch: selectedCampus })
+        .then(reqs => setOfflineFeeRequests(reqs || []))
+        .catch(() => {});
+      fetchDashboardData(selectedCampus);
+    };
+    window.addEventListener('sa_offline_fee_requests_updated', handleFeeUpdate);
+    window.addEventListener('sa_fee_updated', handleFeeUpdate);
+    return () => {
+      window.removeEventListener('sa_offline_fee_requests_updated', handleFeeUpdate);
+      window.removeEventListener('sa_fee_updated', handleFeeUpdate);
+    };
+  }, [selectedCampus]);
+
+  const handleConfirmVerifyOffline = async (reqToVerify, customRemarks) => {
+    if (!reqToVerify) return;
+    setIsVerifyingOffline(true);
+    const verifierName = user?.name || user?.full_name || 'Academic Admin';
+    try {
+      const updated = await feeService.verifyOfflineFeeRequest(reqToVerify.id, {
+        remarks: customRemarks || `Verified and received at ${reqToVerify.branch} accounts counter`,
+        verified_amount: reqToVerify.amount,
+        collected_by_faculty: reqToVerify.collected_by_faculty || `${reqToVerify.branch} Accounts Reception`,
+        verified_by: verifierName
+      });
+
+      try {
+        notificationService.addNotification({
+          id: `NTF-OFFLINE-VERIFIED-${reqToVerify.id}-${Date.now()}`,
+          title: `✅ ${reqToVerify.payment_mode} Fee Payment Verified (Receipt #${updated.receipt_no})`,
+          type: 'fee',
+          category: 'Accounts & Fees',
+          priority: 'High',
+          branch: reqToVerify.branch,
+          studentId: reqToVerify.student_id,
+          studentName: reqToVerify.student_name,
+          author: `${reqToVerify.branch} Accounts Counter`,
+          details: `Your offline ${reqToVerify.payment_mode} fee payment of ₹${Number(reqToVerify.amount).toLocaleString()} has been verified & approved by ${verifierName}. Collected by Faculty: ${reqToVerify.collected_by_faculty || 'Counter Desk'}. Official fee receipt #${updated.receipt_no} has been credited to your student ledger.`
+        });
+      } catch (notifErr) {
+        console.warn('Student notification dispatch error:', notifErr);
+      }
+
+      toast.success(
+        `Payment of ₹${Number(reqToVerify.amount).toLocaleString()} for ${reqToVerify.student_name} confirmed! Receipt #${updated.receipt_no} issued and student ledger updated.`
+      );
+      setVerifyModalReq(null);
+      setVerifyRemarks('');
+      fetchDashboardData(selectedCampus);
+    } catch (err) {
+      console.error('Verify error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to verify payment request.');
+    } finally {
+      setIsVerifyingOffline(false);
+    }
+  };
 
   const lowStockItems = [];
 
@@ -447,6 +637,43 @@ export default function AdminDashboard() {
                   Active Campus
                 </span>
               </span>
+
+              {isSuperAdmin && (
+                <div className="btn-group p-0.5 rounded-2 bg-white border shadow-xs" role="group" aria-label="Campus selector">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCampus(BRANCH_TARABAI)}
+                    className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                      selectedCampus === BRANCH_TARABAI
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary'
+                    }`}
+                    style={{
+                      fontSize: '0.78rem',
+                      backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
+                      borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
+                    }}
+                  >
+                    <span>🌲 Tarabai Park</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
+                    className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
+                      selectedCampus === BRANCH_MANGALWAR
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary'
+                    }`}
+                    style={{
+                      fontSize: '0.78rem',
+                      backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
+                      borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
+                    }}
+                  >
+                    <span>🏛️ Mangalvar Peth</span>
+                  </button>
+                </div>
+              )}
             </div>
             <p
               className="text-sa-charcoal text-opacity-75 m-0 mt-2"
@@ -482,6 +709,26 @@ export default function AdminDashboard() {
                 >
                   <ShieldCheck size={16} />
                   <span>{pendingDiscounts.length} Discounts Pending Superadmin</span>
+                </button>
+              )}
+
+              {pendingOfflineRequests.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/fees/offline-requests')}
+                  className="btn d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-2 fw-bold text-decoration-none shadow-sm transition-all"
+                  style={{
+                    backgroundColor: '#ECFDF5',
+                    border: '1.5px solid #10B981',
+                    color: '#065F46',
+                    fontSize: '0.84rem'
+                  }}
+                  title="View pending Cash & Cheque fee requests"
+                >
+                  <Banknote size={16} className="text-success" />
+                  <span>
+                    ⚡ {pendingOfflineRequests.length} Cash/Cheque Request{pendingOfflineRequests.length > 1 ? 's' : ''} Pending (₹ {pendingOfflineRequests.reduce((a, b) => a + Number(b.amount || 0), 0).toLocaleString()})
+                  </span>
                 </button>
               )}
             </div>
@@ -539,6 +786,7 @@ export default function AdminDashboard() {
           <div
             className="sa-kpi-glass-card theme-green p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
             onClick={() => navigate('/admin/attendance')}
+            style={{ cursor: 'pointer' }}
           >
             <div className="d-flex align-items-start justify-content-between">
               <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
@@ -549,14 +797,39 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="mt-2.5">
-              <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                Present Today
-              </span>
-              <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                {presentToday}
+              <div className="d-flex align-items-center justify-content-between">
+                <span className="text-sa-muted fw-semibold" style={{ fontSize: '0.80rem' }}>
+                  Present Today
+                </span>
+                <span
+                  className="badge rounded-pill fw-bold px-2 py-0.5"
+                  style={{
+                    backgroundColor: absentToday > 0 ? '#FEE2E2' : '#DCFCE7',
+                    color: absentToday > 0 ? '#DC2626' : '#168554',
+                    fontSize: '0.70rem',
+                    border: absentToday > 0 ? '1px solid #FECACA' : '1px solid #BBF7D0'
+                  }}
+                  title="Absent students today"
+                >
+                  {absentToday} Absent
+                </span>
               </div>
-              <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
-                ↗ 0% attendance
+              <div className="d-flex align-items-baseline gap-1.5 mt-0.5">
+                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
+                  {presentToday}
+                </div>
+                <span className="text-muted fw-semibold" style={{ fontSize: '0.82rem' }}>
+                  / {totalStudents} students
+                </span>
+              </div>
+              <span
+                className="fw-semibold d-block mt-1"
+                style={{
+                  fontSize: '0.76rem',
+                  color: attendanceRate >= 75 ? '#168554' : (attendanceRate >= 50 ? '#D97706' : '#DC2626')
+                }}
+              >
+                ↗ {attendanceRate}% attendance rate
               </span>
             </div>
           </div>
@@ -619,270 +892,67 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Dynamic Fees Collection Overview Section for Tarabai Park and Mangalvar Peth */}
-      <div id="dashboard-fees-overview" className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border shadow-xs">
-        <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 mb-3">
-          <div className="d-flex align-items-center gap-2.5">
-            <div
-              className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-xs"
-              style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg, #8B1216 0%, #B91C1C 100%)' }}
-            >
-              <Coins size={20} />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <h2 className="brand-font fw-bold text-sa-charcoal m-0" style={{ fontSize: '1.1rem' }}>
-                  Fees Collection Overview
-                </h2>
-                <span
-                  className="badge rounded-pill fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1.5"
-                  style={{
-                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#F0FDFA' : '#FDF0F0',
-                    color: selectedCampus === BRANCH_MANGALWAR ? '#0D9488' : '#8B1216',
-                    border: selectedCampus === BRANCH_MANGALWAR ? '1px solid #99F6E4' : '1px solid #F5C2C4',
-                    fontSize: '0.74rem'
-                  }}
-                >
-                  <span
-                    style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: '#168554',
-                      display: 'inline-block'
-                    }}
-                  />
-                  {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus'}
-                </span>
-                <span className="badge bg-light text-muted fw-semibold border" style={{ fontSize: '0.70rem' }}>
-                  Live Dynamic DB
-                </span>
-              </div>
-              <span className="text-sa-muted" style={{ fontSize: '0.80rem' }}>
-                Real-time collection targets, realized revenue, and pending dues for {selectedCampus}
-              </span>
-            </div>
-          </div>
-
-          {/* Campus Switcher Tabs (SuperAdmin only) & Quick Navigation */}
-          <div className="d-flex align-items-center gap-2 flex-wrap">
-            {isSuperAdmin && (
-              <div className="btn-group p-0.5 rounded-2 bg-light border" role="group" aria-label="Campus selector">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCampus(BRANCH_TARABAI)}
-                  className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                    selectedCampus === BRANCH_TARABAI
-                      ? 'btn-danger text-white shadow-xs'
-                      : 'btn-light text-secondary'
-                  }`}
-                  style={{
-                    fontSize: '0.78rem',
-                    backgroundColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent',
-                    borderColor: selectedCampus === BRANCH_TARABAI ? '#8B1216' : 'transparent'
-                  }}
-                >
-                  <span>🌲 Tarabai Park</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCampus(BRANCH_MANGALWAR)}
-                  className={`btn btn-sm px-2.5 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all ${
-                    selectedCampus === BRANCH_MANGALWAR
-                      ? 'btn-danger text-white shadow-xs'
-                      : 'btn-light text-secondary'
-                  }`}
-                  style={{
-                    fontSize: '0.78rem',
-                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent',
-                    borderColor: selectedCampus === BRANCH_MANGALWAR ? '#8B1216' : 'transparent'
-                  }}
-                >
-                  <span>🏛️ Mangalvar Peth</span>
-                </button>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => navigate('/admin/fees')}
-              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-              title="Open Fee Collection Counter"
-            >
-              <CreditCard size={14} />
-              <span>Fee Counter</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/admin/fees/pending')}
-              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-2 px-2.5 py-1"
-              style={{ fontSize: '0.78rem', fontWeight: 600 }}
-              title="View Pending Fee Overdues"
-            >
-              <AlertCircle size={14} />
-              <span>Pending Dues</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Dynamic KPI Cards */}
-        <div className="row g-3">
-          {/* Fees Collected */}
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div
-              className="sa-kpi-glass-card theme-green p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-              onClick={() => navigate('/admin/fees')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="d-flex align-items-start justify-content-between">
-                <div className="sa-stat-icon-wrapper sa-stat-icon-green rounded-circle">
-                  <CreditCard size={22} />
-                </div>
-                <div className="sa-card-chevron-btn">
-                  <ChevronRight size={15} />
-                </div>
-              </div>
-              <div className="mt-2.5">
-                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                  Fees Collected
-                </span>
-                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                  ₹{feeStats.collected.toLocaleString('en-IN')}
-                </div>
-                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#168554' }}>
-                  ▲ Realized Inflow • {feeStats.collectionRate}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Pending Fees */}
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div
-              className="sa-kpi-glass-card theme-red p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-              onClick={() => navigate('/admin/fees/pending')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="d-flex align-items-start justify-content-between">
-                <div className="sa-stat-icon-wrapper sa-stat-icon-red">
-                  <AlertCircle size={22} />
-                </div>
-                <div className="sa-card-chevron-btn">
-                  <ChevronRight size={15} />
-                </div>
-              </div>
-              <div className="mt-2.5">
-                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                  Pending Fees
-                </span>
-                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                  ₹{feeStats.pending.toLocaleString('en-IN')}
-                </div>
-                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#DC2626' }}>
-                  ▲ Overdue Dues in {selectedCampus}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Target Fees */}
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div
-              className="sa-kpi-glass-card theme-amber p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-              onClick={() => navigate('/admin/fees/structure')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="d-flex align-items-start justify-content-between">
-                <div className="sa-stat-icon-wrapper sa-stat-icon-amber">
-                  <Coins size={22} />
-                </div>
-                <div className="sa-card-chevron-btn">
-                  <ChevronRight size={15} />
-                </div>
-              </div>
-              <div className="mt-2.5">
-                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                  Total Target Fees
-                </span>
-                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                  ₹{feeStats.totalTarget.toLocaleString('en-IN')}
-                </div>
-                <span className="fw-semibold" style={{ fontSize: '0.76rem', color: '#B45309' }}>
-                  ★ Annual Target • 2025-2026
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Collection Rate */}
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div
-              className="sa-kpi-glass-card theme-blue p-3 p-xl-3.5 d-flex flex-column justify-content-between h-100"
-              onClick={() => navigate('/admin/fees')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="d-flex align-items-start justify-content-between">
-                <div className="sa-stat-icon-wrapper sa-stat-icon-blue">
-                  <TrendingUp size={22} />
-                </div>
-                <div className="sa-card-chevron-btn">
-                  <ChevronRight size={15} />
-                </div>
-              </div>
-              <div className="mt-2.5">
-                <span className="text-sa-muted fw-semibold d-block" style={{ fontSize: '0.80rem' }}>
-                  Collection Rate
-                </span>
-                <div className="fw-bold text-sa-charcoal brand-font" style={{ fontSize: '1.75rem', lineHeight: 1.15 }}>
-                  {feeStats.collectionRate}%
-                </div>
-                <div className="mt-1">
-                  <div className="progress" style={{ height: '4px', backgroundColor: '#E2E8F0', borderRadius: '2px' }}>
-                    <div
-                      className="progress-bar"
-                      style={{
-                        width: `${Math.min(100, feeStats.collectionRate)}%`,
-                        backgroundColor: '#2563EB',
-                        borderRadius: '2px'
-                      }}
-                    />
-                  </div>
-                </div>
-                <span className="fw-semibold mt-1 d-block" style={{ fontSize: '0.74rem', color: '#2563EB' }}>
-                  ↗ Realization for {selectedCampus}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Row 2: Analytics & Schedule (2 Cards) */}
       <div className="row g-3 g-xl-4">
         {/* Attendance Overview Card */}
         <div className="col-12 col-xl-7">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
             {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
               <div className="d-flex align-items-center gap-2">
                 <BarChart2 size={18} style={{ color: 'var(--sa-primary-red)' }} />
                 <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
                   Attendance Overview
                 </h2>
+                <span
+                  className="badge rounded-pill fw-semibold px-2 py-0.5 ms-1"
+                  style={{
+                    backgroundColor: selectedCampus === BRANCH_MANGALWAR ? '#F0FDFA' : '#FDF0F0',
+                    color: selectedCampus === BRANCH_MANGALWAR ? '#0D9488' : '#8B1216',
+                    border: selectedCampus === BRANCH_MANGALWAR ? '1px solid #99F6E4' : '1px solid #F5C2C4',
+                    fontSize: '0.70rem'
+                  }}
+                >
+                  {selectedCampus === BRANCH_MANGALWAR ? '🏛️ Mangalvar Peth' : '🌲 Tarabai Park'}
+                </span>
               </div>
-              <div className="dropdown">
+
+              {/* Interactive Period Dropdown */}
+              <div className="position-relative">
                 <button
-                  className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 rounded-2"
+                  type="button"
+                  onClick={() => setPeriodDropdownOpen(!periodDropdownOpen)}
+                  className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 rounded-2 transition-all"
                   style={{ fontSize: '0.76rem', borderColor: '#E2E8F0', color: '#475569' }}
                 >
                   <span>{attendancePeriod}</span>
                   <ChevronDown size={13} />
                 </button>
+
+                {periodDropdownOpen && (
+                  <div
+                    className="position-absolute end-0 mt-1 bg-white border rounded-2 shadow-sm py-1 z-3"
+                    style={{ minWidth: '135px' }}
+                  >
+                    {['This Week', 'Past 7 Days', 'Last Week', 'This Month'].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handlePeriodChange(p)}
+                        className={`dropdown-item px-3 py-1.5 text-start w-100 border-0 bg-transparent ${
+                          attendancePeriod === p ? 'fw-bold text-danger' : 'text-dark'
+                        }`}
+                        style={{ fontSize: '0.78rem' }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Recharts Bar Chart */}
+            {/* Recharts Bar Chart with dynamic Y-axis domain */}
             <div className="flex-grow-1" style={{ width: '100%', minHeight: '235px' }}>
               <ResponsiveContainer width="100%" height={235}>
                 <BarChart
@@ -901,8 +971,8 @@ export default function AdminDashboard() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#64748B', fontSize: 10 }}
-                    domain={[0, 1300]}
-                    ticks={[0, 300, 600, 900, 1200]}
+                    allowDecimals={false}
+                    domain={[0, Math.max(10, Math.ceil(totalStudents * 1.15))]}
                   />
                   <Tooltip
                     contentStyle={{
@@ -912,77 +982,232 @@ export default function AdminDashboard() {
                       fontSize: '11px',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                     }}
+                    formatter={(value, name) => [
+                      `${value} Students`,
+                      name === 'present' ? 'Present' : 'Absent'
+                    ]}
+                    labelFormatter={(label, payload) => {
+                      const item = payload && payload[0]?.payload;
+                      if (item?.date) {
+                        return `${label} (${item.date}) • Rate: ${item.rate || 0}%`;
+                      }
+                      return label;
+                    }}
                   />
-                  <Bar dataKey="present" fill="#8B1216" radius={[3, 3, 0, 0]} maxBarSize={18}>
+                  <Bar dataKey="present" fill="#8B1216" name="present" radius={[3, 3, 0, 0]} maxBarSize={18}>
                     <LabelList
                       dataKey="present"
                       position="top"
-                      style={{ fill: '#475569', fontSize: '9px', fontWeight: 600 }}
+                      style={{ fill: '#8B1216', fontSize: '9px', fontWeight: 700 }}
+                      formatter={(v) => (v > 0 ? v : '')}
                     />
                   </Bar>
-                  <Bar dataKey="absent" fill="#F5B8B8" radius={[3, 3, 0, 0]} maxBarSize={18}>
+                  <Bar dataKey="absent" fill="#F87171" name="absent" radius={[3, 3, 0, 0]} maxBarSize={18}>
                     <LabelList
                       dataKey="absent"
                       position="top"
-                      style={{ fill: '#94A3B8', fontSize: '9px' }}
+                      style={{ fill: '#DC2626', fontSize: '9px', fontWeight: 600 }}
+                      formatter={(v) => (v > 0 ? v : '')}
                     />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Bottom Legend */}
-            <div className="d-flex align-items-center justify-content-center gap-4 pt-2 border-top mt-1" style={{ fontSize: '0.80rem' }}>
-              <div className="d-flex align-items-center gap-1.5">
-                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#8B1216' }} />
-                <span className="text-sa-charcoal fw-medium">Present</span>
+            {/* Bottom Legend & Quick Summary */}
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top mt-1" style={{ fontSize: '0.80rem' }}>
+              <div className="d-flex align-items-center gap-3">
+                <div className="d-flex align-items-center gap-1.5">
+                  <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#8B1216' }} />
+                  <span className="text-sa-charcoal fw-semibold">Present</span>
+                </div>
+                <div className="d-flex align-items-center gap-1.5">
+                  <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#F87171' }} />
+                  <span className="text-sa-muted fw-semibold">Absent</span>
+                </div>
               </div>
-              <div className="d-flex align-items-center gap-1.5">
-                <span className="rounded-circle" style={{ width: '8px', height: '8px', backgroundColor: '#F5B8B8' }} />
-                <span className="text-sa-muted fw-medium">Absent</span>
+              <div className="d-flex align-items-center gap-1 text-muted" style={{ fontSize: '0.76rem' }}>
+                <span>Today:</span>
+                <strong className="text-success">{presentToday} Present</strong>
+                <span>•</span>
+                <strong className="text-danger">{absentToday} Absent</strong>
+                <span>({totalStudents} Enrolled)</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Today's Schedule Card */}
+        {/* Today's Schedule Card (Changes day by day) */}
         <div className="col-12 col-xl-5">
           <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border h-100 d-flex flex-column">
-            {/* Header */}
-            <div className="d-flex align-items-center justify-content-between mb-3">
+            {/* Header with Title and Dynamic Date */}
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2.5">
               <div className="d-flex align-items-center gap-2">
                 <Calendar size={18} style={{ color: 'var(--sa-primary-red)' }} />
                 <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.98rem' }}>
-                  Today's Schedule
+                  {selectedScheduleDayIndex === currentRealDayIndex ? "Today's Schedule" : `${DAY_NAMES[selectedScheduleDayIndex]}'s Schedule`}
                 </h2>
               </div>
-              <span className="text-sa-muted" style={{ fontSize: '0.78rem', fontWeight: 500 }}>
-                Mon, 26 May 2025
-              </span>
+
+              <div className="d-flex align-items-center gap-1.5">
+                {selectedScheduleDayIndex !== currentRealDayIndex && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScheduleDayIndex(currentRealDayIndex)}
+                    className="btn btn-xs btn-outline-danger py-0 px-2 rounded-pill fw-semibold"
+                    style={{ fontSize: '0.70rem' }}
+                    title="Return to Today"
+                  >
+                    Today
+                  </button>
+                )}
+                <span className="text-sa-muted fw-semibold" style={{ fontSize: '0.78rem' }}>
+                  {selectedScheduleDayIndex === currentRealDayIndex ? `Today, ${selectedScheduleDateString}` : selectedScheduleDateString}
+                </span>
+                <div className="btn-group btn-group-sm ms-1" role="group">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScheduleDayIndex((prev) => (prev === 0 ? 6 : prev - 1))}
+                    className="btn btn-sm btn-light border py-0 px-1.5 rounded-start-2 text-secondary"
+                    title="Previous Day"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScheduleDayIndex((prev) => (prev === 6 ? 0 : prev + 1))}
+                    className="btn btn-sm btn-light border py-0 px-1.5 rounded-end-2 text-secondary"
+                    title="Next Day"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Day Selector Pills (Mon, Tue, Wed, Thu, Fri, Sat, Sun) */}
+            <div className="d-flex align-items-center gap-1 pb-2 mb-2 border-bottom overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {[1, 2, 3, 4, 5, 6, 0].map((dIdx) => {
+                const isSelected = selectedScheduleDayIndex === dIdx;
+                const isToday = currentRealDayIndex === dIdx;
+                return (
+                  <button
+                    key={dIdx}
+                    type="button"
+                    onClick={() => setSelectedScheduleDayIndex(dIdx)}
+                    className={`btn btn-sm py-1 px-2.5 rounded-pill fw-semibold transition-all position-relative ${
+                      isSelected
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary border'
+                    }`}
+                    style={{
+                      fontSize: '0.74rem',
+                      backgroundColor: isSelected ? '#8B1216' : '#F8FAFC',
+                      borderColor: isSelected ? '#8B1216' : '#E2E8F0',
+                      minWidth: '46px'
+                    }}
+                  >
+                    <span>{SHORT_DAYS[dIdx]}</span>
+                    {isToday && (
+                      <span
+                        className="position-absolute top-0 start-100 translate-middle p-1 rounded-circle"
+                        style={{
+                          backgroundColor: isSelected ? '#FFFFFF' : '#168554',
+                          border: isSelected ? '1.5px solid #8B1216' : '1px solid #FFFFFF'
+                        }}
+                        title="Today"
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Schedule Timeline Entries */}
-            <div className="d-flex flex-column gap-2.5 flex-grow-1">
-              {scheduleList.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="d-flex align-items-center gap-2.5 py-1 px-1 rounded-2 transition-all hover-schedule-row"
-                >
-                  <span
-                    className="text-sa-muted fw-semibold flex-shrink-0"
-                    style={{ fontSize: '0.78rem', width: '70px' }}
+            <div className="d-flex flex-column gap-2.5 flex-grow-1 overflow-y-auto" style={{ maxHeight: '255px' }}>
+              {scheduleForSelectedDay.length > 0 ? (
+                scheduleForSelectedDay.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="p-2.5 rounded-3 border transition-all hover-schedule-row bg-white shadow-2xs position-relative overflow-hidden"
+                    style={{ borderLeft: `4px solid ${item.color || '#8B1216'}` }}
                   >
-                    {item.time}
-                  </span>
-                  <span
-                    className="rounded-circle flex-shrink-0"
-                    style={{ width: '8px', height: '8px', backgroundColor: item.color }}
-                  />
-                  <span className="text-sa-charcoal fw-medium text-truncate" style={{ fontSize: '0.84rem' }}>
-                    {item.title}
+                    <div className="d-flex align-items-start justify-content-between gap-2">
+                      <div className="d-flex flex-column flex-grow-1 min-w-0">
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                          <span
+                            className="badge py-0.5 px-2 rounded-2 fw-semibold border"
+                            style={{
+                              fontSize: '0.72rem',
+                              backgroundColor: '#F8FAFC',
+                              color: '#334155',
+                              borderColor: '#E2E8F0'
+                            }}
+                          >
+                            🕒 {item.time}
+                          </span>
+                          <span
+                            className="fw-bold text-sa-charcoal text-truncate"
+                            style={{ fontSize: '0.86rem' }}
+                          >
+                            {item.classBatch}
+                          </span>
+                        </div>
+                        <div
+                          className="d-flex align-items-center gap-2 text-muted mt-1.5 flex-wrap"
+                          style={{ fontSize: '0.74rem' }}
+                        >
+                          <span className="fw-medium text-sa-charcoal">
+                            📚 {item.subject}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            👨‍🏫 {item.teacher}
+                          </span>
+                          {item.room && (
+                            <>
+                              <span>•</span>
+                              <span>📍 {item.room}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 flex-shrink-0"
+                        style={{ fontSize: '0.68rem', fontWeight: 600 }}
+                      >
+                        Scheduled
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center py-4 my-auto text-center text-muted">
+                  <Calendar size={32} className="opacity-40 mb-2" style={{ color: '#94A3B8' }} />
+                  <p className="fw-semibold text-sa-charcoal mb-0.5" style={{ fontSize: '0.86rem' }}>
+                    No Lectures Scheduled for {DAY_NAMES[selectedScheduleDayIndex]}
+                  </p>
+                  <span style={{ fontSize: '0.75rem' }}>
+                    No regular batches on this day for {selectedCampus}.
                   </span>
                 </div>
-              ))}
+              )}
+            </div>
+
+            {/* Bottom Footer Link */}
+            <div className="d-flex align-items-center justify-content-between pt-2 border-top mt-2" style={{ fontSize: '0.76rem' }}>
+              <span className="text-muted fw-medium">
+                {scheduleForSelectedDay.length} class{scheduleForSelectedDay.length === 1 ? '' : 'es'} scheduled
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/activity-timetable')}
+                className="btn btn-link p-0 text-decoration-none fw-semibold d-inline-flex align-items-center gap-1"
+                style={{ color: '#8B1216', fontSize: '0.76rem' }}
+              >
+                <span>Master Timetable</span>
+                <ChevronRight size={13} />
+              </button>
             </div>
           </div>
         </div>

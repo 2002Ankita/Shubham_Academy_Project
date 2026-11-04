@@ -34,16 +34,16 @@ export const attendanceService = {
     return res.data;
   },
 
-  getReportSummary: async () => {
+  getReportSummary: async (params = {}) => {
     try {
-      const res = await api.get('/attendance/summary');
+      const res = await api.get('/attendance/summary', { params });
       return res.data;
     } catch {
       return {
         totalStudents: 0,
         presentToday: 0,
         absentToday: 0,
-        averagePercent: 0,
+        attendanceRate: 0,
         weeklyData: []
       };
     }

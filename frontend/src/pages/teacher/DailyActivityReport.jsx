@@ -61,14 +61,92 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   return false;
 };
 
+// Batch options for both campuses
+export const MANGALWAR_BATCH_OPTIONS = [
+  {
+    group: '☀️ Morning Session (MP)',
+    list: [
+      '11th pcm Mangalvar Peth (Morning)',
+      '11th pcb Mangalvar Peth (Morning)',
+      '11th pcmb Mangalvar Peth (Morning)',
+      '12th pcm Mangalvar Peth (Morning)',
+      '12th pcb Mangalvar Peth (Morning)',
+      '12th pcmb Mangalvar Peth (Morning)'
+    ]
+  },
+  {
+    group: '🌙 Evening Session (MP)',
+    list: [
+      '11th pcm Mangalvar Peth (Evening)',
+      '11th pcb Mangalvar Peth (Evening)',
+      '11th pcmb Mangalvar Peth (Evening)',
+      '12th pcm Mangalvar Peth (Evening)',
+      '12th pcb Mangalvar Peth (Evening)',
+      '12th pcmb Mangalvar Peth (Evening)'
+    ]
+  },
+  {
+    group: 'General Regular Batches (MP)',
+    list: [
+      '11th pcm Mangalvar Peth',
+      '11th pcb Mangalvar Peth',
+      '11th pcmb Mangalvar Peth',
+      '12th pcm Mangalvar Peth',
+      '12th pcb Mangalvar Peth'
+    ]
+  }
+];
+
+export const TARABAI_BATCH_OPTIONS = [
+  {
+    group: '☀️ Morning Session (TP)',
+    list: [
+      '11th pcm tarabai park (Morning)',
+      '11th pcb tarabai park (Morning)',
+      '11th pcmb tarabai park (Morning)',
+      '12th pcm tarabai park (Morning)',
+      '12th pcb tarabai park (Morning)',
+      '12th pcmb tarabai park (Morning)'
+    ]
+  },
+  {
+    group: '🌙 Evening Session (TP)',
+    list: [
+      '11th pcm tarabai park (Evening)',
+      '11th pcb tarabai park (Evening)',
+      '11th pcmb tarabai park (Evening)',
+      '12th pcm tarabai park (Evening)',
+      '12th pcb tarabai park (Evening)',
+      '12th pcmb tarabai park (Evening)'
+    ]
+  },
+  {
+    group: 'General Regular Batches (TP)',
+    list: [
+      '11th pcm tarabai park',
+      '11th pcb tarabai park',
+      '11th pcmb tarabai park',
+      '12th pcm tarabai park',
+      '12th pcb tarabai park',
+      '12th pcmb tarabai park'
+    ]
+  }
+];
+
 // Helper to check whether an activity belongs to target branch
-const isActivityInBranch = (act) => {
+const isActivityInBranch = (act, targetBranch = 'All') => {
   if (!act) return false;
+  if (!targetBranch || targetBranch === 'All' || targetBranch === 'ALL') return true;
   const actBranch = (act.branch || '').toLowerCase();
   const actBatch = (act.batch || '').toLowerCase();
-  // Strictly Mangalvar / Mangalwar Peth
-  const isActMangal = actBranch.includes('mangal') || actBatch.includes('mangal') || actBranch.includes('mp') || actBatch.includes('mp');
-  return isActMangal;
+  const normTarget = targetBranch.toLowerCase();
+  if (normTarget.includes('mangal') || normTarget.includes('mp')) {
+    return actBranch.includes('mangal') || actBatch.includes('mangal') || actBranch.includes('mp') || actBatch.includes('mp');
+  }
+  if (normTarget.includes('tarabai') || normTarget.includes('tp')) {
+    return actBranch.includes('tarabai') || actBatch.includes('tarabai') || actBranch.includes('tp') || actBatch.includes('tp');
+  }
+  return true;
 };
 
 // Helper to normalize batch names for robust matching across (Morning), (Evening), or 'w' vs 'v'
@@ -136,7 +214,7 @@ export default function DailyActivityReport() {
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const isAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('admin') || location.pathname.startsWith('/admin');
   const userBranch = getUserBranch(user);
-  const initialBranch = 'Mangalwar Peth';
+  const initialBranch = location.state?.branch || userBranch || 'All';
 
   // Storage key shared with Dashboard
   const STORAGE_KEY = 'sa_teacher_daily_activities';
@@ -194,15 +272,20 @@ export default function DailyActivityReport() {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState('Mangalwar Peth');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState(() => {
+    if (location.state?.branch) return location.state.branch;
+    if (userBranch) return userBranch;
+    return 'All';
+  });
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
 
   useEffect(() => {
-    // Automatically enforce Mangalwar Peth as active branch
-    setSelectedBranchFilter('Mangalwar Peth');
-  }, []);
+    if (location.state?.branch) {
+      setSelectedBranchFilter(location.state.branch);
+    }
+  }, [location.state?.branch]);
 
   // Date selection state (defaults to today's date)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -212,10 +295,10 @@ export default function DailyActivityReport() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [newActivity, setNewActivity] = useState({
-    branch: 'Mangalwar Peth',
+    branch: (userBranch && userBranch !== 'All' ? userBranch : 'Mangalwar Peth'),
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
-    batch: '11th pcm Mangalvar Peth (Morning)',
+    batch: (userBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
     chapter: '',
     topicTaught: '',
     timeSlot: '08:30 AM - 10:00 AM',
@@ -418,11 +501,12 @@ export default function DailyActivityReport() {
       const periodsVal = parseInt(item.periods, 10) || 1;
       const totalPlannedPeriodsVal = parseInt(item.totalPlannedPeriods, 10) || 2;
 
+      const isTP = (item.branch || '').toLowerCase().includes('tarabai') || (item.batch || '').toLowerCase().includes('tarabai') || (item.branch || '').toLowerCase().includes('tp');
       const payload = {
-        branch: 'Mangalwar Peth',
+        branch: isTP ? 'Tarabai Park' : 'Mangalwar Peth',
         activity: item.activity || 'Classroom Lecture & Theory',
         subject: stdSubject,
-        batch: item.batch || '11th pcm Mangalvar Peth (Morning)',
+        batch: item.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
         chapter: item.chapter || '',
         target_date: targetDateVal,
         activity_date: targetDateVal,
@@ -457,12 +541,16 @@ export default function DailyActivityReport() {
   useEffect(() => {
     if (location.state?.prefillTopic) {
       const topic = location.state.prefillTopic;
+      const isTP = (topic.branch || '').toLowerCase().includes('tarabai') || (topic.batch || '').toLowerCase().includes('tarabai');
+      const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+      const resolvedBatch = topic.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+
       setEditingActivityId(null);
       setNewActivity({
-        branch: 'Mangalwar Peth',
+        branch: resolvedBranch,
         activity: 'Classroom Lecture & Theory',
         subject: topic.subject || 'Physics',
-        batch: topic.batch || '11th pcm Mangalvar Peth (Morning)',
+        batch: resolvedBatch,
         chapter: topic.chapter || '',
         topicTaught: topic.topicTaught || topic.topicName || '',
         timeSlot: '03:00 PM - 04:00 PM',
@@ -502,10 +590,10 @@ export default function DailyActivityReport() {
     return dailyActivities;
   }, [dailyActivities, user]);
 
-  // Branch-scoped activities (strictly Mangalwar / Mangalvar Peth only)
+  // Branch-scoped activities (supports All, Mangalwar Peth, Tarabai Park)
   const branchActivities = useMemo(() => {
-    return myActivities.filter(act => isActivityInBranch(act));
-  }, [myActivities]);
+    return myActivities.filter(act => isActivityInBranch(act, selectedBranchFilter));
+  }, [myActivities, selectedBranchFilter]);
 
   // Activities filtered by the selected date (or all dates if dateFilterMode === 'all')
   const dateActivities = useMemo(() => {
@@ -560,11 +648,18 @@ export default function DailyActivityReport() {
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
+    const activeBranch = (selectedBranchFilter && selectedBranchFilter !== 'All') 
+      ? selectedBranchFilter 
+      : (userBranch || 'Mangalwar Peth');
+    const isTP = activeBranch.toLowerCase().includes('tarabai') || activeBranch.toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+
     setNewActivity({
-      branch: 'Mangalwar Peth',
+      branch: resolvedBranch,
       activity: 'Classroom Lecture & Theory',
       subject: (user?.subject || 'Physics'),
-      batch: '11th pcm Mangalvar Peth (Morning)',
+      batch: defaultBatch,
       chapter: '',
       topicTaught: '',
       timeSlot: '08:30 AM - 10:00 AM',
@@ -581,11 +676,15 @@ export default function DailyActivityReport() {
 
   const handleOpenEditModal = (act) => {
     setEditingActivityId(act.id);
+    const isTP = (act.branch || '').toLowerCase().includes('tarabai') || (act.batch || '').toLowerCase().includes('tarabai') || (act.branch || '').toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+    const defaultBatch = act.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+
     setNewActivity({
-      branch: 'Mangalwar Peth',
+      branch: resolvedBranch,
       activity: act.activity || 'Classroom Lecture & Theory',
       subject: act.subject || 'Physics',
-      batch: act.batch || '11th pcm Mangalvar Peth (Morning)',
+      batch: defaultBatch,
       chapter: act.chapter || '',
       topicTaught: act.topicTaught || '',
       timeSlot: act.timeSlot || '08:30 AM - 10:00 AM',
@@ -624,11 +723,15 @@ export default function DailyActivityReport() {
     const facultyId = user?.id ? String(user.id) : null;
     const targetDateVal = newActivity.activity_date || newActivity.targetDate || selectedDate;
 
+    // Resolve branch strictly based on user selection or batch
+    const isTP = (newActivity.branch || '').toLowerCase().includes('tarabai') || (newActivity.batch || '').toLowerCase().includes('tarabai') || (newActivity.branch || '').toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+
     const backendPayload = {
-      branch: 'Mangalwar Peth',
+      branch: resolvedBranch,
       activity: newActivity.activity || 'Classroom Lecture & Theory',
       subject: stdSubject,
-      batch: newActivity.batch || '11th pcm Mangalvar Peth (Morning)',
+      batch: newActivity.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
       chapter: newActivity.chapter || '',
       target_date: targetDateVal,
       activity_date: targetDateVal,
@@ -1126,13 +1229,20 @@ export default function DailyActivityReport() {
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <div className="d-flex align-items-center gap-1.5">
-              <span
-                className="badge bg-white text-sa-charcoal border px-3 py-1.5 rounded-3 d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
-                style={{ height: '36px', fontSize: '12.5px', borderColor: '#CBD5E1', color: '#1E293B', backgroundColor: '#F8FAFC' }}
-                title="Branch automated to Mangalwar Peth"
+              <select
+                className="form-select form-select-sm fw-semibold"
+                value={selectedBranchFilter}
+                onChange={(e) => {
+                  setSelectedBranchFilter(e.target.value);
+                  setSelectedBatchFilter('All');
+                }}
+                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', minWidth: '175px' }}
+                title="Filter teaching activities by campus"
               >
-                🏛️ Mangalwar Peth
-              </span>
+                <option value="All">🏛️ All Campuses</option>
+                <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
+                <option value="Tarabai Park">🏛️ Tarabai Park</option>
+              </select>
             </div>
 
             <div className="d-flex align-items-center gap-1.5">
@@ -1159,30 +1269,36 @@ export default function DailyActivityReport() {
               style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '220px' }}
             >
               <option value="All">All Batches</option>
-              <optgroup label="☀️ Morning Session">
-                <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-              </optgroup>
-              <optgroup label="🌙 Evening Session">
-                <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-              </optgroup>
-              <optgroup label="General / Other Batches">
-                <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-              </optgroup>
+              {selectedBranchFilter === 'Tarabai Park' ? (
+                TARABAI_BATCH_OPTIONS.map(grp => (
+                  <optgroup key={grp.group} label={grp.group}>
+                    {grp.list.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                ))
+              ) : selectedBranchFilter === 'Mangalwar Peth' ? (
+                MANGALWAR_BATCH_OPTIONS.map(grp => (
+                  <optgroup key={grp.group} label={grp.group}>
+                    {grp.list.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                ))
+              ) : (
+                <>
+                  <optgroup label="🏛️ Tarabai Park Batches">
+                    {TARABAI_BATCH_OPTIONS.flatMap(g => g.list).map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🏛️ Mangalwar Peth Batches">
+                    {MANGALWAR_BATCH_OPTIONS.flatMap(g => g.list).map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </select>
 
             {/* Status Filter: In Progress vs Completed */}
@@ -1419,20 +1535,36 @@ export default function DailyActivityReport() {
 
           <div className="row g-3">
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Branch / Campus <span className="text-danger">*</span>
+              </label>
               <div className="input-group input-group-sm">
                 <span className="input-group-text bg-light text-muted border-end-0">
                   <MapPin size={13} className="text-sa-maroon" />
                 </span>
-                <input
-                  type="text"
-                  className="form-control form-control-sm bg-light fw-semibold text-sa-charcoal border-start-0"
-                  value="🏛️ Mangalwar Peth (Fixed)"
-                  readOnly
-                  disabled
+                <select
+                  className="form-select form-select-sm fw-semibold"
+                  value={newActivity.branch || 'Mangalwar Peth'}
+                  onChange={(e) => {
+                    const newBranch = e.target.value;
+                    const isTP = newBranch === 'Tarabai Park';
+                    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+                    setNewActivity({
+                      ...newActivity,
+                      branch: newBranch,
+                      batch: defaultBatch
+                    });
+                  }}
+                  required
                   style={{ height: '34px', fontSize: '12.5px' }}
-                />
+                >
+                  <option value="Mangalwar Peth">🏛️ Mangalwar Peth Campus</option>
+                  <option value="Tarabai Park">🏛️ Tarabai Park Campus</option>
+                </select>
               </div>
+              <small className="text-muted" style={{ fontSize: '11px' }}>
+                Select the campus where this class lecture occurred.
+              </small>
             </div>
 
             <div className="col-12 col-md-6">
@@ -1465,44 +1597,47 @@ export default function DailyActivityReport() {
             </div>
 
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Class / Batch</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Class / Batch <span className="text-danger">*</span>
+              </label>
               <select
                 className="form-select form-select-sm"
                 value={newActivity.batch}
-                onChange={(e) => setNewActivity({ ...newActivity, batch: e.target.value })}
+                onChange={(e) => {
+                  const bVal = e.target.value;
+                  const isTP = bVal.toLowerCase().includes('tarabai') || bVal.toLowerCase().includes('tp');
+                  const isMP = bVal.toLowerCase().includes('mangal') || bVal.toLowerCase().includes('mp');
+                  let derivedBranch = newActivity.branch;
+                  if (isTP) derivedBranch = 'Tarabai Park';
+                  else if (isMP) derivedBranch = 'Mangalwar Peth';
+                  setNewActivity({
+                    ...newActivity,
+                    batch: bVal,
+                    branch: derivedBranch
+                  });
+                }}
                 required
               >
-                <optgroup label="☀️ Morning Session">
-                  <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                  <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                  <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                  <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                  <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                  <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-                </optgroup>
-                <optgroup label="🌙 Evening Session">
-                  <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                  <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                  <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                  <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                  <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                  <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-                </optgroup>
-                <optgroup label="General / Other Batches">
-                  <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                  <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                  <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                  <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                  <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                  <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                </optgroup>
+                {newActivity.branch === 'Tarabai Park' ? (
+                  TARABAI_BATCH_OPTIONS.map(grp => (
+                    <optgroup key={grp.group} label={grp.group}>
+                      {grp.list.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                ) : (
+                  MANGALWAR_BATCH_OPTIONS.map(grp => (
+                    <optgroup key={grp.group} label={grp.group}>
+                      {grp.list.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                )}
                 {newActivity.batch && ![
-                  '11th pcm Mangalvar Peth (Morning)', '11th pcb Mangalvar Peth (Morning)', '11th pcmb Mangalvar Peth (Morning)',
-                  '12th pcm Mangalvar Peth (Morning)', '12th pcb Mangalvar Peth (Morning)', '12th pcmb Mangalvar Peth (Morning)',
-                  '11th pcm Mangalvar Peth (Evening)', '11th pcb Mangalvar Peth (Evening)', '11th pcmb Mangalvar Peth (Evening)',
-                  '12th pcm Mangalvar Peth (Evening)', '12th pcb Mangalvar Peth (Evening)', '12th pcmb Mangalvar Peth (Evening)',
-                  '11th pcm Mangalvar Peth', '11th pcb Mangalvar Peth', '11th pcmb Mangalvar Peth',
-                  '12th pcm Mangalvar Peth', '12th pcb Mangalvar Peth', '12th pcmb Mangalvar Peth'
+                  ...MANGALWAR_BATCH_OPTIONS.flatMap(g => g.list),
+                  ...TARABAI_BATCH_OPTIONS.flatMap(g => g.list)
                 ].includes(newActivity.batch) && (
                   <option value={newActivity.batch}>{newActivity.batch}</option>
                 )}

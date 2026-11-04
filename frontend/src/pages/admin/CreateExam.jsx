@@ -11,6 +11,7 @@ import { Calendar, Trash2, Bell, Building, Building2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getUserBranch, filterExamsByBranch, CAMPUS } from '../../utils/branchUtils';
+import { toast } from 'react-toastify';
 
 export default function CreateExam() {
   const navigate = useNavigate();
@@ -104,22 +105,28 @@ export default function CreateExam() {
       fetchData();
     } catch (err) {
       console.error('Failed to schedule examination:', err);
-      // Fallback for demo when backend is offline or errors
-      if (formData.notify_parents !== false) {
-        notificationService.recordTestScheduleDispatch({
-          testName: formData.title,
-          subject: formData.subject,
-          batch: formData.batch,
-          testDate: formData.date,
-          testTime: `${formData.startTime || '10:00 am'} - ${formData.endTime || '01:00 pm'}`,
-          channels: formData.channels || ['SMS', 'WhatsApp']
-        });
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        toast.error(detail);
+      } else {
+        // Fallback for demo when backend is offline or uncontactable
+        if (formData.notify_parents !== false) {
+          notificationService.recordTestScheduleDispatch({
+            testName: formData.title,
+            subject: formData.subject,
+            batch: formData.batch,
+            testDate: formData.date,
+            testTime: `${formData.startTime || '10:00 am'} - ${formData.endTime || '01:00 pm'}`,
+            channels: formData.channels || ['SMS', 'WhatsApp']
+          });
+        }
+        const channelLabel = (formData.channels && formData.channels.length > 0)
+          ? formData.channels.join(' & ')
+          : 'SMS & WhatsApp';
+        toast.warning(`Network notice: Server offline, notification recorded locally for '${formData.title}'.`);
+        setShowCreateForm(false);
+        fetchData();
       }
-      const channelLabel = (formData.channels && formData.channels.length > 0)
-        ? formData.channels.join(' & ')
-        : 'SMS & WhatsApp';
-      toast.success(`Test '${formData.title}' scheduled! Parent ${channelLabel} notifications queued.`);
-      setShowCreateForm(false);
     } finally {
       setCreateLoading(false);
     }

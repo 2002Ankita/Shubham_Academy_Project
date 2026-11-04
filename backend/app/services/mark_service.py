@@ -19,7 +19,7 @@ def _calculate_duration(start_time: datetime, end_time: datetime) -> str:
     else:
         return f"{hours}h {mins}m"
 
-async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: datetime, end_time: datetime, current_exam_id: str = None):
+async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: datetime, end_time: datetime, current_exam_id: str = None, branch: str = None):
     room_clean = (room_no or "").strip()
     if not room_clean:
         return
@@ -27,19 +27,31 @@ async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: da
     target_date = exam_date.date() if isinstance(exam_date, datetime) else None
     target_start = start_time.time() if isinstance(start_time, datetime) else None
     target_end = end_time.time() if isinstance(end_time, datetime) else None
+    now = datetime.now()
 
     for ex in all_exams:
         if current_exam_id and str(ex.id) == current_exam_id:
             continue
-        if getattr(ex, "status", "") == "Cancelled":
+        if getattr(ex, "status", "") in ["Cancelled", "Completed"]:
             continue
         ex_room = (getattr(ex, "room_no", "") or "").strip()
         if ex_room.lower() != room_clean.lower():
             continue
 
+        # Check branch isolation: different campuses do not share physical rooms
+        if branch and getattr(ex, "branch", None):
+            b1 = str(branch).lower()
+            b2 = str(ex.branch).lower()
+            if ("tarabai" in b1 and "mangal" in b2) or ("mangal" in b1 and "tarabai" in b2):
+                continue
+
         raw_ex_date = _parse_dt(ex.exam_date)
         raw_ex_start = _parse_dt(ex.start_time)
         raw_ex_end = _parse_dt(ex.end_time)
+
+        # Ignore exams whose end time has already completely elapsed in the past
+        if raw_ex_end and raw_ex_end < now:
+            continue
 
         ex_date = raw_ex_date.date() if isinstance(raw_ex_date, datetime) else None
         if ex_date != target_date:
@@ -54,7 +66,10 @@ async def _check_room_conflict(room_no: str, exam_date: datetime, start_time: da
 
         if ex_start and ex_end and target_start and target_end:
             if target_start < ex_end and target_end > ex_start:
-                raise HTTPException(status_code=400, detail=f"{room_clean} is already booked on this date ({ex_start.strftime('%I:%M %p')} - {ex_end.strftime('%I:%M %p')}).")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{room_clean} is already booked on this date ({ex_start.strftime('%I:%M %p')} - {ex_end.strftime('%I:%M %p')}) for '{getattr(ex, 'exam_name', 'another test')}'. Please choose another hall or timing."
+                )
 
 def _parse_dt(val):
     if isinstance(val, datetime):
@@ -262,7 +277,7 @@ async def create_exam(exam_in: ExamCreate, user=None) -> dict:
             raise HTTPException(status_code=400, detail="End time must be later than start time.")
 
     room = (exam_in.room_no or "Room 101").strip()
-    await _check_room_conflict(room, exam_in.exam_date, exam_in.start_time, exam_in.end_time)
+    await _check_room_conflict(room, exam_in.exam_date, exam_in.start_time, exam_in.end_time, branch=exam_in.branch)
 
     duration = exam_in.duration or _calculate_duration(exam_in.start_time, exam_in.end_time)
 
@@ -331,7 +346,7 @@ async def create_exam(exam_in: ExamCreate, user=None) -> dict:
     return await _format_exam(exam)
 
 async def get_all_exams() -> list[dict]:
-    exams = await Exam.find_all().to_list()
+    exams = await Exam.find_all().sort("-_id").to_list()
     return [await _format_exam(e) for e in exams]
 
 async def enter_marks(mark_in: MarkCreate) -> dict:
@@ -494,7 +509,8 @@ async def update_exam(id: str, exam_in: dict, user=None) -> dict:
             raise HTTPException(status_code=400, detail="End time must be later than start time.")
 
     if new_room and new_exam_date and new_start_time and new_end_time:
-        await _check_room_conflict(new_room, new_exam_date, new_start_time, new_end_time, current_exam_id=str(exam.id))
+        branch_to_check = exam_in.get("branch") or exam.branch
+        await _check_room_conflict(new_room, new_exam_date, new_start_time, new_end_time, current_exam_id=str(exam.id), branch=branch_to_check)
 
     if "exam_name" in exam_in: exam.exam_name = exam_in["exam_name"]
     if "exam_type" in exam_in: exam.exam_type = exam_in["exam_type"]

@@ -240,9 +240,17 @@ async def list_topic_durations(
     if effective_branch and effective_branch != "All":
         target = effective_branch.lower().strip()
         if "tarabai" in target:
-            query["batch"] = {"$regex": "tarabai", "$options": "i"}
+            query["$or"] = [
+                {"branch": {"$regex": "tarabai", "$options": "i"}},
+                {"batch": {"$regex": "tarabai", "$options": "i"}}
+            ]
         elif "mangal" in target or "manglavar" in target:
-            query["batch"] = {"$regex": "mangal", "$options": "i"}
+            query["$or"] = [
+                {"branch": {"$regex": "mangal", "$options": "i"}},
+                {"batch": {"$regex": "mangal", "$options": "i"}},
+                {"branch": {"$regex": "manglavar", "$options": "i"}},
+                {"batch": {"$regex": "manglavar", "$options": "i"}}
+            ]
 
     if subject and subject != "All":
         query["subject"] = {"$regex": subject, "$options": "i"}

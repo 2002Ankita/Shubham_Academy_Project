@@ -1330,6 +1330,130 @@ async def save_batch_date_attendance(payload: dict) -> dict:
         "students_processed": len(records)
     }
 
+async def get_student_attendance_summary(
+    branch: Optional[str] = None,
+    period: str = "This Week"
+) -> dict:
+    now = datetime.now()
+    is_mangal = bool(branch and "mangal" in branch.lower())
+    target_branch = "Mangalvar Peth" if is_mangal else ("Tarabai Park" if branch else None)
+
+    # 1. Total students
+    all_students = await Student.find_all().to_list()
+    if target_branch:
+        if is_mangal:
+            branch_students = [s for s in all_students if "mangal" in (s.branch or "").lower()]
+        else:
+            branch_students = [s for s in all_students if "tarabai" in (s.branch or "").lower()]
+    else:
+        branch_students = all_students
+    
+    total_students = len(branch_students)
+
+    # 2. Get attendance records
+    all_recs = await Attendance.find(Attendance.student != None).sort("-date").to_list()
+    if target_branch:
+        if is_mangal:
+            branch_recs = [r for r in all_recs if r.branch and "mangal" in r.branch.lower()]
+        else:
+            branch_recs = [r for r in all_recs if r.branch and "tarabai" in r.branch.lower()]
+    else:
+        branch_recs = all_recs
+
+    # Map by date string YYYY-MM-DD -> { student_id: status }
+    date_student_map: Dict[str, Dict[str, str]] = {}
+    for r in branch_recs:
+        if not r.date:
+            continue
+        d_str = r.date.strftime("%Y-%m-%d")
+        sid = str(r.student.ref.id if hasattr(r.student, "ref") else getattr(r.student, "id", r.student))
+        existing = date_student_map.setdefault(d_str, {}).get(sid)
+        if existing != "Present":
+            date_student_map[d_str][sid] = r.status or "Present"
+
+    today_str = now.strftime("%Y-%m-%d")
+    
+    # 3. Present & Absent for Today (or most recent date with attendance)
+    eval_date_str = today_str if today_str in date_student_map else (
+        max(date_student_map.keys()) if date_student_map else today_str
+    )
+
+    day_map = date_student_map.get(eval_date_str, {})
+    present_today = sum(1 for st in day_map.values() if st == "Present")
+    absent_today = sum(1 for st in day_map.values() if st == "Absent")
+    if day_map and (present_today + absent_today < total_students):
+        absent_today = max(0, total_students - present_today)
+        
+    rate_today = round((present_today / total_students) * 100, 1) if total_students > 0 else 0.0
+
+    # 4. Weekly / Period chart data
+    mon_this_week = now - timedelta(days=now.weekday())
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    
+    clean_period = (period or "This Week").strip()
+    if clean_period.lower() == "last week":
+        start_day = mon_this_week - timedelta(days=7)
+        num_days = 7
+    elif clean_period.lower() == "past 7 days":
+        start_day = now - timedelta(days=6)
+        num_days = 7
+    elif clean_period.lower() == "this month":
+        start_day = now - timedelta(days=29)
+        num_days = 30
+    else:  # "This Week"
+        start_day = mon_this_week
+        num_days = 7
+
+    chart_data = []
+    for i in range(num_days):
+        d = start_day + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        d_day_name = day_labels[d.weekday()]
+        
+        # If Sunday and no records, 0 present / absent
+        if d.weekday() == 6 and d_str not in date_student_map:
+            chart_data.append({
+                "day": d_day_name if num_days <= 7 else d.strftime("%d %b"),
+                "date": d_str,
+                "present": 0,
+                "absent": 0,
+                "total": total_students,
+                "rate": 0.0
+            })
+            continue
+
+        s_map = date_student_map.get(d_str, {})
+        if s_map:
+            p = sum(1 for st in s_map.values() if st == "Present")
+            ab = sum(1 for st in s_map.values() if st == "Absent")
+            if p + ab < total_students:
+                ab = max(0, total_students - p)
+            r = round((p / total_students) * 100, 1) if total_students > 0 else 0.0
+        else:
+            p = 0
+            ab = 0
+            r = 0.0
+
+        chart_data.append({
+            "day": d_day_name if num_days <= 7 else d.strftime("%d %b"),
+            "date": d_str,
+            "present": p,
+            "absent": ab,
+            "total": total_students,
+            "rate": r
+        })
+
+    return {
+        "branch": target_branch or "All Branches",
+        "period": clean_period,
+        "date": eval_date_str,
+        "totalStudents": total_students,
+        "presentToday": present_today,
+        "absentToday": absent_today,
+        "attendanceRate": rate_today,
+        "weeklyData": chart_data
+    }
+
 async def get_teachers_monthly_hours_summary(month_str: Optional[str] = None) -> dict:
     """
     Calculate monthly faculty working hours and estimated salary compensation.

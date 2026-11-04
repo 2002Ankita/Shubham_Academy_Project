@@ -22,6 +22,8 @@ import { toast } from 'react-toastify';
 import curriculumService from '../../services/curriculumService';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useAuth } from '../../hooks/useAuth';
+import { getUserBranch } from '../../utils/branchUtils';
+import { MANGALWAR_BATCH_OPTIONS, TARABAI_BATCH_OPTIONS } from './DailyActivityReport';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -275,18 +277,20 @@ export default function TopicDurationPlanner() {
     return () => window.removeEventListener('sa_topic_plans_updated', fetchTopicPlans);
   }, []);
 
+  const userBranch = getUserBranch(user);
+
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [branchFilter, setBranchFilter] = useState('Mangalwar Peth');
+  const [branchFilter, setBranchFilter] = useState(() => userBranch || 'All');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    branch: 'Mangalwar Peth',
+    branch: (userBranch && userBranch !== 'All' ? userBranch : 'Mangalwar Peth'),
     subject: 'Physics (Class 12th)',
-    batch: '11th pcm Mangalvar Peth (Morning)',
+    batch: (userBranch === 'Tarabai Park' ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
     chapter: '',
     topicName: '',
     requiredPeriods: '3',
@@ -380,17 +384,27 @@ export default function TopicDurationPlanner() {
       batchTitle.includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesBranch = branchFilter === 'All' || (item.branch || 'Tarabai Park') === branchFilter;
+
+    const isTP = (item.branch || '').toLowerCase().includes('tarabai') || (item.batch || '').toLowerCase().includes('tarabai') || (item.branch || '').toLowerCase().includes('tp');
+    const isMP = (item.branch || '').toLowerCase().includes('mangal') || (item.batch || '').toLowerCase().includes('mangal') || (item.branch || '').toLowerCase().includes('mp');
+    const matchesBranch = branchFilter === 'All' ||
+      (branchFilter === 'Tarabai Park' && isTP) ||
+      (branchFilter.includes('Mangal') && isMP);
 
     return matchesSearch && matchesStatus && matchesBranch;
   });
 
   const handleOpenAdd = () => {
     setEditingId(null);
+    const activeB = (branchFilter && branchFilter !== 'All') ? branchFilter : (userBranch || 'Mangalwar Peth');
+    const isTP = activeB.toLowerCase().includes('tarabai') || activeB.toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+
     setForm({
-      branch: 'Tarabai Park',
+      branch: resolvedBranch,
       subject: 'Physics (Class 12th)',
-      batch: '12th pcm tarabai park',
+      batch: defaultBatch,
       chapter: '',
       topicName: '',
       requiredPeriods: '3',
@@ -405,10 +419,14 @@ export default function TopicDurationPlanner() {
 
   const handleOpenEdit = (topic) => {
     setEditingId(topic.id || topic.topic_id);
+    const isTP = (topic.branch || '').toLowerCase().includes('tarabai') || (topic.batch || '').toLowerCase().includes('tarabai') || (topic.branch || '').toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+    const defaultBatch = topic.batch || (isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+
     setForm({
-      branch: topic.branch || 'Tarabai Park',
+      branch: resolvedBranch,
       subject: topic.subject || 'Physics (Class 12th)',
-      batch: topic.batch || '12th pcm tarabai park',
+      batch: defaultBatch,
       chapter: topic.chapter || '',
       topicName: topic.topicName || topic.topic_name || '',
       requiredPeriods: String(topic.requiredPeriods || topic.required_periods || '3'),
@@ -430,6 +448,9 @@ export default function TopicDurationPlanner() {
 
     const currentTeacher = user?.name || user?.full_name || 'More A.D';
 
+    const isTP = (form.branch || '').toLowerCase().includes('tarabai') || (form.batch || '').toLowerCase().includes('tarabai') || (form.branch || '').toLowerCase().includes('tp');
+    const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
+
     const payload = {
       ...form,
       topic_id: editingId || `TOPIC-${Date.now()}`,
@@ -437,8 +458,8 @@ export default function TopicDurationPlanner() {
       topic_name: form.topicName.trim(),
       chapter: form.chapter.trim() || 'Curriculum Chapter',
       subject: form.subject.trim() || 'Physics (Class 12th)',
-      batch: form.batch.trim() || '12th Science Tarabai Park (Batch A)',
-      branch: form.branch || 'Tarabai Park',
+      batch: form.batch.trim() || (isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+      branch: resolvedBranch,
       requiredPeriods: parseInt(form.requiredPeriods, 10) || 1,
       required_periods: parseInt(form.requiredPeriods, 10) || 1,
       periodDurationMins: parseInt(form.periodDurationMins, 10) || 45,
@@ -765,25 +786,17 @@ export default function TopicDurationPlanner() {
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            {user?.role === 'teacher' ? (
-              <span
-                className="badge bg-white text-sa-charcoal border px-3 py-1.5 rounded-3 d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
-                style={{ height: '36px', fontSize: '12.5px', borderColor: '#CBD5E1', color: '#1E293B', backgroundColor: '#F8FAFC' }}
-                title="Branch automated to Mangalwar Peth"
-              >
-                🏛️ Mangalwar Peth
-              </span>
-            ) : (
-              <select
-                className="form-select form-select-sm"
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', width: '160px' }}
-              >
-                <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
-                <option value="All">All Branches</option>
-              </select>
-            )}
+            <select
+              className="form-select form-select-sm fw-semibold"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              style={{ height: '36px', fontSize: '12.5px', borderRadius: '8px', minWidth: '175px' }}
+              title="Filter topic plans by campus"
+            >
+              <option value="All">🏛️ All Campuses</option>
+              <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
+              <option value="Tarabai Park">🏛️ Tarabai Park</option>
+            </select>
 
             <select
               className="form-select form-select-sm"
@@ -976,20 +989,36 @@ export default function TopicDurationPlanner() {
 
           <div className="row g-3">
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Branch</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Branch / Campus <span className="text-danger">*</span>
+              </label>
               <div className="input-group input-group-sm">
                 <span className="input-group-text bg-light text-muted border-end-0">
                   <MapPin size={13} className="text-sa-maroon" />
                 </span>
-                <input
-                  type="text"
-                  className="form-control form-control-sm bg-light fw-semibold text-sa-charcoal border-start-0"
-                  value="🏛️ Mangalwar Peth (Fixed)"
-                  readOnly
-                  disabled
+                <select
+                  className="form-select form-select-sm fw-semibold"
+                  value={form.branch || 'Mangalwar Peth'}
+                  onChange={(e) => {
+                    const newBranch = e.target.value;
+                    const isTP = newBranch === 'Tarabai Park';
+                    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+                    setForm({
+                      ...form,
+                      branch: newBranch,
+                      batch: defaultBatch
+                    });
+                  }}
+                  required
                   style={{ height: '34px', fontSize: '12.5px' }}
-                />
+                >
+                  <option value="Mangalwar Peth">🏛️ Mangalwar Peth Campus</option>
+                  <option value="Tarabai Park">🏛️ Tarabai Park Campus</option>
+                </select>
               </div>
+              <small className="text-muted" style={{ fontSize: '11px' }}>
+                Select the campus where this curriculum topic applies.
+              </small>
             </div>
 
             <div className="col-12 col-md-6">
@@ -1040,44 +1069,47 @@ export default function TopicDurationPlanner() {
             </div>
 
             <div className="col-12 col-md-6">
-              <label className="form-label fw-semibold small text-sa-charcoal mb-1">Target Class / Batch</label>
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Target Class / Batch <span className="text-danger">*</span>
+              </label>
               <select
                 className="form-select form-select-sm"
                 value={form.batch}
-                onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                onChange={(e) => {
+                  const bVal = e.target.value;
+                  const isTP = bVal.toLowerCase().includes('tarabai') || bVal.toLowerCase().includes('tp');
+                  const isMP = bVal.toLowerCase().includes('mangal') || bVal.toLowerCase().includes('mp');
+                  let derivedBranch = form.branch;
+                  if (isTP) derivedBranch = 'Tarabai Park';
+                  else if (isMP) derivedBranch = 'Mangalwar Peth';
+                  setForm({
+                    ...form,
+                    batch: bVal,
+                    branch: derivedBranch
+                  });
+                }}
                 required
               >
-                <optgroup label="☀️ Morning Session">
-                  <option value="11th pcm Mangalvar Peth (Morning)">11th pcm Mangalvar Peth (Morning)</option>
-                  <option value="11th pcb Mangalvar Peth (Morning)">11th pcb Mangalvar Peth (Morning)</option>
-                  <option value="11th pcmb Mangalvar Peth (Morning)">11th pcmb Mangalvar Peth (Morning)</option>
-                  <option value="12th pcm Mangalvar Peth (Morning)">12th pcm Mangalvar Peth (Morning)</option>
-                  <option value="12th pcb Mangalvar Peth (Morning)">12th pcb Mangalvar Peth (Morning)</option>
-                  <option value="12th pcmb Mangalvar Peth (Morning)">12th pcmb Mangalvar Peth (Morning)</option>
-                </optgroup>
-                <optgroup label="🌙 Evening Session">
-                  <option value="11th pcm Mangalvar Peth (Evening)">11th pcm Mangalvar Peth (Evening)</option>
-                  <option value="11th pcb Mangalvar Peth (Evening)">11th pcb Mangalvar Peth (Evening)</option>
-                  <option value="11th pcmb Mangalvar Peth (Evening)">11th pcmb Mangalvar Peth (Evening)</option>
-                  <option value="12th pcm Mangalvar Peth (Evening)">12th pcm Mangalvar Peth (Evening)</option>
-                  <option value="12th pcb Mangalvar Peth (Evening)">12th pcb Mangalvar Peth (Evening)</option>
-                  <option value="12th pcmb Mangalvar Peth (Evening)">12th pcmb Mangalvar Peth (Evening)</option>
-                </optgroup>
-                <optgroup label="General / Other Batches">
-                  <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                  <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                  <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                  <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                  <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                  <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                </optgroup>
+                {form.branch === 'Tarabai Park' ? (
+                  TARABAI_BATCH_OPTIONS.map(grp => (
+                    <optgroup key={grp.group} label={grp.group}>
+                      {grp.list.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                ) : (
+                  MANGALWAR_BATCH_OPTIONS.map(grp => (
+                    <optgroup key={grp.group} label={grp.group}>
+                      {grp.list.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                )}
                 {form.batch && ![
-                  '11th pcm Mangalvar Peth (Morning)', '11th pcb Mangalvar Peth (Morning)', '11th pcmb Mangalvar Peth (Morning)',
-                  '12th pcm Mangalvar Peth (Morning)', '12th pcb Mangalvar Peth (Morning)', '12th pcmb Mangalvar Peth (Morning)',
-                  '11th pcm Mangalvar Peth (Evening)', '11th pcb Mangalvar Peth (Evening)', '11th pcmb Mangalvar Peth (Evening)',
-                  '12th pcm Mangalvar Peth (Evening)', '12th pcb Mangalvar Peth (Evening)', '12th pcmb Mangalvar Peth (Evening)',
-                  '11th pcm Mangalvar Peth', '11th pcb Mangalvar Peth', '11th pcmb Mangalvar Peth',
-                  '12th pcm Mangalvar Peth', '12th pcb Mangalvar Peth', '12th pcmb Mangalvar Peth'
+                  ...MANGALWAR_BATCH_OPTIONS.flatMap(g => g.list),
+                  ...TARABAI_BATCH_OPTIONS.flatMap(g => g.list)
                 ].includes(form.batch) && (
                   <option value={form.batch}>{form.batch}</option>
                 )}

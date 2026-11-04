@@ -41,7 +41,7 @@ import batchService from '../../services/batchService';
 import teacherService from '../../services/teacherService';
 import { notificationService } from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
-import { getUserBranch, CAMPUS } from '../../utils/branchUtils';
+import { getUserBranch, normalizeBranch, CAMPUS } from '../../utils/branchUtils';
 
 export default function ActivityTimetableManagement() {
   const { user } = useAuth();
@@ -1383,7 +1383,9 @@ export default function ActivityTimetableManagement() {
         (slot.room && slot.room.toLowerCase().includes(q)) ||
         (slot.day && slot.day.toLowerCase().includes(q));
 
-      const matchesBranch = timetableBranchFilter === 'All' || slot.branch === timetableBranchFilter;
+      const matchesBranch = timetableBranchFilter === 'All' || 
+        slot.branch === timetableBranchFilter ||
+        (normalizeBranch(slot.branch) && normalizeBranch(slot.branch) === normalizeBranch(timetableBranchFilter));
       const matchesTeacher = timetableTeacherFilter === 'All' || slot.teacher_name === timetableTeacherFilter;
       const matchesSubject = timetableSubjectFilter === 'All' || slot.subject === timetableSubjectFilter;
       const matchesDay = timetableDayFilter === 'All' || slot.day.toLowerCase() === timetableDayFilter.toLowerCase();

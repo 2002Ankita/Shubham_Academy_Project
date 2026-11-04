@@ -24,6 +24,7 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import studentService from '../../services/studentService';
+import teacherService from '../../services/teacherService';
 import { getUserBranch } from '../../utils/branchUtils';
 import UpiQrDisplay from '../../components/common/UpiQrDisplay';
 
@@ -100,13 +101,35 @@ export default function StudentFees() {
   const [loadingScanner, setLoadingScanner] = useState(false);
   const [upiUtr, setUpiUtr] = useState('');
   const [depositorName, setDepositorName] = useState('');
+  const [payerRelation, setPayerRelation] = useState('Self');
   const [cashNotes, setCashNotes] = useState('');
   const [chequeNumber, setChequeNumber] = useState('');
   const [chequeBank, setChequeBank] = useState('');
   const [chequeDate, setChequeDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [chequeDepositor, setChequeDepositor] = useState('');
+  const [chequeRelation, setChequeRelation] = useState('Self');
+  const [paidToSelection, setPaidToSelection] = useState('');
+  const [customPaidTo, setCustomPaidTo] = useState('');
+  const [facultyList, setFacultyList] = useState([
+    'Dr. Priya Kulkarni (Physics Faculty)',
+    'Prof. Rajesh Sharma (Chemistry Faculty)',
+    'Prof. Snehal Joshi (Mathematics Faculty)',
+    'Dr. Amit Patil (Biology Faculty)'
+  ]);
   const [submittedTicket, setSubmittedTicket] = useState(null);
   const [offlineRequests, setOfflineRequests] = useState([]);
+
+  // Load faculty list for "Paid To" options
+  useEffect(() => {
+    teacherService.getAll()
+      .then((teachers) => {
+        if (Array.isArray(teachers) && teachers.length > 0) {
+          const names = teachers.map((t) => `${t.name} (${t.subject || 'Faculty'})`);
+          setFacultyList(names);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Load branch scanner uploaded by Academic Admin for student's branch
   const loadBranchScanner = async () => {
@@ -313,6 +336,14 @@ export default function StudentFees() {
   const handleOpenPaymentModal = () => {
     setPaymentAmount(pendingFeesCalculated > 0 ? String(pendingFeesCalculated) : '');
     setSubmittedTicket(null);
+    const initialName = user?.full_name || user?.name || '';
+    setDepositorName(initialName);
+    setPayerRelation('Self');
+    setChequeDepositor(initialName);
+    setChequeRelation('Self');
+    setPaidToSelection(`${studentBranch} Accounts & Front Desk Reception`);
+    setCustomPaidTo('');
+    setCashNotes('');
     setIsPaymentModalOpen(true);
   };
 
@@ -496,6 +527,10 @@ export default function StudentFees() {
           setRefreshTrigger(prev => prev + 1);
         }
       } else if (paymentMode === 'Cash') {
+        const finalRecipient = paidToSelection === 'OTHER'
+          ? (customPaidTo.trim() || `${studentBranch} Accounts Counter`)
+          : (paidToSelection || `${studentBranch} Accounts & Front Desk Reception`);
+
         const ticket = await feeService.submitOfflineFeeRequest({
           student_id: String(user?.id || 'stu-tp-101'),
           student_name: user?.full_name || user?.name || 'Aarav Deshmukh',
@@ -506,7 +541,8 @@ export default function StudentFees() {
           amount: Number(paymentAmount),
           payment_mode: 'Cash',
           depositor_name: depositorName.trim() || user?.full_name || user?.name || 'Student',
-          notes: cashNotes.trim() || `Cash deposit request for ${studentBranch} accounts counter`
+          collected_by_faculty: finalRecipient,
+          notes: cashNotes.trim() || `Cash deposit handed over to ${finalRecipient}`
         });
         setSubmittedTicket(ticket);
         toast.success(`Cash payment request forwarded to ${studentBranch} Academic Admin!`);
@@ -523,6 +559,10 @@ export default function StudentFees() {
           setIsSubmittingPayment(false);
           return;
         }
+        const finalRecipient = paidToSelection === 'OTHER'
+          ? (customPaidTo.trim() || `${studentBranch} Accounts Counter`)
+          : (paidToSelection || `${studentBranch} Accounts & Front Desk Reception`);
+
         const ticket = await feeService.submitOfflineFeeRequest({
           student_id: String(user?.id || 'stu-tp-101'),
           student_name: user?.full_name || user?.name || 'Aarav Deshmukh',
@@ -536,7 +576,8 @@ export default function StudentFees() {
           bank_name: chequeBank.trim(),
           cheque_date: chequeDate,
           depositor_name: chequeDepositor.trim() || user?.full_name || user?.name || 'Student',
-          notes: `Cheque #${chequeNumber.trim()} deposit for ${studentBranch} accounts counter`
+          collected_by_faculty: finalRecipient,
+          notes: `Cheque #${chequeNumber.trim()} deposit handed over to ${finalRecipient}`
         });
         setSubmittedTicket(ticket);
         toast.success(`Cheque payment request forwarded to ${studentBranch} Academic Admin!`);
@@ -919,6 +960,14 @@ export default function StudentFees() {
                 </span>
               </div>
               <div className="d-flex justify-content-between mb-1.5 pb-1.5 border-bottom">
+                <span className="text-muted">Payer / Depositor:</span>
+                <span className="fw-bold text-sa-charcoal">{submittedTicket.depositor_name || 'Student'}</span>
+              </div>
+              <div className="d-flex justify-content-between mb-1.5 pb-1.5 border-bottom">
+                <span className="text-muted">Paid To / Recipient:</span>
+                <span className="fw-bold text-sa-charcoal">👤 {submittedTicket.collected_by_faculty || `${studentBranch} Accounts Counter`}</span>
+              </div>
+              <div className="d-flex justify-content-between mb-1.5 pb-1.5 border-bottom">
                 <span className="text-muted">Assigned Branch Counter:</span>
                 <span className="fw-bold text-sa-charcoal">📍 {studentBranch} Accounts Counter</span>
               </div>
@@ -1078,12 +1127,133 @@ export default function StudentFees() {
                   </div>
                 </div>
 
-                <Input
-                  label="Depositor / Payer Name"
-                  placeholder="e.g. Aarav Deshmukh / Parent Name"
-                  value={depositorName || user?.full_name || user?.name || ''}
-                  onChange={(e) => setDepositorName(e.target.value)}
-                />
+                {/* Depositor / Payer Name with complete deletion & Quick Relations */}
+                <div>
+                  <div className="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                    <label className="form-label text-sa-charcoal fw-semibold mb-0" style={{ fontSize: '0.85rem' }}>
+                      Depositor / Payer Name *
+                    </label>
+                    <div className="d-flex align-items-center gap-1">
+                      <span className="text-muted" style={{ fontSize: '0.74rem' }}>Paid by:</span>
+                      {[
+                        { label: 'Self', val: user?.full_name || user?.name || '' },
+                        { label: 'Father', val: user?.father_name ? `${user.father_name} (Father)` : 'Father' },
+                        { label: 'Mother', val: user?.mother_name ? `${user.mother_name} (Mother)` : 'Mother' },
+                        { label: 'Guardian', val: 'Guardian' }
+                      ].map((item) => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          className={`btn btn-xs py-0 px-2 rounded-pill border ${
+                            payerRelation === item.label
+                              ? 'btn-danger text-white border-danger'
+                              : 'btn-light text-sa-charcoal border-sa-ash'
+                          }`}
+                          style={{ fontSize: '0.72rem', height: '22px' }}
+                          onClick={() => {
+                            setPayerRelation(item.label);
+                            setDepositorName(item.val);
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                      {depositorName && (
+                        <button
+                          type="button"
+                          className="btn btn-xs py-0 px-1.5 rounded text-danger border-0 bg-transparent fw-semibold"
+                          style={{ fontSize: '0.72rem', height: '22px' }}
+                          title="Clear payer name"
+                          onClick={() => {
+                            setPayerRelation('Custom');
+                            setDepositorName('');
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="position-relative">
+                    <input
+                      type="text"
+                      className="form-control border-sa-ash shadow-none fw-medium text-sa-charcoal pe-4"
+                      placeholder="e.g. Aarav Deshmukh / Parent Name"
+                      value={depositorName}
+                      onChange={(e) => {
+                        setDepositorName(e.target.value);
+                        setPayerRelation('Custom');
+                      }}
+                      required
+                    />
+                    {depositorName && (
+                      <button
+                        type="button"
+                        className="position-absolute end-0 top-50 translate-middle-y btn btn-sm border-0 bg-transparent text-muted px-2.5"
+                        style={{ zIndex: 5 }}
+                        onClick={() => {
+                          setDepositorName('');
+                          setPayerRelation('Custom');
+                        }}
+                        title="Clear"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-muted small mt-1 d-block" style={{ fontSize: '0.75rem' }}>
+                    You can freely delete, edit, or change this payer name completely.
+                  </span>
+                </div>
+
+                {/* Who was it paid to? / Paid To Option */}
+                <div>
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="form-label text-sa-charcoal fw-semibold mb-0" style={{ fontSize: '0.85rem' }}>
+                      Who to pay / Paid To (Staff or Faculty) *
+                    </label>
+                    <span className="badge bg-success-subtle text-success small fw-semibold" style={{ fontSize: '0.72rem' }}>
+                      Cash Recipient
+                    </span>
+                  </div>
+                  <select
+                    className="form-select border-sa-ash shadow-none fw-medium text-sa-charcoal"
+                    value={paidToSelection}
+                    onChange={(e) => setPaidToSelection(e.target.value)}
+                  >
+                    <option value={`${studentBranch} Accounts & Front Desk Reception`}>
+                      🏛️ {studentBranch} Accounts & Front Desk Reception
+                    </option>
+                    <option value={`${studentBranch} Academic Admin Desk`}>
+                      🏫 {studentBranch} Academic Admin Desk
+                    </option>
+                    <optgroup label="Academic Faculty & Subject Teachers">
+                      {facultyList.map((f) => (
+                        <option key={f} value={f}>
+                          👤 {f}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <option value="OTHER">✏️ Other Faculty / Staff Member (Type Name)</option>
+                  </select>
+
+                  {paidToSelection === 'OTHER' && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        className="form-control border-sa-ash shadow-none"
+                        placeholder="Enter name or designation of staff/teacher who took the payment"
+                        value={customPaidTo}
+                        onChange={(e) => setCustomPaidTo(e.target.value)}
+                        autoFocus
+                        required
+                      />
+                    </div>
+                  )}
+                  <span className="text-muted small mt-1 d-block" style={{ fontSize: '0.75rem' }}>
+                    Select which campus desk, cashier, or faculty member received this cash.
+                  </span>
+                </div>
 
                 <div>
                   <label className="form-label text-sa-charcoal fw-semibold mb-1" style={{ fontSize: '0.85rem' }}>
@@ -1145,13 +1315,129 @@ export default function StudentFees() {
                     />
                   </div>
                   <div className="col-12 col-md-6">
-                    <Input
-                      label="Account Holder / Depositor Name"
-                      placeholder="e.g. Suresh Deshmukh"
-                      value={chequeDepositor || user?.full_name || user?.name || ''}
-                      onChange={(e) => setChequeDepositor(e.target.value)}
-                    />
+                    <div>
+                      <div className="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                        <label className="form-label text-sa-charcoal fw-semibold mb-0" style={{ fontSize: '0.85rem' }}>
+                          Account Holder / Depositor *
+                        </label>
+                        <div className="d-flex align-items-center gap-1">
+                          {[
+                            { label: 'Self', val: user?.full_name || user?.name || '' },
+                            { label: 'Father', val: user?.father_name ? `${user.father_name} (Father)` : 'Father' },
+                            { label: 'Mother', val: user?.mother_name ? `${user.mother_name} (Mother)` : 'Mother' },
+                            { label: 'Guardian', val: 'Guardian' }
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              type="button"
+                              className={`btn btn-xs py-0 px-1.5 rounded-pill border ${
+                                chequeRelation === item.label
+                                  ? 'btn-primary text-white border-primary'
+                                  : 'btn-light text-sa-charcoal border-sa-ash'
+                              }`}
+                              style={{ fontSize: '0.70rem', height: '20px' }}
+                              onClick={() => {
+                                setChequeRelation(item.label);
+                                setChequeDepositor(item.val);
+                              }}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                          {chequeDepositor && (
+                            <button
+                              type="button"
+                              className="btn btn-xs py-0 px-1 rounded text-danger border-0 bg-transparent fw-semibold"
+                              style={{ fontSize: '0.70rem', height: '20px' }}
+                              title="Clear depositor"
+                              onClick={() => {
+                                setChequeRelation('Custom');
+                                setChequeDepositor('');
+                              }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="position-relative">
+                        <input
+                          type="text"
+                          className="form-control border-sa-ash shadow-none fw-medium text-sa-charcoal pe-4"
+                          placeholder="e.g. Suresh Deshmukh"
+                          value={chequeDepositor}
+                          onChange={(e) => {
+                            setChequeDepositor(e.target.value);
+                            setChequeRelation('Custom');
+                          }}
+                          required
+                        />
+                        {chequeDepositor && (
+                          <button
+                            type="button"
+                            className="position-absolute end-0 top-50 translate-middle-y btn btn-sm border-0 bg-transparent text-muted px-2.5"
+                            style={{ zIndex: 5 }}
+                            onClick={() => {
+                              setChequeDepositor('');
+                              setChequeRelation('Custom');
+                            }}
+                            title="Clear"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                {/* Who was the cheque handed over to? / Paid To Option */}
+                <div>
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="form-label text-sa-charcoal fw-semibold mb-0" style={{ fontSize: '0.85rem' }}>
+                      Who to pay / Handed Over To (Staff or Faculty) *
+                    </label>
+                    <span className="badge bg-primary-subtle text-primary small fw-semibold" style={{ fontSize: '0.72rem' }}>
+                      Cheque Recipient
+                    </span>
+                  </div>
+                  <select
+                    className="form-select border-sa-ash shadow-none fw-medium text-sa-charcoal"
+                    value={paidToSelection}
+                    onChange={(e) => setPaidToSelection(e.target.value)}
+                  >
+                    <option value={`${studentBranch} Accounts & Front Desk Reception`}>
+                      🏛️ {studentBranch} Accounts & Front Desk Reception
+                    </option>
+                    <option value={`${studentBranch} Academic Admin Desk`}>
+                      🏫 {studentBranch} Academic Admin Desk
+                    </option>
+                    <optgroup label="Academic Faculty & Subject Teachers">
+                      {facultyList.map((f) => (
+                        <option key={f} value={f}>
+                          👤 {f}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <option value="OTHER">✏️ Other Faculty / Staff Member (Type Name)</option>
+                  </select>
+
+                  {paidToSelection === 'OTHER' && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        className="form-control border-sa-ash shadow-none"
+                        placeholder="Enter name or designation of staff/teacher who received cheque"
+                        value={customPaidTo}
+                        onChange={(e) => setCustomPaidTo(e.target.value)}
+                        autoFocus
+                        required
+                      />
+                    </div>
+                  )}
+                  <span className="text-muted small mt-1 d-block" style={{ fontSize: '0.75rem' }}>
+                    Select which campus desk or faculty teacher physically received this cheque.
+                  </span>
                 </div>
               </div>
             )}

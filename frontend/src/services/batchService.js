@@ -131,8 +131,20 @@ const batchService = {
   },
 
   updateBatch: async (id, data) => {
-    const response = await api.put(`/batches/${id}`, data);
-    return response.data;
+    try {
+      const response = await api.put(`/batches/${id}`, data);
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 404 || String(id).startsWith('batch-seed-')) {
+        try {
+          const createRes = await api.post('/batches', data);
+          return createRes.data;
+        } catch (_) {
+          // ignore and throw original err
+        }
+      }
+      throw err;
+    }
   },
 
   deleteBatch: async (id, batchObj = null) => {

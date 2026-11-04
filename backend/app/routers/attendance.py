@@ -26,7 +26,8 @@ from app.services.attendance_service import (
     get_all_attendance_logs,
     scan_rfid_card,
     get_batch_date_attendance,
-    save_batch_date_attendance
+    save_batch_date_attendance,
+    get_student_attendance_summary
 )
 from app.services.auth_service import get_current_user
 from app.routers.auth import oauth2_scheme
@@ -65,6 +66,20 @@ async def save_batch_attendance_ledger(
     if role not in ["ADMIN", "SUPER_ADMIN", "TEACHER"]:
         raise HTTPException(status_code=403, detail="Not authorized to save attendance ledger")
     return await save_batch_date_attendance(payload.model_dump())
+
+
+@router.get("/summary")
+async def get_attendance_summary(
+    branch: Optional[str] = Query(None, description="Branch (Tarabai Park or Mangalwar Peth)"),
+    period: Optional[str] = Query("This Week", description="Period filter (This Week, Last Week, Past 7 Days, This Month)"),
+    token: str = Depends(oauth2_scheme)
+):
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch and not branch:
+        branch = user_branch
+    return await get_student_attendance_summary(branch=branch, period=period or "This Week")
 
 
 @router.get("/teachers", response_model=List[TeacherAttendanceRecord])

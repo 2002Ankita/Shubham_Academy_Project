@@ -22,7 +22,6 @@ async def list_daily_activities(
     branch: Optional[str] = None,
     status: Optional[str] = None,
     date: Optional[str] = None,
-    branch: Optional[str] = None,
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ):
     """Retrieve daily teacher activity records with flexible filtering"""
@@ -58,8 +57,6 @@ async def list_daily_activities(
     elif teacher_name:
         query["teacher_name"] = {"$regex": teacher_name, "$options": "i"}
 
-    if branch and branch != "All":
-        query["branch"] = {"$regex": branch, "$options": "i"}
     if subject and subject != "All":
         query["subject"] = {"$regex": subject, "$options": "i"}
     if batch and batch != "All":
@@ -122,6 +119,13 @@ async def create_daily_activity(
         data["activity_date"] = data.get("target_date") or datetime.utcnow().strftime("%Y-%m-%d")
     if not data.get("target_date"):
         data["target_date"] = data.get("activity_date")
+
+    if not data.get("branch"):
+        batch_str = (data.get("batch") or "").lower()
+        if "tarabai" in batch_str or "tp" in batch_str:
+            data["branch"] = "Tarabai Park"
+        else:
+            data["branch"] = "Mangalwar Peth"
 
     try:
         data["hours"] = float(data.get("hours") or 1.0)

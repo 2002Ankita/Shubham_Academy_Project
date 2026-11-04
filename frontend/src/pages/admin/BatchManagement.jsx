@@ -28,6 +28,7 @@ export default function BatchManagement() {
   const [batches, setBatches] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
 
@@ -128,6 +129,8 @@ export default function BatchManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const stdNum = String(formData.standard || '').includes('12') ? '12' : '11';
       const branchCode = String(formData.branch || '').toLowerCase().includes('mangal') ? 'MP' : 'TP';
@@ -151,9 +154,14 @@ export default function BatchManagement() {
       }
       setModalOpen(false);
       setEditingBatch(null);
-      fetchBatches();
+      await fetchBatches();
     } catch (err) {
-      toast.error(editingBatch ? 'Failed to update batch' : 'Failed to create batch');
+      console.error('Batch update error:', err);
+      const detail = err.response?.data?.detail;
+      const errMsg = typeof detail === 'string' ? detail : (err.message || (editingBatch ? 'Failed to update batch' : 'Failed to create batch'));
+      toast.error(errMsg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -175,6 +183,24 @@ export default function BatchManagement() {
     // Accurately preserve and display the existing batch name for Mangalwar Peth / Tarabai Park
     const currentName = batch.name || getAutoBatchName(batchBranch, std, sec);
 
+    let cleanDate = '';
+    if (batch.date) {
+      const dStr = String(batch.date).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(dStr)) {
+        cleanDate = dStr.substring(0, 10);
+      } else if (/^\d{2}-\d{2}-\d{4}$/.test(dStr)) {
+        const parts = dStr.split('-');
+        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+        try {
+          const parsed = new Date(batch.date);
+          if (!isNaN(parsed.getTime())) {
+            cleanDate = parsed.toISOString().split('T')[0];
+          }
+        } catch (_) {}
+      }
+    }
+
     setFormData({
       name: currentName,
       standard: std,
@@ -183,7 +209,7 @@ export default function BatchManagement() {
       subject: batch.subject || getDefaultSubject(sec),
       room: batch.room || '',
       time: batch.time || '',
-      date: batch.date || '',
+      date: cleanDate,
       student_count: batch.student_count || 0,
       teacher_name: batch.teacher_name || ''
     });
@@ -624,10 +650,20 @@ export default function BatchManagement() {
           </div>
 
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <Button variant="light" onClick={() => { setModalOpen(false); setEditingBatch(null); }}>
+            <Button
+              variant="light"
+              onClick={() => { setModalOpen(false); setEditingBatch(null); }}
+              disabled={submitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="primary">
+            <Button
+              type="submit"
+              variant="primary"
+              loading={submitting}
+              disabled={submitting}
+              id="btn-update-batch"
+            >
               {editingBatch ? "Update Batch" : "Create Batch"}
             </Button>
           </div>

@@ -233,25 +233,22 @@ export default function TeacherDashboard() {
           setTotalStudents(scopedStudents.length);
         }
 
-        // Daily Activities for this teacher (branch-scoped)
+        // Daily Activities for this teacher across all assigned branches
         if (activitiesRes.status === 'fulfilled') {
           const allActs = activitiesRes.value || [];
-          const branchActs = filterActivitiesByBranch(allActs, userBranch);
-          if (Array.isArray(branchActs) && branchActs.length > 0) {
-            const teacherName = user?.name || '';
-            const myActs = branchActs.filter(item => {
-              const itemTeacher = item.teacher_name || item.teacherName || '';
-              if (itemTeacher && isTeacherMatch(teacherName, itemTeacher, item.subject)) return true;
-              const sub = (item.subject || '').toLowerCase();
-              const tName = teacherName.toLowerCase();
-              if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni')) && sub.includes('phys')) return true;
-              if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
-              if ((tName.includes('rajesh') || tName.includes('sharma')) && sub.includes('math')) return true;
-              if ((tName.includes('amit') || tName.includes('sawant')) && sub.includes('bio')) return true;
-              return false;
-            });
-            setDailyActivitiesCount(myActs.length);
-          }
+          const teacherName = user?.name || user?.full_name || '';
+          const myActs = allActs.filter(item => {
+            const itemTeacher = item.teacher_name || item.teacherName || '';
+            if (itemTeacher && isTeacherMatch(teacherName, itemTeacher, item.subject)) return true;
+            const sub = (item.subject || '').toLowerCase();
+            const tName = teacherName.toLowerCase();
+            if ((tName.includes('priya') || tName.includes('shubham') || tName.includes('kulkarni') || tName.includes('more')) && sub.includes('phys')) return true;
+            if ((tName.includes('sunita') || tName.includes('patil')) && sub.includes('chem')) return true;
+            if ((tName.includes('rajesh') || tName.includes('sharma')) && sub.includes('math')) return true;
+            if ((tName.includes('amit') || tName.includes('sawant')) && sub.includes('bio')) return true;
+            return false;
+          });
+          setDailyActivitiesCount(myActs.length > 0 ? myActs.length : allActs.length);
         }
 
         let examsList = [];
@@ -507,8 +504,19 @@ export default function TeacherDashboard() {
                 }}
               >
                 <Building2 size={14} />
-                <span>{userBranch} Campus</span>
+                <span>{userBranch || 'All'} Campus</span>
               </span>
+
+              <button
+                type="button"
+                onClick={() => navigate('/teacher/daily-activity')}
+                className="btn btn-sm btn-light border text-sa-charcoal fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{ fontSize: '0.82rem', padding: '5px 13px', borderRadius: '8px' }}
+                title="Log topics taught, class batch, and teaching duration"
+              >
+                <BookOpen size={14} style={{ color: '#8B1216' }} />
+                <span>Log Topic & Activity</span>
+              </button>
             </div>
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">

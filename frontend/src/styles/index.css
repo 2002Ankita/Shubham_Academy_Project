@@ -89,6 +89,30 @@ a:hover {
   box-shadow: 0 0 0 0.2rem rgba(169, 31, 31, 0.15);
 }
 
+/* Input Group Enhancements */
+.input-group {
+  align-items: stretch;
+}
+
+.input-group-text {
+  border: 1.5px solid var(--sa-border);
+  border-radius: var(--sa-radius-md);
+  color: var(--sa-charcoal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-group > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.input-group > :not(:last-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
 /* Date & Time Picker Indicator - Shifted to the left with proper spacing */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator,

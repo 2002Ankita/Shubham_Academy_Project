@@ -467,6 +467,7 @@ export const feeService = {
         bank_name: requestData.bank_name || null,
         cheque_date: requestData.cheque_date || null,
         depositor_name: requestData.depositor_name || null,
+        collected_by_faculty: requestData.collected_by_faculty || null,
         notes: requestData.notes || '',
         status: 'PENDING',
         created_at: new Date().toISOString(),

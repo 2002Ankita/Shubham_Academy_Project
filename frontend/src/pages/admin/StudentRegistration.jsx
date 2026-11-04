@@ -131,6 +131,17 @@ export default function StudentRegistration() {
   });
 
   const [errors, setErrors] = useState({});
+  const [existingStudents, setExistingStudents] = useState([]);
+
+  useEffect(() => {
+    studentService.getAll()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setExistingStudents(data);
+        }
+      })
+      .catch((err) => console.warn('Could not load existing students for uniqueness check:', err));
+  }, []);
 
   useEffect(() => {
     studentService.getNextRollNumber(activeBranch)
@@ -276,15 +287,25 @@ export default function StudentRegistration() {
       errs.fullName = 'Full Name must be at least 3 characters';
     }
 
-    if (formData.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+    const cleanEmail = (formData.email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      errs.email = 'Student Email ID is required (Used as portal User ID)';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       errs.email = 'Please enter a valid email address';
+    } else if (existingStudents.some(s => (s.email || '').trim().toLowerCase() === cleanEmail)) {
+      errs.email = 'This Email ID is already registered for another student';
     }
 
     const cleanMobile = formData.mobileNumber.replace(/\D/g, '');
     if (!cleanMobile) {
-      errs.mobileNumber = 'Student Mobile Number is required';
+      errs.mobileNumber = 'Student Mobile Number is required (Used as default Password)';
     } else if (cleanMobile.length !== 10) {
       errs.mobileNumber = 'Must be a valid 10-digit mobile number';
+    } else if (existingStudents.some(s => {
+      const sMob = (s.mobile_number || s.phone || '').replace(/\D/g, '');
+      return sMob && sMob.endsWith(cleanMobile);
+    })) {
+      errs.mobileNumber = 'This Mobile Number is already registered for another student';
     }
 
     const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
@@ -390,25 +411,29 @@ export default function StudentRegistration() {
 
       // If discount was recommended, submit real-time notification to Superadmin dashboard
       if (discAmount > 0) {
-        notificationService.addNotification({
-          id: `NTF-DISC-${result?.id || Date.now()}`,
-          title: `🔔 Fee Concession Approval: ${formData.fullName}`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          formattedDateTime: new Date().toLocaleString(),
-          type: 'discount_approval',
-          category: 'Discount & Fees',
-          priority: 'High',
-          author: formData.discountRecommendedBy?.trim() || 'Miss Shilpa (Counselor)',
-          details: `${formData.discountRecommendedBy?.trim() || 'Counselor'} recommended a concession of ₹${discAmount.toLocaleString()} for ${formData.fullName} (${formData.batch || formData.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
-          read: false,
-          forSuperAdminOnly: true,
-          branch: activeBranch,
-          studentId: result?.id,
-          studentName: formData.fullName,
-          discountAmount: discAmount,
-          recommendedBy: formData.discountRecommendedBy?.trim() || 'Miss Shilpa'
-        });
+        try {
+          notificationService.addNotification({
+            id: `NTF-DISC-${result?.id || Date.now()}`,
+            title: `🔔 Fee Concession Approval: ${formData.fullName}`,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            formattedDateTime: new Date().toLocaleString(),
+            type: 'discount_approval',
+            category: 'Discount & Fees',
+            priority: 'High',
+            author: formData.discountRecommendedBy?.trim() || 'Miss Shilpa (Counselor)',
+            details: `${formData.discountRecommendedBy?.trim() || 'Counselor'} recommended a concession of ₹${discAmount.toLocaleString()} for ${formData.fullName} (${formData.batch || formData.standard || 'Course'}). Superadmin approval is required before student ledger updates.`,
+            read: false,
+            forSuperAdminOnly: true,
+            branch: activeBranch,
+            studentId: result?.id,
+            studentName: formData.fullName,
+            discountAmount: discAmount,
+            recommendedBy: formData.discountRecommendedBy?.trim() || 'Miss Shilpa'
+          });
+        } catch (notifErr) {
+          console.warn('Could not add local concession notification:', notifErr);
+        }
       }
 
       toast.success(
@@ -427,6 +452,8 @@ export default function StudentRegistration() {
         const item = detail[0];
         const fieldName = Array.isArray(item.loc) ? item.loc.filter(l => l !== 'body' && l !== 'response').join(' ') : '';
         errMsg = fieldName ? `${fieldName}: ${item.msg}` : (item.msg || 'Validation error');
+      } else if (error.message === 'Network Error') {
+        errMsg = 'Network Error: Cannot reach backend server. Please verify backend is active at port 8000.';
       } else if (error.message) {
         errMsg = error.message;
       }
@@ -530,11 +557,13 @@ export default function StudentRegistration() {
               <div className="row g-3 mb-4">
                 {/* Student Full Name */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Student Full Name <span className="text-danger">*</span>
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Student Full Name <span className="text-danger">*</span>
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
                       <User size={16} />
                     </span>
                     <input
@@ -544,27 +573,28 @@ export default function StudentRegistration() {
                       onChange={handleInputChange}
                       placeholder="e.g., Rohan Ajay Sharma"
                       className={`form-control ${errors.fullName ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.fullName && <div className="invalid-feedback">{errors.fullName}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
                     Enter official name as per previous records.
                   </span>
                 </div>
 
                 {/* Roll Number / Admission ID (Auto-assigned per entry) */}
                 <div className="col-12 col-md-6">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
                       Roll Number / Admission ID
                     </label>
-                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-semibold" style={{ fontSize: '0.70rem' }}>
-                      Auto-assigned per entry
+                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-semibold text-nowrap" style={{ fontSize: '0.70rem' }}>
+                      Auto-assigned
                     </span>
                   </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: '0.85rem' }}>
+                    <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: '0.85rem', height: '38px' }}>
                       #
                     </span>
                     <input
@@ -574,26 +604,24 @@ export default function StudentRegistration() {
                       onChange={handleInputChange}
                       placeholder="e.g. STD-111"
                       className="form-control"
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Sequential entry ID. You can keep the auto-assigned number or customize it.
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                    Sequential entry ID. Auto-assigned or customize.
                   </span>
                 </div>
 
-                {/* Student Email ID - Optional */}
+                {/* Student Email ID - Required Unique User ID */}
                 <div className="col-12 col-md-6">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
-                      Student Email ID
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Student Email ID (User ID) <span className="text-danger">*</span>
                     </label>
-                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '0.70rem' }}>
-                      Optional
-                    </span>
                   </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
                       <Mail size={16} />
                     </span>
                     <input
@@ -601,24 +629,27 @@ export default function StudentRegistration() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      placeholder="Optional — leave blank to use mobile login"
+                      placeholder="e.g., student.name@gmail.com"
                       className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Optional. Student can register and log in solely using their mobile number.
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                    Student portal login User ID. Must be unique.
                   </span>
                 </div>
 
-                {/* Student Mobile Number - Required Unique ID & Password */}
+                {/* Student Mobile Number - Required Unique Password & Contact */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Student Mobile Number <span className="text-danger">*</span>
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Student Mobile Number (Password) <span className="text-danger">*</span>
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
                       <Phone size={16} />
                     </span>
                     <input
@@ -629,22 +660,25 @@ export default function StudentRegistration() {
                       maxLength={10}
                       placeholder="10-digit mobile number"
                       className={`form-control ${errors.mobileNumber ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.mobileNumber && <div className="invalid-feedback">{errors.mobileNumber}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Unique Student Login ID and default portal Password.
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                    Default portal Password & contact. Must be unique.
                   </span>
                 </div>
 
                 {/* Parent Mobile Number */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Parent Mobile Number <span className="text-danger">*</span>
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Parent Mobile Number <span className="text-danger">*</span>
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
                       <Phone size={16} />
                     </span>
                     <input
@@ -655,11 +689,12 @@ export default function StudentRegistration() {
                       maxLength={10}
                       placeholder="Parent 10-digit mobile"
                       className={`form-control ${errors.parentPhone ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.parentPhone && <div className="invalid-feedback">{errors.parentPhone}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
                     Used for gate entry notifications and fee reminder SMS.
                   </span>
                 </div>
@@ -737,11 +772,13 @@ export default function StudentRegistration() {
               <div className="row g-3 mb-4">
                 {/* Total / Course Fees */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Course Fee (Gross) (₹) <span className="text-danger">*</span>
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Course Fee (Gross) (₹) <span className="text-danger">*</span>
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted fw-bold">₹</span>
+                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>₹</span>
                     <input
                       type="number"
                       name="originalFees"
@@ -751,22 +788,25 @@ export default function StudentRegistration() {
                       step="500"
                       placeholder="e.g. 45000"
                       className={`form-control ${errors.originalFees ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.originalFees && <div className="invalid-feedback">{errors.originalFees}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
                     Standard course catalog fee
                   </span>
                 </div>
 
                 {/* Paid Fees */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Paid Fees (Initial) (₹) <span className="text-danger">*</span>
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Paid Fees (Initial) (₹) <span className="text-danger">*</span>
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted fw-bold">₹</span>
+                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>₹</span>
                     <input
                       type="number"
                       name="paidFees"
@@ -776,31 +816,35 @@ export default function StudentRegistration() {
                       step="500"
                       placeholder="e.g. 15000"
                       className={`form-control ${errors.paidFees ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
                       disabled={loading}
                     />
                     {errors.paidFees && <div className="invalid-feedback">{errors.paidFees}</div>}
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
                     Initial deposit collected at admission
                   </span>
                 </div>
 
                 {/* Remaining Fees */}
                 <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal">
-                    Remaining Fees (₹)
-                  </label>
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Remaining Fees (₹)
+                    </label>
+                  </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted fw-bold">₹</span>
+                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>₹</span>
                     <input
                       type="text"
                       name="remainingFees"
                       value={formData.remainingFees}
                       readOnly
                       className="form-control fw-bold text-danger bg-light"
+                      style={{ height: '38px' }}
                     />
                   </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
                     Auto-calculated balance
                   </span>
                 </div>
@@ -827,15 +871,15 @@ export default function StudentRegistration() {
                 {/* 1. Discount Amount */}
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
-                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
-                      Discount / Concession (₹)
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Discount Amount (₹)
                     </label>
                     {Number(formData.discountAmount) > 0 ? (
-                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold" style={{ fontSize: '10px' }}>
+                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold text-nowrap" style={{ fontSize: '10px' }}>
                         - ₹{Number(formData.discountAmount).toLocaleString('en-IN')}
                       </span>
                     ) : (
-                      <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                      <span className="badge bg-light text-muted border fw-normal text-nowrap" style={{ fontSize: '10px' }}>
                         ₹0
                       </span>
                     )}
@@ -856,7 +900,7 @@ export default function StudentRegistration() {
                     />
                     {errors.discountAmount && <div className="invalid-feedback">{errors.discountAmount}</div>}
                   </div>
-                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                  <span className="text-muted small d-block mt-1 text-truncate" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Deducted from gross course fee
                   </span>
                 </div>
@@ -864,10 +908,10 @@ export default function StudentRegistration() {
                 {/* 2. Discount Reason */}
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
-                    <label className="form-label small fw-semibold text-sa-charcoal m-0">
-                      Concession Reason / Category
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Concession Reason
                     </label>
-                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                    <span className="badge bg-light text-muted border fw-normal text-nowrap" style={{ fontSize: '10px' }}>
                       Optional
                     </span>
                   </div>
@@ -881,7 +925,7 @@ export default function StudentRegistration() {
                     style={{ height: '38px' }}
                     disabled={loading}
                   />
-                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                  <span className="text-muted small d-block mt-1 text-truncate" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Justification for discount approval
                   </span>
                 </div>
@@ -890,9 +934,9 @@ export default function StudentRegistration() {
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
-                      Recommended By Staff
+                      Recommended By
                     </label>
-                    <span className="badge bg-light text-muted border fw-normal" style={{ fontSize: '10px' }}>
+                    <span className="badge bg-light text-muted border fw-normal text-nowrap" style={{ fontSize: '10px' }}>
                       Optional
                     </span>
                   </div>
@@ -906,7 +950,7 @@ export default function StudentRegistration() {
                     style={{ height: '38px' }}
                     disabled={loading}
                   />
-                  <span className="text-muted small d-block mt-1" style={{ fontSize: '11px', minHeight: '17px' }}>
+                  <span className="text-muted small d-block mt-1 text-truncate" style={{ fontSize: '11px', minHeight: '17px' }}>
                     Authorizing officer recommending concession
                   </span>
                 </div>

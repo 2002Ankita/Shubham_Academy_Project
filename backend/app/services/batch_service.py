@@ -492,12 +492,52 @@ async def create_batch(data: dict) -> dict:
     return _format_batch(batch)
 
 async def update_batch(batch_id: str, data: dict) -> dict:
+    clean_id = str(batch_id).strip()
+    b = None
+
+    # 1. Try finding by ObjectId
     try:
-        b = await Batch.get(ObjectId(batch_id))
+        if ObjectId.is_valid(clean_id):
+            b = await Batch.get(ObjectId(clean_id))
     except Exception:
         b = None
+
+    # 2. Try finding by batch name in payload or id
+    target_name = (data.get("name") or clean_id).strip()
+    if not b and target_name:
+        b = await Batch.find_one({"name": {"$regex": f"^{re.escape(target_name)}$", "$options": "i"}})
+
+    # 3. Try finding by class_code or batch_name
     if not b:
-        raise HTTPException(status_code=404, detail="Batch not found")
+        target_code = data.get("class_code") or data.get("batch_name") or clean_id
+        if target_code:
+            b = await Batch.find_one({
+                "$or": [
+                    {"class_code": {"$regex": f"^{re.escape(target_code)}$", "$options": "i"}},
+                    {"batch_name": {"$regex": f"^{re.escape(target_code)}$", "$options": "i"}}
+                ]
+            })
+
+    # 4. Try matching seed ID position
+    if not b and clean_id.startswith("batch-seed-"):
+        try:
+            is_mp = "mp" in clean_id.lower()
+            branch_regex = "mangal" if is_mp else "tarabai"
+            branch_batches = await Batch.find({
+                "$or": [
+                    {"branch": {"$regex": branch_regex, "$options": "i"}},
+                    {"name": {"$regex": branch_regex, "$options": "i"}}
+                ]
+            }).to_list()
+            idx = int(clean_id.split("-")[-1]) - 1
+            if 0 <= idx < len(branch_batches):
+                b = branch_batches[idx]
+        except Exception:
+            pass
+
+    # 5. If still not in DB, create new Batch instance so user's update is never lost
+    if not b:
+        return await create_batch(data)
 
     for k, v in data.items():
         if k in {"id", "_id"}:
@@ -682,11 +722,14 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
             "branch": branch
         }
 
-        norm_target = time_slot.replace(" ", "").replace("-", "–")
+        def _clean_time(t_str: str) -> str:
+            return re.sub(r'[\s\u2013\u2014\-]+', '-', (t_str or '').strip().lower())
+
+        norm_target = _clean_time(time_slot)
         slot_updated = False
         for idx, s in enumerate(batch.timetable):
             s_day = s.get("day", "").lower()
-            s_time = s.get("time", "").replace(" ", "").replace("-", "–")
+            s_time = _clean_time(s.get("time", ""))
             if s_day == day.lower() and s_time == norm_target and (not s.get("subject") or s.get("subject", "").lower() == subject.lower()):
                 batch.timetable[idx] = new_slot
                 slot_updated = True
@@ -710,19 +753,24 @@ async def import_timetable_slots_service(items: List[Dict[str, Any]]) -> dict:
     return {"message": f"Successfully imported {len(items)} timetable slots", "updated_batches": updated_batches}
 
 async def delete_timetable_slot_service(data: Dict[str, Any]) -> dict:
-    """Delete a specific timetable slot from batches."""
+    """Delete a specific timetable slot from batches and sync days."""
     day = data.get("day", "").capitalize()
     time_slot = data.get("time") or data.get("time_slot") or ""
-    norm_time = time_slot.replace(" ", "").replace("-", "–")
-    subject = data.get("subject", "").strip()
-    batch_name = data.get("batch") or data.get("class_batch") or ""
+
+    def _clean_time(t_str: str) -> str:
+        return re.sub(r'[\s\u2013\u2014\-]+', '-', (t_str or '').strip().lower())
+
+    norm_time = _clean_time(time_slot)
+    subject = (data.get("subject") or "").strip().lower()
+    batch_name = (data.get("batch") or data.get("class_batch") or "").strip().lower()
     batch_id = data.get("batch_id")
 
     query = {}
     if batch_id:
         try:
             from bson import ObjectId
-            query["_id"] = ObjectId(batch_id)
+            if ObjectId.is_valid(batch_id):
+                query["_id"] = ObjectId(batch_id)
         except Exception:
             pass
 
@@ -737,13 +785,16 @@ async def delete_timetable_slot_service(data: Dict[str, Any]) -> dict:
             s for s in b.timetable
             if not (
                 s.get("day", "").lower() == day.lower() and
-                s.get("time", "").replace(" ", "").replace("-", "–") == norm_time and
-                (not subject or s.get("subject", "").lower() == subject.lower()) and
-                (not batch_name or batch_name.lower() in b.name.lower() or b.name.lower() in batch_name.lower())
+                (not norm_time or _clean_time(s.get("time", "")) == norm_time) and
+                (not subject or (s.get("subject") or "").strip().lower() == subject) and
+                (not batch_name or batch_name in b.name.lower() or b.name.lower() in batch_name)
             )
         ]
         if len(b.timetable) < original_len:
             deleted_count += (original_len - len(b.timetable))
+            # Automatically synchronize b.days so days with no remaining scheduled slots are removed
+            remaining_days = set(s.get("day", "").capitalize() for s in b.timetable if s.get("day"))
+            b.days = [d for d in (b.days or []) if d.capitalize() in remaining_days]
             await b.save()
 
     return {"message": f"Successfully deleted {deleted_count} timetable slot(s)", "deleted": deleted_count}

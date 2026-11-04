@@ -963,22 +963,49 @@ async def verify_offline_fee_request(
     txn_ref = f"OFF-{req.payment_mode.upper()}-{ref_suffix}"
     
     faculty_note = f" [Received By: {collected_by_faculty}]" if collected_by_faculty else ""
+
+    # Resolve student accurately by user/student ID, roll number, or name
+    from app.services.student_service import resolve_student
+    import re
+    student_obj = await resolve_student(req.student_id)
+    if not student_obj and req.roll_number:
+        student_obj = await resolve_student(req.roll_number)
+    if not student_obj and req.student_name:
+        from app.models.student import Student
+        clean_name = req.student_name.strip()
+        student_obj = await Student.find_one({"full_name": {"$regex": f"^{re.escape(clean_name)}$", "$options": "i"}})
+
+    target_student_id = str(student_obj.id) if student_obj else req.student_id
+    target_branch = getattr(student_obj, "branch", None) or req.branch
+    target_standard = getattr(student_obj, "standard", None) or req.standard
+
     fee_in = FeePaymentCreate(
-        student_id=req.student_id,
+        student_id=target_student_id,
         amount_paid=amount_to_collect,
         payment_method=req.payment_mode,
         transaction_reference=txn_ref,
-        remarks=f"Offline {req.payment_mode} Verified: {remarks or req.notes or 'Admin Approval'}{faculty_note}".strip(),
-        branch=req.branch,
-        standard=req.standard
+        remarks=f"Offline {req.payment_mode} Verified at {req.branch}: {remarks or req.notes or 'Admin Approval'}{faculty_note}".strip(),
+        branch=target_branch,
+        standard=target_standard
     )
     
+    receipt_no = f"REC-{str(req.id)[-6:].upper()}"
     try:
         payment_res = await add_fee_payment(fee_in)
-        receipt_no = f"REC-{payment_res['id'][-6:].upper()}" if 'id' in payment_res else f"REC-{str(req.id)[-6:].upper()}"
+        if payment_res and 'id' in payment_res:
+            receipt_no = f"REC-{payment_res['id'][-6:].upper()}"
     except Exception as fee_err:
         print(f"Offline fee payment notice: {fee_err}")
-        receipt_no = f"REC-{str(req.id)[-6:].upper()}"
+        # Direct student balance update fallback if add_fee_payment encountered strict constraint
+        if student_obj:
+            try:
+                curr_paid = float(getattr(student_obj, "paid_fees", 0.0) or 0.0)
+                tot_fee = float(getattr(student_obj, "total_fees", 0.0) or 0.0)
+                student_obj.paid_fees = curr_paid + amount_to_collect
+                student_obj.remaining_fees = max(0.0, tot_fee - student_obj.paid_fees)
+                await student_obj.save()
+            except Exception as e2:
+                print(f"Direct student fee fallback notice: {e2}")
     
     req.status = "APPROVED"
     req.receipt_no = receipt_no
