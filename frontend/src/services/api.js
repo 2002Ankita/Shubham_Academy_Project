@@ -26,7 +26,8 @@ api.interceptors.request.use((config) => {
     } catch (_) {}
   }
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    const cleanToken = token.trim().replace(/^Bearer\s+/i, '');
+    config.headers.Authorization = `Bearer ${cleanToken}`;
   }
   return config;
 }, (error) => {

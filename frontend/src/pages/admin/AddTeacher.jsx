@@ -46,6 +46,8 @@ export default function AddTeacher() {
         errMsg = detail;
       } else if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
         errMsg = detail[0].msg;
+      } else if (error.message) {
+        errMsg = error.message;
       }
       toast.error(errMsg);
     } finally {
