@@ -562,7 +562,7 @@ export default function AttendanceReport() {
                   Date Attendance Ledger: {dateData?.formatted_date || selectedDate}
                 </h5>
                 <span className="small text-muted">
-                  Batch: {batch} — Individual lecture attendance records for morning and afternoon sessions
+                  Batch: {reportBatchLabel || reportAcademicBatch} — Individual lecture attendance records for morning and afternoon sessions
                 </span>
               </div>
             </div>

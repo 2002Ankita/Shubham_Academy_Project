@@ -235,6 +235,7 @@ export default function StudentFees() {
               })
             : [];
 
+          const totalCourseFee = Number(detailData?.total_fees ?? (stuObj?.totalFees || stuObj?.total_fees || 0));
           const totalPaidSoFar = userPayments.reduce((acc, p) => acc + Number(p.amountPaid || 0), 0);
           const remainingPending = Math.max(0, totalCourseFee - totalPaidSoFar);
 

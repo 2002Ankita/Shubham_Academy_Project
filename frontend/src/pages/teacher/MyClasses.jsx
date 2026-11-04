@@ -390,7 +390,7 @@ export default function MyClasses() {
   const openViewClassModal = async (cls) => {
     if (!cls) return;
     setSelectedClass(cls);
-    setOpenDropdownId(null);
+    // setOpenDropdownId(null);
     setBatchStudentsList([]);
     setViewModalOpen(true);
 

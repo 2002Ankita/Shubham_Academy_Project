@@ -63,6 +63,7 @@ export default function ActivityTimetableManagement() {
     return 'Mangalwar Peth';
   };
   const userBranchNormalized = !isSuperAdmin ? resolveCurrentBranch() : (activeBranch ? (activeBranch.toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park') : '');
+  const userBranchName = userBranchNormalized || activeBranch || 'Mangalwar Peth';
   const { confirm } = useConfirm();
   const location = useLocation();
   const navigate = useNavigate();
