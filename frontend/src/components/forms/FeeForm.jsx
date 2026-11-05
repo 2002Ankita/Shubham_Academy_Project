@@ -80,7 +80,7 @@ export default function FeeForm({
 
   const [formData, setFormData] = useState({
     feeHead: 'Term 1 Tuition & Lab Fees',
-    amountPaid: 0,
+    amountPaid: '',
     paymentMode: 'UPI / Online Transfer',
     transactionRef: '',
     remarks: 'Payment acknowledged',
@@ -162,7 +162,7 @@ export default function FeeForm({
       setFeeDetails(null);
       setFormData((prev) => ({
         ...prev,
-        amountPaid: 0,
+        amountPaid: '',
         totalFees: 0,
         alreadyPaid: 0,
         pendingAmount: 0
@@ -206,7 +206,7 @@ export default function FeeForm({
       setFormData((prev) => ({
         ...prev,
         studentId,
-        amountPaid: 0,
+        amountPaid: '',
         totalFees: totalApplicableFees,
         originalFees: details?.original_fees || studentObj?.originalFees || studentObj?.original_fees || totalApplicableFees,
         discountAmount: details?.discount_amount || studentObj?.discountAmount || studentObj?.discount_amount || 0,
@@ -227,25 +227,30 @@ export default function FeeForm({
     }
   };
 
+  // Computed outstanding balance (before new payment is applied)
+  const currentOutstanding = Math.max(
+    0,
+    Number(formData.totalFees || 0) - Number(formData.alreadyPaid || 0)
+  );
+  const isAlreadyFullySettled = Boolean(selectedStudent && currentOutstanding <= 0);
+
+  // User-entered payment amount and remaining balance projection
+  const payAmtNumber = Number(formData.amountPaid) || 0;
+  const remainingAfterPayment = Math.max(0, currentOutstanding - payAmtNumber);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      if (name === 'amountPaid') {
-        const newPaid = Number(value) || 0;
-        const total = Number(updated.totalFees) || 0;
-        const paidSoFar = Number(updated.alreadyPaid) || 0;
-        updated.pendingAmount = Math.max(0, total - paidSoFar - newPaid);
-      }
-      return updated;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudent) return;
 
-    if (formData.pendingAmount <= 0) {
+    if (currentOutstanding <= 0) {
       toast.error('All course fees for this student are already fully settled.');
       return;
     }
@@ -256,9 +261,8 @@ export default function FeeForm({
       return;
     }
 
-    const maxAllowable = Number(formData.totalFees) - Number(formData.alreadyPaid);
-    if (payAmt > maxAllowable) {
-      toast.error(`Payment amount (₹${payAmt.toLocaleString()}) cannot exceed outstanding balance of ₹${Math.max(0, maxAllowable).toLocaleString()}.`);
+    if (payAmt > currentOutstanding) {
+      toast.error(`Payment amount (₹${payAmt.toLocaleString()}) cannot exceed outstanding balance of ₹${currentOutstanding.toLocaleString()}.`);
       return;
     }
 
@@ -266,6 +270,8 @@ export default function FeeForm({
     try {
       await onSubmit({
         ...formData,
+        amountPaid: payAmt,
+        pendingAmount: Math.max(0, currentOutstanding - payAmt),
         studentId: selectedStudent.id,
         studentName: selectedStudent.name,
         rollNumber: selectedStudent.rollNumber,
@@ -612,7 +618,7 @@ export default function FeeForm({
                   <span className="fw-semibold">Pending Balance</span>
                   <div
                     className={`p-1.5 rounded-circle ${
-                      formData.pendingAmount > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'
+                      currentOutstanding > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'
                     }`}
                   >
                     <Clock size={16} />
@@ -620,16 +626,20 @@ export default function FeeForm({
                 </div>
                 <div
                   className={`fs-4 fw-extrabold ${
-                    formData.pendingAmount > 0 ? 'text-danger' : 'text-success'
+                    currentOutstanding > 0 ? 'text-danger' : 'text-success'
                   }`}
                 >
-                  ₹ {Number(formData.pendingAmount || 0).toLocaleString()}
+                  ₹ {Number(currentOutstanding).toLocaleString()}
                 </div>
                 <div className="mt-1.5" style={{ fontSize: '0.72rem' }}>
-                  {formData.pendingAmount > 0 ? (
-                    <span className="badge bg-danger-subtle text-danger">Payment Due</span>
-                  ) : (
+                  {currentOutstanding <= 0 ? (
                     <span className="badge bg-success-subtle text-success">Fully Settled</span>
+                  ) : payAmtNumber > 0 ? (
+                    <span className="text-secondary fw-semibold">
+                      Remaining after payment: ₹{remainingAfterPayment.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="badge bg-danger-subtle text-danger">Payment Due</span>
                   )}
                 </div>
               </div>
@@ -650,7 +660,7 @@ export default function FeeForm({
               </span>
             </div>
 
-            {formData.pendingAmount <= 0 && (
+            {isAlreadyFullySettled && (
               <div className="alert alert-success d-flex align-items-center gap-2 mb-3 py-2.5 px-3">
                 <CheckCircle2 size={18} className="text-success flex-shrink-0" />
                 <span className="small">
@@ -667,7 +677,7 @@ export default function FeeForm({
                     name="feeHead"
                     value={formData.feeHead}
                     onChange={handleInputChange}
-                    disabled={formData.pendingAmount <= 0}
+                    disabled={isAlreadyFullySettled}
                     options={[
                       'Annual Full Tuition Fee',
                       'Term 1 Installment',
@@ -684,7 +694,7 @@ export default function FeeForm({
                     name="paymentMode"
                     value={formData.paymentMode}
                     onChange={handleInputChange}
-                    disabled={formData.pendingAmount <= 0}
+                    disabled={isAlreadyFullySettled}
                     options={[
                       'UPI / Online Transfer',
                       'Cash Counter',
@@ -701,10 +711,18 @@ export default function FeeForm({
                     name="amountPaid"
                     type="number"
                     min="1"
-                    max={formData.pendingAmount > 0 ? formData.pendingAmount : 0}
+                    max={currentOutstanding > 0 ? currentOutstanding : undefined}
                     value={formData.amountPaid}
                     onChange={handleInputChange}
-                    disabled={formData.pendingAmount <= 0}
+                    disabled={isAlreadyFullySettled}
+                    placeholder={currentOutstanding > 0 ? `Enter amount (up to ₹${currentOutstanding.toLocaleString()})` : 'Enter amount'}
+                    helperText={
+                      currentOutstanding > 0 && payAmtNumber > 0 && payAmtNumber <= currentOutstanding
+                        ? `Remaining after payment: ₹${remainingAfterPayment.toLocaleString()}`
+                        : currentOutstanding > 0
+                        ? `Maximum allowable balance: ₹${currentOutstanding.toLocaleString()}`
+                        : undefined
+                    }
                     required
                   />
                 </div>
@@ -716,7 +734,7 @@ export default function FeeForm({
                     placeholder="e.g. UPI-984210029"
                     value={formData.transactionRef}
                     onChange={handleInputChange}
-                    disabled={formData.pendingAmount <= 0}
+                    disabled={isAlreadyFullySettled}
                   />
                 </div>
 
@@ -726,7 +744,7 @@ export default function FeeForm({
                     name="remarks"
                     value={formData.remarks}
                     onChange={handleInputChange}
-                    disabled={formData.pendingAmount <= 0}
+                    disabled={isAlreadyFullySettled}
                   />
                 </div>
               </div>
@@ -736,13 +754,22 @@ export default function FeeForm({
                   type="submit"
                   variant="primary"
                   loading={submitting || externalLoading}
-                  disabled={formData.pendingAmount <= 0 || submitting || externalLoading}
+                  disabled={
+                    isAlreadyFullySettled ||
+                    !formData.amountPaid ||
+                    payAmtNumber <= 0 ||
+                    payAmtNumber > currentOutstanding ||
+                    submitting ||
+                    externalLoading
+                  }
                   className="px-4 py-2.5 fw-semibold shadow-sm d-inline-flex align-items-center gap-2"
                 >
                   <CheckCircle2 size={16} />
                   <span>
-                    {formData.pendingAmount <= 0
+                    {isAlreadyFullySettled
                       ? 'Fees Fully Settled'
+                      : payAmtNumber >= currentOutstanding && currentOutstanding > 0
+                      ? `Settle Remaining Fees (₹${payAmtNumber.toLocaleString()})`
                       : 'Record Payment & Generate Receipt'}
                   </span>
                 </Button>
