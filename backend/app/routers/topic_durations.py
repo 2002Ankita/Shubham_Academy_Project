@@ -195,6 +195,21 @@ async def save_bulk_syllabus_plan(payload: SyllabusPlanBulkSaveRequest):
     }
 
 
+def is_fake_curriculum_topic(topic_dict_or_obj) -> bool:
+    """Helper to detect hardcoded/seeded mock topics"""
+    topic_id = str(getattr(topic_dict_or_obj, "topic_id", "") or (topic_dict_or_obj.get("topic_id") if isinstance(topic_dict_or_obj, dict) else "") or "")
+    topic_name = str(getattr(topic_dict_or_obj, "topic_name", "") or (topic_dict_or_obj.get("topic_name") if isinstance(topic_dict_or_obj, dict) else "") or "").lower()
+
+    if any(topic_id.startswith(p) for p in ["TOP-PHY-", "TOP-CHM-", "TOP-MTH-", "TOP-BIO-"]):
+        return True
+
+    fake_keywords = [
+        "huygens", "lenz's law", "bohr model", "zener breakdown", "compound microscope",
+        "markovnikov", "cannizzaro", "aldol condensation", "coordination complexes",
+        "dna replication fork"
+    ]
+    return any(kw in topic_name for kw in fake_keywords)
+
 async def find_topic_duration(id_str: str) -> Optional[TopicDuration]:
     """Find a TopicDuration by MongoDB ObjectId string or topic_id string"""
     if not id_str:
@@ -269,10 +284,8 @@ async def list_topic_durations(
 
     topics = await TopicDuration.find(query).sort("start_date").to_list()
 
-    # If database is empty, automatically seed initial curriculum dataset
-    if not topics and not query:
-        await seed_curriculum_database()
-        topics = await TopicDuration.find(query).sort("start_date").to_list()
+    # Filter out any legacy hardcoded mock topics
+    topics = [t for t in topics if not is_fake_curriculum_topic(t)]
 
     # Deduplicate topics by (subject, batch, topic_name) and purge duplicates from DB
     seen_keys = {}
@@ -354,32 +367,97 @@ async def get_topic_duration_matrix(
             pass
 
     import re
-    query = {
+    from app.models.batch import Batch
+
+    # Build flexible regex for teacher (handles More A.D vs More A.D. or title prefixes)
+    clean_teacher = re.sub(r"^(dr\.|prof\.|mr\.|mrs\.|ms\.)\s*", "", teacher.strip(), flags=re.IGNORECASE).strip()
+    teacher_pattern = re.escape(clean_teacher).replace(r"\.", r"\.?\s*") if clean_teacher else re.escape(teacher)
+
+    # Build flexible regex for batch (handles with or without (Morning), case differences)
+    clean_batch = re.sub(r"\(morning\)|\(evening\)", "", batch.strip(), flags=re.IGNORECASE).strip()
+    batch_tokens = [re.escape(w) for w in clean_batch.split() if w]
+    batch_regex = ".*".join(batch_tokens) if batch_tokens else re.escape(batch)
+
+    # 1. Fetch real topic durations from DB
+    topic_query = {
         "subject": {"$regex": f"^{re.escape(subject)}$", "$options": "i"},
-        "teacher_name": {"$regex": re.escape(teacher), "$options": "i"},
-        "batch": {"$regex": f"^{re.escape(batch)}$", "$options": "i"}
+        "teacher_name": {"$regex": teacher_pattern, "$options": "i"},
+        "batch": {"$regex": batch_regex, "$options": "i"}
     }
-    if month and month != "All":
-        query["month"] = month
-    if academic_year and academic_year != "All":
-        query["academic_year"] = academic_year
+    month_val = month if isinstance(month, str) else "All"
+    year_val = academic_year if isinstance(academic_year, str) else "2026-2027"
+    if month_val and month_val != "All":
+        topic_query["month"] = month_val
+    if year_val and year_val != "All":
+        topic_query["academic_year"] = year_val
 
-    topics = await TopicDuration.find(query).sort("start_date").to_list()
+    raw_topics = await TopicDuration.find(topic_query).sort("start_date").to_list()
+    real_topics = [t for t in raw_topics if not is_fake_curriculum_topic(t)]
 
-    # Fallback to subject topics for the grade level (11th / 12th)
-    if not topics:
-        std = "11" if "11" in batch else "12"
-        fallback_query = {
-            "subject": {"$regex": f"^{re.escape(subject)}$", "$options": "i"}
-        }
-        all_subj_topics = await TopicDuration.find(fallback_query).sort("start_date").to_list()
-        grade_topics = [t for t in all_subj_topics if (std in getattr(t, "standard", "") or std in getattr(t, "batch", ""))]
-        topics = grade_topics if grade_topics else all_subj_topics
+    # 2. Fetch daily activities for this teacher, subject, batch
+    act_query = {
+        "subject": {"$regex": f"^{re.escape(subject)}$", "$options": "i"},
+        "teacher_name": {"$regex": teacher_pattern, "$options": "i"},
+        "batch": {"$regex": batch_regex, "$options": "i"}
+    }
+    activities = await DailyActivity.find(act_query).sort("activity_date").to_list()
 
-    # Fallback seeding if still empty
-    if not topics:
-        await seed_curriculum_database()
-        topics = await TopicDuration.find(query).sort("start_date").to_list()
+    # 3. Check timetable allocation for this batch, subject, teacher
+    batch_doc = await Batch.find_one({"name": {"$regex": batch_regex, "$options": "i"}})
+
+    # Aggregate by topic name
+    aggregated_topics = {}
+
+    for t in real_topics:
+        k = (t.topic_name or "").strip().lower()
+        if not k:
+            continue
+        d = t.dict(exclude={"id", "_id"})
+        d["id"] = str(t.id)
+        aggregated_topics[k] = d
+
+    for act in activities:
+        topic_name = (act.topic_taught or "").strip()
+        if not topic_name:
+            continue
+        k = topic_name.lower()
+        act_periods = int(act.periods or 1)
+        act_date = act.activity_date or ""
+
+        if k in aggregated_topics:
+            existing = aggregated_topics[k]
+            if act_date:
+                if not existing.get("start_date") or act_date < existing["start_date"]:
+                    existing["start_date"] = act_date
+                if not existing.get("end_date") or act_date > existing["end_date"]:
+                    existing["end_date"] = act_date
+            req = existing.get("required_periods") or 3
+            comp = existing.get("completed_periods") or 0
+            if comp >= req:
+                existing["status"] = "Completed"
+        else:
+            req_periods = max(int(act.total_planned_periods or 3), act_periods)
+            act_id_str = str(act.id)
+            aggregated_topics[k] = {
+                "id": act_id_str,
+                "topic_id": f"ACT-{act_id_str[-6:]}",
+                "standard": act.standard or ("Class 11th" if "11" in batch else "Class 12th"),
+                "branch": act.branch or (batch_doc.branch if batch_doc else "Mangalwar Peth"),
+                "batch": batch,
+                "subject": subject,
+                "teacher_name": act.teacher_name or teacher,
+                "chapter": act.chapter or "Curriculum Chapter",
+                "topic_name": topic_name,
+                "start_date": act_date,
+                "end_date": act.target_date or act_date,
+                "required_periods": req_periods,
+                "period_duration_mins": 45,
+                "completed_periods": act_periods,
+                "status": "Completed" if act_periods >= req_periods else "In Progress",
+                "academic_year": academic_year or "2026-2027",
+                "month": month if (month and month != "All") else datetime.utcnow().strftime("%B %Y"),
+                "remarks": act.remarks or "Logged via Teacher Daily Activity Log."
+            }
 
     topic_responses = []
     total_planned = 0
@@ -388,9 +466,7 @@ async def get_topic_duration_matrix(
     in_progress_cnt = 0
     upcoming_cnt = 0
 
-    for t in topics:
-        d = t.dict(exclude={"id", "_id"})
-        d["id"] = str(t.id)
+    for d in aggregated_topics.values():
         resp = TopicDurationResponse(**d)
         topic_responses.append(resp)
 
@@ -605,293 +681,16 @@ async def seed_curriculum_endpoint():
     return {"message": f"Successfully seeded {count} curriculum topic records"}
 
 async def seed_curriculum_database():
-    """Helper function to seed rich master curriculum topics across subjects, teachers & batches"""
-    existing_count = await TopicDuration.count()
-    if existing_count > 0:
-        return existing_count
+    """Purge any legacy hardcoded mock topics from TopicDuration collection"""
+    fake_prefixes = ["TOP-PHY-", "TOP-CHM-", "TOP-MTH-", "TOP-BIO-", "SYL-"]
+    for p in fake_prefixes:
+        await TopicDuration.find({"topic_id": {"$regex": f"^{p}"}}).delete()
 
-    initial_topics = [
-        # 1. Physics - More A.D - 12th pcm tarabai park
-        {
-            "topic_id": "TOP-PHY-01",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Physics",
-            "teacher_name": "More A.D",
-            "chapter": "Chapter 7: Wave Optics",
-            "topic_name": "Wavefronts & Huygens Principle Derivation",
-            "start_date": "2026-06-15",
-            "end_date": "2026-07-02",
-            "required_periods": 3,
-            "period_duration_mins": 45,
-            "completed_periods": 3,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "June 2026",
-            "remarks": "Derived reflection and refraction laws. Solved slit interference numericals."
-        },
-        {
-            "topic_id": "TOP-PHY-02",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Physics",
-            "teacher_name": "More A.D",
-            "chapter": "Chapter 9: Electromagnetic Induction",
-            "topic_name": "Lenz's Law, Self-Inductance & Mutual Inductance",
-            "start_date": "2026-07-20",
-            "end_date": "2026-08-14",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 3,
-            "status": "In Progress",
-            "academic_year": "2026-2027",
-            "month": "August 2026",
-            "remarks": "Faraday laws completed. Mutual inductance numerical session pending."
-        },
-        {
-            "topic_id": "TOP-PHY-03",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Physics",
-            "teacher_name": "More A.D",
-            "chapter": "Chapter 12: Atoms & Nuclei",
-            "topic_name": "Bohr Model, Hydrogen Spectrum & Energy Levels",
-            "start_date": "2026-09-08",
-            "end_date": "2026-09-29",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 4,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "September 2026",
-            "remarks": "Spectral series (Lyman, Balmer, Paschen) and Rydberg formula covered."
-        },
-        {
-            "topic_id": "TOP-PHY-04",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Physics",
-            "teacher_name": "More A.D",
-            "chapter": "Chapter 14: Semiconductor Electronics",
-            "topic_name": "P-N Junction Diodes, Rectifiers & Zener Breakdown",
-            "start_date": "2026-10-01",
-            "end_date": "2026-10-26",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 2,
-            "status": "In Progress",
-            "academic_year": "2026-2027",
-            "month": "October 2026",
-            "remarks": "Forward/reverse I-V characteristics taught. Full wave rectifier pending."
-        },
-        {
-            "topic_id": "TOP-PHY-05",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Physics",
-            "teacher_name": "More A.D",
-            "chapter": "Chapter 15: Ray Optics & Instruments",
-            "topic_name": "Compound Microscope & Astronomical Telescope Magnification",
-            "start_date": "2026-11-05",
-            "end_date": "2026-11-30",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 0,
-            "status": "Upcoming",
-            "academic_year": "2026-2027",
-            "month": "November 2026",
-            "remarks": "Scheduled for Term 2 practical theory sessions."
-        },
-
-        # 2. Chemistry - Dr. Priya Kulkarni - 12th pcb tarabai park
-        {
-            "topic_id": "TOP-CHM-01",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Chemistry",
-            "teacher_name": "Dr. Priya Kulkarni",
-            "chapter": "Chapter 3: Chemical Kinetics",
-            "topic_name": "Integrated Rate Law & Arrhenius Equation",
-            "start_date": "2026-07-10",
-            "end_date": "2026-07-28",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 4,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "July 2026",
-            "remarks": "Zero and first order rate constants and half-life derivations completed."
-        },
-        {
-            "topic_id": "TOP-CHM-02",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Chemistry",
-            "teacher_name": "Dr. Priya Kulkarni",
-            "chapter": "Chapter 2: Solutions",
-            "topic_name": "Raoult's Law, Colligative Properties & Van't Hoff Factor",
-            "start_date": "2026-08-02",
-            "end_date": "2026-08-24",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 5,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "August 2026",
-            "remarks": "Osmotic pressure and elevation in boiling point problems solved."
-        },
-        {
-            "topic_id": "TOP-CHM-03",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Chemistry",
-            "teacher_name": "Dr. Priya Kulkarni",
-            "chapter": "Chapter 8: d- and f-Block Elements",
-            "topic_name": "Transition Elements Electronic Configuration & Oxidation States",
-            "start_date": "2026-09-02",
-            "end_date": "2026-09-22",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 4,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "September 2026",
-            "remarks": "Catalytic properties, color formation, and Lanthanoid contraction covered."
-        },
-        {
-            "topic_id": "TOP-CHM-04",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Chemistry",
-            "teacher_name": "Dr. Priya Kulkarni",
-            "chapter": "Chapter 9: Coordination Compounds",
-            "topic_name": "IUPAC Nomenclature, Werner's Theory & Crystal Field Splitting",
-            "start_date": "2026-10-04",
-            "end_date": "2026-10-28",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 2,
-            "status": "In Progress",
-            "academic_year": "2026-2027",
-            "month": "October 2026",
-            "remarks": "Octahedral and tetrahedral CFT splitting diagrams introduced."
-        },
-
-        # 3. Mathematics - veer 1 - 12th pcm tarabai park
-        {
-            "topic_id": "TOP-MTH-01",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Mathematics",
-            "teacher_name": "veer 1",
-            "chapter": "Chapter 5: Continuity & Differentiability",
-            "topic_name": "Chain Rule, Implicit Functions & Logarithmic Differentiation",
-            "start_date": "2026-07-15",
-            "end_date": "2026-08-08",
-            "required_periods": 6,
-            "period_duration_mins": 45,
-            "completed_periods": 6,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "August 2026",
-            "remarks": "Solved 25 Board and JEE numerical problems."
-        },
-        {
-            "topic_id": "TOP-MTH-02",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Mathematics",
-            "teacher_name": "veer 1",
-            "chapter": "Chapter 7: Integrals",
-            "topic_name": "Definite Integrals & Properties of Definite Integrals",
-            "start_date": "2026-09-12",
-            "end_date": "2026-10-06",
-            "required_periods": 6,
-            "period_duration_mins": 45,
-            "completed_periods": 6,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "September 2026",
-            "remarks": "Mastered properties P0 to P7 with 30 practice problems."
-        },
-        {
-            "topic_id": "TOP-MTH-03",
-            "standard": "Class 12th",
-            "batch": "12th pcm tarabai park",
-            "subject": "Mathematics",
-            "teacher_name": "veer 1",
-            "chapter": "Chapter 9: Differential Equations",
-            "topic_name": "Variable Separable Method & Homogeneous Equations",
-            "start_date": "2026-10-10",
-            "end_date": "2026-10-31",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 3,
-            "status": "In Progress",
-            "academic_year": "2026-2027",
-            "month": "October 2026",
-            "remarks": "Linear differential equations integrating factor session in progress."
-        },
-
-        # 4. Biology - Shri - 12th pcb tarabai park
-        {
-            "topic_id": "TOP-BIO-01",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Biology",
-            "teacher_name": "Shri",
-            "chapter": "Chapter 2: Flowering Plants Reproduction",
-            "topic_name": "Microsporogenesis & Megasporogenesis Mechanism",
-            "start_date": "2026-07-08",
-            "end_date": "2026-07-26",
-            "required_periods": 4,
-            "period_duration_mins": 45,
-            "completed_periods": 4,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "July 2026",
-            "remarks": "Pollen grain development and embryo sac diagrams thoroughly covered."
-        },
-        {
-            "topic_id": "TOP-BIO-02",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Biology",
-            "teacher_name": "Shri",
-            "chapter": "Chapter 5: Principles of Inheritance",
-            "topic_name": "Mendelian Monohybrid & Dihybrid Cross, Incomplete Dominance",
-            "start_date": "2026-08-16",
-            "end_date": "2026-09-10",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 5,
-            "status": "Completed",
-            "academic_year": "2026-2027",
-            "month": "August 2026",
-            "remarks": "Punnett squares and test cross numericals completed."
-        },
-        {
-            "topic_id": "TOP-BIO-03",
-            "standard": "Class 12th",
-            "batch": "12th pcb tarabai park",
-            "subject": "Biology",
-            "teacher_name": "Shri",
-            "chapter": "Chapter 6: Molecular Basis of Inheritance",
-            "topic_name": "DNA Replication Fork & Transcription in Prokaryotes",
-            "start_date": "2026-09-14",
-            "end_date": "2026-10-06",
-            "required_periods": 5,
-            "period_duration_mins": 45,
-            "completed_periods": 4,
-            "status": "In Progress",
-            "academic_year": "2026-2027",
-            "month": "September 2026",
-            "remarks": "Okazaki fragments covered. Translation mechanism in progress."
-        }
+    fake_keywords = [
+        "huygens", "lenz's law", "bohr model", "zener breakdown", "compound microscope",
+        "markovnikov", "cannizzaro", "aldol condensation", "coordination complexes",
+        "dna replication fork"
     ]
-
-    for item in initial_topics:
-        topic = TopicDuration(**item)
-        await topic.insert()
-
-    return len(initial_topics)
+    for kw in fake_keywords:
+        await TopicDuration.find({"topic_name": {"$regex": kw, "$options": "i"}}).delete()
+    return 0

@@ -127,106 +127,28 @@ export default function TopicDurationPlanner() {
     return Array.from(map.values());
   };
 
+  const isFakeTopic = (t) => {
+    if (!t) return false;
+    const id = String(t.id || t.topic_id || '');
+    const name = String(t.topicName || t.topic_name || '').toLowerCase();
+    if (id.startsWith('TOP-PHY-') || id.startsWith('TOP-CHM-') || id.startsWith('TOP-MTH-') || id.startsWith('TOP-BIO-') || id.startsWith('TOPIC-0')) return true;
+    const fakeKeywords = ['huygens', "lenz's law", 'bohr model', 'zener breakdown', 'compound microscope', 'photoelectric effect', 'surface tension'];
+    return fakeKeywords.some(kw => name.includes(kw));
+  };
+
   // Topic Plans State
   const [topicPlans, setTopicPlans] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_TOPICS_KEY);
-      if (saved) return deduplicateTopics(JSON.parse(saved));
-    } catch (_) { }
-    return [
-      {
-        id: 'TOPIC-01',
-        topic_id: 'TOPIC-01',
-        branch: 'Tarabai Park',
-        subject: 'Physics (Class 12th)',
-        batch: '12th pcm tarabai park',
-        chapter: 'Chapter 7: Wave Optics',
-        topicName: 'Wavefronts & Huygens Principle Derivation',
-        topic_name: 'Wavefronts & Huygens Principle Derivation',
-        requiredPeriods: 3,
-        required_periods: 3,
-        periodDurationMins: 45,
-        period_duration_mins: 45,
-        completedPeriods: 2,
-        completed_periods: 2,
-        targetDate: '2026-10-24',
-        target_date: '2026-10-24',
-        end_date: '2026-10-24',
-        status: 'In Progress',
-        teacher_name: 'More A.D',
-        teacherName: 'More A.D',
-        remarks: '2 periods covered. 1 period numerical problem-solving remaining.'
-      },
-      {
-        id: 'TOPIC-02',
-        topic_id: 'TOPIC-02',
-        branch: 'Tarabai Park',
-        subject: 'Physics Laboratory',
-        batch: '11th pcm tarabai park',
-        chapter: 'Practical Mechanics & Fluids',
-        topicName: 'Surface Tension by Capillary Rise Method',
-        topic_name: 'Surface Tension by Capillary Rise Method',
-        requiredPeriods: 2,
-        required_periods: 2,
-        periodDurationMins: 60,
-        period_duration_mins: 60,
-        completedPeriods: 2,
-        completed_periods: 2,
-        targetDate: '2026-10-20',
-        target_date: '2026-10-20',
-        end_date: '2026-10-20',
-        status: 'Completed',
-        teacher_name: 'More A.D',
-        teacherName: 'More A.D',
-        remarks: 'Completed hands-on apparatus handling and calculation verification.'
-      },
-      {
-        id: 'TOPIC-03',
-        topic_id: 'TOPIC-03',
-        branch: 'Tarabai Park',
-        subject: 'Applied Physics',
-        batch: '12th pcm tarabai park',
-        chapter: 'Chapter 9: Electromagnetic Induction',
-        topicName: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
-        topic_name: 'Lenz\'s Law, Self-Inductance & Mutual Inductance',
-        requiredPeriods: 4,
-        required_periods: 4,
-        periodDurationMins: 45,
-        period_duration_mins: 45,
-        completedPeriods: 1,
-        completed_periods: 1,
-        targetDate: '2026-10-28',
-        target_date: '2026-10-28',
-        end_date: '2026-10-28',
-        status: 'In Progress',
-        teacher_name: 'More A.D',
-        teacherName: 'More A.D',
-        remarks: 'Need 3 more periods to cover Faraday experiments and JEE problem set.'
-      },
-      {
-        id: 'TOPIC-04',
-        topic_id: 'TOPIC-04',
-        branch: 'Tarabai Park',
-        subject: 'Physics (Class 12th)',
-        batch: '12th pcb tarabai park',
-        chapter: 'Chapter 11: Dual Nature of Radiation',
-        topicName: 'Photoelectric Effect & Einstein\'s Equation',
-        topic_name: 'Photoelectric Effect & Einstein\'s Equation',
-        requiredPeriods: 3,
-        required_periods: 3,
-        periodDurationMins: 45,
-        period_duration_mins: 45,
-        completedPeriods: 0,
-        completed_periods: 0,
-        targetDate: '2026-11-02',
-        target_date: '2026-11-02',
-        end_date: '2026-11-02',
-        status: 'Upcoming',
-        teacher_name: 'More A.D',
-        teacherName: 'More A.D',
-        remarks: 'Planned for upcoming week.'
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(t => !isFakeTopic(t));
+          return deduplicateTopics(cleaned);
+        }
       }
-    ];
+    } catch (_) { }
+    return [];
   });
 
   useEffect(() => {
