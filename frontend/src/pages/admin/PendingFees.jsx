@@ -5,7 +5,7 @@ import feeService from '../../services/feeService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
-import { AlertCircle, Send, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Send, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -38,6 +38,27 @@ export default function PendingFees() {
 
   useEffect(() => {
     fetchPending(selectedCampus);
+
+    // Auto-update pending fees when a fee receipt is generated or fee collected
+    const handleFeeUpdate = () => {
+      fetchPending(selectedCampus);
+    };
+
+    window.addEventListener('sa_fees_updated', handleFeeUpdate);
+    window.addEventListener('sa_fee_updated', handleFeeUpdate);
+    window.addEventListener('sa_fee_collected', handleFeeUpdate);
+    window.addEventListener('sa_offline_fee_requests_updated', handleFeeUpdate);
+    window.addEventListener('focus', handleFeeUpdate);
+    window.addEventListener('storage', handleFeeUpdate);
+
+    return () => {
+      window.removeEventListener('sa_fees_updated', handleFeeUpdate);
+      window.removeEventListener('sa_fee_updated', handleFeeUpdate);
+      window.removeEventListener('sa_fee_collected', handleFeeUpdate);
+      window.removeEventListener('sa_offline_fee_requests_updated', handleFeeUpdate);
+      window.removeEventListener('focus', handleFeeUpdate);
+      window.removeEventListener('storage', handleFeeUpdate);
+    };
   }, [selectedCampus]);
 
   const handleSendReminder = (studentName) => {
@@ -80,7 +101,16 @@ export default function PendingFees() {
           </div>
 
           <div className="d-flex align-items-center gap-3 flex-wrap">
-
+            <Button
+              variant="outline"
+              size="sm"
+              icon={RefreshCw}
+              loading={loading}
+              onClick={() => fetchPending(selectedCampus)}
+              className="bg-white border text-sa-charcoal"
+            >
+              Refresh
+            </Button>
             <div className="p-2.5 px-3 bg-white border rounded-3 d-flex align-items-center gap-3 shadow-sm">
               <AlertCircle size={22} className="text-danger" />
               <div>

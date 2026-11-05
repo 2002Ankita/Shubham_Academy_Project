@@ -666,12 +666,19 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
     
     paid_map = {}
     for p in payments:
-        if not isinstance(p.student, Student):
-            student_obj = await Student.get(p.student.ref.id)
-            p.student = student_obj
-        if p.student:
-            s_id = str(p.student.id)
-            paid_map[s_id] = paid_map.get(s_id, 0.0) + p.amount_paid
+        s_id = None
+        try:
+            if hasattr(p, "student") and p.student:
+                if hasattr(p.student, "ref") and p.student.ref and hasattr(p.student.ref, "id"):
+                    s_id = str(p.student.ref.id)
+                elif hasattr(p.student, "id"):
+                    s_id = str(p.student.id)
+                else:
+                    s_id = str(p.student)
+        except Exception:
+            pass
+        if s_id:
+            paid_map[s_id] = paid_map.get(s_id, 0.0) + float(p.amount_paid or 0.0)
             
     pending_list = []
     for student in students:
@@ -681,8 +688,27 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
                 continue
 
         total_fees = await _lookup_student_fee(student, structures)
-        amount_paid = paid_map.get(str(student.id), 0.0)
-        pending_fees = max(0.0, total_fees - amount_paid)
+        # Determine actual amount paid from both payment records and student document
+        calc_paid = paid_map.get(str(student.id), 0.0)
+        doc_paid = float(getattr(student, "paid_fees", 0.0) or 0.0)
+        amount_paid = max(calc_paid, doc_paid)
+        
+        # Check if student's remaining fees are explicitly cleared
+        doc_remaining = getattr(student, "remaining_fees", None)
+        if doc_remaining is not None and float(doc_remaining) <= 0 and amount_paid > 0:
+            pending_fees = 0.0
+        else:
+            pending_fees = max(0.0, total_fees - amount_paid)
+        
+        # Sync student remaining and paid fees in database if out of sync
+        if student.paid_fees != amount_paid or student.remaining_fees != pending_fees or student.total_fees != total_fees:
+            try:
+                student.paid_fees = amount_paid
+                student.remaining_fees = pending_fees
+                student.total_fees = total_fees
+                await student.save()
+            except Exception:
+                pass
         
         if pending_fees > 0:
             student_name = ""
@@ -690,11 +716,17 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
                 if hasattr(student.user, "full_name"):
                     student_name = student.user.full_name
                 else:
-                    from app.models.user import User
-                    user_obj = await User.get(student.user.ref.id)
-                    student.user = user_obj
-                    if student.user:
-                        student_name = student.user.full_name
+                    try:
+                        from app.models.user import User
+                        u_id = student.user.ref.id if hasattr(student.user, "ref") and student.user.ref else getattr(student.user, "id", None)
+                        if u_id:
+                            user_obj = await User.get(u_id)
+                            if user_obj:
+                                student_name = user_obj.full_name
+                    except Exception:
+                        pass
+            if not student_name:
+                student_name = getattr(student, "full_name", "") or getattr(student, "name", "") or "Student"
                         
             pending_list.append(PendingFeeResponse(
                 student_id=str(student.id),

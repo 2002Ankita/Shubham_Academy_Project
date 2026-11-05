@@ -118,7 +118,10 @@ export const feeService = {
     try {
       // Backend returns PendingFeeResponse
       const res = await api.get('/fees/pending', {
-        params: activeBranch && activeBranch !== 'ALL' ? { branch: activeBranch } : {}
+        params: {
+          ...(activeBranch && activeBranch !== 'ALL' ? { branch: activeBranch } : {}),
+          _t: Date.now()
+        }
       });
       let list = (res.data || []).map(fee => ({
         id: fee.student_id,
@@ -143,6 +146,43 @@ export const feeService = {
         status: 'Pending',
         feeHead: 'Pending Fees'
       }));
+
+      // Reconcile with latest local payments/receipts in case user just collected fees or approved offline request
+      try {
+        const lastReceipt = JSON.parse(localStorage.getItem('sa_last_receipt') || 'null');
+        const recentPayments = JSON.parse(localStorage.getItem('sa_recent_payments') || '[]');
+        const offlineRequests = JSON.parse(localStorage.getItem('sa_offline_fee_requests') || '[]');
+        const approvedOffline = offlineRequests.filter(r => r.status === 'APPROVED');
+
+        const allRecent = [
+          ...(lastReceipt ? [lastReceipt] : []),
+          ...recentPayments,
+          ...approvedOffline.map(o => ({
+            studentId: o.student_id,
+            amountPaid: Number(o.amount || 0),
+            pendingAmount: 0
+          }))
+        ];
+
+        if (allRecent.length > 0) {
+          list = list.map(item => {
+            const matches = allRecent.filter(r => r.studentId === item.studentId);
+            if (matches.length > 0) {
+              const latest = matches[0];
+              const resolvedPending = latest.pendingAmount != null ? Number(latest.pendingAmount) : Math.max(0, item.totalFees - (item.amountPaid + Number(latest.amountPaid || 0)));
+              const resolvedPaid = item.totalFees - resolvedPending;
+              return {
+                ...item,
+                amountPaid: Math.max(item.amountPaid, resolvedPaid),
+                pendingAmount: resolvedPending
+              };
+            }
+            return item;
+          }).filter(item => item.pendingAmount > 0.01);
+        }
+      } catch (reconErr) {
+        console.warn('Pending fee local reconciliation notice:', reconErr);
+      }
 
       if (activeBranch && activeBranch !== 'ALL') {
         list = filterFeesByBranch(list, activeBranch);
@@ -302,7 +342,16 @@ export const feeService = {
 
     try {
       localStorage.setItem('sa_last_receipt', JSON.stringify(formattedReceipt));
+      const recent = JSON.parse(localStorage.getItem('sa_recent_payments') || '[]');
+      const updatedRecent = [formattedReceipt, ...recent.filter(r => r.id !== formattedReceipt.id)].slice(0, 50);
+      localStorage.setItem('sa_recent_payments', JSON.stringify(updatedRecent));
     } catch (_) {}
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_fees_updated', { detail: formattedReceipt }));
+      window.dispatchEvent(new CustomEvent('sa_fee_updated', { detail: formattedReceipt }));
+      window.dispatchEvent(new CustomEvent('sa_fee_collected', { detail: formattedReceipt }));
+    }
 
     return {
       success: true,
