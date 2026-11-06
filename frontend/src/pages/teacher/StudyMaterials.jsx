@@ -69,15 +69,15 @@ export default function TeacherStudyMaterials() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-        <div className="d-flex align-items-center gap-3">
+      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -97,7 +97,7 @@ export default function TeacherStudyMaterials() {
                 Study Materials & Lecture Notes
               </h3>
               <span
-                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1 text-nowrap"
                 style={{
                   backgroundColor: '#FDF0F0',
                   color: '#8B1216',
@@ -110,13 +110,13 @@ export default function TeacherStudyMaterials() {
                 <span>{userBranch} Campus</span>
               </span>
             </div>
-            <span className="small text-sa-muted">
+            <span className="small text-sa-muted d-block mt-0.5">
               Share chapter summaries, practice problems, and laboratory guides with {userBranch} students
             </span>
           </div>
         </div>
 
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>
+        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)} className="w-100 w-sm-auto justify-content-center">
           Upload New Material
         </Button>
       </div>

@@ -435,14 +435,14 @@ export default function EnterMarks() {
     <div className="d-flex flex-column w-100" style={{ gap: '18px', minWidth: 0, boxSizing: 'border-box' }}>
       {/* Top Header matching Reference UI */}
       <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',

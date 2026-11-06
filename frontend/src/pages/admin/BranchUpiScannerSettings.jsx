@@ -212,24 +212,26 @@ export default function BranchUpiScannerSettings() {
       <div className="row g-4">
         {/* Left Form: Scanner & UPI Settings */}
         <div className="col-12 col-xl-7">
-          <div className="sa-card p-4 border shadow-sm">
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
-              <div className="d-flex align-items-center gap-2">
-                <div className="p-2 rounded-2 bg-danger-subtle text-danger">
+          <div className="sa-card p-3 p-sm-4 border shadow-sm">
+            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 mb-3 pb-3 border-bottom">
+              <div className="d-flex align-items-start gap-2.5">
+                <div className="p-2 rounded-2 bg-danger-subtle text-danger flex-shrink-0 mt-0.5">
                   <QrCode size={20} />
                 </div>
                 <div>
-                  <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
-                    {selectedBranch} UPI QR Scanner Configuration
-                  </h5>
-                  <span className="text-muted small">
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+                      {selectedBranch} UPI QR Scanner Configuration
+                    </h5>
+                    <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 small">
+                      ● Live & Active
+                    </span>
+                  </div>
+                  <span className="text-muted small d-block mt-0.5">
                     Changes here take effect immediately on student payment screens
                   </span>
                 </div>
               </div>
-              <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 small">
-                ● Live & Active
-              </span>
             </div>
 
             <form onSubmit={handleSave} className="d-flex flex-column gap-3">
@@ -394,13 +396,14 @@ export default function BranchUpiScannerSettings() {
               </div>
 
               {/* Save Button */}
-              <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+              <div className="d-flex flex-column-reverse flex-sm-row justify-content-sm-end align-items-stretch align-items-sm-center gap-2 pt-3 border-top w-100">
                 <Button
                   type="button"
                   variant="outline"
                   icon={RotateCcw}
                   onClick={() => loadBranchConfig(selectedBranch)}
                   disabled={loading || saving}
+                  className="w-100 w-sm-auto justify-content-center"
                 >
                   Reset
                 </Button>
@@ -410,6 +413,7 @@ export default function BranchUpiScannerSettings() {
                   icon={Save}
                   loading={saving}
                   disabled={loading}
+                  className="w-100 w-sm-auto justify-content-center shadow-sm"
                 >
                   Save & Publish UPI Scanner
                 </Button>
@@ -420,10 +424,10 @@ export default function BranchUpiScannerSettings() {
 
         {/* Right Side: Live Student Modal Preview */}
         <div className="col-12 col-xl-5">
-          <div className="sa-card p-4 border shadow-sm sticky-top" style={{ top: '24px' }}>
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+          <div className="sa-card p-3 p-sm-4 border shadow-sm sticky-top" style={{ top: '24px' }}>
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
               <div className="d-flex align-items-center gap-2">
-                <Eye size={18} className="text-danger" />
+                <Eye size={18} className="text-danger flex-shrink-0" />
                 <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
                   Live Student Modal Preview
                 </h5>
@@ -433,9 +437,9 @@ export default function BranchUpiScannerSettings() {
               </span>
             </div>
 
-            <div className="p-3 bg-light rounded-3 border">
-              <div className="bg-white rounded-3 shadow-xs border p-3">
-                <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+            <div className="p-2 p-sm-3 bg-light rounded-3 border">
+              <div className="bg-white rounded-3 shadow-xs border p-2.5 p-sm-3">
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 pb-2 border-bottom">
                   <span className="fw-bold text-sa-charcoal small">
                     Pay Fee Installment (Preview)
                   </span>

@@ -1020,32 +1020,33 @@ export default function TeacherDashboard() {
 
       {/* 5. WORKING FACULTY & TEACHING STAFF (WITH ADD FACULTY OPTION) */}
       <div
-        className="teacher-grid-card d-flex flex-column"
-        style={{ minHeight: '190px', padding: '16px 20px' }}
+        className="teacher-grid-card d-flex flex-column p-3 p-sm-3.5"
+        style={{ minHeight: '190px' }}
       >
-        <div className="d-flex align-items-center justify-content-between pb-2.5 mb-2 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
-          <div className="d-flex align-items-center gap-2 min-w-0 flex-shrink-0">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 pb-2.5 mb-2 border-bottom flex-shrink-0" style={{ borderColor: 'rgba(220, 38, 38, 0.08)' }}>
+          <div className="d-flex align-items-center gap-2 flex-wrap min-w-0">
             <Users size={17} style={{ color: '#8B1216' }} className="flex-shrink-0" />
-            <h3 className="teacher-card-heading">
+            <h3 className="teacher-card-heading m-0">
               Working Faculty & Teaching Staff
             </h3>
             <span
-              className="badge rounded-pill fw-medium ms-1"
+              className="badge rounded-pill fw-medium text-nowrap"
               style={{ backgroundColor: '#FDF0F0', color: '#8B1216', fontSize: '11px', border: '1px solid rgba(220, 38, 38, 0.15)' }}
             >
               {workingFaculty.length} Working Faculty
             </span>
           </div>
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-sm-auto mt-1 mt-sm-0">
             <button
               type="button"
               onClick={() => setShowAddFacultyModal(true)}
-              className="btn btn-sm d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs transition-all"
+              className="btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 text-white border-0 fw-semibold shadow-xs transition-all flex-grow-1 flex-sm-grow-0"
               style={{
                 backgroundColor: '#8B1216',
                 fontSize: '11.5px',
                 padding: '5px 12px',
-                borderRadius: '8px'
+                borderRadius: '8px',
+                height: '30px'
               }}
             >
               <UserPlus size={13} />
@@ -1053,10 +1054,17 @@ export default function TeacherDashboard() {
             </button>
             <button
               onClick={() => navigate('/teacher/teachers')}
-              className="btn btn-link p-0 text-decoration-none fw-semibold ms-1"
-              style={{ fontSize: '12px', whiteSpace: 'nowrap', color: '#8B1216' }}
+              className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center text-decoration-none fw-semibold flex-grow-1 flex-sm-grow-0 px-2.5"
+              style={{
+                fontSize: '11.5px',
+                whiteSpace: 'nowrap',
+                color: '#8B1216',
+                borderColor: 'rgba(139, 18, 22, 0.2)',
+                borderRadius: '8px',
+                height: '30px'
+              }}
             >
-              Faculty Directory &rarr;
+              <span>Faculty Directory &rarr;</span>
             </button>
           </div>
         </div>

@@ -140,8 +140,8 @@ export default function WorkingTime() {
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '22px' }}>
       {/* 1. Page Header with Back button */}
-      <div className="pt-1 d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div className="d-flex align-items-center gap-3">
+      <div className="pt-1 d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2.5">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => {
@@ -151,10 +151,10 @@ export default function WorkingTime() {
                 navigate('/teacher/dashboard');
               }
             }}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -181,7 +181,7 @@ export default function WorkingTime() {
         </div>
 
         <span
-          className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+          className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5 text-nowrap"
           style={{
             backgroundColor: '#FDF0F0',
             color: '#8B1216',

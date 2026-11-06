@@ -193,14 +193,14 @@ export default function LeaveRequest() {
   return (
     <div className="d-flex flex-column gap-3">
       {/* 1. Page Header */}
-      <div className="d-flex align-items-center gap-3 pt-0 pb-0.5">
+      <div className="d-flex align-items-start gap-2.5 gap-sm-3 pt-0 pb-0.5">
         <button
           type="button"
           onClick={() => navigate('/teacher/dashboard')}
-          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
           style={{
-            width: '40px',
-            height: '40px',
+            width: '38px',
+            height: '38px',
             borderRadius: '10px',
             borderColor: '#E2E8F0',
             backgroundColor: '#FFFFFF',
@@ -214,28 +214,28 @@ export default function LeaveRequest() {
           <ArrowLeft size={18} />
         </button>
 
-        <div className="d-flex align-items-center justify-content-between flex-grow-1 flex-wrap gap-2">
-          <div>
+        <div className="d-flex flex-column flex-grow-1 min-w-0">
+          <div className="d-flex align-items-center gap-2 flex-wrap">
             <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '23px', lineHeight: 1.25 }}>
               Leave Request
             </h1>
-            <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
-              Apply for leave and track your leave requests
-            </p>
+            <span
+              className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1 text-nowrap"
+              style={{
+                backgroundColor: '#FDF0F0',
+                color: '#8B1216',
+                border: '1px solid #F5C2C4',
+                fontSize: '11.5px',
+                fontWeight: 600
+              }}
+            >
+              <Building2 size={12} />
+              <span>{getUserBranch(user)} Campus</span>
+            </span>
           </div>
-          <span
-            className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
-            style={{
-              backgroundColor: '#FDF0F0',
-              color: '#8B1216',
-              border: '1px solid #F5C2C4',
-              fontSize: '0.82rem',
-              fontWeight: '600'
-            }}
-          >
-            <Building2 size={14} />
-            <span>{getUserBranch(user)} Campus</span>
-          </span>
+          <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
+            Apply for leave and track your leave requests
+          </p>
         </div>
       </div>
 

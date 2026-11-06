@@ -158,13 +158,13 @@ export default function StudentBooksDelivery() {
       </div>
 
       {/* Header */}
-      <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
         <div>
-          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-center gap-2">
-            <Truck className="text-sa-primary" size={24} />
+          <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4 d-flex align-items-start gap-2">
+            <Truck className="text-sa-primary flex-shrink-0 mt-1" size={22} />
             <span>Books Delivery & Study Material Handover</span>
           </h3>
-          <span className="small text-sa-muted">
+          <span className="small text-sa-muted d-block mt-0.5">
             Live database verification of Theory and CET books handed over by academy staff
           </span>
         </div>

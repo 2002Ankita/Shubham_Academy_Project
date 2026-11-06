@@ -56,14 +56,14 @@ export default function TeacherAnnouncements() {
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
       <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -83,7 +83,7 @@ export default function TeacherAnnouncements() {
                 Class Announcements & Circulars
               </h1>
               <span
-                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1 text-nowrap"
                 style={{
                   backgroundColor: '#FDF0F0',
                   color: '#8B1216',
@@ -105,14 +105,15 @@ export default function TeacherAnnouncements() {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="btn d-inline-flex align-items-center gap-1.5 text-white border-0 fw-semibold shadow-xs"
+          className="btn d-inline-flex align-items-center justify-content-center gap-1.5 text-white border-0 fw-semibold shadow-xs w-100 w-sm-auto"
           style={{
             backgroundColor: '#8B1216',
             fontSize: '13px',
             padding: '8px 16px',
             borderRadius: '8px',
             whiteSpace: 'nowrap',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            height: '38px'
           }}
           onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}

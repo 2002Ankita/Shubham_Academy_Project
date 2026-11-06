@@ -29,12 +29,12 @@ export default function UpiQrDisplay({
   return (
     <div className="d-flex flex-column align-items-center text-center p-3 rounded-3 bg-white border shadow-xs w-100">
       {/* Branch & Verified Badge */}
-      <div className="d-flex align-items-center justify-content-between w-100 mb-2 pb-2 border-bottom">
-        <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold small">
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1.5 w-100 mb-2 pb-2 border-bottom">
+        <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold small text-nowrap">
           📍 {branch} Campus QR
         </span>
-        <span className="d-flex align-items-center gap-1 text-success small fw-semibold">
-          <ShieldCheck size={15} /> Verified Merchant
+        <span className="d-inline-flex align-items-center gap-1 text-success small fw-semibold text-nowrap">
+          <ShieldCheck size={15} className="flex-shrink-0" /> Verified Merchant
         </span>
       </div>
 
@@ -225,7 +225,7 @@ export default function UpiQrDisplay({
           </div>
           <button
             type="button"
-            className={`btn btn-sm ${copied ? 'btn-success' : 'btn-outline-danger'} d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 shadow-xs`}
+            className={`btn btn-sm ${copied ? 'btn-success' : 'btn-outline-danger'} d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 shadow-xs flex-shrink-0`}
             onClick={handleCopyUpi}
             title="Copy UPI ID"
           >
