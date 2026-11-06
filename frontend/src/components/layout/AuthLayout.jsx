@@ -4,130 +4,74 @@ import { Outlet } from 'react-router-dom';
 export default function AuthLayout() {
   return (
     <div
-      className="vh-100 w-100 d-flex align-items-center justify-content-center p-2 p-sm-3 position-relative overflow-hidden no-scrollbar"
+      className="vh-100 w-100 d-flex flex-column flex-lg-row overflow-hidden no-scrollbar"
       style={{
-        backgroundColor: '#FAF6F2',
+        height: '100vh',
         maxHeight: '100vh',
-        height: '100vh'
+        backgroundColor: '#959B9B'
       }}
     >
-      {/* Top-Right Decorative Smooth Vector Waves & Dots Pattern */}
-      <svg
-        className="position-absolute top-0 end-0 pointer-events-none"
-        width="380"
-        height="300"
-        viewBox="0 0 380 300"
-        fill="none"
-        style={{ zIndex: 1 }}
-      >
-        <path
-          d="M380,0 L120,0 C170,90 270,140 380,180 Z"
-          fill="rgba(217, 119, 24, 0.05)"
-        />
-        <path
-          d="M380,0 L180,0 C220,100 290,160 380,220 Z"
-          fill="rgba(139, 18, 22, 0.06)"
-        />
-        <defs>
-          <pattern id="dotPatternTR" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-            <circle cx="2" cy="2" r="1.5" fill="rgba(139, 18, 22, 0.12)" />
-          </pattern>
-        </defs>
-        <rect x="200" y="15" width="160" height="140" fill="url(#dotPatternTR)" opacity="0.7" />
-      </svg>
-
-      {/* Bottom-Right Decorative Soft & Faint Maroon Waves */}
-      <svg
-        className="position-absolute bottom-0 end-0 pointer-events-none"
-        width="360"
-        height="300"
-        viewBox="0 0 360 300"
-        fill="none"
-        style={{ zIndex: 1 }}
-      >
-        <path
-          d="M100,300 C130,190 220,100 360,80 L360,300 Z"
-          fill="rgba(139, 18, 22, 0.08)"
-        />
-        <path
-          d="M170,300 C200,220 270,150 360,140 L360,300 Z"
-          fill="rgba(139, 18, 22, 0.12)"
-        />
-        <path
-          d="M240,300 C265,245 310,195 360,190 L360,300 Z"
-          fill="rgba(217, 119, 24, 0.07)"
-        />
-        <defs>
-          <pattern id="dotPatternBR" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-            <circle cx="2" cy="2" r="1.5" fill="rgba(139, 18, 22, 0.12)" />
-          </pattern>
-        </defs>
-        <rect x="180" y="160" width="160" height="120" fill="url(#dotPatternBR)" opacity="0.5" />
-      </svg>
-
-      {/* Bottom-Left Subtle Dots Pattern */}
-      <svg
-        className="position-absolute bottom-0 start-0 pointer-events-none"
-        width="220"
-        height="220"
-        viewBox="0 0 220 220"
-        fill="none"
-        style={{ zIndex: 1 }}
-      >
-        <defs>
-          <pattern id="dotPatternBL" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
-            <circle cx="2" cy="2" r="1.5" fill="rgba(139, 18, 22, 0.09)" />
-          </pattern>
-        </defs>
-        <rect x="15" y="60" width="140" height="140" fill="url(#dotPatternBL)" opacity="0.6" />
-      </svg>
-
-      {/* Master Unified Floating Card Container */}
+      {/* Left Side: Full-Bleed Shubham Academy Illustration & Branding Banner (Image 1) */}
       <div
-        className="bg-white d-flex flex-column flex-lg-row overflow-hidden shadow-lg position-relative"
+        className="d-none d-lg-block position-relative overflow-hidden h-100"
         style={{
-          width: 'min(1120px, 95vw)',
-          height: 'min(620px, 96vh)',
-          borderRadius: '24px',
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.04)',
-          border: '1px solid rgba(255, 255, 255, 0.9)',
-          zIndex: 2
+          flex: '0 0 57%',
+          width: '57%',
+          height: '100vh',
+          backgroundColor: '#680D10'
         }}
       >
-        {/* Left Side: Shubham Academy Learn. Grow. Succeed. Branding & Illustration */}
-        <div
-          className="d-none d-lg-block position-relative overflow-hidden h-100"
+        <img
+          src="/assets/shubham-auth-banner-v1.png"
+          alt="Shubham Academy - Learn. Grow. Succeed."
+          className="w-100 h-100"
           style={{
-            flex: '0 0 min(560px, 50.5%)',
-            width: 'min(560px, 50.5%)',
-            height: '100%',
-            backgroundColor: '#680D10'
+            objectFit: 'cover',
+            objectPosition: 'center center',
+            display: 'block'
           }}
-        >
-          <img
-            src="/assets/shubham-auth-banner-v1.png"
-            alt="Shubham Academy - Learn. Grow. Succeed."
-            className="w-100 h-100"
-            style={{
-              objectFit: 'cover',
-              objectPosition: 'left center',
-              display: 'block'
-            }}
-          />
-        </div>
+        />
+      </div>
 
-        {/* Right Side: Form (Outlet) */}
+      {/* Right Side: Neutral Grey Background with Floating White Card (Image 1) */}
+      <div
+        className="flex-grow-1 h-100 d-flex align-items-center justify-content-center p-3 p-sm-4 position-relative overflow-y-auto no-scrollbar"
+        style={{
+          backgroundColor: '#959B9B',
+          height: '100vh'
+        }}
+      >
+        {/* Top-Right Decorative Smooth Vector Curves */}
+        <svg
+          className="position-absolute top-0 end-0 pointer-events-none"
+          width="320"
+          height="280"
+          viewBox="0 0 320 280"
+          fill="none"
+          style={{ zIndex: 0, opacity: 0.12 }}
+        >
+          <path
+            d="M320,0 L140,0 C180,90 240,160 320,200 Z"
+            fill="#FFFFFF"
+          />
+          <path
+            d="M320,0 L200,0 C230,110 270,180 320,240 Z"
+            fill="#FFFFFF"
+          />
+        </svg>
+
+        {/* Floating White Card */}
         <div
-          className="d-flex align-items-center justify-content-center p-3 p-sm-4 bg-white h-100 overflow-y-auto no-scrollbar"
+          className="bg-white position-relative shadow-lg w-100"
           style={{
-            flex: '1 1 auto',
-            width: '100%',
-            height: '100%'
+            maxWidth: '385px',
+            borderRadius: '16px',
+            padding: '24px 26px',
+            boxShadow: '0 15px 45px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.06)',
+            zIndex: 1
           }}
         >
-          <div className="w-100" style={{ maxWidth: '430px' }}>
-            <Outlet />
-          </div>
+          <Outlet />
         </div>
       </div>
     </div>
