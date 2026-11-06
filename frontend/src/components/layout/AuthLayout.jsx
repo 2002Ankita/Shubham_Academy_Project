@@ -15,12 +15,12 @@ export default function AuthLayout() {
     >
       {/* LEFT SECTION (approximately 55–57% width) - Full-Bleed Branding & Illustration */}
       <div
-        className="d-none d-lg-block position-relative overflow-hidden h-100"
+        className="d-none d-lg-flex align-items-center justify-content-center position-relative overflow-hidden h-100"
         style={{
           flex: '0 0 57%',
           width: '57%',
           height: '100vh',
-          backgroundColor: '#570817'
+          backgroundColor: '#551011'
         }}
       >
         <img
@@ -28,8 +28,8 @@ export default function AuthLayout() {
           alt="Shubham Academy - Learn. Grow. Succeed."
           className="w-100 h-100"
           style={{
-            objectFit: 'cover',
-            objectPosition: 'left center',
+            objectFit: 'contain',
+            objectPosition: 'center center',
             display: 'block'
           }}
         />

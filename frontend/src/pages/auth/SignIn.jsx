@@ -118,16 +118,17 @@ export default function SignIn() {
       {/* Main Title & Subtitle */}
       <div className="text-center mb-3">
         <h2
-          className="fw-bold mb-1"
+          className="mb-1"
           style={{
-            fontSize: '1.58rem',
-            letterSpacing: '-0.02em',
+            fontSize: '1.65rem',
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
             color: '#111827'
           }}
         >
           Welcome Back
         </h2>
-        <p className="text-muted small mb-0" style={{ fontSize: '0.82rem' }}>
+        <p className="text-muted small mb-0" style={{ fontSize: '0.82rem', fontWeight: 500 }}>
           Sign in to continue to your dashboard.
         </p>
       </div>
