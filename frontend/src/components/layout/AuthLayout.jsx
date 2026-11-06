@@ -15,7 +15,7 @@ export default function AuthLayout() {
     >
       {/* LEFT SECTION (approximately 55–57% width) - Pure Deep Maroon Branding & Illustration */}
       <div
-        className="d-none d-lg-flex align-items-center justify-content-center position-relative overflow-hidden h-100"
+        className="d-none d-lg-flex align-items-center justify-content-center position-relative overflow-hidden h-100 p-3 p-xl-4"
         style={{
           flex: '0 0 57%',
           width: '57%',
@@ -23,16 +23,27 @@ export default function AuthLayout() {
           backgroundColor: '#54100F'
         }}
       >
-        <img
-          src="/assets/shubham-auth-banner-v1.png"
-          alt="Shubham Academy - Learn. Grow. Succeed."
-          className="w-100 h-100"
+        <div
+          className="w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            objectFit: 'contain',
-            objectPosition: 'center center',
-            display: 'block'
+            maxWidth: '680px',
+            maxHeight: '94vh',
+            padding: '10px'
           }}
-        />
+        >
+          <img
+            src="/assets/shubham-auth-banner-v1.png"
+            alt="Shubham Academy - Learn. Grow. Succeed."
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              borderRadius: '16px',
+              boxShadow: '0 12px 36px rgba(0, 0, 0, 0.25)',
+              display: 'block'
+            }}
+          />
+        </div>
       </div>
 
       {/* RIGHT SECTION (approximately 43–45% width) - Light Cream/Off-White Background with Centered Card */}
