@@ -7,10 +7,10 @@ import {
   Eye,
   EyeOff,
   GraduationCap,
-  Landmark,
-  User,
-  Shield,
-  ArrowRight,
+  UserCog,
+  Presentation,
+  Users,
+  LogIn,
   ShieldCheck
 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -18,54 +18,25 @@ import { toast } from 'react-toastify';
 export default function SignIn() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState('admin');
-  const [email, setEmail] = useState('admin@shubham.edu');
-  const [password, setPassword] = useState('password123');
+  const [selectedRole, setSelectedRole] = useState('student');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [selectedCampus, setSelectedCampus] = useState('Mangalvar Peth');
-
-  const getRoleEmail = (roleId, campus = selectedCampus) => {
-    if (roleId === 'student') return campus === 'Tarabai Park' ? 'aarav.tarabai@shubham.edu' : 'aarav.d@shubham.edu';
-    if (roleId === 'teacher') return campus === 'Tarabai Park' ? 'priya.tarabai@shubham.edu' : 'priya.k@shubham.edu';
-    if (roleId === 'admin') {
-      return campus === 'Tarabai Park' ? 'admin.tarabai@shubham.edu' : 'admin@shubham.edu';
-    }
-    if (roleId === 'superadmin') {
-      return campus === 'Tarabai Park' ? 'superadmin.tarabai@shubham.edu' : 'superadmin@shubham.edu';
-    }
-    return 'admin@shubham.edu';
-  };
-
   const roles = [
-    { id: 'admin', label: 'Academy Admin', icon: Landmark },
-    { id: 'teacher', label: 'Teacher', icon: User },
-    { id: 'student', label: 'Student', icon: User },
-    { id: 'superadmin', label: 'SuperAdmin', icon: Shield },
+    { id: 'admin', label: 'Academy Admin', icon: UserCog, defaultEmail: 'admin@shubham.edu', defaultPwd: 'password123' },
+    { id: 'teacher', label: 'Teacher', icon: Presentation, defaultEmail: 'priya.k@shubham.edu', defaultPwd: 'password123' },
+    { id: 'student', label: 'Student', icon: Users, defaultEmail: 'aarav.d@shubham.edu', defaultPwd: '9876500001' },
   ];
 
-  const handleRoleSelect = (role, campus = selectedCampus) => {
-    setSelectedRole(role);
-    const targetEmail = getRoleEmail(role, campus);
-    setEmail(targetEmail);
-    if (role === 'student') {
-      setPassword('9876500001');
-    } else {
-      setPassword('password123');
-    }
-  };
-
-  const handleCampusChange = (campus) => {
-    setSelectedCampus(campus);
-    const roleToUse = selectedRole || 'admin';
-    setSelectedRole(roleToUse);
-    setEmail(getRoleEmail(roleToUse, campus));
-    if (roleToUse === 'student') {
-      setPassword('9876500001');
-    } else {
-      setPassword('password123');
+  const handleRoleSelect = (roleId) => {
+    setSelectedRole(roleId);
+    const r = roles.find(item => item.id === roleId);
+    if (r) {
+      setEmail(r.defaultEmail);
+      setPassword(r.defaultPwd);
     }
   };
 
@@ -73,10 +44,10 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await login({ email, password, role: selectedRole, branch: selectedCampus, campus: selectedCampus });
-      toast.success(`Welcome back, ${res.user.name}!`);
+      const res = await login({ email, password, role: selectedRole });
+      toast.success(`Welcome back, ${res.user?.name || res.user?.full_name || 'User'}!`);
 
-      const userRole = (res.user.role || '').toLowerCase();
+      const userRole = (res.user?.role || '').toLowerCase();
       if (userRole === 'super-admin' || userRole === 'super_admin') {
         navigate('/super-admin/dashboard');
       } else if (userRole === 'admin') {
@@ -96,86 +67,44 @@ export default function SignIn() {
   return (
     <div className="w-100 py-0">
       {/* Top Pill Badge: ACADEMY PORTAL */}
-      <div className="text-center mb-2">
+      <div className="text-center mb-2.5">
         <div
-          className="d-inline-flex align-items-center gap-1.5 px-3 py-0.5 rounded-pill"
+          className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill"
           style={{
-            backgroundColor: '#FDF0F0',
+            backgroundColor: '#FDECEB',
             color: '#8B1216',
             fontSize: '0.74rem',
             fontWeight: '700',
             letterSpacing: '0.04em'
           }}
         >
-          <GraduationCap size={14} color="#8B1216" />
+          <GraduationCap size={15} color="#8B1216" />
           <span>ACADEMY PORTAL</span>
         </div>
       </div>
 
       {/* Main Title & Subtitle */}
-      <div className="text-center" style={{ marginBottom: '16px' }}>
+      <div className="text-center mb-3">
         <h2
           className="fw-bold mb-1"
           style={{
-            fontSize: '1.50rem',
+            fontSize: '1.65rem',
             letterSpacing: '-0.02em',
-            color: '#1A1A1A'
+            color: '#111827'
           }}
         >
           Welcome Back
         </h2>
-        <p className="text-muted small mb-0" style={{ fontSize: '0.82rem' }}>
+        <p className="text-muted small mb-0" style={{ fontSize: '0.84rem' }}>
           Sign in to continue to your dashboard.
         </p>
       </div>
 
-      {/* Role Selector: Sign in as (moved slightly down with dedicated space) */}
-      <div style={{ marginTop: '16px', marginBottom: '20px' }}>
-        {/* Campus Department Selector for Admins */}
-        <div className="d-flex align-items-center justify-content-between mb-2 pb-1">
-          <label
-            className="form-label d-block text-start mb-0 fw-semibold"
-            style={{ fontSize: '0.78rem', color: '#1F2937' }}
-          >
-            Campus / Department
-          </label>
-          <div className="btn-group btn-group-sm" role="group">
-            <button
-              type="button"
-              className="btn btn-sm py-1 px-2.5 transition-all"
-              style={{
-                fontSize: '0.70rem',
-                fontWeight: selectedCampus === 'Mangalvar Peth' ? '700' : '500',
-                backgroundColor: selectedCampus === 'Mangalvar Peth' ? '#8B1216' : '#FFFFFF',
-                color: selectedCampus === 'Mangalvar Peth' ? '#FFFFFF' : '#4B5563',
-                borderColor: selectedCampus === 'Mangalvar Peth' ? '#8B1216' : '#E5E7EB',
-                borderRadius: '6px 0 0 6px'
-              }}
-              onClick={() => handleCampusChange('Mangalvar Peth')}
-            >
-              🏛️ Mangalvar Peth
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm py-1 px-2.5 transition-all"
-              style={{
-                fontSize: '0.70rem',
-                fontWeight: selectedCampus === 'Tarabai Park' ? '700' : '500',
-                backgroundColor: selectedCampus === 'Tarabai Park' ? '#8B1216' : '#FFFFFF',
-                color: selectedCampus === 'Tarabai Park' ? '#FFFFFF' : '#4B5563',
-                borderColor: selectedCampus === 'Tarabai Park' ? '#8B1216' : '#E5E7EB',
-                borderRadius: '0 6px 6px 0'
-              }}
-              onClick={() => handleCampusChange('Tarabai Park')}
-            >
-              🌲 Tarabai Park
-            </button>
-          </div>
-        </div>
-
+      {/* Role Selector: Sign in as */}
+      <div className="mb-3">
         <label
           className="form-label d-block text-start mb-2 fw-semibold"
-          style={{ fontSize: '0.78rem', color: '#1F2937' }}
+          style={{ fontSize: '0.80rem', color: '#374151' }}
         >
           Sign in as
         </label>
@@ -184,33 +113,31 @@ export default function SignIn() {
             const Icon = r.icon;
             const isSelected = selectedRole === r.id;
             return (
-              <div key={r.id} className="col-3">
+              <div key={r.id} className="col-4">
                 <button
                   type="button"
-                  className="btn w-100 d-flex flex-column align-items-center justify-content-center p-1 rounded-3 transition-all"
+                  className="btn w-100 d-flex flex-column align-items-center justify-content-center p-2 rounded-3 transition-all"
                   style={{
                     backgroundColor: isSelected ? '#FDF2F2' : '#FFFFFF',
                     border: isSelected ? '1.5px solid #8B1216' : '1px solid #E5E7EB',
                     color: isSelected ? '#8B1216' : '#4B5563',
                     borderRadius: '10px',
-                    minHeight: '54px',
-                    boxShadow: isSelected ? '0 2px 6px rgba(139, 18, 22, 0.08)' : 'none'
+                    minHeight: '62px',
+                    boxShadow: isSelected ? '0 2px 8px rgba(139, 18, 22, 0.08)' : 'none'
                   }}
-                  onClick={() => handleRoleSelect(r.id, selectedCampus)}
+                  onClick={() => handleRoleSelect(r.id)}
                 >
                   <Icon
-                    size={17}
-                    className="mb-0.5"
+                    size={20}
+                    className="mb-1"
                     color={isSelected ? '#8B1216' : '#6B7280'}
                   />
                   <span
                     className="w-100 text-center d-block px-0.5"
                     style={{
-                      fontSize: '0.67rem',
+                      fontSize: '0.74rem',
                       fontWeight: isSelected ? '700' : '500',
-                      lineHeight: 1.15,
-                      whiteSpace: 'normal',
-                      wordBreak: 'normal'
+                      lineHeight: 1.2
                     }}
                   >
                     {r.label}
@@ -224,12 +151,12 @@ export default function SignIn() {
 
       {/* Login Form */}
       <form onSubmit={handleSubmit}>
-        {/* Email Field (moved down with dedicated space from role buttons) */}
-        <div className="text-start" style={{ marginTop: '8px', marginBottom: '14px' }}>
+        {/* Email Field */}
+        <div className="text-start mb-3">
           <label
             htmlFor="email"
             className="form-label mb-1.5 fw-semibold"
-            style={{ fontSize: '0.78rem', color: '#1F2937' }}
+            style={{ fontSize: '0.80rem', color: '#374151' }}
           >
             Email Address
           </label>
@@ -242,29 +169,29 @@ export default function SignIn() {
             </span>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. admin@shubham.edu"
+              placeholder="Enter your email"
               required
               className="form-control"
               style={{
                 paddingLeft: '38px',
-                height: '40px',
+                height: '42px',
                 borderRadius: '8px',
-                fontSize: '0.86rem'
+                border: '1px solid #E5E7EB',
+                fontSize: '0.88rem'
               }}
             />
           </div>
         </div>
 
-
         {/* Password Field with Eye Toggle */}
-        <div className="text-start" style={{ marginBottom: '12px' }}>
+        <div className="text-start mb-2.5">
           <label
             htmlFor="password"
             className="form-label mb-1.5 fw-semibold"
-            style={{ fontSize: '0.78rem', color: '#1F2937' }}
+            style={{ fontSize: '0.80rem', color: '#374151' }}
           >
             Password
           </label>
@@ -286,10 +213,10 @@ export default function SignIn() {
               style={{
                 paddingLeft: '38px',
                 paddingRight: '38px',
-                height: '40px',
+                height: '42px',
                 borderRadius: '8px',
                 border: '1px solid #E5E7EB',
-                fontSize: '0.86rem',
+                fontSize: '0.88rem',
                 backgroundColor: '#FFFFFF'
               }}
             />
@@ -303,20 +230,10 @@ export default function SignIn() {
               {showPassword ? <EyeOff size={16} color="#6B7280" /> : <Eye size={16} color="#9CA3AF" />}
             </button>
           </div>
-          {selectedRole === 'student' && (
-            <div className="mt-1.5" style={{ fontSize: '0.72rem', color: '#6B7280' }}>
-              <span>💡 Students can log in using their <strong>Mobile Number</strong> or Email, with their <strong>Mobile Number</strong> or <strong>password123</strong> as Password.</span>
-            </div>
-          )}
-          {selectedRole === 'teacher' && (
-            <div className="mt-1.5" style={{ fontSize: '0.72rem', color: '#6B7280' }}>
-              <span>💡 Teachers can log in with <strong>priya.k@shubham.edu</strong> and password <strong>password123</strong>.</span>
-            </div>
-          )}
         </div>
 
         {/* Remember Me & Forgot Password Row */}
-        <div className="d-flex align-items-center justify-content-between" style={{ marginTop: '10px', marginBottom: '16px' }}>
+        <div className="d-flex align-items-center justify-content-between mb-3 pt-0.5">
           <div className="form-check d-flex align-items-center mb-0">
             <input
               className="form-check-input mt-0"
@@ -329,7 +246,7 @@ export default function SignIn() {
             <label
               className="form-check-label text-muted ms-2"
               htmlFor="rememberMe"
-              style={{ cursor: 'pointer', fontSize: '0.78rem' }}
+              style={{ cursor: 'pointer', fontSize: '0.80rem' }}
             >
               Remember me
             </label>
@@ -337,7 +254,7 @@ export default function SignIn() {
           <Link
             to="/forgot-password"
             className="text-decoration-none fw-semibold"
-            style={{ color: '#8B1216', fontSize: '0.78rem' }}
+            style={{ color: '#8B1216', fontSize: '0.80rem' }}
           >
             Forgot Password?
           </Link>
@@ -350,9 +267,9 @@ export default function SignIn() {
           className="btn w-100 d-flex align-items-center justify-content-center gap-2 text-white fw-bold shadow-sm transition-all"
           style={{
             backgroundColor: '#7A1217',
-            borderRadius: '9px',
-            height: '42px',
-            fontSize: '0.92rem'
+            borderRadius: '8px',
+            height: '44px',
+            fontSize: '0.94rem'
           }}
           onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#640E12')}
           onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#7A1217')}
@@ -361,7 +278,7 @@ export default function SignIn() {
             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
           ) : (
             <>
-              <ArrowRight size={17} strokeWidth={2.5} />
+              <LogIn size={18} strokeWidth={2.2} />
               <span>Sign In</span>
             </>
           )}
@@ -369,29 +286,29 @@ export default function SignIn() {
       </form>
 
       {/* New student / Registration prompt */}
-      <div className="text-center mt-2 pt-0.5">
-        <span className="text-muted small" style={{ fontSize: '0.76rem' }}>
+      <div className="text-center mt-3">
+        <span className="text-muted small" style={{ fontSize: '0.78rem' }}>
           New student?{' '}
         </span>
         <Link
           to="/register"
           className="text-decoration-none fw-bold"
-          style={{ color: '#8B1216', fontSize: '0.76rem' }}
+          style={{ color: '#8B1216', fontSize: '0.78rem' }}
         >
           Contact the academy office
         </Link>
-        <span className="text-muted small" style={{ fontSize: '0.76rem' }}>
+        <span className="text-muted small" style={{ fontSize: '0.78rem' }}>
           {' '}for registration.
         </span>
       </div>
 
       {/* Security Note Divider & Badge */}
-      <div className="mt-2 pt-1.5 border-top text-center">
+      <div className="mt-3 pt-2 border-top text-center">
         <div
           className="d-inline-flex align-items-center justify-content-center gap-1.5 fw-medium"
-          style={{ color: '#16A34A', fontSize: '0.74rem' }}
+          style={{ color: '#16A34A', fontSize: '0.76rem' }}
         >
-          <ShieldCheck size={14} />
+          <ShieldCheck size={15} />
           <span>Your information is safe and secure</span>
         </div>
       </div>

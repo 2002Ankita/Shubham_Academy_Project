@@ -6,7 +6,7 @@ export default function AuthLayout() {
     <div
       className="vh-100 w-100 d-flex align-items-center justify-content-center p-2 p-sm-3 position-relative overflow-hidden no-scrollbar"
       style={{
-        backgroundColor: '#FAF6F2',
+        backgroundColor: '#EBEAE8',
         maxHeight: '100vh',
         height: '100vh'
       }}
@@ -105,8 +105,8 @@ export default function AuthLayout() {
           }}
         >
           <img
-            src="/assets/shubham-auth-banner-new.png"
-            alt="Shubham Academy - Your Dreams Our Mission"
+            src="/assets/shubham-auth-banner-v1.png"
+            alt="Shubham Academy - Learn. Grow. Succeed."
             className="w-100 h-100"
             style={{
               objectFit: 'cover',
