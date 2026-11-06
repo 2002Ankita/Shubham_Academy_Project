@@ -8,17 +8,19 @@ export default function AuthLayout() {
       style={{
         height: '100vh',
         maxHeight: '100vh',
-        backgroundColor: '#959B9B'
+        minHeight: '100vh',
+        backgroundColor: '#959B9B',
+        fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
       }}
     >
-      {/* Left Side: Full-Bleed Shubham Academy Illustration & Branding Banner (Image 1) */}
+      {/* LEFT SECTION (approximately 55–57% width) - Full-Bleed Branding & Illustration */}
       <div
         className="d-none d-lg-block position-relative overflow-hidden h-100"
         style={{
           flex: '0 0 57%',
           width: '57%',
           height: '100vh',
-          backgroundColor: '#680D10'
+          backgroundColor: '#570817'
         }}
       >
         <img
@@ -27,21 +29,21 @@ export default function AuthLayout() {
           className="w-100 h-100"
           style={{
             objectFit: 'cover',
-            objectPosition: 'center center',
+            objectPosition: 'left center',
             display: 'block'
           }}
         />
       </div>
 
-      {/* Right Side: Neutral Grey Background with Floating White Card (Image 1) */}
+      {/* RIGHT SECTION (approximately 43–45% width) - Centered Login Card */}
       <div
-        className="flex-grow-1 h-100 d-flex align-items-center justify-content-center p-3 p-sm-4 position-relative overflow-y-auto no-scrollbar"
+        className="flex-grow-1 h-100 d-flex align-items-center justify-content-center p-3 p-md-4 position-relative overflow-y-auto no-scrollbar"
         style={{
           backgroundColor: '#959B9B',
           height: '100vh'
         }}
       >
-        {/* Top-Right Decorative Smooth Vector Curves */}
+        {/* Top-Right Decorative Smooth Vector Curves (from Screenshot 1) */}
         <svg
           className="position-absolute top-0 end-0 pointer-events-none"
           width="320"
@@ -60,14 +62,14 @@ export default function AuthLayout() {
           />
         </svg>
 
-        {/* Floating White Card */}
+        {/* White Floating Login Card */}
         <div
           className="bg-white position-relative shadow-lg w-100"
           style={{
-            maxWidth: '385px',
-            borderRadius: '16px',
-            padding: '24px 26px',
-            boxShadow: '0 15px 45px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.06)',
+            maxWidth: '520px',
+            borderRadius: '20px',
+            padding: '26px 30px',
+            boxShadow: '0 15px 45px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.05)',
             zIndex: 1
           }}
         >
