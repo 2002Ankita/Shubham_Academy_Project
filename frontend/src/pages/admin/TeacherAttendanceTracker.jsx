@@ -22,6 +22,7 @@ import {
   Edit2,
   Trash2,
   ArrowRight,
+  ArrowLeft,
   Filter,
   Activity,
   Check,
@@ -679,23 +680,41 @@ export default function TeacherAttendanceTracker() {
     <div className="d-flex flex-column gap-4 w-100">
       {/* 1. Header & View Mode Switcher */}
       <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1">
-        <div className="d-flex align-items-center gap-3">
-          <BackButton to="/admin/teachers" label="Back to Faculty" />
-          <div>
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/teachers')}
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              borderColor: '#E2E8F0',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              padding: 0,
+              cursor: 'pointer'
+            }}
+            aria-label="Back to Faculty"
+            title="Back to Faculty"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0 flex-grow-1">
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
                 Teacher Check-In & Check-Out Tracking
               </h1>
               {isSuperAdmin ? (
-                <div className="d-flex align-items-center gap-1.5 ms-2">
-                  <span className="small fw-semibold text-sa-muted d-flex align-items-center gap-1">
+                <div className="d-flex align-items-center gap-1.5 ms-sm-2 flex-wrap">
+                  <span className="small fw-semibold text-sa-muted d-flex align-items-center gap-1 text-nowrap">
                     <Building2 size={14} /> Campus:
                   </span>
                   <select
                     value={selectedBranch}
                     onChange={(e) => setSelectedBranch(e.target.value)}
                     className="form-select form-select-sm shadow-xs border"
-                    style={{ minWidth: '160px', borderRadius: '8px', height: '32px', fontSize: '12px' }}
+                    style={{ minWidth: '150px', borderRadius: '8px', height: '32px', fontSize: '12px' }}
                   >
                     <option value="ALL">All Campuses</option>
                     <option value={CAMPUS.MANGALVAR_PETH}>{CAMPUS.MANGALVAR_PETH}</option>
@@ -704,7 +723,7 @@ export default function TeacherAttendanceTracker() {
                 </div>
               ) : (
                 <span
-                  className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                  className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1 text-nowrap"
                   style={{
                     backgroundColor: '#FDF0F0',
                     color: '#8B1216',
@@ -725,11 +744,11 @@ export default function TeacherAttendanceTracker() {
         </div>
 
         {/* View Mode Segmented Controls */}
-        <div className="d-flex align-items-center bg-light p-1 rounded-3 border flex-shrink-0">
+        <div className="d-flex align-items-center bg-light p-1 rounded-3 border flex-shrink-0 w-100 w-lg-auto justify-content-center justify-content-lg-start">
           <button
             type="button"
             onClick={() => setViewMode('daily')}
-            className={`btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold transition-all flex-grow-1 flex-lg-grow-0 text-nowrap ${
               viewMode === 'daily'
                 ? 'bg-white text-sa-charcoal shadow-xs border'
                 : 'text-sa-muted border-0'
@@ -743,7 +762,7 @@ export default function TeacherAttendanceTracker() {
           <button
             type="button"
             onClick={() => setViewMode('monthly')}
-            className={`btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold transition-all flex-grow-1 flex-lg-grow-0 text-nowrap ${
               viewMode === 'monthly'
                 ? 'bg-white text-sa-charcoal shadow-xs border'
                 : 'text-sa-muted border-0'

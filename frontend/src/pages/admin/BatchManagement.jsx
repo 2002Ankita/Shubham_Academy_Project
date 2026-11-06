@@ -292,17 +292,18 @@ export default function BatchManagement() {
           </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2.5">
+        <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2.5 w-100 w-md-auto">
           {/* Branch context indicator for regular Admin */}
           {!isSuperAdmin && (
             <div
-              className="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs"
+              className="d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs w-100 w-sm-auto text-nowrap"
               style={{
                 backgroundColor: effectiveCampus.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
                 border: effectiveCampus.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
                 color: effectiveCampus.toLowerCase().includes('mangal') ? '#8B1216' : '#1D4ED8',
                 fontSize: '12.5px',
-                fontWeight: 600
+                fontWeight: 600,
+                height: '40px'
               }}
             >
               <Building2 size={14} />
@@ -312,7 +313,7 @@ export default function BatchManagement() {
 
           {/* Unified Branch Filter Dropdown - Only shown to SuperAdmin */}
           {isSuperAdmin && (
-            <div className="position-relative d-inline-flex align-items-center" style={{ minWidth: '220px' }}>
+            <div className="position-relative d-inline-flex align-items-center w-100 w-sm-auto" style={{ minWidth: '200px' }}>
               <Building2
                 size={15}
                 className="position-absolute"
@@ -325,7 +326,7 @@ export default function BatchManagement() {
               <select
                 value={selectedCampus}
                 onChange={(e) => setSelectedCampus(e.target.value)}
-                className="form-select fw-semibold"
+                className="form-select fw-semibold w-100"
                 style={{
                   paddingLeft: '36px',
                   paddingRight: '32px',
@@ -350,7 +351,7 @@ export default function BatchManagement() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs"
+            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs w-100 w-sm-auto text-nowrap"
             style={{
               backgroundColor: '#8B1216',
               fontSize: '13px',
@@ -372,7 +373,7 @@ export default function BatchManagement() {
 
       {/* Batches Table Card */}
       <div className="sa-card p-4">
-        <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
           <div className="d-flex align-items-center gap-2">
             <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
               Active Batch Schedules

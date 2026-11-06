@@ -601,30 +601,47 @@ export default function DiscountApprovals() {
                     </div>
 
                     {/* Middle: Fee Breakdown */}
-                    <div className="d-flex align-items-center gap-3 px-lg-3 py-1 py-lg-0 border-start-lg border-end-lg text-nowrap">
-                      <div>
-                        <span className="text-muted d-block small" style={{ fontSize: '0.70rem' }}>Full Tuition Fee</span>
-                        <span className="fw-semibold text-secondary" style={{ fontSize: '0.86rem' }}>₹{orig.toLocaleString()}</span>
-                      </div>
-                      <div className="text-danger">
-                        <span className="d-block small" style={{ fontSize: '0.70rem' }}>Requested Concession</span>
-                        <span className="fw-bold" style={{ fontSize: '0.90rem' }}>-₹{reqDisc.toLocaleString()}</span>
-                      </div>
-                      <div className="border-start ps-3">
-                        <span className="text-muted d-block small" style={{ fontSize: '0.70rem' }}>Net Fee (If Approved)</span>
-                        <span className="fw-bold brand-font" style={{ color: '#8B1216', fontSize: '0.95rem' }}>₹{netPayableIfApproved.toLocaleString()}</span>
+                    <div
+                      className="w-100 w-lg-auto p-2 p-sm-2.5 rounded-2 border"
+                      style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }}
+                    >
+                      <div className="d-flex align-items-center justify-content-between gap-2 text-center text-sm-start flex-nowrap">
+                        <div className="flex-fill px-1 border-end" style={{ minWidth: 0 }}>
+                          <span className="text-muted d-block text-truncate" style={{ fontSize: '0.68rem', fontWeight: 500 }}>
+                            Full Fee
+                          </span>
+                          <span className="fw-semibold text-secondary d-block text-truncate" style={{ fontSize: '0.84rem' }}>
+                            ₹{orig.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex-fill px-1 border-end text-danger" style={{ minWidth: 0 }}>
+                          <span className="d-block text-truncate" style={{ fontSize: '0.68rem', fontWeight: 600 }}>
+                            Concession
+                          </span>
+                          <span className="fw-bold d-block text-truncate" style={{ fontSize: '0.88rem' }}>
+                            -₹{reqDisc.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex-fill px-1" style={{ minWidth: 0 }}>
+                          <span className="text-muted d-block text-truncate" style={{ fontSize: '0.68rem', fontWeight: 500 }}>
+                            Net Fee
+                          </span>
+                          <span className="fw-bold brand-font d-block text-truncate" style={{ color: '#8B1216', fontSize: '0.92rem' }}>
+                            ₹{netPayableIfApproved.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Right: Quick Action Buttons */}
-                    <div className="d-flex align-items-center gap-2 flex-wrap ms-lg-auto">
+                    <div className="d-flex align-items-center gap-2 flex-wrap ms-lg-auto w-100 w-lg-auto">
                       {isSuperAdmin ? (
-                        <>
+                        <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-lg-auto">
                           <button
                             type="button"
                             disabled={actionLoading}
                             onClick={() => handleApprove(s)}
-                            className="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-bold shadow-xs rounded-2"
+                            className="btn btn-sm btn-success d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-bold shadow-xs rounded-2 flex-grow-1 flex-lg-grow-0"
                             style={{ fontSize: '0.78rem' }}
                             title="Accept Requested Concession"
                           >
@@ -636,7 +653,7 @@ export default function DiscountApprovals() {
                             type="button"
                             disabled={actionLoading}
                             onClick={() => handleOpenEdit(s)}
-                            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 px-2.5 py-1.5 fw-semibold text-sa-charcoal rounded-2"
+                            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center gap-1.5 px-2.5 py-1.5 fw-semibold text-sa-charcoal rounded-2 flex-grow-1 flex-lg-grow-0"
                             style={{ fontSize: '0.78rem' }}
                             title="Edit discount amount or percentage before accepting"
                           >
@@ -648,15 +665,15 @@ export default function DiscountApprovals() {
                             type="button"
                             disabled={actionLoading}
                             onClick={() => handleOpenReject(s)}
-                            className="btn btn-sm btn-outline-danger px-2.5 py-1.5 fw-semibold rounded-2"
+                            className="btn btn-sm btn-outline-danger px-2.5 py-1.5 fw-semibold rounded-2 flex-grow-1 flex-lg-grow-0"
                             style={{ fontSize: '0.78rem' }}
                             title="Decline this concession"
                           >
                             Reject
                           </button>
-                        </>
+                        </div>
                       ) : (
-                        <span className="badge bg-light text-secondary border px-2.5 py-1.5 small" style={{ fontSize: '0.75rem' }}>
+                        <span className="badge bg-light text-secondary border px-2.5 py-1.5 small text-wrap text-sm-nowrap" style={{ fontSize: '0.75rem' }}>
                           Awaiting Superadmin Authorization
                         </span>
                       )}

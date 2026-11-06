@@ -306,29 +306,38 @@ export default function OfflineFeeRequests() {
         </div>
 
         {/* Branch Selector (Automated for Branch Admins) */}
-        <div className="d-flex align-items-center gap-2">
-          <div className="d-flex align-items-center gap-2 bg-white px-3 py-1.5 rounded-2 border shadow-xs">
-            <Building2 size={16} className="text-danger" />
-            <span className="small fw-semibold text-sa-muted">Branch:</span>
-            {isSuperAdmin ? (
-              <select
-                className="form-select form-select-sm border-0 bg-transparent fw-bold text-sa-charcoal shadow-none py-0"
-                style={{ width: 'auto', cursor: 'pointer' }}
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-              >
-                <option value="Tarabai Park">Tarabai Park Campus</option>
-                <option value="Mangalvar Peth">Mangalvar Peth Campus</option>
-                <option value="ALL">All Campuses</option>
-              </select>
-            ) : (
-              <span className="fw-semibold text-sa-charcoal" style={{ fontSize: '0.84rem' }}>
-                {selectedBranch} Campus
-              </span>
-            )}
+        <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
+          <div className="d-flex align-items-center justify-content-between justify-content-sm-start gap-2 bg-white px-3 py-1.5 rounded-2 border shadow-xs w-100 w-sm-auto" style={{ minHeight: '38px' }}>
+            <div className="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0">
+              <Building2 size={16} className="text-danger flex-shrink-0" />
+              <span className="small fw-semibold text-sa-muted text-nowrap">Branch:</span>
+              {isSuperAdmin ? (
+                <select
+                  className="form-select form-select-sm border-0 bg-transparent fw-bold text-sa-charcoal shadow-none py-0 flex-grow-1 flex-sm-grow-0"
+                  style={{ width: 'auto', cursor: 'pointer' }}
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                >
+                  <option value="Tarabai Park">Tarabai Park Campus</option>
+                  <option value="Mangalvar Peth">Mangalvar Peth Campus</option>
+                  <option value="ALL">All Campuses</option>
+                </select>
+              ) : (
+                <span className="fw-semibold text-sa-charcoal text-nowrap" style={{ fontSize: '0.84rem' }}>
+                  {selectedBranch} Campus
+                </span>
+              )}
+            </div>
           </div>
 
-          <Button variant="outline" icon={RefreshCw} onClick={fetchRequests} loading={loading}>
+          <Button
+            variant="outline"
+            icon={RefreshCw}
+            onClick={fetchRequests}
+            loading={loading}
+            className="w-100 w-sm-auto justify-content-center"
+            style={{ height: '38px' }}
+          >
             Refresh
           </Button>
         </div>
@@ -421,7 +430,7 @@ export default function OfflineFeeRequests() {
 
       {/* Requests Table */}
       <div className="sa-card p-4 border shadow-sm">
-        <div className="d-flex align-items-center justify-content-between mb-3">
+        <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
           <div className="d-flex align-items-center gap-2">
             <FileCheck size={18} className="text-danger" />
             <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">

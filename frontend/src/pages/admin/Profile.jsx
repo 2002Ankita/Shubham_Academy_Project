@@ -344,39 +344,42 @@ export default function AdminProfile() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="d-flex gap-2 border-top mt-4 pt-3">
+        <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 border-top mt-4 pt-3">
           <button
             type="button"
-            className={`btn btn-sm px-3 py-2 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm px-3 py-2.5 rounded-2 fw-semibold transition-all text-nowrap d-inline-flex align-items-center justify-content-center justify-content-md-start w-100 w-md-auto ${
               activeTab === 'profile'
                 ? 'btn-sa-primary text-white shadow-xs'
-                : 'btn-light bg-transparent text-sa-charcoal'
+                : 'btn-light bg-white text-sa-charcoal border'
             }`}
             onClick={() => setActiveTab('profile')}
           >
-            <User size={15} className="me-1.5" /> Profile & Center Details
+            <User size={15} className="me-2 flex-shrink-0" />
+            <span>Profile & Center Details</span>
           </button>
           <button
             type="button"
-            className={`btn btn-sm px-3 py-2 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm px-3 py-2.5 rounded-2 fw-semibold transition-all text-nowrap d-inline-flex align-items-center justify-content-center justify-content-md-start w-100 w-md-auto ${
               activeTab === 'security'
                 ? 'btn-sa-primary text-white shadow-xs'
-                : 'btn-light bg-transparent text-sa-charcoal'
+                : 'btn-light bg-white text-sa-charcoal border'
             }`}
             onClick={() => setActiveTab('security')}
           >
-            <Lock size={15} className="me-1.5" /> Security & Password
+            <Lock size={15} className="me-2 flex-shrink-0" />
+            <span>Security & Password</span>
           </button>
           <button
             type="button"
-            className={`btn btn-sm px-3 py-2 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm px-3 py-2.5 rounded-2 fw-semibold transition-all text-nowrap d-inline-flex align-items-center justify-content-center justify-content-md-start w-100 w-md-auto ${
               activeTab === 'permissions'
                 ? 'btn-sa-primary text-white shadow-xs'
-                : 'btn-light bg-transparent text-sa-charcoal'
+                : 'btn-light bg-white text-sa-charcoal border'
             }`}
             onClick={() => setActiveTab('permissions')}
           >
-            <Shield size={15} className="me-1.5" /> Role & Module Access
+            <Shield size={15} className="me-2 flex-shrink-0" />
+            <span>Role & Module Access</span>
           </button>
         </div>
       </div>
