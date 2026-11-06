@@ -6,7 +6,7 @@ export default function AuthLayout() {
     <div
       className="vh-100 w-100 d-flex align-items-center justify-content-center p-2 p-sm-3 position-relative overflow-hidden no-scrollbar"
       style={{
-        backgroundColor: '#EBEAE8',
+        backgroundColor: '#FAF6F2',
         maxHeight: '100vh',
         height: '100vh'
       }}
@@ -86,20 +86,20 @@ export default function AuthLayout() {
       <div
         className="bg-white d-flex flex-column flex-lg-row overflow-hidden shadow-lg position-relative"
         style={{
-          width: 'min(1100px, 95vw)',
-          height: 'min(585px, 94vh)',
-          borderRadius: '26px',
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04)',
+          width: 'min(1120px, 95vw)',
+          height: 'min(620px, 96vh)',
+          borderRadius: '24px',
+          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.04)',
           border: '1px solid rgba(255, 255, 255, 0.9)',
           zIndex: 2
         }}
       >
-        {/* Left Side: Brand New Shubham Academy Illustration (Edge-to-Edge with Cover to eliminate any gap/line) */}
+        {/* Left Side: Shubham Academy Learn. Grow. Succeed. Branding & Illustration */}
         <div
           className="d-none d-lg-block position-relative overflow-hidden h-100"
           style={{
-            flex: '0 0 min(555px, 50.5%)',
-            width: 'min(555px, 50.5%)',
+            flex: '0 0 min(560px, 50.5%)',
+            width: 'min(560px, 50.5%)',
             height: '100%',
             backgroundColor: '#680D10'
           }}
@@ -118,14 +118,14 @@ export default function AuthLayout() {
 
         {/* Right Side: Form (Outlet) */}
         <div
-          className="d-flex align-items-center justify-content-center p-3 p-sm-4 p-xl-4 bg-white h-100 overflow-y-auto no-scrollbar"
+          className="d-flex align-items-center justify-content-center p-3 p-sm-4 bg-white h-100 overflow-y-auto no-scrollbar"
           style={{
             flex: '1 1 auto',
             width: '100%',
             height: '100%'
           }}
         >
-          <div className="w-100" style={{ maxWidth: '425px' }}>
+          <div className="w-100" style={{ maxWidth: '430px' }}>
             <Outlet />
           </div>
         </div>
