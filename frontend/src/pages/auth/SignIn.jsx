@@ -136,8 +136,8 @@ export default function SignIn() {
       {/* Campus / Department Selection (Preserved as Required) */}
       <div className="d-flex align-items-center justify-content-between mb-2.5 pb-1">
         <label
-          className="form-label d-block text-start mb-0 fw-semibold"
-          style={{ fontSize: '0.76rem', color: '#374151' }}
+          className="form-label d-block text-start mb-0 fw-bold"
+          style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1F2937' }}
         >
           Campus / Department
         </label>
@@ -147,10 +147,10 @@ export default function SignIn() {
             className="btn btn-sm py-1 px-2.5 transition-all d-flex align-items-center gap-1.5"
             style={{
               fontSize: '0.72rem',
-              fontWeight: selectedCampus === 'Mangalvar Peth' ? '700' : '500',
+              fontWeight: '700',
               backgroundColor: selectedCampus === 'Mangalvar Peth' ? '#800F19' : '#FFFFFF',
-              color: selectedCampus === 'Mangalvar Peth' ? '#FFFFFF' : '#4B5563',
-              border: selectedCampus === 'Mangalvar Peth' ? '1px solid #800F19' : '1px solid #DDE2EA',
+              color: selectedCampus === 'Mangalvar Peth' ? '#FFFFFF' : '#374151',
+              border: selectedCampus === 'Mangalvar Peth' ? '1.5px solid #800F19' : '1px solid #DDE2EA',
               borderRadius: '7px',
               boxShadow: selectedCampus === 'Mangalvar Peth' ? '0 2px 5px rgba(128, 15, 25, 0.2)' : 'none'
             }}
@@ -164,10 +164,10 @@ export default function SignIn() {
             className="btn btn-sm py-1 px-2.5 transition-all d-flex align-items-center gap-1.5"
             style={{
               fontSize: '0.72rem',
-              fontWeight: selectedCampus === 'Tarabai Park' ? '700' : '500',
+              fontWeight: '700',
               backgroundColor: selectedCampus === 'Tarabai Park' ? '#800F19' : '#FFFFFF',
-              color: selectedCampus === 'Tarabai Park' ? '#FFFFFF' : '#4B5563',
-              border: selectedCampus === 'Tarabai Park' ? '1px solid #800F19' : '1px solid #DDE2EA',
+              color: selectedCampus === 'Tarabai Park' ? '#FFFFFF' : '#374151',
+              border: selectedCampus === 'Tarabai Park' ? '1.5px solid #800F19' : '1px solid #DDE2EA',
               borderRadius: '7px',
               boxShadow: selectedCampus === 'Tarabai Park' ? '0 2px 5px rgba(128, 15, 25, 0.2)' : 'none'
             }}
@@ -182,8 +182,8 @@ export default function SignIn() {
       {/* Role Selector: Sign in as (4 Roles in One Row - No Truncation) */}
       <div className="mb-3">
         <label
-          className="form-label d-block text-start mb-1.5 fw-semibold"
-          style={{ fontSize: '0.76rem', color: '#374151' }}
+          className="form-label d-block text-start mb-1.5 fw-bold"
+          style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1F2937' }}
         >
           Sign in as
         </label>
@@ -215,7 +215,7 @@ export default function SignIn() {
                     className="w-100 text-center d-block px-0.5"
                     style={{
                       fontSize: '0.71rem',
-                      fontWeight: isSelected ? '700' : '500',
+                      fontWeight: isSelected ? '700' : '600',
                       lineHeight: 1.15,
                       whiteSpace: 'normal',
                       overflow: 'visible',
@@ -237,8 +237,8 @@ export default function SignIn() {
         <div className="text-start mb-2.5">
           <label
             htmlFor="email"
-            className="form-label mb-1 fw-semibold"
-            style={{ fontSize: '0.76rem', color: '#374151' }}
+            className="form-label mb-1 fw-bold"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1F2937' }}
           >
             Email Address
           </label>
@@ -272,8 +272,8 @@ export default function SignIn() {
         <div className="text-start mb-2">
           <label
             htmlFor="password"
-            className="form-label mb-1 fw-semibold"
-            style={{ fontSize: '0.76rem', color: '#374151' }}
+            className="form-label mb-1 fw-bold"
+            style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1F2937' }}
           >
             Password
           </label>
