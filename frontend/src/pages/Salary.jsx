@@ -119,20 +119,26 @@ export default function Salary() {
 
   const displayPeriod = selectedMonth || (activeSalary?.month) || currentMonthName;
 
-  const summary = activeSalary ? {
-    currentMonthSalary: `₹${safeNum(activeSalary.netPayable).toLocaleString()}`,
-    payPeriod: displayPeriod,
-    amountPaid: `₹${safeNum(activeSalary.amountPaid).toLocaleString()}`,
-    amountPaidSubtext: 'Total received this month',
-    amountPending: `₹${safeNum(activeSalary.amountPending).toLocaleString()}`,
-    amountPendingSubtext: 'Remaining balance',
-    workingHours: activeSalary.workingHours ? `${activeSalary.workingHours} hrs` : '160 hrs',
-    workingHoursSubtext: activeSalary.workingHoursSubtext || 'Standard monthly quota',
-    hourlyRate: activeSalary.hourlyRate ? `₹${activeSalary.hourlyRate}` : '₹' + Math.round(safeNum(activeSalary.baseSalary) / 160).toString(),
-    hourlyRateSubtext: activeSalary.hourlyRateSubtext || 'Standard slab rate',
-    paymentStatus: activeSalary.status || 'N/A',
-    paymentStatusSubtext: activeSalary?.status === 'Disbursed' ? 'Fully paid' : activeSalary?.status === 'Partially Paid' ? 'Installment received' : activeSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
-  } : {
+  const summary = activeSalary ? (() => {
+    const isPaid = activeSalary.status === 'Disbursed' || activeSalary.status === 'Fully Paid';
+    const net = safeNum(activeSalary.netPayable);
+    const paid = isPaid ? (safeNum(activeSalary.amountPaid) || net) : safeNum(activeSalary.amountPaid);
+    const pend = isPaid ? 0 : (activeSalary.amountPending != null ? safeNum(activeSalary.amountPending) : Math.max(0, net - paid));
+    return {
+      currentMonthSalary: `₹${net.toLocaleString()}`,
+      payPeriod: displayPeriod,
+      amountPaid: `₹${paid.toLocaleString()}`,
+      amountPaidSubtext: isPaid ? 'Fully disbursed' : 'Total received this month',
+      amountPending: `₹${pend.toLocaleString()}`,
+      amountPendingSubtext: isPaid ? 'No pending balance' : 'Remaining balance',
+      workingHours: activeSalary.workingHours ? `${activeSalary.workingHours} hrs` : '160 hrs',
+      workingHoursSubtext: activeSalary.workingHoursSubtext || 'Standard monthly quota',
+      hourlyRate: activeSalary.hourlyRate ? `₹${activeSalary.hourlyRate}` : '₹' + Math.round(safeNum(activeSalary.baseSalary) / 160).toString(),
+      hourlyRateSubtext: activeSalary.hourlyRateSubtext || 'Standard slab rate',
+      paymentStatus: isPaid ? 'Disbursed' : (activeSalary.status || 'N/A'),
+      paymentStatusSubtext: isPaid ? 'Fully paid' : activeSalary?.status === 'Partially Paid' ? 'Installment received' : activeSalary?.status === 'Paid' ? 'Successfully deposited' : 'Pending',
+    };
+  })() : {
     currentMonthSalary: '₹0',
     payPeriod: displayPeriod,
     amountPaid: '₹0',
@@ -174,17 +180,23 @@ export default function Salary() {
     payPeriod: displayPeriod
   };
 
-  const history = salaries.map(s => ({
-    month: s.month || 'N/A',
-    workingHours: `${Math.round(safeNum(s.workingHours || 160))} hrs`,
-    grossSalary: `₹${(safeNum(s.baseSalary) + safeNum(s.allowances)).toLocaleString()}`,
-    deductions: safeNum(s.deductions).toLocaleString(),
-    netSalary: safeNum(s.netPayable),
-    amountPending: safeNum(s.amountPending),
-    paymentDate: s.disbursedDate && s.disbursedDate !== '--' ? s.disbursedDate : 'Pending',
-    status: s.status || 'Processing',
-    installments: s.installments || []
-  })).reverse();
+  const history = salaries.map(s => {
+    const isPaid = s.status === 'Disbursed' || s.status === 'Fully Paid';
+    const net = safeNum(s.netPayable);
+    const paid = isPaid ? (safeNum(s.amountPaid) || net) : safeNum(s.amountPaid);
+    const pend = isPaid ? 0 : (s.amountPending != null ? safeNum(s.amountPending) : Math.max(0, net - paid));
+    return {
+      month: s.month || 'N/A',
+      workingHours: `${Math.round(safeNum(s.workingHours || 160))} hrs`,
+      grossSalary: `₹${(safeNum(s.baseSalary) + safeNum(s.allowances)).toLocaleString()}`,
+      deductions: safeNum(s.deductions).toLocaleString(),
+      netSalary: net,
+      amountPending: pend,
+      paymentDate: s.disbursedDate && s.disbursedDate !== '--' ? s.disbursedDate : (isPaid ? 'Completed' : 'Pending'),
+      status: isPaid ? 'Disbursed' : (s.status || 'Processing'),
+      installments: s.installments || []
+    };
+  }).reverse();
 
   const handleDownloadReceipt = (monthToDownload) => {
     const targetMonth = monthToDownload || selectedMonth || displayPeriod;

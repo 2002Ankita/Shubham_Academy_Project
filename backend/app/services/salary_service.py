@@ -43,6 +43,31 @@ async def _format_salary(s: SalaryPayment) -> dict:
 
     subjects = ", ".join(teacher_obj.subjects) if teacher_obj and getattr(teacher_obj, 'subjects', None) else "General"
 
+    raw_status = s.status or "Processing"
+    is_disbursed = raw_status in ["Disbursed", "Fully Paid"]
+    
+    inst_list = getattr(s, 'installments', []) or []
+    inst_total = sum(float(inst.amount or 0.0) for inst in inst_list) if inst_list else 0.0
+
+    current_paid = float(getattr(s, 'amount_paid', 0.0) or 0.0)
+    if inst_total > current_paid:
+        current_paid = inst_total
+
+    if is_disbursed:
+        if current_paid <= 0.0 and s.net_payable > 0.0:
+            current_paid = float(s.net_payable)
+        amount_pending = 0.0
+        final_status = "Disbursed"
+    elif current_paid >= float(s.net_payable) and float(s.net_payable) > 0.0:
+        amount_pending = 0.0
+        final_status = "Disbursed"
+    elif current_paid > 0.0:
+        amount_pending = max(0.0, float(s.net_payable) - current_paid)
+        final_status = "Partially Paid"
+    else:
+        amount_pending = max(0.0, float(s.net_payable))
+        final_status = raw_status
+
     return {
         "id": str(s.id),
         "teacherId": str(teacher_obj.id) if teacher_obj else "",
@@ -54,9 +79,9 @@ async def _format_salary(s: SalaryPayment) -> dict:
         "deductions": s.deductions,
         "netPayable": s.net_payable,
         "workingHours": getattr(s, 'working_hours', 160.0),
-        "amountPaid": getattr(s, 'amount_paid', 0.0),
-        "amountPending": max(0.0, s.net_payable - getattr(s, 'amount_paid', 0.0)),
-        "status": s.status,
+        "amountPaid": current_paid,
+        "amountPending": amount_pending,
+        "status": final_status,
         "disbursedDate": s.disbursed_date.strftime("%Y-%m-%d") if s.disbursed_date else "--",
         "transactionRef": s.transaction_ref,
         "installments": [
@@ -65,7 +90,7 @@ async def _format_salary(s: SalaryPayment) -> dict:
                 "date": inst.date.strftime("%Y-%m-%d %H:%M"),
                 "transactionRef": inst.transaction_ref
             }
-            for inst in getattr(s, 'installments', [])
+            for inst in inst_list
         ]
     }
 
@@ -209,7 +234,14 @@ async def update_salary(id: str, base_salary: float, allowances: float, deductio
         s.allowances = allowances
         s.deductions = deductions
         s.net_payable = net_payable
-        s.amount_pending = net_payable - getattr(s, 'amount_paid', 0.0)
+        current_paid = float(getattr(s, 'amount_paid', 0.0) or 0.0)
+        if s.status in ["Disbursed", "Fully Paid"]:
+            s.amount_paid = net_payable
+            s.amount_pending = 0.0
+        else:
+            s.amount_pending = max(0.0, net_payable - current_paid)
+            if s.amount_pending == 0.0 and current_paid > 0:
+                s.status = "Disbursed"
         await s.save()
         return await _format_salary(s)
     except:

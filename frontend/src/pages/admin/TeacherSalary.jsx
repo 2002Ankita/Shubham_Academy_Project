@@ -121,14 +121,15 @@ export default function TeacherSalary() {
     let pendingCount = 0;
 
     dataset.forEach((s) => {
+      const isPaid = s.status === 'Disbursed' || s.status === 'Fully Paid';
       const net = Number(s.netPayable) || 0;
-      const paid = Number(s.amountPaid) || 0;
-      const pend = Number(s.amountPending) || Math.max(0, net - paid);
+      const paid = isPaid ? (Number(s.amountPaid) || net) : (Number(s.amountPaid) || 0);
+      const pend = isPaid ? 0 : (s.amountPending != null ? Number(s.amountPending) : Math.max(0, net - paid));
       totalGross += (Number(s.baseSalary) || 0) + (Number(s.allowances) || 0);
       totalNet += net;
       totalPaid += paid;
       totalPending += pend;
-      if (s.status === 'Disbursed' || s.status === 'Fully Paid') {
+      if (isPaid) {
         fullyPaidCount++;
       } else {
         pendingCount++;
@@ -547,10 +548,14 @@ export default function TeacherSalary() {
                     className="small fw-medium"
                     style={{
                       fontSize: '11px',
-                      color: Number(row.amountPending || 0) > 0 ? '#B45309' : '#16A34A'
+                      color: (row.status === 'Disbursed' || row.status === 'Fully Paid' || Number(row.amountPending || 0) <= 0) ? '#16A34A' : '#B45309'
                     }}
                   >
-                    Pending: ₹ {Number(row.amountPending ?? (Number(val || 0) - Number(row.amountPaid || 0))).toLocaleString()}
+                    Pending: ₹ {Number(
+                      (row.status === 'Disbursed' || row.status === 'Fully Paid')
+                        ? 0
+                        : (row.amountPending != null ? row.amountPending : Math.max(0, Number(val || 0) - Number(row.amountPaid || 0)))
+                    ).toLocaleString()}
                   </span>
                 </div>
               )

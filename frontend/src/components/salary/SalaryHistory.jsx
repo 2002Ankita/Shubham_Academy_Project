@@ -94,7 +94,15 @@ export default function SalaryHistory({ history }) {
                   <td className="fw-bold text-sa-charcoal" style={{ whiteSpace: 'nowrap' }}>
                     <div>
                       <span className="d-block">₹{row.netSalary.toLocaleString()}</span>
-                      <span className="text-muted small fw-normal" style={{ fontSize: '11px' }}>Pending: ₹{row.amountPending.toLocaleString()}</span>
+                      <span
+                        className="small fw-medium"
+                        style={{
+                          fontSize: '11px',
+                          color: Number(row.amountPending || 0) > 0 ? '#B45309' : '#16A34A'
+                        }}
+                      >
+                        Pending: ₹{Number(row.amountPending || 0).toLocaleString()}
+                      </span>
                     </div>
                   </td>
                   <td className="text-sa-muted" style={{ whiteSpace: 'nowrap' }}>
