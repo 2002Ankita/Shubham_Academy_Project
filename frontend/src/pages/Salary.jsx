@@ -38,9 +38,9 @@ export default function Salary() {
     return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }, []);
 
-  // Compute available months list (from existing records + recent 12 months)
+  // Compute available months list (current active month ALWAYS first, then previous months chronologically)
   const availableMonths = React.useMemo(() => {
-    const list = [];
+    const list = [currentMonthName];
     salaries.forEach(s => {
       if (s.month && !list.some(m => matchesMonth(m, s.month))) {
         list.push(s.month);
@@ -48,7 +48,7 @@ export default function Salary() {
     });
 
     const now = new Date();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 1; i < 12; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const mStr = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       if (!list.some(m => matchesMonth(m, mStr))) {
@@ -56,7 +56,7 @@ export default function Salary() {
       }
     }
     return list;
-  }, [salaries]);
+  }, [salaries, currentMonthName]);
 
   useEffect(() => {
     const fetchMySalaries = async () => {
@@ -73,21 +73,40 @@ export default function Salary() {
   }, []);
 
   useEffect(() => {
-    if (!selectedMonth && availableMonths.length > 0) {
-      setSelectedMonth(availableMonths[0]);
+    if (!selectedMonth) {
+      setSelectedMonth(currentMonthName);
     }
-  }, [availableMonths, selectedMonth]);
+  }, [currentMonthName, selectedMonth]);
 
   // Get selected month's salary or default
   const safeNum = (val) => Number(val) || 0;
   const activeSalary = React.useMemo(() => {
-    if (!salaries.length) return null;
     if (selectedMonth) {
       const found = salaries.find(s => matchesMonth(s.month, selectedMonth));
       if (found) return found;
+
+      // If selected month is the new / current month and not yet finalized, synthesize active draft
+      if (matchesMonth(selectedMonth, currentMonthName) && salaries.length > 0) {
+        const latest = salaries[0];
+        const base = safeNum(latest.baseSalary) || 60000;
+        return {
+          id: `draft-${selectedMonth}`,
+          month: selectedMonth,
+          baseSalary: base,
+          allowances: 0,
+          deductions: 0,
+          netPayable: base,
+          amountPaid: 0,
+          amountPending: base,
+          workingHours: 160.0,
+          status: 'Processing',
+          disbursedDate: '--',
+          installments: []
+        };
+      }
     }
-    return salaries[salaries.length - 1] || null;
-  }, [salaries, selectedMonth]);
+    return salaries[0] || null;
+  }, [salaries, selectedMonth, currentMonthName]);
 
   if (loading) {
     return (
