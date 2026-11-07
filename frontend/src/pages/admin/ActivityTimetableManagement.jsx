@@ -42,6 +42,12 @@ import teacherService from '../../services/teacherService';
 import { notificationService } from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch, normalizeBranch, CAMPUS } from '../../utils/branchUtils';
+import {
+  formatStandardTimeRange,
+  timesMatch,
+  getMinutesFromTimeString,
+  expandDaysList
+} from '../../utils/timeScheduleUtils';
 
 export default function ActivityTimetableManagement() {
   const { user } = useAuth();
@@ -1404,35 +1410,22 @@ export default function ActivityTimetableManagement() {
       '12:00 PM – 01:00 PM',
       '03:00 PM – 04:00 PM'
     ];
-    const slotSet = new Set(defaultSlots);
+    const slotSet = new Set();
+    defaultSlots.forEach((s) => slotSet.add(formatStandardTimeRange(s)));
     allTimetableSlots.forEach((s) => {
       if (s.time) {
-        slotSet.add(s.time);
+        slotSet.add(formatStandardTimeRange(s.time));
       }
     });
 
-    const parseMinutes = (timeStr) => {
-      if (!timeStr) return 0;
-      const match = timeStr.match(/(\\d+):(\\d+)\\s*(AM|PM)?/i);
-      if (!match) return 0;
-      let hours = parseInt(match[1], 10);
-      const minutes = parseInt(match[2], 10);
-      const meridiem = (match[3] || '').toUpperCase();
-      if (meridiem === 'PM' && hours < 12) hours += 12;
-      if (meridiem === 'AM' && hours === 12) hours = 0;
-      return hours * 60 + minutes;
-    };
-
-    return Array.from(slotSet).sort((a, b) => parseMinutes(a) - parseMinutes(b));
+    return Array.from(slotSet).sort((a, b) => getMinutesFromTimeString(a) - getMinutesFromTimeString(b));
   }, [allTimetableSlots]);
 
   const timetableWeekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const getSlotsForDayAndTime = (dayName, timeSlot) => {
-    const norm = (t) => (t || '').replace(/\\s+/g, ' ').replace(/[-–—]/g, '-').trim().toLowerCase();
-    const targetNorm = norm(timeSlot);
     return filteredTimetableSlots.filter(
-      (s) => s.day.toLowerCase() === dayName.toLowerCase() && norm(s.time) === targetNorm
+      (s) => s.day && s.day.toLowerCase() === dayName.toLowerCase() && timesMatch(s.time, timeSlot)
     );
   };
 
@@ -1599,7 +1592,7 @@ export default function ActivityTimetableManagement() {
       const teacher = timetableForm.teacherName || defaultFacultyBySubject[timetableForm.subject] || 'More A.D';
       const slotPayload = {
         day: timetableForm.day,
-        time: timetableForm.timeSlot.replace(/[-–—]/g, '–').replace(/\\s+/g, ' ').trim(),
+        time: formatStandardTimeRange(timetableForm.timeSlot),
         subject: timetableForm.subject,
         teacher_name: teacher,
         batch: timetableForm.batch,

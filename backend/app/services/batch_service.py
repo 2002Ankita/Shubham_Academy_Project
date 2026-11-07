@@ -156,17 +156,20 @@ async def ensure_default_batches():
                     standard="11th Science",
                     subject="Physics, Chemistry, Mathematics",
                     room="Hall 1 (Mangalvar Peth)",
-                    time="08:00 AM – 10:30 AM",
+                    time="10:30 AM – 01:00 PM",
                     student_count=24,
                     teacher_name=t_name,
                     teacher=teacher_priya,
                     batch_name="11-PCM-MP",
                     class_code="11-PCM-MP",
-                    days=["Monday", "Wednesday", "Friday"],
+                    days=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
                     timetable=[
-                        {"day": "Monday", "time": "08:00 AM – 10:30 AM", "room": "Hall 1", "subject": "Physics", "class_code": "11-PCM-MP"},
-                        {"day": "Wednesday", "time": "08:00 AM – 10:30 AM", "room": "Hall 1", "subject": "Physics", "class_code": "11-PCM-MP"},
-                        {"day": "Friday", "time": "08:00 AM – 10:30 AM", "room": "Hall 1", "subject": "Physics", "class_code": "11-PCM-MP"}
+                        {"day": "Monday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"},
+                        {"day": "Tuesday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"},
+                        {"day": "Wednesday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"},
+                        {"day": "Thursday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"},
+                        {"day": "Friday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"},
+                        {"day": "Saturday", "time": "10:30 AM – 01:00 PM", "room": "Hall 1 (Mangalvar Peth)", "subject": "Mathematics", "class_code": "11-PCM-MP"}
                     ],
                     academic_year="2025-2026",
                     branch="Mangalvar Peth",
@@ -336,7 +339,7 @@ def _format_batch(b: Batch) -> dict:
         "teacher_id": tid_str,
         "batch_name": b.batch_name or (b.name.split("Batch")[1].strip() if "Batch" in b.name else "A"),
         "class_code": b.class_code or f"{b.standard[:2]}-{b.batch_name or 'A'}",
-        "days": b.days or ["Monday", "Wednesday", "Friday"],
+        "days": b.days or ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
         "timetable": b.timetable or [],
         "academic_year": getattr(b, "academic_year", "2025-2026"),
         "branch": getattr(b, "branch", "Tarabai Park"),
@@ -462,20 +465,47 @@ async def create_batch(data: dict) -> dict:
         else:
             branch = "Mangalvar Peth"
 
+    active_days = data.get("days") or ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    clean_time = data.get("time", "10:30 AM – 01:00 PM")
+    if clean_time and "." in clean_time:
+        clean_time = re.sub(r'(\d+)\.(\d+)', r'\1:\2', clean_time)
+    if clean_time:
+        clean_time = clean_time.replace("ro", "to")
+
+    sub_single = data["subject"].split(",")[0].strip() if "," in data["subject"] else data["subject"]
+    code_val = data.get("class_code") or data.get("batch_name") or "A"
+    t_name_val = data.get("teacher_name") or (teacher.user.full_name if teacher and isinstance(teacher.user, User) else "")
+    room_val = data.get("room", "Hall 1 (Mangalvar Peth)")
+
+    timetable_slots = data.get("timetable")
+    if not timetable_slots:
+        timetable_slots = [
+            {
+                "day": d,
+                "time": clean_time,
+                "room": room_val,
+                "subject": sub_single,
+                "class_code": code_val,
+                "teacher_name": t_name_val,
+                "branch": branch
+            }
+            for d in active_days
+        ]
+
     batch = Batch(
         name=data["name"],
         standard=data["standard"],
         subject=data["subject"],
-        room=data.get("room", "Room 201"),
-        time=data.get("time", "09:00 AM – 10:00 AM"),
+        room=room_val,
+        time=clean_time,
         date=data.get("date"),
         student_count=int(data.get("student_count", 0)),
-        teacher_name=data.get("teacher_name") or (teacher.user.full_name if teacher and isinstance(teacher.user, User) else ""),
+        teacher_name=t_name_val,
         teacher=teacher,
         batch_name=data.get("batch_name") or "A",
-        class_code=data.get("class_code"),
-        days=data.get("days") or ["Monday", "Wednesday", "Friday"],
-        timetable=data.get("timetable") or [],
+        class_code=code_val,
+        days=active_days,
+        timetable=timetable_slots,
         academic_year=data.get("academic_year", "2025-2026"),
         branch=branch,
         status=data.get("status", "Active")
@@ -544,6 +574,38 @@ async def update_batch(batch_id: str, data: dict) -> dict:
             continue
         if hasattr(b, k):
             setattr(b, k, v)
+
+    # Standardize time if updated or present
+    if b.time:
+        if "." in b.time:
+            b.time = re.sub(r'(\d+)\.(\d+)', r'\1:\2', b.time)
+        b.time = b.time.replace("ro", "to")
+
+    # If days is provided or empty, synchronize days & timetable
+    if data.get("days"):
+        b.days = data["days"]
+    elif not b.days:
+        b.days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+    # When time, days, room, teacher or subject are updated, re-sync b.timetable so all days have active slots
+    if "time" in data or "days" in data or "room" in data or "subject" in data or not b.timetable:
+        sub_single = b.subject.split(",")[0].strip() if (b.subject and "," in b.subject) else (b.subject or "Core Subject")
+        code_val = b.class_code or b.batch_name or b.name
+        t_name_val = b.teacher_name or ""
+        room_val = b.room or "Hall 1 (Mangalvar Peth)"
+
+        b.timetable = [
+            {
+                "day": d,
+                "time": b.time or "10:30 AM – 01:00 PM",
+                "room": room_val,
+                "subject": sub_single,
+                "class_code": code_val,
+                "teacher_name": t_name_val,
+                "branch": b.branch
+            }
+            for d in b.days
+        ]
 
     teacher_target = data.get("teacher_id") or data.get("teacher_name")
     if teacher_target:

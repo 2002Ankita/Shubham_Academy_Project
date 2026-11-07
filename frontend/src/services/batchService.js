@@ -63,7 +63,8 @@ const batchService = {
           time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
           student_count: 24 + (idx * 2),
           teacher_name: 'Dr. Priya Kulkarni',
-          branch: 'Mangalvar Peth'
+          branch: 'Mangalvar Peth',
+          days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         }));
         const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
           id: `batch-seed-tp-${idx + 1}`,
@@ -74,7 +75,8 @@ const batchService = {
           time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
           student_count: 26 + (idx * 2),
           teacher_name: 'Prof. Rajesh Sharma',
-          branch: 'Tarabai Park'
+          branch: 'Tarabai Park',
+          days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         }));
         let allFallback = [...mpBatches, ...tpBatches];
         if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {
@@ -94,7 +96,8 @@ const batchService = {
         time: idx % 2 === 0 ? '08:00 AM – 10:30 AM' : '10:30 AM – 01:00 PM',
         student_count: 24 + (idx * 2),
         teacher_name: 'Dr. Priya Kulkarni',
-        branch: 'Mangalvar Peth'
+        branch: 'Mangalvar Peth',
+        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       }));
       const tpBatches = TARABAI_BATCHES.map((name, idx) => ({
         id: `batch-seed-tp-${idx + 1}`,
@@ -105,7 +108,8 @@ const batchService = {
         time: idx % 2 === 0 ? '09:00 AM – 11:30 AM' : '02:00 PM – 04:30 PM',
         student_count: 26 + (idx * 2),
         teacher_name: 'Prof. Rajesh Sharma',
-        branch: 'Tarabai Park'
+        branch: 'Tarabai Park',
+        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       }));
       let allFallback = [...mpBatches, ...tpBatches];
       if (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All') {

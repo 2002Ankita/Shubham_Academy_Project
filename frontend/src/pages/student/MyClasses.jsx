@@ -156,6 +156,13 @@ export default function StudentClasses() {
               subject: 'Mathematics Problem Solving & Doubt Clearance',
               teacher: 'Prof. veer 1',
               room: isMangalvar ? 'Hall 2 (Mangalvar Peth)' : 'Room 104'
+            },
+            {
+              day: 'Saturday',
+              time: isMangalvar ? '10:30 AM – 01:00 PM' : '10:30 AM – 01:00 PM',
+              subject: 'Mathematics Weekly Evaluation & Problem Solving',
+              teacher: 'Prof. veer 1',
+              room: isMangalvar ? 'Hall 1 (Mangalvar Peth)' : 'Hall 101'
             }
           ].filter(item => {
             if (studentStream === 'pcm' && item.subject.includes('Biology')) return false;

@@ -10,6 +10,11 @@ import teacherService from '../../services/teacherService';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch, normalizeBranch, filterBatchesByBranch, CAMPUS } from '../../utils/branchUtils';
+import {
+  formatStandardTimeRange,
+  expandDaysList,
+  ALL_STANDARD_WEEKDAYS
+} from '../../utils/timeScheduleUtils';
 
 export default function BatchManagement() {
   const { user } = useAuth();
@@ -39,7 +44,8 @@ export default function BatchManagement() {
     branch: userBranch,
     subject: 'Physics, Chemistry, Mathematics',
     room: '',
-    time: '08:00 AM – 10:30 AM',
+    time: '10:30 AM – 01:00 PM',
+    days: ALL_STANDARD_WEEKDAYS,
     date: '',
     student_count: 24,
     teacher_name: ''
@@ -135,9 +141,13 @@ export default function BatchManagement() {
       const stdNum = String(formData.standard || '').includes('12') ? '12' : '11';
       const branchCode = String(formData.branch || '').toLowerCase().includes('mangal') ? 'MP' : 'TP';
       const code = `${stdNum}-${formData.section}-${branchCode}`;
+      const formattedTime = formatStandardTimeRange(formData.time || '10:30 AM – 01:00 PM');
+      const activeDays = expandDaysList(formData.days || ALL_STANDARD_WEEKDAYS);
 
       const payload = {
         ...formData,
+        time: formattedTime,
+        days: activeDays,
         batch_name: code,
         class_code: code,
         student_count: Number(formData.student_count) || 0,
@@ -208,7 +218,8 @@ export default function BatchManagement() {
       branch: batchBranch,
       subject: batch.subject || getDefaultSubject(sec),
       room: batch.room || '',
-      time: batch.time || '',
+      time: formatStandardTimeRange(batch.time || '10:30 AM – 01:00 PM'),
+      days: expandDaysList(batch.days || ALL_STANDARD_WEEKDAYS),
       date: cleanDate,
       student_count: batch.student_count || 0,
       teacher_name: batch.teacher_name || ''
@@ -249,7 +260,8 @@ export default function BatchManagement() {
       branch: targetBranch,
       subject: getDefaultSubject(defaultSec),
       room: defaultRoom,
-      time: '08:00 AM – 10:30 AM',
+      time: '10:30 AM – 01:00 PM',
+      days: ALL_STANDARD_WEEKDAYS,
       date: '',
       student_count: 24,
       teacher_name: teachers[0]?.full_name || teachers[0]?.name || ''
@@ -605,8 +617,13 @@ export default function BatchManagement() {
                 name="time"
                 value={formData.time || ''}
                 onChange={handleChange}
+                onBlur={() => {
+                  if (formData.time) {
+                    setFormData(prev => ({ ...prev, time: formatStandardTimeRange(prev.time) }));
+                  }
+                }}
                 required
-                placeholder="e.g. 08:00 AM – 10:30 AM"
+                placeholder="e.g. 10:30 AM – 01:00 PM"
               />
             </div>
             <div className="col-6">
@@ -618,6 +635,76 @@ export default function BatchManagement() {
                 onChange={handleChange}
                 required
               />
+            </div>
+          </div>
+
+          {/* Schedule Days */}
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-sa-charcoal mb-1 d-flex justify-content-between align-items-center">
+              <span>Batch Schedule Days *</span>
+              <span className="small text-muted" style={{ fontSize: '11px' }}>
+                Active: <strong>{Array.isArray(formData.days) ? formData.days.length : 6} days/week</strong>
+              </span>
+            </label>
+            <div className="d-flex flex-wrap gap-1.5 mb-2">
+              {[
+                { label: 'All Weekdays (Mon – Sat)', value: 'ALL', days: ALL_STANDARD_WEEKDAYS },
+                { label: 'Tue, Thu, Sat (TTS)', value: 'TTS', days: ['Tuesday', 'Thursday', 'Saturday'] },
+                { label: 'Mon, Wed, Fri (MWF)', value: 'MWF', days: ['Monday', 'Wednesday', 'Friday'] }
+              ].map((preset) => {
+                const isSelected = Array.isArray(formData.days) &&
+                  formData.days.length === preset.days.length &&
+                  preset.days.every(d => formData.days.includes(d));
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, days: preset.days }))}
+                    className="btn btn-sm px-2.5 py-1 rounded-pill fw-semibold"
+                    style={{
+                      fontSize: '11px',
+                      backgroundColor: isSelected ? '#8B1216' : '#F1F5F9',
+                      color: isSelected ? '#FFFFFF' : '#475569',
+                      border: isSelected ? '1px solid #8B1216' : '1px solid #E2E8F0'
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Day toggles for custom selection */}
+            <div className="d-flex flex-wrap gap-1.5 p-2 bg-light rounded-3 border" style={{ borderColor: '#E2E8F0' }}>
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                const active = Array.isArray(formData.days) && formData.days.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => {
+                        const current = Array.isArray(prev.days) ? [...prev.days] : [...ALL_STANDARD_WEEKDAYS];
+                        const idx = current.indexOf(day);
+                        if (idx >= 0) {
+                          if (current.length > 1) current.splice(idx, 1);
+                        } else {
+                          current.push(day);
+                        }
+                        return { ...prev, days: current };
+                      });
+                    }}
+                    className="btn btn-sm px-2 py-0.5 rounded-2 fw-medium"
+                    style={{
+                      fontSize: '11px',
+                      backgroundColor: active ? '#FEE2E2' : '#FFFFFF',
+                      color: active ? '#8B1216' : '#64748B',
+                      border: active ? '1px solid #FCA5A5' : '1px solid #CBD5E1'
+                    }}
+                  >
+                    {day.substring(0, 3)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

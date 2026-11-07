@@ -36,6 +36,16 @@ import { notificationService } from '../../services/notificationService';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import { getUserBranch, filterBatchesByBranch, filterStudentsByBranch, CAMPUS } from '../../utils/branchUtils';
+import {
+  formatStandardTimeRange,
+  getMinutesFromTimeString,
+  getSlotDurationLabel,
+  getSlotDurationShort,
+  normalizeTimeString,
+  timesMatch,
+  expandDaysList,
+  ALL_STANDARD_WEEKDAYS
+} from '../../utils/timeScheduleUtils';
 
 // Helper to reliably match teacher names regardless of prefixes like Dr., Prof., etc.
 const isTeacherMatch = (teacherA, teacherB, subject = '') => {
@@ -63,32 +73,6 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   return false;
 };
 
-// Normalize time strings for matching
-const normalizeTimeString = (t) => {
-  if (!t) return '';
-  return t
-    .replace(/\s+/g, ' ')
-    .replace(/[–—]/g, '-')
-    .replace(/\b0(\d:\d\d)/g, '$1')
-    .trim()
-    .toLowerCase();
-};
-
-// Check if two time strings match (handling exact match, substring, or overlapping times)
-const timesMatch = (t1, t2) => {
-  if (!t1 || !t2) return false;
-  const n1 = normalizeTimeString(t1);
-  const n2 = normalizeTimeString(t2);
-  if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) return true;
-
-  // Extract start times to compare
-  const p1 = n1.split('-');
-  const p2 = n2.split('-');
-  if (p1[0] && p2[0] && p1[0].trim() === p2[0].trim()) return true;
-
-  return false;
-};
-
 // Branch matching helpers supporting both "Mangalvar Peth" and "Mangalwar Peth"
 const isMangalBranch = (str = '') => {
   const s = String(str || '').toLowerCase();
@@ -105,54 +89,6 @@ const isBranchMatch = (branchStr = '', filter = 'All') => {
   if (isMangalBranch(filter)) return isMangalBranch(branchStr);
   if (isTarabaiBranch(filter)) return isTarabaiBranch(branchStr);
   return String(branchStr || '').toLowerCase().includes(String(filter).toLowerCase());
-};
-
-// Calculate clean duration label (e.g. 150 mins -> 2h 30m, 60 mins -> 60 mins)
-const getSlotDurationLabel = (slotStr) => {
-  if (!slotStr) return '60 mins';
-  const parts = slotStr.split(/[-–—]/);
-  if (parts.length >= 2) {
-    const start = getMinutesFromTimeString(parts[0]);
-    const end = getMinutesFromTimeString(parts[1]);
-    if (end > start) {
-      const diff = end - start;
-      if (diff % 60 === 0) return `${diff / 60}h (${diff} mins)`;
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m} mins`;
-    }
-  }
-  return '60 mins';
-};
-
-const getSlotDurationShort = (slotStr) => {
-  if (!slotStr) return '60m';
-  const parts = slotStr.split(/[-–—]/);
-  if (parts.length >= 2) {
-    const start = getMinutesFromTimeString(parts[0]);
-    const end = getMinutesFromTimeString(parts[1]);
-    if (end > start) {
-      const diff = end - start;
-      if (diff % 60 === 0) return `${diff / 60}h`;
-      const h = Math.floor(diff / 60);
-      const m = diff % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
-    }
-  }
-  return '60m';
-};
-
-// Parse start time to minutes from midnight for sorting
-const getMinutesFromTimeString = (timeStr) => {
-  if (!timeStr) return 0;
-  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-  if (!match) return 0;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const meridiem = (match[3] || '').toUpperCase();
-  if (meridiem === 'PM' && hours < 12) hours += 12;
-  if (meridiem === 'AM' && hours === 12) hours = 0;
-  return hours * 60 + minutes;
 };
 
 // Palette helper for standard badges
@@ -347,12 +283,12 @@ export default function MyClasses() {
         batch: b.batch_name || (b.name && b.name.includes('Batch') ? b.name.split('Batch')[1].trim() : 'A'),
         class_code: b.class_code || `${(b.standard || '11th').match(/\d+/)?.[0] || '11'}-${b.batch_name || 'A'}`,
         studentsCount: b.student_count || 0,
-        time: b.time || '09:00 AM – 10:00 AM',
+        time: formatStandardTimeRange(b.time || '09:00 AM – 10:00 AM'),
         room: b.room || 'Room 201',
         date: b.date || '',
         branch: b.branch || (isMangalBranch(b.name) ? 'Mangalwar Peth' : 'Tarabai Park'),
         teacher_name: b.teacher_name || user?.name || '',
-        days: b.days || ['Monday', 'Wednesday', 'Thursday'],
+        days: expandDaysList(b.days),
         timetable: b.timetable || []
       }));
 
@@ -544,6 +480,25 @@ export default function MyClasses() {
 
     classes.forEach((c) => {
       const parentBranch = c.branch || (isMangalBranch(c.name) ? 'Mangalwar Peth' : 'Tarabai Park');
+      const batchTeacher = c.teacher_name || '';
+
+      if (user && user.role === 'teacher' && teacherName) {
+        if (!isTeacherMatch(teacherName, batchTeacher, c.subject)) {
+          const hasMatchingSlot = Array.isArray(c.timetable) && c.timetable.some((s) =>
+            isTeacherMatch(teacherName, s.teacher_name || batchTeacher, s.subject || c.subject)
+          );
+          if (!hasMatchingSlot) return;
+        }
+      }
+
+      const batchSub = c.subject || userSubject;
+      const finalSub = (batchSub && !batchSub.includes(','))
+        ? batchSub
+        : (userSubject || (isTeacherMatch(teacherName, 'veer') ? 'Mathematics' : batchSub));
+
+      const standardBatchTime = formatStandardTimeRange(c.time || '10:30 AM – 01:00 PM');
+      const batchDays = expandDaysList(c.days);
+      const coveredDays = new Set();
 
       if (Array.isArray(c.timetable) && c.timetable.length > 0) {
         c.timetable.forEach((slot) => {
@@ -555,36 +510,51 @@ export default function MyClasses() {
           }
 
           const slotSub = slot.subject || c.subject || userSubject;
-          const finalSub = (slotSub && !slotSub.includes(','))
+          const slotFinalSub = (slotSub && !slotSub.includes(','))
             ? slotSub
             : (userSubject || (isTeacherMatch(teacherName, 'veer') ? 'Mathematics' : slotSub));
 
+          // If the batch's time was updated or slot time doesn't match batch time, synchronize slot time to batch time
+          const effectiveTime = (c.time && !timesMatch(slot.time, c.time))
+            ? standardBatchTime
+            : formatStandardTimeRange(slot.time || standardBatchTime);
+
+          if (slot.day) {
+            coveredDays.add(slot.day.toLowerCase());
+          }
+
           list.push({
             ...slot,
+            day: slot.day,
+            time: effectiveTime,
             class_code: slot.class_code || c.class_code || c.name,
-            subject: finalSub,
+            subject: slotFinalSub,
             room: slot.room || c.room,
             branch: slot.branch || parentBranch,
             parentClass: c
           });
         });
-      } else {
-        const batchTeacher = c.teacher_name || '';
-        if (user && user.role === 'teacher' && teacherName) {
-          if (!isTeacherMatch(teacherName, batchTeacher, c.subject)) {
-            return;
+
+        // Ensure all assigned days of this batch (including Saturday, Today, etc.) have a slot!
+        batchDays.forEach((d) => {
+          if (!coveredDays.has(d.toLowerCase())) {
+            list.push({
+              day: d,
+              time: standardBatchTime,
+              room: c.room,
+              class_code: c.class_code || c.name,
+              subject: finalSub,
+              branch: parentBranch,
+              parentClass: c
+            });
           }
-        }
-
-        const batchSub = c.subject || userSubject;
-        const finalSub = (batchSub && !batchSub.includes(','))
-          ? batchSub
-          : (userSubject || (isTeacherMatch(teacherName, 'veer') ? 'Mathematics' : batchSub));
-
-        (c.days || []).forEach((d) => {
+        });
+      } else {
+        // No explicit timetable slots -> generate entries for all batchDays
+        batchDays.forEach((d) => {
           list.push({
             day: d,
-            time: c.time,
+            time: standardBatchTime,
             room: c.room,
             class_code: c.class_code || c.name,
             subject: finalSub,
@@ -607,17 +577,17 @@ export default function MyClasses() {
       '03:00 PM – 04:00 PM'
     ];
 
-    const slotSet = new Set(defaultSlots);
+    const slotSet = new Set();
+    defaultSlots.forEach((s) => slotSet.add(formatStandardTimeRange(s)));
+
     classes.forEach((c) => {
       if (c.time) {
-        const norm = c.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
-        slotSet.add(norm);
+        slotSet.add(formatStandardTimeRange(c.time));
       }
       if (Array.isArray(c.timetable)) {
         c.timetable.forEach((s) => {
           if (s.time) {
-            const norm = s.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
-            slotSet.add(norm);
+            slotSet.add(formatStandardTimeRange(s.time));
           }
         });
       }
@@ -625,8 +595,7 @@ export default function MyClasses() {
 
     allTimetableEntries.forEach((entry) => {
       if (entry.time) {
-        const norm = entry.time.replace(/[-–—]/g, '–').replace(/\s+/g, ' ').trim();
-        slotSet.add(norm);
+        slotSet.add(formatStandardTimeRange(entry.time));
       }
     });
 
