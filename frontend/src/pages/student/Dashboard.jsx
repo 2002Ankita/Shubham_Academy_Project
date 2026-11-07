@@ -837,18 +837,21 @@ export default function StudentDashboard() {
       {/* 4. BOOKS DELIVERY STATUS (Theory & CET for Physics, Chem, Bio, Maths)     */}
       {/* ========================================================================= */}
       <div className="sa-card p-3.5 p-xl-4 bg-white border rounded-4 shadow-xs">
-        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
-          <div className="d-flex align-items-center gap-2.5">
-            <div className="p-2 rounded-3 text-white" style={{ backgroundColor: '#8B1216' }}>
-              <Truck size={20} />
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 mb-3 pb-2 border-bottom">
+          <div className="d-flex align-items-start gap-2.5 min-w-0">
+            <div
+              className="p-2 rounded-3 text-white flex-shrink-0 mt-0.5 d-flex align-items-center justify-content-center"
+              style={{ backgroundColor: '#8B1216', width: '38px', height: '38px' }}
+            >
+              <Truck size={18} />
             </div>
-            <div>
-              <div className="d-flex align-items-center gap-2">
-                <h5 className="m-0 fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.1rem' }}>
+            <div className="min-w-0 flex-grow-1">
+              <div className="d-flex align-items-center gap-2 flex-wrap mb-0.5">
+                <h5 className="m-0 fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.05rem', lineHeight: 1.25 }}>
                   Books Delivery & Handover Status
                 </h5>
                 <span
-                  className="badge rounded-pill px-2.5 py-1 fw-bold text-uppercase"
+                  className="badge rounded-pill px-2.5 py-1 fw-bold text-uppercase text-nowrap"
                   style={{
                     backgroundColor: (bookDeliveryData.summary?.delivered_count || 0) === 8 ? '#DEF7EC' : '#FEF3C7',
                     color: (bookDeliveryData.summary?.delivered_count || 0) === 8 ? '#03543F' : '#92400E',
@@ -858,16 +861,16 @@ export default function StudentDashboard() {
                   {bookDeliveryData.summary?.delivered_count || 0} / 8 Books Delivered
                 </span>
               </div>
-              <span className="small text-sa-muted">
+              <p className="m-0 small text-sa-muted" style={{ fontSize: '12.5px', lineHeight: 1.35 }}>
                 Official handover verification for Theory and CET curriculum books
-              </span>
+              </p>
             </div>
           </div>
 
           <button
             type="button"
-            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold"
-            style={{ fontSize: '0.80rem' }}
+            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold w-100 w-sm-auto flex-shrink-0"
+            style={{ fontSize: '0.80rem', height: '34px' }}
             onClick={() => navigate('/student/books-delivery')}
           >
             <span>View Full Delivery Desk</span>

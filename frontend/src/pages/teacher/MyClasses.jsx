@@ -764,14 +764,14 @@ export default function MyClasses() {
 
       {/* 1. Page Header with Back, Title, Jump to Today, Print, and Real-time Badge */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pt-0 pb-1 no-print">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-xs flex-shrink-0"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-xs flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -786,12 +786,12 @@ export default function MyClasses() {
           </button>
 
           <div>
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2 flex-wrap">
               <h1 className="brand-font fw-bold m-0" style={{ fontSize: '22px', lineHeight: 1.25, color: '#0F172A' }}>
                 My Weekly Timetable
               </h1>
               <span
-                className="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-none d-sm-inline-flex align-items-center gap-1.5 px-2.5 py-1"
+                className="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-none d-sm-inline-flex align-items-center gap-1.5 px-2.5 py-1 text-nowrap"
                 style={{ fontSize: '11px', fontWeight: 600 }}
               >
                 <span

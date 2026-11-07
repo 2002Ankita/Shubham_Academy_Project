@@ -52,14 +52,14 @@ export default function TeacherProfile() {
 
   return (
     <div className="d-flex flex-column w-100" style={{ gap: '16px', maxWidth: '820px', minWidth: 0, boxSizing: 'border-box' }}>
-      <div className="d-flex align-items-center gap-3 pt-0 pb-0.5">
+      <div className="d-flex align-items-start gap-2.5 gap-sm-3 pt-0 pb-0.5">
         <button
           type="button"
           onClick={() => navigate('/teacher/dashboard')}
-          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+          className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
           style={{
-            width: '40px',
-            height: '40px',
+            width: '38px',
+            height: '38px',
             borderRadius: '10px',
             borderColor: '#E2E8F0',
             backgroundColor: '#FFFFFF',

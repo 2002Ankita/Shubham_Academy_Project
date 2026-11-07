@@ -534,12 +534,12 @@ export default function StudentProfile() {
 
           {/* Fee Structure Summary (Admin-Entered & Locked) */}
           <div className="sa-card p-4">
-            <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-              <div className="d-flex align-items-center gap-2">
-                <CreditCard size={18} style={{ color: '#8B1216' }} />
+            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+              <div className="d-flex align-items-center gap-2 min-w-0">
+                <CreditCard size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                 <h6 className="fw-bold m-0 text-sa-charcoal">Fee Account Overview</h6>
               </div>
-              <span className="badge bg-light text-muted border d-inline-flex align-items-center gap-1 small">
+              <span className="badge bg-light text-muted border d-inline-flex align-items-center gap-1 small text-nowrap">
                 <Lock size={12} /> Managed by Accounts Admin (Read-Only)
               </span>
             </div>
@@ -577,12 +577,12 @@ export default function StudentProfile() {
             {/* Section 1: Admin-Entered Data (Read-Only) */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
-                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                    <ShieldCheck size={18} style={{ color: '#8B1216' }} />
+                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2 min-w-0">
+                    <ShieldCheck size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                     <span>Admin-Entered Basic Info</span>
                   </h6>
-                  <span className="badge bg-light text-secondary border small d-inline-flex align-items-center gap-1">
+                  <span className="badge bg-light text-secondary border small d-inline-flex align-items-center gap-1 text-nowrap">
                     <Lock size={12} /> Read-Only
                   </span>
                 </div>
@@ -611,12 +611,12 @@ export default function StudentProfile() {
             {/* Section 2: Student-Entered Personal Information */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
-                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                    <User size={18} style={{ color: '#8B1216' }} />
+                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2 min-w-0">
+                    <User size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                     <span>Personal Profile Details</span>
                   </h6>
-                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                  <span className="badge bg-light text-muted border small text-nowrap">Editable by Student</span>
                 </div>
 
                 <div className="d-flex flex-column gap-2.5 small">
@@ -647,12 +647,12 @@ export default function StudentProfile() {
             {/* Section 3: Academic Details */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
-                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                    <GraduationCap size={18} style={{ color: '#8B1216' }} />
+                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2 min-w-0">
+                    <GraduationCap size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                     <span>Academic & Batch Information</span>
                   </h6>
-                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                  <span className="badge bg-light text-muted border small text-nowrap">Editable by Student</span>
                 </div>
 
                 <div className="d-flex flex-column gap-2.5 small">
@@ -683,12 +683,12 @@ export default function StudentProfile() {
             {/* Section 4: Parent & Guardian Details */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
-                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                    <Building2 size={18} style={{ color: '#8B1216' }} />
+                <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                  <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2 min-w-0">
+                    <Building2 size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                     <span>Parent & Guardian Information</span>
                   </h6>
-                  <span className="badge bg-light text-muted border small">Editable by Student</span>
+                  <span className="badge bg-light text-muted border small text-nowrap">Editable by Student</span>
                 </div>
 
                 <div className="d-flex flex-column gap-2.5 small">
@@ -742,10 +742,10 @@ export default function StudentProfile() {
                   </span>
                 </div>
 
-                <div className="d-flex align-items-center gap-2">
+                <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-sm-auto">
                   <button
                     type="button"
-                    className="btn btn-light border px-3 py-1.5 rounded-2 small fw-semibold text-sa-charcoal"
+                    className="btn btn-light border px-3 py-1.5 rounded-2 small fw-semibold text-sa-charcoal text-nowrap w-100 w-sm-auto"
                     onClick={handleCancel}
                     disabled={saving}
                   >
@@ -753,7 +753,7 @@ export default function StudentProfile() {
                   </button>
                   <button
                     type="submit"
-                    className="btn text-white px-4 py-1.5 rounded-2 small fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5"
+                    className="btn text-white px-4 py-1.5 rounded-2 small fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center gap-1.5 text-nowrap w-100 w-sm-auto"
                     style={{ backgroundColor: '#8B1216' }}
                     disabled={saving}
                   >
@@ -1196,10 +1196,10 @@ export default function StudentProfile() {
             </div>
 
             {/* Save Buttons at Bottom */}
-            <div className="d-flex align-items-center justify-content-end gap-3 pt-2">
+            <div className="d-flex flex-column-reverse flex-sm-row align-items-stretch align-items-sm-center justify-content-end gap-2.5 pt-2">
               <button
                 type="button"
-                className="btn btn-light border px-4 py-2"
+                className="btn btn-light border px-4 py-2 text-nowrap fw-medium w-100 w-sm-auto"
                 onClick={handleCancel}
                 disabled={saving}
               >
@@ -1207,7 +1207,7 @@ export default function StudentProfile() {
               </button>
               <button
                 type="submit"
-                className="btn text-white px-5 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+                className="btn text-white px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2 shadow-sm text-nowrap w-100 w-sm-auto"
                 style={{ backgroundColor: '#8B1216' }}
                 disabled={saving}
               >

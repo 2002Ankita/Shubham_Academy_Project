@@ -246,10 +246,13 @@ export default function SuperAdminProfile() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="d-flex gap-2 border-bottom pb-2">
+      <div
+        className="d-flex align-items-center gap-2 border-bottom pb-2 overflow-x-auto"
+        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         <button
           type="button"
-          className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all ${
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all text-nowrap flex-shrink-0 ${
             activeTab === 'profile'
               ? 'bg-sa-primary text-white shadow-sm'
               : 'btn-light text-sa-charcoal border'
@@ -262,7 +265,7 @@ export default function SuperAdminProfile() {
 
         <button
           type="button"
-          className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all ${
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all text-nowrap flex-shrink-0 ${
             activeTab === 'security'
               ? 'bg-sa-primary text-white shadow-sm'
               : 'btn-light text-sa-charcoal border'
@@ -275,7 +278,7 @@ export default function SuperAdminProfile() {
         {user?.role === 'super-admin' && (
           <button
             type="button"
-            className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all ${
+            className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3 py-2 rounded-2 fw-semibold transition-all text-nowrap flex-shrink-0 ${
               activeTab === 'system'
                 ? 'bg-sa-primary text-white shadow-sm'
                 : 'btn-light text-sa-charcoal border'

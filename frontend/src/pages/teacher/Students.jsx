@@ -50,14 +50,14 @@ export default function TeacherStudents() {
     <div className="d-flex flex-column w-100" style={{ gap: '16px', minWidth: 0, boxSizing: 'border-box' }}>
       {/* Header */}
       <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 pt-0 pb-0.5">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -77,16 +77,16 @@ export default function TeacherStudents() {
                 Class Student Directory
               </h1>
               <span
-                className="badge rounded-pill d-inline-flex align-items-center gap-1.5 px-3 py-1.5"
+                className="badge rounded-pill d-inline-flex align-items-center gap-1 px-2.5 py-1 text-nowrap"
                 style={{
                   backgroundColor: '#FDF0F0',
                   color: '#8B1216',
                   border: '1px solid #F5C2C4',
-                  fontSize: '0.82rem',
-                  fontWeight: '600'
+                  fontSize: '11.5px',
+                  fontWeight: 600
                 }}
               >
-                <Building2 size={14} />
+                <Building2 size={12} />
                 <span>{userBranch} Campus</span>
               </span>
             </div>
@@ -100,6 +100,7 @@ export default function TeacherStudents() {
           value={search}
           onChange={setSearch}
           placeholder="Filter students by name, roll no..."
+          className="w-100 w-sm-auto"
         />
       </div>
 

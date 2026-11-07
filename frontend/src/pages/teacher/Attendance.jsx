@@ -362,14 +362,14 @@ export default function TeacherAttendance() {
     <div className="d-flex flex-column w-100" style={{ gap: '22px' }}>
       {/* 1. TOP HEADER & ACTION AREA */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 pt-1">
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-start gap-2.5 gap-sm-3">
           <button
             type="button"
             onClick={() => navigate('/teacher/dashboard')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm"
+            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: '10px',
               borderColor: '#E2E8F0',
               backgroundColor: '#FFFFFF',
@@ -384,13 +384,13 @@ export default function TeacherAttendance() {
           </button>
 
           <div>
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2 flex-wrap">
               <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
                 Attendance Register
               </h1>
               {userBranch && (
                 <span
-                  className="badge rounded-pill fw-semibold shadow-xs"
+                  className="badge rounded-pill fw-semibold shadow-xs text-nowrap"
                   style={{
                     backgroundColor: userBranch.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
                     border: userBranch.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
@@ -404,7 +404,7 @@ export default function TeacherAttendance() {
                 </span>
               )}
             </div>
-            <p className="text-sa-muted m-0 mt-1" style={{ fontSize: '13.5px' }}>
+            <p className="text-sa-muted m-0 mt-0.5" style={{ fontSize: '13.5px' }}>
               Daily check-in, check-out and attendance records for {userBranch || 'Academy'} faculty
             </p>
           </div>

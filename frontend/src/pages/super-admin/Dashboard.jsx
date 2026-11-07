@@ -347,7 +347,7 @@ export default function SuperAdminDashboard() {
       >
         <div className="row g-0 align-items-center">
           {/* Left Text & Badges */}
-          <div className="col-12 col-lg-6 p-4 ps-md-4 ps-xl-5 py-md-4 d-flex flex-column justify-content-center">
+          <div className="col-12 col-lg-6 p-3.5 p-sm-4 ps-md-4 ps-xl-5 py-md-4 d-flex flex-column justify-content-center">
             <h1
               className="fw-bold brand-font text-sa-charcoal m-0"
               style={{ fontSize: '2.05rem', letterSpacing: '-0.02em', lineHeight: 1.15 }}
@@ -380,7 +380,7 @@ export default function SuperAdminDashboard() {
             {/* Executive Status Indicator */}
             <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-1">
               <span
-                className="badge rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs text-nowrap"
                 style={{
                   backgroundColor: '#FFFFFF',
                   color: '#8B1216',
@@ -389,7 +389,19 @@ export default function SuperAdminDashboard() {
                 }}
               >
                 <ShieldCheck size={14} style={{ color: '#8B1216' }} />
-                <span>Super Admin Executive Portal • {userBranch ? `${userBranch} Campus` : 'Central Authority'}</span>
+                <span>Super Admin Executive Portal</span>
+              </span>
+              <span
+                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs text-nowrap"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#8B1216',
+                  border: '1px solid rgba(139, 18, 22, 0.22)',
+                  fontSize: '0.78rem'
+                }}
+              >
+                <Building2 size={12} style={{ color: '#8B1216' }} />
+                <span>{userBranch ? `${userBranch} Campus` : 'Central Authority'}</span>
               </span>
             </div>
           </div>
