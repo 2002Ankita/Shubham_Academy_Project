@@ -38,7 +38,7 @@ export default function TeacherSalary() {
   const [editForm, setEditForm] = useState({ baseSalary: 0, allowances: 0, deductions: 0, netPayable: 0 });
   const [generating, setGenerating] = useState(false);
   const [disburseModalOpen, setDisburseModalOpen] = useState(false);
-  const [disburseForm, setDisburseForm] = useState({ id: null, name: '', amount: 0, maxAmount: 0 });
+  const [disburseForm, setDisburseForm] = useState({ id: null, name: '', amount: '' });
 
   // Filter & Search states
   const [selectedMonth, setSelectedMonth] = useState('ALL');
@@ -150,8 +150,7 @@ export default function TeacherSalary() {
     setDisburseForm({
       id: row.id,
       name: row.teacherName || 'Faculty Member',
-      amount: '',
-      maxAmount: row.amountPending || row.netPayable
+      amount: ''
     });
     setDisburseModalOpen(true);
   };
@@ -684,12 +683,11 @@ export default function TeacherSalary() {
         <form onSubmit={submitDisburse}>
           <div className="mb-3">
             <Input
-              label={`Installment Amount (Max: ₹${Number(disburseForm.maxAmount).toLocaleString()}) *`}
+              label="Installment Amount (₹) *"
               type="number"
               placeholder="Enter amount to pay..."
               value={disburseForm.amount}
               onChange={(e) => setDisburseForm((prev) => ({ ...prev, amount: e.target.value }))}
-              max={disburseForm.maxAmount}
               min={1}
               required
             />

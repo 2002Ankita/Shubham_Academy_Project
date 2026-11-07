@@ -233,8 +233,10 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
         s.amount_pending = s.net_payable - s.amount_paid
         
         if s.amount_pending <= 0:
+            if s.amount_paid > s.net_payable:
+                s.net_payable = s.amount_paid
+                s.base_salary = max(getattr(s, 'base_salary', 0.0), s.amount_paid)
             s.amount_pending = 0.0
-            s.amount_paid = s.net_payable
             s.status = "Disbursed"
         else:
             s.status = "Partially Paid"
