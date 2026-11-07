@@ -249,7 +249,7 @@ export default function EnterMarks() {
     try {
       await marksService.submitBulkMarks(examId, entries, 'Published');
       toast.success(`Marks saved successfully for ${entries.length} student${entries.length === 1 ? '' : 's'}!`);
-      const foundExam = exams.find(e => e.id === examId);
+      const foundExam = exams.find(e => String(e.id || e._id) === String(examId));
       const examObj = foundExam || { id: examId };
       setActiveModalExam(examObj);
       setPostSaveNotice({

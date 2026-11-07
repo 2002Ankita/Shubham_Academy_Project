@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Users, CheckCircle2, AlertCircle, Clock, X, Check, Save } from 'lucide-react';
 
@@ -15,24 +15,26 @@ export default function BulkMarksForm({
   const [isGridActive, setIsGridActive] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const gridRef = useRef(null);
 
   // Set default exam if available and not selected
   useEffect(() => {
     if (exams.length > 0 && !examId) {
-      setExamId(exams[0].id);
+      setExamId(String(exams[0].id || exams[0]._id || ''));
     }
   }, [exams, examId]);
 
   // Sync drafts when examId or existingMarks changes
   useEffect(() => {
     if (!examId) return;
-    const currentExamMarks = existingMarks.filter(mark => mark.examId === examId);
+    const currentExamMarks = existingMarks.filter(mark => String(mark.examId || mark.exam_id) === String(examId));
     if (currentExamMarks.length > 0) {
       setDrafts(prev => {
         const next = { ...prev };
         currentExamMarks.forEach(mark => {
-          if (next[mark.studentId] === undefined) {
-            next[mark.studentId] = {
+          const sKey = String(mark.studentId || mark.student_id);
+          if (next[sKey] === undefined) {
+            next[sKey] = {
               marksObtained: mark.obtainedMarks !== undefined ? String(mark.obtainedMarks) : '',
               remarks: mark.remarks || ''
             };
@@ -44,64 +46,113 @@ export default function BulkMarksForm({
   }, [examId, existingMarks]);
 
   const selectedExam = useMemo(() => {
-    return exams.find(e => e.id === examId) || null;
+    if (!examId) {
+      return exams.length > 0 ? exams[0] : null;
+    }
+    return exams.find(e => String(e.id || e._id) === String(examId)) || (exams.length > 0 ? exams[0] : null);
   }, [exams, examId]);
 
   const examMaxMarks = Number(selectedExam?.maxMarks || selectedExam?.max_marks || 100);
 
   // Students assigned to selected exam/class
   const roster = useMemo(() => {
-    if (!selectedExam) return [];
+    if (!selectedExam) return students;
     const normalizedStandard = normalize(selectedExam.standard);
     const normalizedBatch = normalize(selectedExam.batch);
+    const examBranch = normalize(selectedExam.branch);
 
     const filtered = students.filter(student => {
       const stuStandard = normalize(student.standard);
-      const stuBatch = normalize(student.batch);
+      const stuBatch = normalize(student.batch || student.academic_batch);
+      const stuBranch = normalize(student.branch);
 
+      // Branch match (if both student and exam have branch specified)
+      if (examBranch && stuBranch) {
+        const isMangal = examBranch.includes('mangal') && stuBranch.includes('mangal');
+        const isTarabai = examBranch.includes('tarabai') && stuBranch.includes('tarabai');
+        if (!isMangal && !isTarabai && examBranch !== stuBranch) {
+          return false;
+        }
+      }
+
+      // Standard match
       const standardMatches = stuStandard && normalizedStandard && (
         stuStandard === normalizedStandard ||
         stuStandard.includes(normalizedStandard) ||
         normalizedStandard.includes(stuStandard)
       );
 
+      // Batch match
       const batchMatches = stuBatch && (
         stuBatch === normalizedBatch ||
         normalizedBatch.includes(stuBatch) ||
-        (stuStandard && stuStandard.includes(stuBatch))
+        normalizedStandard.includes(stuBatch) ||
+        stuBatch.includes(normalizedBatch)
       );
 
       return standardMatches || batchMatches;
     });
 
-    // If specific filter matches students, return them; otherwise return all available students so data is always accessible
-    return filtered.length > 0 ? filtered : students;
+    if (filtered.length > 0) return filtered;
+
+    // Fallback: branch students so table is never empty
+    if (examBranch) {
+      const branchStudents = students.filter(s => {
+        const b = normalize(s.branch);
+        return (examBranch.includes('mangal') && b.includes('mangal')) ||
+               (examBranch.includes('tarabai') && b.includes('tarabai'));
+      });
+      if (branchStudents.length > 0) return branchStudents;
+    }
+
+    return students;
   }, [students, selectedExam]);
 
   // Handle clicking "Start Bulk Entry"
   const handleStartBulkEntry = () => {
-    if (!examId || !selectedExam) {
+    const activeExam = selectedExam || (exams.length > 0 ? exams[0] : null);
+    if (!activeExam) {
       toast.warning('Please select an examination to start bulk entry.');
       return;
     }
+
+    const activeId = String(activeExam.id || activeExam._id || examId);
+    if (String(examId) !== activeId) {
+      setExamId(activeId);
+    }
+
+    if (isGridActive) {
+      setIsGridActive(false);
+      return;
+    }
+
     setIsGridActive(true);
     // Populate draft entries for this exam if not already done
-    const currentExamMarks = existingMarks.filter(mark => mark.examId === examId);
+    const currentExamMarks = existingMarks.filter(mark => String(mark.examId || mark.exam_id) === activeId);
     const initialDrafts = {};
     currentExamMarks.forEach(mark => {
-      initialDrafts[mark.studentId] = {
+      const sKey = String(mark.studentId || mark.student_id);
+      initialDrafts[sKey] = {
         marksObtained: mark.obtainedMarks !== undefined ? String(mark.obtainedMarks) : '',
         remarks: mark.remarks || ''
       };
     });
     setDrafts(prev => ({ ...initialDrafts, ...prev }));
+
+    // Smooth scroll down to the grid
+    setTimeout(() => {
+      if (gridRef.current) {
+        gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
   };
 
-  const updateDraft = (studentId, field, value) => {
+  const updateDraft = (studentKey, field, value) => {
+    const key = String(studentKey);
     setDrafts(prev => ({
       ...prev,
-      [studentId]: {
-        ...prev[studentId],
+      [key]: {
+        ...prev[key],
         [field]: value
       }
     }));
@@ -110,7 +161,8 @@ export default function BulkMarksForm({
   // Row validation evaluation
   const evaluatedRows = useMemo(() => {
     return roster.map(student => {
-      const draft = drafts[student.id];
+      const sKey = String(student.id || student._id || student.student_id);
+      const draft = drafts[sKey] || drafts[student.id] || drafts[student._id] || {};
       const rawMarks = draft?.marksObtained;
       const remarks = draft?.remarks || '';
 
@@ -167,7 +219,7 @@ export default function BulkMarksForm({
     return evaluatedRows
       .filter(r => r.status === 'valid')
       .map(r => ({
-        studentId: r.student.id,
+        studentId: String(r.student.id || r.student._id || r.student.student_id),
         marksObtained: r.value,
         remarks: r.remarks
       }));
@@ -201,7 +253,7 @@ export default function BulkMarksForm({
 
     try {
       setIsSaving(true);
-      await onSubmit(selectedExam.id, validEntries);
+      await onSubmit(String(selectedExam.id || selectedExam._id), validEntries);
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to save marks. Please check your entries.';
       toast.error(msg);
@@ -254,11 +306,14 @@ export default function BulkMarksForm({
               style={{ height: '40px', borderRadius: '8px', borderColor: '#D9E1EA', fontSize: '13px' }}
             >
               <option value="">Select examination...</option>
-              {exams.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.title || e.exam_name} {e.subject ? `(${e.subject})` : ''}
-                </option>
-              ))}
+              {exams.map(e => {
+                const eVal = String(e.id || e._id || '');
+                return (
+                  <option key={eVal} value={eVal}>
+                    {e.title || e.exam_name} {e.subject ? `(${e.subject})` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -266,22 +321,26 @@ export default function BulkMarksForm({
             <button
               type="button"
               onClick={handleStartBulkEntry}
-              className="btn text-white d-inline-flex align-items-center justify-content-center gap-2 shadow-xs"
+              className={`btn d-inline-flex align-items-center justify-content-center gap-2 shadow-xs ${
+                isGridActive ? 'btn-outline-danger' : 'text-white'
+              }`}
               style={{
-                backgroundColor: '#8B1216',
+                backgroundColor: isGridActive ? '#FDF2F2' : '#8B1216',
                 borderColor: '#8B1216',
+                color: isGridActive ? '#8B1216' : '#FFFFFF',
                 borderRadius: '10px',
                 height: '40px',
                 padding: '0 20px',
                 fontWeight: 600,
                 fontSize: '13.5px',
                 whiteSpace: 'nowrap',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.18s ease'
               }}
-              title="Open editable marks entry grid for all students"
+              title={isGridActive ? "Close editable marks entry grid" : "Open editable marks entry grid for all students"}
             >
-              <Users size={16} />
-              <span>Start Bulk Entry</span>
+              {isGridActive ? <X size={16} /> : <Users size={16} />}
+              <span>{isGridActive ? 'Close Bulk Entry' : 'Start Bulk Entry'}</span>
             </button>
           </div>
         </div>
@@ -289,7 +348,7 @@ export default function BulkMarksForm({
 
       {/* Editable Grid displayed when Start Bulk Entry is activated */}
       {isGridActive && selectedExam && (
-        <div className="mt-4 pt-3 border-top" style={{ borderColor: '#F1F5F9' }}>
+        <div ref={gridRef} className="mt-4 pt-3 border-top" style={{ borderColor: '#F1F5F9' }}>
           {/* Exam Summary Badges & Validation Counters */}
           <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-3">
             <div className="d-flex flex-wrap align-items-center gap-2">
@@ -349,13 +408,14 @@ export default function BulkMarksForm({
                   </thead>
                   <tbody>
                     {evaluatedRows.map(({ student, status, message }) => {
-                      const currentDraft = drafts[student.id] || {};
+                      const sKey = String(student.id || student._id || student.student_id);
+                      const currentDraft = drafts[sKey] || drafts[student.id] || drafts[student._id] || {};
                       const isInvalid = status === 'invalid';
                       const isValid = status === 'valid';
 
                       return (
                         <tr
-                          key={student.id}
+                          key={sKey}
                           style={{
                             backgroundColor: isInvalid ? '#FFF5F5' : 'transparent',
                             transition: 'background-color 0.15s ease'
@@ -365,7 +425,7 @@ export default function BulkMarksForm({
                             {student.rollNumber || student.student_id || '-'}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
-                            <div className="fw-semibold text-sa-charcoal">{student.name}</div>
+                            <div className="fw-semibold text-sa-charcoal">{student.name || student.full_name || 'Student'}</div>
                             <div className="small text-muted d-flex align-items-center gap-1 flex-wrap" style={{ fontSize: '11px' }}>
                               <span>{student.standard || student.batch || ''}</span>
                               {student.branch && (
@@ -374,9 +434,9 @@ export default function BulkMarksForm({
                                   style={{
                                     fontSize: '9.5px',
                                     padding: '1px 6px',
-                                    backgroundColor: student.branch.toLowerCase().includes('tarabai') ? '#EFF6FF' : '#FEF2F2',
-                                    color: student.branch.toLowerCase().includes('tarabai') ? '#1D4ED8' : '#8B1216',
-                                    border: `1px solid ${student.branch.toLowerCase().includes('tarabai') ? '#BFDBFE' : '#FECACA'}`
+                                    backgroundColor: String(student.branch).toLowerCase().includes('tarabai') ? '#EFF6FF' : '#FEF2F2',
+                                    color: String(student.branch).toLowerCase().includes('tarabai') ? '#1D4ED8' : '#8B1216',
+                                    border: `1px solid ${String(student.branch).toLowerCase().includes('tarabai') ? '#BFDBFE' : '#FECACA'}`
                                   }}
                                 >
                                   {student.branch}
@@ -392,7 +452,7 @@ export default function BulkMarksForm({
                                 max={examMaxMarks}
                                 step="any"
                                 value={currentDraft.marksObtained ?? ''}
-                                onChange={(e) => updateDraft(student.id, 'marksObtained', e.target.value)}
+                                onChange={(e) => updateDraft(sKey, 'marksObtained', e.target.value)}
                                 placeholder="0"
                                 className="form-control form-control-sm"
                                 style={{
@@ -402,7 +462,7 @@ export default function BulkMarksForm({
                                   fontSize: '13px',
                                   height: '36px'
                                 }}
-                                aria-label={`Marks for ${student.name}`}
+                                aria-label={`Marks for ${student.name || student.full_name}`}
                               />
                             </div>
                           </td>
@@ -410,7 +470,7 @@ export default function BulkMarksForm({
                             <input
                               type="text"
                               value={currentDraft.remarks ?? ''}
-                              onChange={(e) => updateDraft(student.id, 'remarks', e.target.value)}
+                              onChange={(e) => updateDraft(sKey, 'remarks', e.target.value)}
                               placeholder="e.g. Good grasp of concepts"
                               className="form-control form-control-sm"
                               style={{
