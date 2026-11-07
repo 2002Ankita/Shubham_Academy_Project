@@ -36,6 +36,7 @@ class Student(Document):
     avatar: Optional[str] = None
     fee_due_date: Optional[datetime] = None
     admission_date: datetime = datetime.utcnow()
+    batch_start_date: Optional[datetime] = None
 
     # Student Discount & Approval Details
     original_fees: float = 0.0

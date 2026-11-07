@@ -8,9 +8,70 @@ from app.models.batch import Batch
 from fastapi import HTTPException
 from beanie import PydanticObjectId
 from bson import ObjectId
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from typing import Optional, List, Dict, Any
 import re
+
+def _extract_student_admission_date(student: Any) -> Optional[date]:
+    """Extract admission/enrollment date of a student."""
+    adm = getattr(student, "admission_date", None)
+    if adm is not None:
+        if isinstance(adm, datetime):
+            return adm.date()
+        if isinstance(adm, date):
+            return adm
+        if isinstance(adm, str):
+            try:
+                clean_str = adm.replace("Z", "+00:00").split("T")[0].split(" ")[0].strip()
+                return datetime.strptime(clean_str, "%Y-%m-%d").date()
+            except Exception:
+                pass
+
+    if hasattr(student, "id") and hasattr(student.id, "generation_time"):
+        try:
+            return student.id.generation_time.date()
+        except Exception:
+            pass
+
+    return None
+
+def _extract_student_effective_attendance_start(student: Any, batch_start_map: Optional[Dict[str, date]] = None) -> Optional[date]:
+    """
+    Computes the effective date from which a student must start appearing in the attendance ledger.
+    Rule:
+    A student should only appear in attendance from the LATER of:
+    1. Their admission / enrollment date (e.g. 26 Oct 2026)
+    2. The batch start date (e.g. 01 Nov 2026)
+    If a student enrolled on 26 Oct, but the batch starts on 01 Nov, attendance starts on 01 Nov.
+    If a batch started on 01 Nov, but student joined late on 10 Nov, attendance starts on 10 Nov.
+    """
+    adm_date = _extract_student_admission_date(student)
+
+    # 1. Check student's own batch_start_date attribute
+    batch_start = None
+    raw_b_start = getattr(student, "batch_start_date", None)
+    if raw_b_start is not None:
+        if isinstance(raw_b_start, datetime):
+            batch_start = raw_b_start.date()
+        elif isinstance(raw_b_start, date):
+            batch_start = raw_b_start
+        elif isinstance(raw_b_start, str):
+            try:
+                clean_str = raw_b_start.replace("Z", "+00:00").split("T")[0].split(" ")[0].strip()
+                batch_start = datetime.strptime(clean_str, "%Y-%m-%d").date()
+            except Exception:
+                pass
+
+    # 2. If student does not have explicit batch_start_date, check batch_start_map from Batch collection
+    if not batch_start and batch_start_map:
+        st_batch = str(getattr(student, "batch", "") or getattr(student, "academic_batch", "") or "").lower().strip()
+        st_branch = str(getattr(student, "branch", "") or "").lower().strip()
+        batch_start = batch_start_map.get(f"{st_branch}_{st_batch}") or batch_start_map.get(st_batch)
+
+    # Effective start date is the maximum (later) of admission_date and batch_start
+    if adm_date and batch_start:
+        return max(adm_date, batch_start)
+    return batch_start or adm_date
 
 def _get_teacher_mongo_query(teacher_id_obj: ObjectId) -> Dict[str, Any]:
     return {
@@ -1048,12 +1109,61 @@ async def get_batch_date_attendance(
     day_end = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
     target_batch = academic_batch or batch
-    all_students = await Student.find_all().to_list()
+    st_query = {}
+    if branch and str(branch).strip().lower() not in ["all", "all branches"]:
+        if "mangal" in str(branch).lower():
+            st_query["branch"] = {"$regex": "mangal", "$options": "i"}
+        elif "tarabai" in str(branch).lower():
+            st_query["branch"] = {"$regex": "tarabai", "$options": "i"}
+
+    if st_query:
+        all_students = await Student.find(st_query).to_list()
+    else:
+        all_students = await Student.find_all().to_list()
+
+    target_date_day = target_date.date()
+
+    # Preload batch start dates from Batch collection
+    batch_start_map = {}
+    try:
+        all_batches = await Batch.find_all().to_list()
+        for b in all_batches:
+            b_date_val = getattr(b, "date", None)
+            if b_date_val:
+                b_date = None
+                if isinstance(b_date_val, str) and b_date_val.strip():
+                    try:
+                        clean_str = b_date_val.replace("Z", "+00:00").split("T")[0].split(" ")[0].strip()
+                        b_date = datetime.strptime(clean_str, "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+                elif isinstance(b_date_val, datetime):
+                    b_date = b_date_val.date()
+                elif isinstance(b_date_val, date):
+                    b_date = b_date_val
+
+                if b_date:
+                    if b.name:
+                        batch_start_map[b.name.lower().strip()] = b_date
+                    if b.branch and b.name:
+                        batch_start_map[f"{b.branch.lower().strip()}_{b.name.lower().strip()}"] = b_date
+                    if b.branch and getattr(b, "academic_batch", None):
+                        batch_start_map[f"{b.branch.lower().strip()}_{b.academic_batch.lower().strip()}"] = b_date
+    except Exception:
+        pass
+
     matched_students = []
 
     for s in all_students:
-        if student_matches_filters(s, branch_filter=branch, academic_batch_filter=target_batch, session_filter=session):
-            matched_students.append(s)
+        if not student_matches_filters(s, branch_filter=branch, academic_batch_filter=target_batch, session_filter=session):
+            continue
+
+        # Effective start date is max(admission_date, batch_start_date)
+        eff_start = _extract_student_effective_attendance_start(s, batch_start_map)
+        if eff_start and eff_start > target_date_day:
+            continue
+
+        matched_students.append(s)
 
     matched_students.sort(key=lambda s: getattr(s, "student_id", "") or "")
 
@@ -1096,6 +1206,24 @@ async def get_batch_date_attendance(
     l2_present = 0
     l2_absent = 0
 
+    # Pre-resolve users in a single batch query for any students missing full_name
+    user_map = {}
+    needed_user_ids = []
+    for s in matched_students:
+        if not getattr(s, "full_name", None) and s.user:
+            uid_obj = getattr(s.user, "ref", None)
+            target_id = uid_obj.id if uid_obj and hasattr(uid_obj, "id") else getattr(s.user, "id", None)
+            if target_id:
+                needed_user_ids.append(target_id)
+
+    if needed_user_ids:
+        try:
+            users_list = await User.find({"_id": {"$in": needed_user_ids}}).to_list()
+            for u in users_list:
+                user_map[str(u.id)] = u.full_name
+        except Exception:
+            pass
+
     for s in matched_students:
         sid_str = str(s.id)
         st_branch, st_acad_batch, st_session, _ = parse_student_branch_batch(
@@ -1106,12 +1234,9 @@ async def get_batch_date_attendance(
 
         st_name = getattr(s, "full_name", None)
         if not st_name and s.user:
-            try:
-                u = await User.get(s.user.ref.id) if hasattr(s.user, "ref") else s.user
-                if u:
-                    st_name = u.full_name
-            except Exception:
-                pass
+            uid_obj = getattr(s.user, "ref", None)
+            target_id = str(uid_obj.id) if uid_obj and hasattr(uid_obj, "id") else str(getattr(s.user, "id", ""))
+            st_name = user_map.get(target_id)
         if not st_name:
             st_name = s.student_id
 
@@ -1147,6 +1272,16 @@ async def get_batch_date_attendance(
             "academic_batch": st_acad_batch,
             "session": st_session,
             "parent_mobile": getattr(s, "parent_mobile", None) or getattr(s, "mobile_number", None) or "+91 98220 33445",
+            "admission_date": (
+                s.admission_date.strftime("%Y-%m-%d")
+                if getattr(s, "admission_date", None) and isinstance(s.admission_date, datetime)
+                else str(getattr(s, "admission_date", "") or "")
+            ),
+            "batch_start_date": (
+                s.batch_start_date.strftime("%Y-%m-%d")
+                if getattr(s, "batch_start_date", None) and isinstance(s.batch_start_date, datetime)
+                else str(getattr(s, "batch_start_date", "") or "")
+            ),
             "lecture_1": {
                 "slot": 1,
                 "subject": st1_subject,
@@ -1220,6 +1355,11 @@ async def save_batch_date_attendance(payload: dict) -> dict:
         st_branch, st_acad_batch, st_session, _ = parse_student_branch_batch(
             student.branch, student.batch, student.academic_batch, student.session
         )
+
+        # Skip student if attendance date is strictly before their effective attendance start date
+        eff_start = _extract_student_effective_attendance_start(student, None)
+        if eff_start and eff_start > target_date.date():
+            continue
 
         # Slot 1
         st1_status = item.get("lecture_1_status")

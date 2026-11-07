@@ -43,7 +43,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function BooksStock() {
   const { user } = useAuth();
-  const isSuperAdmin = Boolean((user?.role || '').toLowerCase().includes('super'));
+  const isSuperAdmin = isSuperAdminUser(user) || (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin') || (user?.role || '').toLowerCase().includes('super');
   const activeBranch = getUserBranch(user);
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const userCampus = (!isSuperAdmin && activeBranch) ? (isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI) : null;

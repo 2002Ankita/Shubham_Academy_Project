@@ -128,7 +128,8 @@ export default function StudentRegistration() {
     paidFees: 15000,
     remainingFees: 40000,
     password: '',
-    admissionDate: new Date().toISOString().split('T')[0]
+    admissionDate: new Date().toISOString().split('T')[0],
+    batchStartDate: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -405,7 +406,9 @@ export default function StudentRegistration() {
         remainingFees: remainingFees,
         remaining_fees: remainingFees,
         password: formData.password || formData.mobileNumber?.replace(/\D/g, '') || undefined,
-        admission_date: new Date(formData.admissionDate).toISOString()
+        admission_date: new Date(formData.admissionDate).toISOString(),
+        batch_start_date: formData.batchStartDate ? new Date(formData.batchStartDate).toISOString() : undefined,
+        batchStartDate: formData.batchStartDate ? new Date(formData.batchStartDate).toISOString() : undefined
       };
 
       const result = await studentService.create(payload);
@@ -749,6 +752,42 @@ export default function StudentRegistration() {
                     <span className="text-muted">Master Placement:</span>{' '}
                     <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
                       {formData.branch} • {formData.session ? `${formData.session} • ` : ''}{formData.academicBatch}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="row g-3 mt-1 pt-3 border-top">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-semibold text-sa-charcoal">
+                      Date of Admission <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="admissionDate"
+                      value={formData.admissionDate}
+                      onChange={handleInputChange}
+                      className="form-control"
+                      disabled={loading}
+                      required
+                    />
+                    <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                      Official admission date when student registered.
+                    </span>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-semibold text-sa-charcoal">
+                      Batch Start Date / First Lecture Date <span className="text-muted fw-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="batchStartDate"
+                      value={formData.batchStartDate || ''}
+                      onChange={handleInputChange}
+                      className="form-control"
+                      disabled={loading}
+                    />
+                    <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                      Student's attendance will only start from this date (e.g. 01 Nov 2026).
                     </span>
                   </div>
                 </div>

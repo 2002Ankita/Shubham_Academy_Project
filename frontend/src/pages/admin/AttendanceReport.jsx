@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
 import BackButton from '../../components/common/BackButton';
@@ -47,8 +46,20 @@ export default function AttendanceReport() {
 
   // Standardized Filter States
   const [reportBranch, setReportBranch] = useState(defaultBranch);
-  const [reportSession, setReportSession] = useState('');
+  const [reportSession, setReportSession] = useState(() => isMP ? 'Morning' : '');
   const [reportAcademicBatch, setReportAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
+
+  // Sync branch and session default when activeBranch becomes available
+  useEffect(() => {
+    if (activeBranch) {
+      const isMangal = activeBranch.toLowerCase().includes('mangal');
+      const branchTarget = isMangal ? BRANCH_MANGALWAR : activeBranch;
+      setReportBranch(branchTarget);
+      if (isMangal) {
+        setReportSession(prev => prev || 'Morning');
+      }
+    }
+  }, [activeBranch]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
@@ -118,8 +129,9 @@ export default function AttendanceReport() {
   }, [activeTab, reportBranch, reportSession, reportAcademicBatch, selectedDate, selectedStudentId]);
 
   // Export to Excel client-side using XLSX
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const XLSX = await import('xlsx');
       let exportRows = [];
       let filename = 'Attendance_Report.xlsx';
 

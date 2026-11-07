@@ -32,6 +32,7 @@ class StudentBase(BaseModel):
     previous_school: Optional[str] = None
     rfid_tag: Optional[str] = None
     admission_date: Optional[Any] = None
+    batch_start_date: Optional[Any] = None
     avatar: Optional[str] = None
     original_fees: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
@@ -76,6 +77,8 @@ class StudentAdminCreate(BaseModel):
     branch: Optional[str] = "Tarabai Park"
     standard: Optional[str] = None
     admission_date: Optional[Any] = None
+    batch_start_date: Optional[Any] = None
+    batchStartDate: Optional[Any] = None
     rfid_tag: Optional[str] = None
     superadmin_auth_code: Optional[str] = None
     original_fees: Optional[float] = None
@@ -99,6 +102,7 @@ class StudentResponse(StudentBase):
     student_id: Optional[str] = None
     rfid_tag: Optional[str] = None
     admission_date: Optional[Any] = None
+    batch_start_date: Optional[Any] = None
 
     class Config:
         extra = "allow"

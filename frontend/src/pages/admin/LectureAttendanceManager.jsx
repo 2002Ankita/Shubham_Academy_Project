@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import Button from '../../components/common/Button';
 import Table from '../../components/common/Table';
 import attendanceService from '../../services/attendanceService';
@@ -22,7 +21,11 @@ import {
   Save,
   Check,
   CheckCheck,
-  X
+  X,
+  Lock,
+  Unlock,
+  Pencil,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
@@ -46,15 +49,46 @@ export default function LectureAttendanceManager() {
 
   // Standardized Branch & Batch selection (Step 1: Branch -> Step 2: Session if Mangalwar Peth -> Step 3: Academic Batch)
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
-  const [selectedSession, setSelectedSession] = useState('');
+  const [selectedSession, setSelectedSession] = useState(() => isMP ? 'Morning' : '');
   const [selectedAcademicBatch, setSelectedAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
+
+  // Sync branch and session default when activeBranch becomes available from user
+  useEffect(() => {
+    if (activeBranch) {
+      const isMangal = activeBranch.toLowerCase().includes('mangal');
+      const branchTarget = isMangal ? BRANCH_MANGALWAR : activeBranch;
+      setSelectedBranch(branchTarget);
+      if (isMangal) {
+        setSelectedSession(prev => prev || 'Morning');
+      }
+    }
+  }, [activeBranch]);
+
+  // Sync session default when Mangalwar Peth is active
+  useEffect(() => {
+    if (selectedBranch && selectedBranch.toLowerCase().includes('mangal') && !selectedSession) {
+      setSelectedSession('Morning');
+    }
+  }, [selectedBranch, selectedSession]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState('all'); // 'all', '1', '2'
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [attendanceRows, setAttendanceRows] = useState([]);
+  const [savedSnapshot, setSavedSnapshot] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Check if current date/batch already has recorded attendance in DB
+  const hasExistingSavedAttendance = Boolean(
+    attendanceRows.some(r =>
+      (r.lecture_1?.status && r.lecture_1.status !== 'Not Marked') ||
+      (r.lecture_2?.status && r.lecture_2.status !== 'Not Marked') ||
+      r.lecture_1?.attendance_id ||
+      r.lecture_2?.attendance_id
+    )
+  );
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -81,7 +115,12 @@ export default function LectureAttendanceManager() {
     session: uploadSession,
     academicBatch: uploadAcademicBatch
   });
+
   const fetchData = async () => {
+    // If Mangalvar Peth campus is selected but session is still being resolved, avoid firing empty session query
+    if (selectedBranch && selectedBranch.toLowerCase().includes('mangal') && !selectedSession) {
+      return;
+    }
     setLoading(true);
     try {
       const dateRep = await attendanceService.getDateReport({
@@ -91,8 +130,20 @@ export default function LectureAttendanceManager() {
         academicBatch: selectedAcademicBatch
       });
       setReportData(dateRep);
-      setAttendanceRows(dateRep?.records || []);
+      const rows = dateRep?.records || [];
+      setAttendanceRows(rows);
+      setSavedSnapshot(JSON.parse(JSON.stringify(rows)));
       setHasUnsavedChanges(false);
+
+      // If records already exist in database, lock them by default so accidental clicks won't change attendance.
+      // If no records have been saved yet for this date, keep edit mode open for fresh marking.
+      const alreadySaved = rows.some(r =>
+        (r.lecture_1?.status && r.lecture_1.status !== 'Not Marked') ||
+        (r.lecture_2?.status && r.lecture_2.status !== 'Not Marked') ||
+        r.lecture_1?.attendance_id ||
+        r.lecture_2?.attendance_id
+      );
+      setIsEditMode(!alreadySaved);
     } catch (err) {
       console.warn('Failed to fetch attendance data:', err);
     } finally {
@@ -104,8 +155,38 @@ export default function LectureAttendanceManager() {
     fetchData();
   }, [selectedDate, selectedBranch, selectedSession, selectedAcademicBatch]);
 
+  // Start edit mode
+  const handleStartEdit = () => {
+    setSavedSnapshot(JSON.parse(JSON.stringify(attendanceRows)));
+    setIsEditMode(true);
+    toast.info('Edit mode enabled. You can now modify student attendance and click Save Attendance.', {
+      toastId: 'edit-mode-active',
+      autoClose: 2500
+    });
+  };
+
+  // Cancel edit mode and revert changes back to saved state
+  const handleCancelEdit = () => {
+    if (savedSnapshot && savedSnapshot.length > 0) {
+      setAttendanceRows(JSON.parse(JSON.stringify(savedSnapshot)));
+    }
+    setHasUnsavedChanges(false);
+    if (hasExistingSavedAttendance) {
+      setIsEditMode(false);
+    }
+    toast.info('Editing cancelled. Reverted back to saved attendance records.');
+  };
+
   // Mark single student slot status manually (Present / Absent)
   const handleMarkStatus = (studentId, slotNumber, newStatus) => {
+    if (!isEditMode && hasExistingSavedAttendance) {
+      toast.info("Attendance is locked. Click 'Edit Attendance' to modify.", {
+        toastId: 'locked-edit-prompt',
+        autoClose: 2500
+      });
+      return;
+    }
+
     setAttendanceRows(prev =>
       prev.map(row => {
         if (row.id === studentId || row.student_id === studentId) {
@@ -128,6 +209,14 @@ export default function LectureAttendanceManager() {
 
   // Bulk mark all students in the batch for Lecture 1, Lecture 2, or Both
   const handleMarkAll = (slotType, targetStatus = 'Present') => {
+    if (!isEditMode && hasExistingSavedAttendance) {
+      toast.info("Attendance is locked. Click 'Edit Attendance' to modify.", {
+        toastId: 'locked-edit-prompt',
+        autoClose: 2500
+      });
+      return;
+    }
+
     if (attendanceRows.length === 0) {
       toast.warning('No students found in this batch to mark.');
       return;
@@ -158,7 +247,7 @@ export default function LectureAttendanceManager() {
     toast.success(`Marked all ${attendanceRows.length} students as ${targetStatus} for ${slotLabel}! Click 'Save Attendance' to persist.`);
   };
 
-  // Save modified attendance records
+  // Save modified attendance records and lock into saved state
   const handleSaveAttendance = async () => {
     if (attendanceRows.length === 0) {
       toast.warning('No student records to save for this batch.');
@@ -185,6 +274,7 @@ export default function LectureAttendanceManager() {
       });
 
       setHasUnsavedChanges(false);
+      setIsEditMode(false); // Lock into saved state to prevent accidental changes
       toast.success(res?.message || `Saved attendance for ${attendanceRows.length} students for ${selectedDate}!`);
       await fetchData();
     } catch (err) {
@@ -197,7 +287,7 @@ export default function LectureAttendanceManager() {
 
 
   // Client-side sample template generator (.xlsx)
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     try {
       const isTP = activeBranch === 'Tarabai Park';
       const templateData = isTP ? [
@@ -324,6 +414,7 @@ export default function LectureAttendanceManager() {
         }
       ];
 
+      const XLSX = await import('xlsx');
       const ws = XLSX.utils.json_to_sheet(templateData);
       ws['!cols'] = [
         { wch: 14 },
@@ -354,8 +445,9 @@ export default function LectureAttendanceManager() {
     setUploadResult(null);
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import('xlsx');
         const bstr = evt.target.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsName = wb.SheetNames[0];
@@ -511,17 +603,116 @@ export default function LectureAttendanceManager() {
     }
   };
 
-  // Live KPI counts derived from mutable attendanceRows
-  const totalEnrolled = attendanceRows.length;
-  const l1Present = attendanceRows.filter(r => r.lecture_1?.status === 'Present').length;
-  const l1Absent = attendanceRows.filter(r => r.lecture_1?.status === 'Absent').length;
-  const l2Present = attendanceRows.filter(r => r.lecture_2?.status === 'Present').length;
-  const l2Absent = attendanceRows.filter(r => r.lecture_2?.status === 'Absent').length;
+  // Filter records ensuring student attendance only starts from the later of admission_date or batch_start_date
+  const filteredRecords = attendanceRows.filter(r => {
+    if (!selectedDate) return true;
+
+    const admClean = r.admission_date ? String(r.admission_date).split('T')[0].trim() : null;
+    const bStartClean = r.batch_start_date ? String(r.batch_start_date).split('T')[0].trim() : null;
+
+    let effStart = admClean;
+    if (admClean && bStartClean) {
+      effStart = admClean > bStartClean ? admClean : bStartClean;
+    } else if (bStartClean) {
+      effStart = bStartClean;
+    }
+
+    if (effStart && effStart > selectedDate) {
+      return false;
+    }
+    return true;
+  });
+
+  // Live KPI counts derived from valid filteredRecords
+  const totalEnrolled = filteredRecords.length;
+  const l1Present = filteredRecords.filter(r => r.lecture_1?.status === 'Present').length;
+  const l1Absent = filteredRecords.filter(r => r.lecture_1?.status === 'Absent').length;
+  const l2Present = filteredRecords.filter(r => r.lecture_2?.status === 'Present').length;
+  const l2Absent = filteredRecords.filter(r => r.lecture_2?.status === 'Absent').length;
   const l1Rate = totalEnrolled > 0 ? Math.round((l1Present / totalEnrolled) * 100) : 0;
   const l2Rate = totalEnrolled > 0 ? Math.round((l2Present / totalEnrolled) * 100) : 0;
 
-  // Filter records based on selectedSlot
-  const filteredRecords = attendanceRows;
+  // Ultra-clean, modern Present / Absent Segmented Pill Toggle
+  const renderAttendanceToggle = (row, slotNumber) => {
+    const slotKey = slotNumber === 1 ? 'lecture_1' : 'lecture_2';
+    const slotData = row[slotKey] || {};
+    const st = slotData.status || 'Not Marked';
+    const isPresent = st === 'Present';
+    const isAbsent = st === 'Absent';
+    const isLocked = !isEditMode && hasExistingSavedAttendance;
+
+    const handleToggleClick = (targetStatus) => {
+      if (isLocked) {
+        toast.info("Attendance for this date is saved & locked. Click 'Edit Attendance' above to modify.", {
+          toastId: 'locked-edit-prompt',
+          autoClose: 2500
+        });
+        return;
+      }
+      handleMarkStatus(row.id || row.student_id, slotNumber, targetStatus);
+    };
+
+    return (
+      <div 
+        className="d-inline-flex align-items-center p-0.5 rounded-pill border shadow-2xs"
+        style={{
+          backgroundColor: '#f8fafc',
+          borderColor: '#e2e8f0',
+          gap: '2px',
+          cursor: isLocked ? 'not-allowed' : 'default'
+        }}
+        onClick={isLocked ? () => handleToggleClick(null) : undefined}
+      >
+        <button
+          type="button"
+          className={`btn btn-xs rounded-pill fw-bold border-0 transition-all d-inline-flex align-items-center justify-content-center gap-1 px-3 ${
+            isPresent
+              ? 'btn-success text-white shadow-xs'
+              : 'text-secondary bg-transparent'
+          }`}
+          style={{
+            fontSize: '11.5px',
+            minWidth: '70px',
+            height: '27px',
+            cursor: isLocked ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease-in-out'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleClick('Present');
+          }}
+          title={isLocked ? "Attendance locked. Click 'Edit Attendance' above to modify" : `Mark Present for Lecture ${slotNumber}`}
+        >
+          <Check size={12} strokeWidth={2.8} />
+          <span>Present</span>
+        </button>
+
+        <button
+          type="button"
+          className={`btn btn-xs rounded-pill fw-bold border-0 transition-all d-inline-flex align-items-center justify-content-center gap-1 px-3 ${
+            isAbsent
+              ? 'btn-danger text-white shadow-xs'
+              : 'text-secondary bg-transparent'
+          }`}
+          style={{
+            fontSize: '11.5px',
+            minWidth: '70px',
+            height: '27px',
+            cursor: isLocked ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease-in-out'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleClick('Absent');
+          }}
+          title={isLocked ? "Attendance locked. Click 'Edit Attendance' above to modify" : `Mark Absent for Lecture ${slotNumber}`}
+        >
+          <X size={12} strokeWidth={2.8} />
+          <span>Absent</span>
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="d-flex flex-column gap-4 w-100">
@@ -576,16 +767,40 @@ export default function LectureAttendanceManager() {
             Upload Excel Sheet
           </Button>
 
-          <Button
-            variant={hasUnsavedChanges ? 'primary' : 'outline'}
-            icon={Save}
-            loading={savingAttendance}
-            onClick={handleSaveAttendance}
-            disabled={attendanceRows.length === 0}
-            title="Save attendance records for the selected date"
-          >
-            Save Attendance
-          </Button>
+          {!isEditMode && hasExistingSavedAttendance ? (
+            <Button
+              variant="outline"
+              icon={Pencil}
+              onClick={handleStartEdit}
+              disabled={attendanceRows.length === 0}
+              title="Unlock attendance to make edits or corrections"
+            >
+              Edit Attendance
+            </Button>
+          ) : (
+            <>
+              {hasExistingSavedAttendance && isEditMode && (
+                <Button
+                  variant="outline"
+                  icon={RotateCcw}
+                  onClick={handleCancelEdit}
+                  title="Cancel modifications and re-lock records"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button
+                variant={hasUnsavedChanges ? 'primary' : 'outline'}
+                icon={Save}
+                loading={savingAttendance}
+                onClick={handleSaveAttendance}
+                disabled={attendanceRows.length === 0}
+                title="Save attendance records for the selected date"
+              >
+                Save Attendance
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -637,14 +852,26 @@ export default function LectureAttendanceManager() {
         </div>
 
         <div className="col-12 col-sm-6 col-lg-3">
-          <div className="sa-card p-3.5 bg-white h-100 border-start border-4 border-warning">
+          <div className={`sa-card p-3.5 bg-white h-100 border-start border-4 ${
+            hasUnsavedChanges
+              ? 'border-warning'
+              : isEditMode
+              ? 'border-primary'
+              : hasExistingSavedAttendance
+              ? 'border-success'
+              : 'border-secondary'
+          }`}>
             <span className="small text-sa-muted d-block fw-medium">Attendance Status</span>
             <div className="d-flex align-items-baseline gap-2 mt-1">
               <h4 className="brand-font fw-bold m-0 fs-6">
                 {hasUnsavedChanges ? (
                   <span className="text-warning">⚠️ Unsaved Changes</span>
+                ) : isEditMode ? (
+                  <span className="text-primary">✏️ Edit Mode Active</span>
+                ) : hasExistingSavedAttendance ? (
+                  <span className="text-success">🔒 Saved & Locked</span>
                 ) : (
-                  <span className="text-success">✅ Saved in Records</span>
+                  <span className="text-muted">⚪ Not Recorded</span>
                 )}
               </h4>
             </div>
@@ -849,6 +1076,18 @@ export default function LectureAttendanceManager() {
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto">
+            {(!hasExistingSavedAttendance || isEditMode) && (
+              <Button
+                variant={hasUnsavedChanges ? 'primary' : 'outline'}
+                icon={Save}
+                loading={savingAttendance}
+                onClick={handleSaveAttendance}
+                disabled={attendanceRows.length === 0}
+                className="btn-sm"
+              >
+                Save Attendance
+              </Button>
+            )}
             <button
               type="button"
               className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 fw-semibold text-nowrap rounded-2 shadow-2xs flex-grow-1 flex-md-grow-0"
@@ -872,6 +1111,53 @@ export default function LectureAttendanceManager() {
           </div>
         </div>
 
+        {!isEditMode && hasExistingSavedAttendance ? (
+          <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-2.5 px-3 mb-3 bg-light border border-secondary-subtle rounded-3 small gap-2">
+            <div className="d-flex align-items-center gap-2 text-sa-charcoal">
+              <Lock size={15} className="text-success" />
+              <span>
+                Attendance for <strong>{reportData?.formatted_date || selectedDate}</strong> is <strong>saved & locked</strong>. Buttons are disabled to prevent accidental clicks.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-xs btn-dark fw-semibold d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 shadow-2xs text-nowrap"
+              onClick={handleStartEdit}
+            >
+              <Pencil size={12} />
+              <span>Edit Attendance</span>
+            </button>
+          </div>
+        ) : (isEditMode && hasExistingSavedAttendance) ? (
+          <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-2.5 px-3 mb-3 bg-primary-subtle border border-primary-subtle rounded-3 small gap-2">
+            <div className="d-flex align-items-center gap-2 text-primary">
+              <Unlock size={15} />
+              <span>
+                <strong>Edit Mode Active:</strong> You can now modify Present / Absent status. Click 'Save Attendance' when done.
+              </span>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-xs btn-outline-secondary bg-white d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 text-nowrap"
+                onClick={handleCancelEdit}
+              >
+                <RotateCcw size={12} />
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-xs btn-primary fw-semibold d-inline-flex align-items-center gap-1 px-3 py-1 rounded-2 shadow-2xs text-nowrap"
+                onClick={handleSaveAttendance}
+                disabled={savingAttendance}
+              >
+                <Save size={12} />
+                <span>{savingAttendance ? 'Saving...' : 'Save Attendance'}</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <Table
           columns={[
             {
@@ -887,9 +1173,21 @@ export default function LectureAttendanceManager() {
               render: (val, row) => (
                 <div>
                   <span className="fw-semibold text-sa-charcoal d-block">{val}</span>
-                  <span className="small text-muted" style={{ fontSize: '11px' }}>
+                  <span className="small text-muted d-block" style={{ fontSize: '11px' }}>
                     Parent: {row.parent_mobile || 'N/A'}
                   </span>
+                  <div className="d-flex align-items-center gap-1.5 mt-0.5 flex-wrap">
+                    {row.admission_date && (
+                      <span className="small text-muted d-inline-block" style={{ fontSize: '10.5px' }}>
+                        Admitted: {String(row.admission_date).split('T')[0]}
+                      </span>
+                    )}
+                    {row.batch_start_date && (
+                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5" style={{ fontSize: '10px' }}>
+                        Batch: {String(row.batch_start_date).split('T')[0]}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             },
@@ -903,134 +1201,46 @@ export default function LectureAttendanceManager() {
               title: (
                 <div className="d-flex align-items-center justify-content-between gap-2">
                   <span>Lecture 1 (Morning)</span>
-                  <button
-                    type="button"
-                    className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-1.5 rounded-1"
-                    style={{ fontSize: '10px' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMarkAll(1, 'Present');
-                    }}
-                    title="Mark all students Present for Lecture 1"
-                  >
-                    All Present
-                  </button>
+                  {isEditMode && (
+                    <button
+                      type="button"
+                      className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-2 rounded-pill shadow-2xs"
+                      style={{ fontSize: '10px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAll(1, 'Present');
+                      }}
+                      title="Mark all students Present for Lecture 1"
+                    >
+                      All Present
+                    </button>
+                  )}
                 </div>
               ),
-              render: (val, row) => {
-                const st = row.lecture_1?.status || val?.status || 'Not Marked';
-                const isPresent = st === 'Present';
-                const isAbsent = st === 'Absent';
-                return (
-                  <div className="d-flex flex-column gap-1">
-                    <div className="btn-group btn-group-sm" role="group" aria-label="Mark Lecture 1">
-                      <button
-                        type="button"
-                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
-                          isPresent
-                            ? 'btn-success text-white shadow-2xs'
-                            : 'btn-outline-success bg-white text-success'
-                        }`}
-                        style={{ fontSize: '11px', minWidth: '66px' }}
-                        onClick={() => handleMarkStatus(row.id || row.student_id, 1, 'Present')}
-                        title="Mark Present for Lecture 1"
-                      >
-                        ✓ Present
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
-                          isAbsent
-                            ? 'btn-danger text-white shadow-2xs'
-                            : 'btn-outline-danger bg-white text-danger'
-                        }`}
-                        style={{ fontSize: '11px', minWidth: '66px' }}
-                        onClick={() => handleMarkStatus(row.id || row.student_id, 1, 'Absent')}
-                        title="Mark Absent for Lecture 1"
-                      >
-                        ✕ Absent
-                      </button>
-                    </div>
-                    {isAbsent && (
-                      <span className="small text-danger fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
-                        <AlertCircle size={11} /> Absent Marked
-                      </span>
-                    )}
-                    {!isPresent && !isAbsent && (
-                      <span className="small text-muted" style={{ fontSize: '10px' }}>
-                        ⚪ Not Marked
-                      </span>
-                    )}
-                  </div>
-                );
-              }
+              render: (_, row) => renderAttendanceToggle(row, 1)
             },
             {
               key: 'lecture_2',
               title: (
                 <div className="d-flex align-items-center justify-content-between gap-2">
                   <span>Lecture 2 (Afternoon)</span>
-                  <button
-                    type="button"
-                    className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-1.5 rounded-1"
-                    style={{ fontSize: '10px' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMarkAll(2, 'Present');
-                    }}
-                    title="Mark all students Present for Lecture 2"
-                  >
-                    All Present
-                  </button>
+                  {isEditMode && (
+                    <button
+                      type="button"
+                      className="btn btn-2xs btn-outline-success bg-white fw-bold py-0.5 px-2 rounded-pill shadow-2xs"
+                      style={{ fontSize: '10px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAll(2, 'Present');
+                      }}
+                      title="Mark all students Present for Lecture 2"
+                    >
+                      All Present
+                    </button>
+                  )}
                 </div>
               ),
-              render: (val, row) => {
-                const st = row.lecture_2?.status || val?.status || 'Not Marked';
-                const isPresent = st === 'Present';
-                const isAbsent = st === 'Absent';
-                return (
-                  <div className="d-flex flex-column gap-1">
-                    <div className="btn-group btn-group-sm" role="group" aria-label="Mark Lecture 2">
-                      <button
-                        type="button"
-                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
-                          isPresent
-                            ? 'btn-success text-white shadow-2xs'
-                            : 'btn-outline-success bg-white text-success'
-                        }`}
-                        style={{ fontSize: '11px', minWidth: '66px' }}
-                        onClick={() => handleMarkStatus(row.id || row.student_id, 2, 'Present')}
-                        title="Mark Present for Lecture 2"
-                      >
-                        ✓ Present
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-xs fw-bold px-2.5 py-1 ${
-                          isAbsent
-                            ? 'btn-danger text-white shadow-2xs'
-                            : 'btn-outline-danger bg-white text-danger'
-                        }`}
-                        style={{ fontSize: '11px', minWidth: '66px' }}
-                        onClick={() => handleMarkStatus(row.id || row.student_id, 2, 'Absent')}
-                        title="Mark Absent for Lecture 2"
-                      >
-                        ✕ Absent
-                      </button>
-                    </div>
-                    {isAbsent && (
-                      <span className="small text-danger fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '10px' }}>
-                        <AlertCircle size={11} /> Absent Marked
-                      </span>
-                    )}
-                    {!isPresent && !isAbsent && (
-                      <span className="small text-muted" style={{ fontSize: '10px' }}>
-                        ⚪ Not Marked
-                      </span>
-                    )}
-                  </div>
-                );
-              }
+              render: (_, row) => renderAttendanceToggle(row, 2)
             },
             {
               key: 'smsStatus',
@@ -1041,28 +1251,24 @@ export default function LectureAttendanceManager() {
                   return <span className="small text-muted">—</span>;
                 }
                 return (
-                  <div className="d-flex flex-column gap-1">
-                    <div className="d-flex align-items-center gap-1">
-                      <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
-                        <span>💬 WhatsApp</span>
-                      </span>
-                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1" style={{ fontSize: '11px' }}>
-                        <span>📱 SMS</span>
-                      </span>
-                    </div>
-                    {row.parent_mobile && (
+                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                    {row.parent_mobile ? (
                       <button
                         type="button"
                         onClick={() => {
                           const text = `*Shubham Academy • Urgent Attendance Alert* ⚠️\n\nDear Parent, your ward *${row.student_name}* (${row.roll_number}) was marked *ABSENT* on ${selectedDate} for academic lectures. Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
                           notificationService.sendWhatsAppWeb(row.parent_mobile, text);
                         }}
-                        className="btn btn-xs btn-outline-success d-inline-flex align-items-center gap-1 py-0.5 px-2 mt-0.5 rounded-2"
-                        style={{ fontSize: '10.5px', width: 'fit-content' }}
-                        title="Open direct WhatsApp chat with parent"
+                        className="btn btn-xs btn-outline-success fw-semibold d-inline-flex align-items-center gap-1.5 py-1 px-2.5 rounded-pill shadow-2xs"
+                        style={{ fontSize: '11px' }}
+                        title="Send WhatsApp alert to parent"
                       >
-                        <span>💬 Open WhatsApp Chat</span>
+                        <span>💬 WhatsApp Alert</span>
                       </button>
+                    ) : (
+                      <span className="badge bg-light text-muted border border-secondary-subtle px-2 py-1 rounded-pill" style={{ fontSize: '11px' }}>
+                        No Parent Mobile
+                      </span>
                     )}
                   </div>
                 );
@@ -1077,16 +1283,25 @@ export default function LectureAttendanceManager() {
           <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-3 mt-3 bg-warning-subtle border border-warning rounded-3 gap-2">
             <span className="small text-dark fw-bold d-flex align-items-center gap-1.5">
               <AlertCircle size={16} className="text-warning" />
-              You have unsaved attendance modifications for {selectedDate}. Click Save Attendance to commit your changes.
+              You have unsaved attendance modifications for {selectedDate}. Click Save Attendance to commit your changes or Cancel to revert.
             </span>
-            <Button
-              variant="primary"
-              icon={Save}
-              loading={savingAttendance}
-              onClick={handleSaveAttendance}
-            >
-              Save Attendance
-            </Button>
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary bg-white"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+              <Button
+                variant="primary"
+                icon={Save}
+                loading={savingAttendance}
+                onClick={handleSaveAttendance}
+              >
+                Save Attendance
+              </Button>
+            </div>
           </div>
         )}
       </div>

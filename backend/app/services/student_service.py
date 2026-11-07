@@ -84,6 +84,7 @@ async def _format_student(student: Student) -> dict:
         "profile_completed": bool(getattr(student, "profile_completed", False)),
         "avatar": getattr(student, "avatar", None) or "",
         "admission_date": student.admission_date,
+        "batch_start_date": getattr(student, "batch_start_date", None),
         "original_fees": getattr(student, "original_fees", student.total_fees) or student.total_fees,
         "discount_amount": getattr(student, "discount_amount", 0.0) or 0.0,
         "discount_requested_amount": getattr(student, "discount_requested_amount", getattr(student, "discount_amount", 0.0)) or getattr(student, "discount_amount", 0.0),
@@ -268,6 +269,17 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         except Exception:
             pass
 
+    batch_start_date = None
+    raw_b_start = data.get("batch_start_date") or data.get("batchStartDate")
+    if raw_b_start:
+        try:
+            if isinstance(raw_b_start, str):
+                batch_start_date = datetime.fromisoformat(raw_b_start.replace('Z', '+00:00'))
+            else:
+                batch_start_date = raw_b_start
+        except Exception:
+            pass
+
     student = Student(
         user=user,
         student_id=student_id,
@@ -285,6 +297,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         branch=norm_branch,
         academic_year=data.get("academic_year") or "2025-2026",
         admission_date=admission_date,
+        batch_start_date=batch_start_date,
         rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
         original_fees=orig_fees,
         discount_amount=disc_amount,
@@ -744,6 +757,16 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                     student_in["admission_date"] = None
             elif not adm_val:
                 student_in["admission_date"] = None
+
+        if "batch_start_date" in student_in or "batchStartDate" in student_in:
+            bs_val = student_in.get("batch_start_date") or student_in.get("batchStartDate")
+            if isinstance(bs_val, str) and bs_val.strip():
+                try:
+                    student_in["batch_start_date"] = datetime.fromisoformat(bs_val.replace('Z', '+00:00'))
+                except Exception:
+                    student_in["batch_start_date"] = None
+            elif not bs_val:
+                student_in["batch_start_date"] = None
 
         valid_fields = set(Student.model_fields.keys()) - {"id", "revision_id", "user"}
         cleaned_update = {k: v for k, v in student_in.items() if k in valid_fields}
