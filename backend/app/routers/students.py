@@ -84,6 +84,12 @@ async def delete_student_endpoint(id: str, token: str = Depends(oauth2_scheme)):
     await delete_student(id)
     return {"message": "Student deleted successfully"}
 
+@router.post("/{id}/convert-to-two-year", response_model=StudentResponse)
+async def convert_to_two_year_endpoint(id: str, payload: dict, token: str = Depends(oauth2_scheme)):
+    current_user = await get_current_user(token)
+    from app.services.student_service import convert_student_to_two_year
+    return await convert_student_to_two_year(id, payload, current_user)
+
 @router.post("/{id}/offer-discount", response_model=StudentResponse)
 async def offer_discount_endpoint(id: str, payload: dict, token: str = Depends(oauth2_scheme)):
     current_user = await get_current_user(token)

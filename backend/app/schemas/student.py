@@ -29,6 +29,12 @@ class StudentBase(BaseModel):
     session: Optional[str] = None
     branch: Optional[str] = "Tarabai Park"
     academic_year: Optional[str] = "2025-2026"
+    admission_type: Optional[str] = "11th Standard Only"
+    admissions: Optional[List[Any]] = []
+    concession_type: Optional[str] = "fixed"
+    concession_value: Optional[float] = 0.0
+    concession_approved_by: Optional[str] = None
+    concession_approved_at: Optional[Any] = None
     previous_school: Optional[str] = None
     rfid_tag: Optional[str] = None
     admission_date: Optional[Any] = None
@@ -90,6 +96,39 @@ class StudentAdminCreate(BaseModel):
     discountRecommendedBy: Optional[str] = None
     discount_offered_by: Optional[str] = None
     discountOfferedBy: Optional[str] = None
+    admission_type: Optional[str] = None
+    admissionType: Optional[str] = None
+    admissions: Optional[List[Any]] = None
+    concession_type: Optional[str] = None
+    concessionType: Optional[str] = None
+    concession_value: Optional[float] = None
+    concessionValue: Optional[float] = None
+    second_year_standard: Optional[str] = None
+    secondYearStandard: Optional[str] = None
+    second_year_academic_batch: Optional[str] = None
+    secondYearAcademicBatch: Optional[str] = None
+    second_year_batch: Optional[str] = None
+    secondYearBatch: Optional[str] = None
+    second_year_session: Optional[str] = None
+    secondYearSession: Optional[str] = None
+    second_year_academic_year: Optional[str] = None
+    secondYearAcademicYear: Optional[str] = None
+    second_year_original_fee: Optional[float] = None
+    secondYearOriginalFee: Optional[float] = None
+
+    class Config:
+        extra = "allow"
+
+class StudentConversionRequest(BaseModel):
+    second_year_standard: Optional[str] = "12th Science"
+    second_year_academic_batch: str
+    second_year_batch: Optional[str] = None
+    second_year_session: Optional[str] = None
+    second_year_academic_year: Optional[str] = "2026-2027"
+    concession_type: Optional[str] = "fixed"  # "fixed", "percentage", "custom"
+    concession_value: Optional[float] = 0.0
+    concession_reason: Optional[str] = "Two-Year Integrated Package Discount"
+    recommended_by: Optional[str] = "Miss Shilpa (Counselor)"
 
     class Config:
         extra = "allow"

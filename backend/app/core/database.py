@@ -24,10 +24,12 @@ async def init_db():
     from app.models.daily_activity import DailyActivity
     from app.models.topic_duration import TopicDuration
     
+    from app.models.admission import Admission
+    
     # We will add our models to the document_models list later as we create them
     await init_beanie(
         database=database, 
         document_models=[
-            User, Student, Teacher, Attendance, FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration
+            User, Student, Admission, Teacher, Attendance, FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration
         ]
     )

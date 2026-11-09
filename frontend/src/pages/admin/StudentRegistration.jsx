@@ -16,7 +16,8 @@ import {
   Users,
   Tag,
   ArrowRight,
-  RotateCcw
+  RotateCcw,
+  Layers
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
@@ -115,12 +116,18 @@ export default function StudentRegistration() {
     mobileNumber: '',
     parentPhone: '',
     rollNumber: '',
+    admissionType: '11th Standard Only', // '11th Standard Only', '12th Standard Only', '11th + 12th Standard (Two-Year Admission)'
     branch: initialBranch,
     session: isMangal ? 'Morning' : '',
     academicBatch: '11th PCM',
     standard: '11th Science',
     batch: `${initialBranch} • ${isMangal ? 'Morning • ' : ''}11th PCM`,
+    secondYearAcademicBatch: '12th PCM',
+    secondYearAcademicYear: '2026-2027',
+    secondYearSession: isMangal ? 'Morning' : '',
     originalFees: 55000,
+    concessionType: 'fixed', // 'fixed', 'percentage', 'custom'
+    concessionValue: 0,
     discountAmount: 0,
     discountReason: '',
     discountRecommendedBy: 'Miss Shilpa (Counselor)',
@@ -133,6 +140,58 @@ export default function StudentRegistration() {
 
   const [errors, setErrors] = useState({});
   const [existingStudents, setExistingStudents] = useState([]);
+
+  // Dynamic fee calculation engine
+  const computeAdmissionFees = (
+    admType,
+    branch,
+    batch1,
+    batch2,
+    cType,
+    cVal,
+    paidInput,
+    customOrig = null
+  ) => {
+    const isTwo = admType === '11th + 12th Standard (Two-Year Admission)';
+    const is12 = admType === '12th Standard Only';
+
+    const y1Std = is12 ? '12th Science' : '11th Science';
+    const fee1 = getMatchingCourseFee(feeStructures, branch, batch1, y1Std, is12 ? 65000 : 55000);
+
+    let fee2 = 0;
+    if (isTwo) {
+      const y2Std = '12th Science';
+      const b2 = batch2 || '12th PCM';
+      fee2 = getMatchingCourseFee(feeStructures, branch, b2, y2Std, 65000);
+    }
+
+    const grossOriginal = customOrig !== null && customOrig > 0 ? customOrig : (isTwo ? (fee1 + fee2) : fee1);
+
+    let disc = 0;
+    const numericVal = Number(cVal) || 0;
+    if (cType === 'percentage') {
+      disc = Math.round((grossOriginal * numericVal) / 100);
+    } else if (cType === 'custom') {
+      disc = numericVal;
+    } else {
+      disc = numericVal;
+    }
+    disc = Math.min(grossOriginal, Math.max(0, disc));
+
+    const net = Math.max(0, grossOriginal - disc);
+    const paid = Number(paidInput) || 0;
+    const rem = Math.max(0, net - paid);
+
+    return {
+      fee1,
+      fee2,
+      grossOriginal,
+      discountAmount: disc,
+      netTotal: net,
+      paidFees: paid,
+      remainingFees: rem
+    };
+  };
 
   useEffect(() => {
     studentService.getAll()
@@ -163,14 +222,29 @@ export default function StudentRegistration() {
       const std = currentAcademic.startsWith('12th') ? '12th Science' : '11th Science';
       const fullBatch = `${currentAcademic} ${targetBranch}${targetSession ? ` (${targetSession})` : ''}`;
 
-      setFormData(prev => ({
-        ...prev,
-        branch: targetBranch,
-        session: targetSession,
-        academicBatch: currentAcademic,
-        standard: std,
-        batch: fullBatch
-      }));
+      setFormData(prev => {
+        const calc = computeAdmissionFees(
+          prev.admissionType,
+          targetBranch,
+          currentAcademic,
+          prev.secondYearAcademicBatch,
+          prev.concessionType,
+          prev.concessionValue,
+          prev.paidFees
+        );
+        return {
+          ...prev,
+          branch: targetBranch,
+          session: targetSession,
+          academicBatch: currentAcademic,
+          standard: std,
+          batch: fullBatch,
+          originalFees: calc.grossOriginal,
+          discountAmount: calc.discountAmount,
+          totalFees: calc.netTotal,
+          remainingFees: calc.remainingFees
+        };
+      });
     }
   }, [activeBranch]);
 
@@ -178,21 +252,37 @@ export default function StudentRegistration() {
     feeService.getStructures(activeBranch).then((data) => {
       if (Array.isArray(data)) {
         setFeeStructures(data);
-        const dynamicFee = getMatchingCourseFee(data, formData.branch, formData.academicBatch, formData.standard, formData.originalFees);
-        if (dynamicFee > 0) {
-          const disc = Number(formData.discountAmount) || 0;
-          const net = dynamicFee; // gross course fee payable pending discount approval
-          const paid = Number(formData.paidFees) || 0;
-          setFormData(prev => ({
+        setFormData(prev => {
+          const isTwo = prev.admissionType === '11th + 12th Standard (Two-Year Admission)';
+          const is12 = prev.admissionType === '12th Standard Only';
+          const y1Std = is12 ? '12th Science' : '11th Science';
+          const fee1 = getMatchingCourseFee(data, prev.branch, prev.academicBatch, y1Std, is12 ? 65000 : 55000);
+          const fee2 = isTwo ? getMatchingCourseFee(data, prev.branch, prev.secondYearAcademicBatch || '12th PCM', '12th Science', 65000) : 0;
+          const gross = isTwo ? (fee1 + fee2) : fee1;
+
+          let disc = 0;
+          const numericVal = Number(prev.concessionValue) || Number(prev.discountAmount) || 0;
+          if (prev.concessionType === 'percentage') {
+            disc = Math.round((gross * numericVal) / 100);
+          } else {
+            disc = numericVal;
+          }
+          disc = Math.min(gross, Math.max(0, disc));
+          const net = Math.max(0, gross - disc);
+          const paid = Number(prev.paidFees) || 0;
+
+          return {
             ...prev,
-            originalFees: dynamicFee,
+            originalFees: gross,
+            discountAmount: disc,
             totalFees: net,
             remainingFees: Math.max(0, net - paid)
-          }));
-        }
+          };
+        });
       }
     }).catch((err) => console.warn('Could not load fee structures:', err));
   }, [activeBranch]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let updated = { ...formData, [name]: value };
@@ -201,6 +291,44 @@ export default function StudentRegistration() {
     if (name === 'mobileNumber') {
       const clean = value.replace(/\D/g, '');
       updated.password = clean;
+    }
+
+    if (name === 'admissionType') {
+      const is12 = value === '12th Standard Only';
+      const curBatch = is12 ? (formData.academicBatch.startsWith('12') ? formData.academicBatch : '12th PCM') : (formData.academicBatch.startsWith('11') ? formData.academicBatch : '11th PCM');
+      const curStd = is12 ? '12th Science' : '11th Science';
+      const stream = curBatch.includes('PCMB') ? 'PCMB' : (curBatch.includes('PCB') ? 'PCB' : 'PCM');
+      const y2Batch = `12th ${stream}`;
+
+      const calc = computeAdmissionFees(value, formData.branch, curBatch, y2Batch, formData.concessionType, formData.concessionValue, formData.paidFees);
+      updated.admissionType = value;
+      updated.academicBatch = curBatch;
+      updated.standard = curStd;
+      updated.secondYearAcademicBatch = y2Batch;
+      updated.originalFees = calc.grossOriginal;
+      updated.discountAmount = calc.discountAmount;
+      updated.totalFees = calc.netTotal;
+      updated.remainingFees = calc.remainingFees;
+    }
+
+    if (name === 'concessionType' || name === 'concessionValue') {
+      const cType = name === 'concessionType' ? value : updated.concessionType;
+      const cVal = name === 'concessionValue' ? Number(value) : Number(updated.concessionValue);
+      const calc = computeAdmissionFees(updated.admissionType, updated.branch, updated.academicBatch, updated.secondYearAcademicBatch, cType, cVal, updated.paidFees, Number(updated.originalFees));
+      updated.concessionType = cType;
+      updated.concessionValue = cVal;
+      updated.discountAmount = calc.discountAmount;
+      updated.totalFees = calc.netTotal;
+      updated.remainingFees = calc.remainingFees;
+    }
+
+    if (name === 'secondYearAcademicBatch') {
+      const calc = computeAdmissionFees(updated.admissionType, updated.branch, updated.academicBatch, value, updated.concessionType, updated.concessionValue, updated.paidFees);
+      updated.secondYearAcademicBatch = value;
+      updated.originalFees = calc.grossOriginal;
+      updated.discountAmount = calc.discountAmount;
+      updated.totalFees = calc.netTotal;
+      updated.remainingFees = calc.remainingFees;
     }
 
     // Real-time calculation for Fees with Discount
@@ -224,13 +352,11 @@ export default function StudentRegistration() {
     const sessionNeeded = isSessionRequired(newBranch);
     const newSession = sessionNeeded ? (formData.session || 'Morning') : '';
     const currentAcademic = formData.academicBatch || '11th PCM';
-    const std = currentAcademic.startsWith('12th') ? '12th Science' : '11th Science';
+    const is12 = formData.admissionType === '12th Standard Only';
+    const std = is12 ? '12th Science' : '11th Science';
     const fullBatch = `${currentAcademic} ${newBranch}${newSession ? ` (${newSession})` : ''}`;
 
-    const newOriginalFee = getMatchingCourseFee(feeStructures, newBranch, currentAcademic, std, formData.originalFees);
-    const disc = Number(formData.discountAmount) || 0;
-    const netTotal = Math.max(0, newOriginalFee - disc);
-    const paid = Number(formData.paidFees) || 0;
+    const calc = computeAdmissionFees(formData.admissionType, newBranch, currentAcademic, formData.secondYearAcademicBatch, formData.concessionType, formData.concessionValue, formData.paidFees);
 
     setFormData((prev) => ({
       ...prev,
@@ -239,9 +365,10 @@ export default function StudentRegistration() {
       academicBatch: currentAcademic,
       batch: fullBatch,
       standard: std,
-      originalFees: newOriginalFee,
-      totalFees: netTotal,
-      remainingFees: Math.max(0, netTotal - paid)
+      originalFees: calc.grossOriginal,
+      discountAmount: calc.discountAmount,
+      totalFees: calc.netTotal,
+      remainingFees: calc.remainingFees
     }));
 
     setErrors((prev) => ({ ...prev, branch: '', session: '', academicBatch: '' }));
@@ -259,22 +386,24 @@ export default function StudentRegistration() {
   };
 
   const handleAcademicBatchChange = (newAcademicBatch) => {
-    const std = newAcademicBatch.startsWith('12th') ? '12th Science' : '11th Science';
+    const is12 = formData.admissionType === '12th Standard Only';
+    const std = is12 ? '12th Science' : '11th Science';
+    const stream = newAcademicBatch.includes('PCMB') ? 'PCMB' : (newAcademicBatch.includes('PCB') ? 'PCB' : 'PCM');
+    const y2Batch = `12th ${stream}`;
     const fullBatch = `${newAcademicBatch} ${formData.branch}${formData.session ? ` (${formData.session})` : ''}`;
 
-    const newOriginalFee = getMatchingCourseFee(feeStructures, formData.branch, newAcademicBatch, std, formData.originalFees);
-    const disc = Number(formData.discountAmount) || 0;
-    const netTotal = Math.max(0, newOriginalFee - disc);
-    const paid = Number(formData.paidFees) || 0;
+    const calc = computeAdmissionFees(formData.admissionType, formData.branch, newAcademicBatch, y2Batch, formData.concessionType, formData.concessionValue, formData.paidFees);
 
     setFormData((prev) => ({
       ...prev,
       academicBatch: newAcademicBatch,
       batch: fullBatch,
       standard: std,
-      originalFees: newOriginalFee,
-      totalFees: netTotal,
-      remainingFees: Math.max(0, netTotal - paid)
+      secondYearAcademicBatch: y2Batch,
+      originalFees: calc.grossOriginal,
+      discountAmount: calc.discountAmount,
+      totalFees: calc.netTotal,
+      remainingFees: calc.remainingFees
     }));
 
     setErrors((prev) => ({ ...prev, academicBatch: '', batch: '' }));
@@ -405,7 +534,17 @@ export default function StudentRegistration() {
         remainingFees: remainingFees,
         remaining_fees: remainingFees,
         password: formData.password || formData.mobileNumber?.replace(/\D/g, '') || undefined,
-        admission_date: new Date(formData.admissionDate).toISOString()
+        admission_date: new Date(formData.admissionDate).toISOString(),
+        admission_type: formData.admissionType,
+        admissionType: formData.admissionType,
+        concession_type: formData.concessionType,
+        concessionType: formData.concessionType,
+        concession_value: Number(formData.concessionValue) || discAmount,
+        second_year_standard: '12th Science',
+        second_year_academic_batch: formData.admissionType === '11th + 12th Standard (Two-Year Admission)' ? formData.secondYearAcademicBatch : undefined,
+        second_year_academic_year: formData.admissionType === '11th + 12th Standard (Two-Year Admission)' ? (formData.secondYearAcademicYear || '2026-2027') : undefined,
+        second_year_batch: formData.admissionType === '11th + 12th Standard (Two-Year Admission)' ? `${formData.secondYearAcademicBatch} ${formData.branch}` : undefined,
+        second_year_session: formData.admissionType === '11th + 12th Standard (Two-Year Admission)' ? (formData.secondYearSession || formData.session) : undefined
       };
 
       const result = await studentService.create(payload);
@@ -701,7 +840,96 @@ export default function StudentRegistration() {
                 </div>
               </div>
 
-              {/* Section 2: Academic Class & Batch Allocation (Admission Source of Truth) */}
+              {/* Section 2: Admission Type Selection */}
+              <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{ width: '32px', height: '32px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+                >
+                  <Layers size={18} />
+                </div>
+                <div>
+                  <h6 className="fw-bold m-0 text-sa-charcoal">2. Admission Type & Academic Program</h6>
+                  <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
+                    Select single-year standard or integrated two-year program (11th + 12th)
+                  </span>
+                </div>
+              </div>
+
+              <div className="row g-3 mb-4">
+                {[
+                  {
+                    id: '11th Standard Only',
+                    title: '11th Standard Only',
+                    subtitle: 'Single Year (2025-2026)',
+                    desc: 'Admission for 11th Standard curriculum only.',
+                    badge: 'Standard 1-Year'
+                  },
+                  {
+                    id: '12th Standard Only',
+                    title: '12th Standard Only',
+                    subtitle: 'Single Year (2025-2026)',
+                    desc: 'Direct admission for 12th Standard board / entrance prep.',
+                    badge: 'Standard 1-Year'
+                  },
+                  {
+                    id: '11th + 12th Standard (Two-Year Admission)',
+                    title: '11th + 12th Standard',
+                    subtitle: 'Two-Year Admission (2025-2027)',
+                    desc: 'Combined 2-year integrated course with linked academic records & concession.',
+                    badge: '✨ Integrated 2-Year'
+                  }
+                ].map(opt => {
+                  const isSelected = formData.admissionType === opt.id;
+                  return (
+                    <div key={opt.id} className="col-12 col-md-4">
+                      <div
+                        onClick={() => handleInputChange({ target: { name: 'admissionType', value: opt.id } })}
+                        className="p-3 rounded-3 border h-100 transition-all"
+                        style={{
+                          backgroundColor: isSelected ? '#FFF8F8' : '#FFFFFF',
+                          borderColor: isSelected ? '#8B1216' : '#E2E8F0',
+                          borderWidth: isSelected ? '2px' : '1px',
+                          cursor: 'pointer',
+                          boxShadow: isSelected ? '0 2px 8px rgba(139, 18, 22, 0.12)' : 'none'
+                        }}
+                      >
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <span
+                            className="badge"
+                            style={{
+                              backgroundColor: isSelected ? 'rgba(139,18,22,0.1)' : '#F1F5F9',
+                              color: isSelected ? '#8B1216' : '#475569',
+                              fontSize: '10px'
+                            }}
+                          >
+                            {opt.badge}
+                          </span>
+                          <input
+                            type="radio"
+                            name="admissionType"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="form-check-input"
+                            style={{ accentColor: '#8B1216' }}
+                          />
+                        </div>
+                        <h6 className="fw-bold mb-1" style={{ color: isSelected ? '#8B1216' : '#1E293B', fontSize: '13.5px' }}>
+                          {opt.title}
+                        </h6>
+                        <span className="text-muted d-block small mb-1" style={{ fontSize: '11px' }}>
+                          {opt.subtitle}
+                        </span>
+                        <p className="text-muted m-0" style={{ fontSize: '11px', lineHeight: 1.35 }}>
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Section 3: Branch & Batch Allocation */}
               <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                 <div
                   className="rounded-circle d-flex align-items-center justify-content-center"
@@ -710,14 +938,25 @@ export default function StudentRegistration() {
                   <GraduationCap size={18} />
                 </div>
                 <div>
-                  <h6 className="fw-bold m-0 text-sa-charcoal">2. Branch & Batch Allocation (Admission Source of Truth)</h6>
+                  <h6 className="fw-bold m-0 text-sa-charcoal">
+                    {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
+                      ? '3. Academic Batch Allocation (Year 1 & Year 2)'
+                      : '3. Branch & Batch Allocation (Admission Source of Truth)'}
+                  </h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                    Select Branch first, followed by Session (if Mangalvar Peth) and Academic Batch
+                    {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
+                      ? 'Configure 11th Standard Active batch and linked 12th Standard Upcoming batch'
+                      : 'Select Branch first, followed by Session (if Mangalvar Peth) and Academic Batch'}
                   </span>
                 </div>
               </div>
 
               <div className="p-3 bg-light rounded-3 border mb-4">
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 fw-bold" style={{ fontSize: '11px' }}>
+                    {formData.admissionType === '11th + 12th Standard (Two-Year Admission)' ? 'Year 1: 11th Standard (Active)' : 'Enrolled Standard'}
+                  </span>
+                </div>
                 <BranchBatchSelector
                   branch={formData.branch}
                   session={formData.session}
@@ -738,15 +977,61 @@ export default function StudentRegistration() {
                   </div>
                 )}
 
+                {/* If Two-Year Admission, show 2nd Year Linked Allocation Box */}
+                {formData.admissionType === '11th + 12th Standard (Two-Year Admission)' && (
+                  <div className="mt-3 pt-3 border-top">
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 fw-bold" style={{ fontSize: '11px' }}>
+                        Year 2: 12th Standard (Linked Academic Record - Upcoming)
+                      </span>
+                      <span className="small text-muted" style={{ fontSize: '11px' }}>
+                        Academic Year: <strong>{formData.secondYearAcademicYear || '2026-2027'}</strong>
+                      </span>
+                    </div>
+
+                    <div className="row g-2 align-items-center">
+                      <div className="col-12 col-md-6">
+                        <label className="form-label small fw-semibold text-sa-charcoal m-0 mb-1">
+                          12th Academic Batch Stream
+                        </label>
+                        <select
+                          name="secondYearAcademicBatch"
+                          value={formData.secondYearAcademicBatch}
+                          onChange={handleInputChange}
+                          className="form-select form-select-sm"
+                          style={{ height: '36px' }}
+                        >
+                          <option value="12th PCM">12th PCM (Physics, Chemistry, Maths)</option>
+                          <option value="12th PCB">12th PCB (Physics, Chemistry, Biology)</option>
+                          <option value="12th PCMB">12th PCMB (Integrated All-4)</option>
+                        </select>
+                      </div>
+
+                      <div className="col-12 col-md-6">
+                        <label className="form-label small fw-semibold text-sa-charcoal m-0 mb-1">
+                          Linked Placement Tag
+                        </label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={`${formData.secondYearAcademicBatch || '12th PCM'} ${formData.branch}${formData.session ? ` (${formData.session})` : ''}`}
+                          className="form-control form-control-sm bg-white"
+                          style={{ height: '36px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
                   <div className="small text-sa-charcoal">
-                    <span className="text-muted">Enrolled Standard:</span>{' '}
+                    <span className="text-muted">Enrolled Program:</span>{' '}
                     <span className="badge bg-white text-dark border px-2 py-1 fw-bold">
-                      {formData.standard}
+                      {formData.admissionType}
                     </span>
                   </div>
                   <div className="small text-sa-charcoal">
-                    <span className="text-muted">Master Placement:</span>{' '}
+                    <span className="text-muted">Primary Active Placement:</span>{' '}
                     <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
                       {formData.branch} • {formData.session ? `${formData.session} • ` : ''}{formData.academicBatch}
                     </span>
@@ -754,7 +1039,7 @@ export default function StudentRegistration() {
                 </div>
               </div>
 
-              {/* Section 3: Fee Details */}
+              {/* Section 4: Fee Details */}
               <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                 <div
                   className="rounded-circle d-flex align-items-center justify-content-center"
@@ -763,9 +1048,11 @@ export default function StudentRegistration() {
                   <CreditCard size={18} />
                 </div>
                 <div>
-                  <h6 className="fw-bold m-0 text-sa-charcoal">3. Fee Details & Initial Collection</h6>
+                  <h6 className="fw-bold m-0 text-sa-charcoal">4. Fee Details & Initial Collection</h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                    Course pricing, initial deposit, and remaining balance
+                    {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
+                      ? 'Combined two-year course pricing, initial deposit, and remaining balance'
+                      : 'Course pricing, initial deposit, and remaining balance'}
                   </span>
                 </div>
               </div>
@@ -775,7 +1062,9 @@ export default function StudentRegistration() {
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
-                      Course Fee (Gross) (₹) <span className="text-danger">*</span>
+                      {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
+                        ? 'Combined Gross Fee (₹)'
+                        : 'Course Fee (Gross) (₹)'} <span className="text-danger">*</span>
                     </label>
                   </div>
                   <div className="input-group">
@@ -795,7 +1084,9 @@ export default function StudentRegistration() {
                     {errors.originalFees && <div className="invalid-feedback">{errors.originalFees}</div>}
                   </div>
                   <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
-                    Standard course catalog fee
+                    {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
+                      ? 'Combined 11th + 12th catalog fee'
+                      : 'Standard course catalog fee'}
                   </span>
                 </div>
 
@@ -851,7 +1142,7 @@ export default function StudentRegistration() {
                 </div>
               </div>
 
-              {/* Section 4: Discount & Scholarship Concession (Optional) */}
+              {/* Section 5: Fee Concession & Scholarship (Configurable) */}
               <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                 <div
                   className="rounded-circle d-flex align-items-center justify-content-center"
@@ -860,20 +1151,50 @@ export default function StudentRegistration() {
                   <Tag size={18} />
                 </div>
                 <div>
-                  <h6 className="fw-bold m-0 text-sa-charcoal">4. Fee Concession & Scholarship (Optional)</h6>
+                  <h6 className="fw-bold m-0 text-sa-charcoal">5. Fee Concession & Scholarship (Configurable)</h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                    Recommend scholarship discount requiring Super Admin approval
+                    Configure concession as Fixed Amount, Percentage, or Custom Amount (Requires Superadmin approval)
                   </span>
                 </div>
               </div>
 
+              {/* Concession Type Switcher */}
+              <div className="mb-3">
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1.5 d-block">
+                  Concession Mode:
+                </label>
+                <div className="btn-group w-100" role="group">
+                  {[
+                    { id: 'fixed', label: 'Fixed Amount (₹)' },
+                    { id: 'percentage', label: 'Percentage (%)' },
+                    { id: 'custom', label: 'Custom Amount (₹)' }
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => handleInputChange({ target: { name: 'concessionType', value: m.id } })}
+                      className="btn btn-sm py-1.5 fw-semibold transition-all"
+                      style={{
+                        backgroundColor: formData.concessionType === m.id ? '#8B1216' : '#FFFFFF',
+                        color: formData.concessionType === m.id ? '#FFFFFF' : '#475569',
+                        borderColor: '#CBD5E1',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="row g-3 mb-4">
-                {/* Discount Amount */}
-                {/* 1. Discount Amount */}
+                {/* Concession Value Input */}
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
-                      Discount Amount (₹)
+                      {formData.concessionType === 'percentage'
+                        ? 'Concession (%)'
+                        : 'Concession Amount (₹)'}
                     </label>
                     {Number(formData.discountAmount) > 0 ? (
                       <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold text-nowrap" style={{ fontSize: '10px' }}>
@@ -886,27 +1207,30 @@ export default function StudentRegistration() {
                     )}
                   </div>
                   <div className="input-group">
-                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>₹</span>
+                    <span className="input-group-text bg-light text-muted fw-bold" style={{ height: '38px' }}>
+                      {formData.concessionType === 'percentage' ? '%' : '₹'}
+                    </span>
                     <input
                       type="number"
-                      name="discountAmount"
-                      value={formData.discountAmount}
+                      name="concessionValue"
+                      value={formData.concessionValue}
                       onChange={handleInputChange}
                       min="0"
-                      step="500"
-                      placeholder="e.g. 5000"
-                      className={`form-control ${errors.discountAmount ? 'is-invalid' : ''}`}
+                      step={formData.concessionType === 'percentage' ? '1' : '500'}
+                      placeholder={formData.concessionType === 'percentage' ? 'e.g. 10' : 'e.g. 5000'}
+                      className="form-control"
                       style={{ height: '38px' }}
                       disabled={loading}
                     />
-                    {errors.discountAmount && <div className="invalid-feedback">{errors.discountAmount}</div>}
                   </div>
                   <span className="text-muted small d-block mt-1 text-truncate" style={{ fontSize: '11px', minHeight: '17px' }}>
-                    Deducted from gross course fee
+                    {formData.concessionType === 'percentage'
+                      ? `Calculates ₹${Number(formData.discountAmount).toLocaleString('en-IN')} off combined course fee`
+                      : 'Deducted from gross course fee'}
                   </span>
                 </div>
 
-                {/* 2. Discount Reason */}
+                {/* Concession Reason */}
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
@@ -921,24 +1245,24 @@ export default function StudentRegistration() {
                     name="discountReason"
                     value={formData.discountReason}
                     onChange={handleInputChange}
-                    placeholder="e.g., Merit Scholarship, Sibling"
+                    placeholder="e.g., Merit Scholarship, Two-Year Package"
                     className="form-control"
                     style={{ height: '38px' }}
                     disabled={loading}
                   />
                   <span className="text-muted small d-block mt-1 text-truncate" style={{ fontSize: '11px', minHeight: '17px' }}>
-                    Justification for discount approval
+                    Reason for Admin / Superadmin approval
                   </span>
                 </div>
 
-                {/* 3. Recommended By */}
+                {/* Recommended By */}
                 <div className="col-12 col-md-4">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
                       Recommended By
                     </label>
                     <span className="badge bg-light text-muted border fw-normal text-nowrap" style={{ fontSize: '10px' }}>
-                      Optional
+                      Authorized Officer
                     </span>
                   </div>
                   <input
@@ -956,7 +1280,7 @@ export default function StudentRegistration() {
                   </span>
                 </div>
 
-                {/* Full-width Quick Presets Row */}
+                {/* Quick Presets based on concession type */}
                 <div className="col-12 mt-1">
                   <div
                     className="d-flex align-items-center gap-1.5 flex-wrap p-2 rounded-2"
@@ -965,42 +1289,36 @@ export default function StudentRegistration() {
                     <span className="text-muted small fw-semibold me-1" style={{ fontSize: '11px' }}>
                       ⚡ Quick Presets:
                     </span>
-                    {[
-                      { label: '₹2,000', val: 2000 },
-                      { label: '₹5,000', val: 5000 },
-                      { label: '₹10,000', val: 10000 },
-                      { label: '10% Off', val: '10%' },
-                      { label: '20% Off', val: '20%' },
-                      { label: 'Clear (₹0)', val: 0 }
-                    ].map((p) => (
+                    {(formData.concessionType === 'percentage'
+                      ? [
+                          { label: '5%', val: 5 },
+                          { label: '10%', val: 10 },
+                          { label: '15%', val: 15 },
+                          { label: '20%', val: 20 },
+                          { label: '25%', val: 25 },
+                          { label: '0%', val: 0 }
+                        ]
+                      : [
+                          { label: '₹2,000', val: 2000 },
+                          { label: '₹5,000', val: 5000 },
+                          { label: '₹10,000', val: 10000 },
+                          { label: '₹15,000', val: 15000 },
+                          { label: '₹20,000', val: 20000 },
+                          { label: 'Clear (₹0)', val: 0 }
+                        ]
+                    ).map((p) => (
                       <button
                         key={p.label}
                         type="button"
                         onClick={() => {
-                          const orig = Number(formData.originalFees) || 0;
-                          let disc = 0;
-                          if (typeof p.val === 'string' && p.val.endsWith('%')) {
-                            disc = Math.round((orig * parseFloat(p.val)) / 100);
-                          } else {
-                            disc = Number(p.val) || 0;
-                          }
-                          disc = Math.min(disc, orig);
-                          const net = Math.max(0, orig - disc);
-                          const paid = Number(formData.paidFees) || 0;
-                          setFormData(prev => ({
-                            ...prev,
-                            discountAmount: disc,
-                            totalFees: net,
-                            remainingFees: Math.max(0, net - paid),
-                            discountReason: disc > 0 ? (prev.discountReason || 'Merit Scholarship') : prev.discountReason
-                          }));
+                          handleInputChange({ target: { name: 'concessionValue', value: p.val } });
                         }}
                         className="btn btn-xs py-0.5 px-2.5 rounded-pill fw-semibold transition-all"
                         style={{
                           fontSize: '11px',
-                          backgroundColor: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '#FEF3C7' : '#FFFFFF',
-                          color: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '#B45309' : '#475569',
-                          border: Number(formData.discountAmount) === (typeof p.val === 'string' ? Math.round(((Number(formData.originalFees) || 0) * parseFloat(p.val)) / 100) : p.val) ? '1.5px solid #F59E0B' : '1px solid #CBD5E1'
+                          backgroundColor: Number(formData.concessionValue) === p.val ? '#FEF3C7' : '#FFFFFF',
+                          color: Number(formData.concessionValue) === p.val ? '#B45309' : '#475569',
+                          border: Number(formData.concessionValue) === p.val ? '1.5px solid #F59E0B' : '1px solid #CBD5E1'
                         }}
                       >
                         {p.label}
@@ -1008,6 +1326,56 @@ export default function StudentRegistration() {
                     ))}
                   </div>
                 </div>
+
+                {/* Year-wise Breakdown Card for Two-Year Admission */}
+                {formData.admissionType === '11th + 12th Standard (Two-Year Admission)' && (
+                  <div className="col-12 mt-2">
+                    <div className="p-3 rounded-2 border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span className="fw-bold text-success small">
+                          📊 Two-Year Academic Concession Breakdown:
+                        </span>
+                        <span className="badge bg-success text-white" style={{ fontSize: '10px' }}>
+                          Linked Academic Records
+                        </span>
+                      </div>
+                      <div className="row g-2 text-center small">
+                        <div className="col-6 col-md-3">
+                          <div className="p-2 bg-white rounded border">
+                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>11th Catalog Fee</span>
+                            <strong className="text-sa-charcoal" style={{ fontSize: '13px' }}>
+                              ₹{getMatchingCourseFee(feeStructures, formData.branch, formData.academicBatch, '11th Science', 55000).toLocaleString('en-IN')}
+                            </strong>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <div className="p-2 bg-white rounded border">
+                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>12th Catalog Fee</span>
+                            <strong className="text-sa-charcoal" style={{ fontSize: '13px' }}>
+                              ₹{getMatchingCourseFee(feeStructures, formData.branch, formData.secondYearAcademicBatch || '12th PCM', '12th Science', 65000).toLocaleString('en-IN')}
+                            </strong>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <div className="p-2 bg-white rounded border">
+                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>Combined Original</span>
+                            <strong className="text-primary" style={{ fontSize: '13px' }}>
+                              ₹{Number(formData.originalFees).toLocaleString('en-IN')}
+                            </strong>
+                          </div>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <div className="p-2 bg-white rounded border">
+                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>Net 2-Year Payable</span>
+                            <strong className="text-success fw-bold" style={{ fontSize: '13px' }}>
+                              ₹{Number(formData.totalFees).toLocaleString('en-IN')}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {Number(formData.discountAmount) > 0 && (
                   <div className="col-12">
@@ -1017,7 +1385,7 @@ export default function StudentRegistration() {
                     >
                       <ShieldCheck size={16} className="text-warning-emphasis flex-shrink-0" />
                       <span style={{ fontSize: '11.5px', lineHeight: 1.4 }}>
-                        <strong>Concession Policy:</strong> Concession request of ₹{Number(formData.discountAmount).toLocaleString('en-IN')} reduces standard course fee from ₹{Number(formData.originalFees).toLocaleString('en-IN')} to ₹{Math.max(0, Number(formData.originalFees) - Number(formData.discountAmount)).toLocaleString('en-IN')}. Super Admin approval is logged automatically.
+                        <strong>Concession Policy:</strong> Concession request of ₹{Number(formData.discountAmount).toLocaleString('en-IN')} reduces gross fees from ₹{Number(formData.originalFees).toLocaleString('en-IN')} to ₹{Math.max(0, Number(formData.originalFees) - Number(formData.discountAmount)).toLocaleString('en-IN')}. Superadmin approval is logged automatically.
                       </span>
                     </div>
                   </div>
@@ -1225,6 +1593,13 @@ export default function StudentRegistration() {
                 <span className="text-muted">Parent Mobile:</span>
                 <span className="fw-semibold text-sa-charcoal">
                   {formData.parentPhone || <em className="text-muted fw-normal">Pending</em>}
+                </span>
+              </div>
+
+              <div className="d-flex justify-content-between border-bottom pb-2">
+                <span className="text-muted">Admission Program:</span>
+                <span className="badge py-1 px-2 rounded fw-bold text-nowrap" style={{ backgroundColor: '#FDF0F0', color: '#8B1216', border: '1px solid rgba(139,18,22,0.2)' }}>
+                  {formData.admissionType}
                 </span>
               </div>
 

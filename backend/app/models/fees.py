@@ -26,6 +26,11 @@ class FeePayment(Document):
     payment_method: str
     transaction_reference: str
     remarks: str
+    admission_id: Optional[str] = None
+    standard: Optional[str] = None
+    academic_year: Optional[str] = None
+    receipt_number: Optional[str] = None
+    branch: Optional[str] = None
 
     class Settings:
         name = "fee_payments"

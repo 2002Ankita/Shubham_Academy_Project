@@ -26,7 +26,10 @@ import {
   XCircle,
   Tag,
   Plus,
-  Clock
+  Clock,
+  Layers,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 
 export default function StudentDetails() {
@@ -47,8 +50,75 @@ export default function StudentDetails() {
   });
   const [submittingDiscount, setSubmittingDiscount] = useState(false);
 
+  // Multi-Year Conversion modal state
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [conversionForm, setConversionForm] = useState({
+    secondYearAcademicBatch: '12th PCM',
+    secondYearAcademicYear: '2026-2027',
+    secondYearSession: '',
+    concessionType: 'fixed',
+    concessionValue: 10000,
+    concessionReason: 'Two-Year Integrated Package Discount',
+    customReason: '',
+    recommendedBy: 'Miss Shilpa (Counselor)'
+  });
+
   const roleStr = (user?.role || '').toLowerCase().replace('-', '_');
   const isSuperAdmin = roleStr === 'super_admin' || roleStr.includes('super');
+
+  const getCatalogFee = (branch, batch, standard) => {
+    const isMangal = (branch || '').toLowerCase().includes('mangal');
+    const bStr = (batch || '').toLowerCase();
+    const isPCMB = bStr.includes('pcmb');
+    const isPCB = bStr.includes('pcb') && !isPCMB;
+    const is12th = (standard || '').includes('12') || bStr.includes('12');
+
+    if (isMangal) {
+      if (is12th) {
+        return isPCMB ? 65000 : 60000;
+      } else {
+        return isPCMB ? 58000 : 52000;
+      }
+    } else {
+      if (is12th) {
+        return isPCMB ? 70000 : 65000;
+      } else {
+        return isPCMB ? 60000 : 55000;
+      }
+    }
+  };
+
+  const handleConversionSubmit = async (e) => {
+    e.preventDefault();
+    if (!student) return;
+
+    const reason = conversionForm.concessionReason === 'Other'
+      ? (conversionForm.customReason || 'Special Multi-Year Concession')
+      : conversionForm.concessionReason;
+
+    try {
+      setConverting(true);
+      await studentService.convertToTwoYear(student.id, {
+        second_year_standard: '12th Science',
+        second_year_academic_batch: conversionForm.secondYearAcademicBatch,
+        second_year_batch: `${conversionForm.secondYearAcademicBatch} ${student.branch || 'Tarabai Park'}`,
+        second_year_session: conversionForm.secondYearSession || student.session || undefined,
+        second_year_academic_year: conversionForm.secondYearAcademicYear || '2026-2027',
+        concession_type: conversionForm.concessionType,
+        concession_value: Number(conversionForm.concessionValue) || 0,
+        concession_reason: reason,
+        recommended_by: conversionForm.recommendedBy || (user?.full_name || user?.name || 'Miss Shilpa')
+      });
+      toast.success(`Successfully converted ${student.name} to Two-Year Admission! 12th Standard admission linked.`);
+      setConvertModalOpen(false);
+      await loadDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to convert to Two-Year Admission');
+    } finally {
+      setConverting(false);
+    }
+  };
 
   const loadDetails = async () => {
     try {
@@ -189,6 +259,21 @@ export default function StudentDetails() {
   const paidFees = feeDetails?.amount_paid ?? 0;
   const pendingFees = feeDetails?.pending_fees ?? Math.max(0, totalFees - paidFees);
 
+  const admissionsList = student.admissions?.length > 0
+    ? student.admissions
+    : (feeDetails?.admissions?.length > 0 ? feeDetails.admissions : []);
+  const isTwoYear = Boolean(
+    student.admissionType?.includes('Two-Year') ||
+    student.admissionType?.includes('11th + 12th') ||
+    admissionsList.length > 1
+  );
+  const is11th = Boolean(
+    (student.standard || '').includes('11') ||
+    (student.academicBatch || '').includes('11th') ||
+    (student.batch || '').includes('11th')
+  );
+  const canConvertToTwoYear = !isTwoYear && is11th;
+
   return (
     <div className="d-flex flex-column gap-4">
       <div>
@@ -211,6 +296,16 @@ export default function StudentDetails() {
               <span className="badge bg-light text-sa-charcoal border px-2 py-0.5 rounded-pill small fw-bold">
                 📍 {formatStudentBatchDisplay(student)}
               </span>
+              {isTwoYear ? (
+                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-0.5 rounded-pill small fw-bold d-inline-flex align-items-center gap-1">
+                  <Layers size={13} />
+                  11th + 12th Two-Year Admission
+                </span>
+              ) : (
+                <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0.5 rounded-pill small">
+                  {student.admissionType || (student.standard?.includes('12') ? '12th Standard Only' : '11th Standard Only')}
+                </span>
+              )}
               {student.profileCompleted ? (
                 <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-pill small">
                   Profile Complete ✓
@@ -223,7 +318,28 @@ export default function StudentDetails() {
             </div>
           </div>
 
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 flex-wrap">
+            {canConvertToTwoYear && (
+              <Button
+                variant="outline"
+                className="border-primary text-primary fw-semibold d-inline-flex align-items-center gap-1.5"
+                onClick={() => {
+                  const y1Batch = student.academicBatch || student.batch || '11th PCM';
+                  let y2Batch = '12th PCM';
+                  if (y1Batch.toLowerCase().includes('pcmb')) y2Batch = '12th PCMB';
+                  else if (y1Batch.toLowerCase().includes('pcb')) y2Batch = '12th PCB';
+                  setConversionForm(prev => ({
+                    ...prev,
+                    secondYearAcademicBatch: y2Batch,
+                    secondYearSession: student.session || ''
+                  }));
+                  setConvertModalOpen(true);
+                }}
+              >
+                <Layers size={16} />
+                <span>Convert to Two-Year</span>
+              </Button>
+            )}
             <Button variant="outline" onClick={() => navigate('/admin/fees')}>
               Collect Fee
             </Button>
@@ -274,6 +390,9 @@ export default function StudentDetails() {
 
             <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Admission Placement Details</h6>
             <p className="small text-sa-muted mb-1">
+              <strong>Program:</strong> <span className="fw-bold text-dark">{student.admissionType || (isTwoYear ? '11th + 12th Standard (Two-Year Admission)' : (student.standard?.includes('12') ? '12th Standard Only' : '11th Standard Only'))}</span>
+            </p>
+            <p className="small text-sa-muted mb-1">
               <strong>Branch:</strong> <span className="fw-bold text-dark">{student.branch || 'Tarabai Park'}</span>
             </p>
             <p className="small text-sa-muted mb-1">
@@ -282,6 +401,11 @@ export default function StudentDetails() {
             {student.session && (
               <p className="small text-sa-muted mb-1">
                 <strong>Session:</strong> <span className="badge bg-primary-subtle text-primary border border-primary-subtle">{student.session}</span>
+              </p>
+            )}
+            {isTwoYear && admissionsList[1] && (
+              <p className="small text-sa-muted mb-1">
+                <strong>Linked Year 2 Batch:</strong> <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">{admissionsList[1].academic_batch || admissionsList[1].batch || '12th Science'}</span>
               </p>
             )}
             <p className="small text-sa-muted mb-0">
@@ -327,6 +451,112 @@ export default function StudentDetails() {
                 </div>
               </div>
             </div>
+
+            {/* Linked Academic Admissions (Multi-Year Admission Breakdown) */}
+            {admissionsList.length > 0 && (
+              <div className="col-12">
+                <div className="sa-card p-4 border" style={{ backgroundColor: '#FAFBFD' }}>
+                  <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                    <div className="d-flex align-items-center gap-2">
+                      <Layers size={20} className="text-sa-primary" />
+                      <div>
+                        <h6 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+                          Linked Academic Programs ({admissionsList.length} Academic {admissionsList.length === 1 ? 'Year' : 'Years'})
+                        </h6>
+                        <small className="text-muted">
+                          Multi-year fee breakdown and status records for Student ID: <strong>{student.rollNumber}</strong>
+                        </small>
+                      </div>
+                    </div>
+                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 rounded-pill fw-semibold small">
+                      🎓 {student.admissionType || (admissionsList.length > 1 ? 'Two-Year Admission' : 'Standard Admission')}
+                    </span>
+                  </div>
+
+                  <div className="row g-3">
+                    {admissionsList.map((adm, idx) => {
+                      const admPaid = Number(adm.paid_fees || adm.paidFees || 0);
+                      const admFinal = Number(adm.final_fees || adm.finalFees || 0);
+                      const admOrig = Number(adm.original_fees || adm.originalFees || admFinal);
+                      const admConc = Number(adm.concession_amount || adm.concessionAmount || 0);
+                      const admRem = Number(adm.remaining_fees != null ? (adm.remaining_fees || adm.remainingFees) : Math.max(0, admFinal - admPaid));
+                      const pctPaid = admFinal > 0 ? Math.min(100, Math.round((admPaid / admFinal) * 100)) : (admPaid > 0 ? 100 : 0);
+                      const isYear1 = idx === 0 || (adm.standard || '').includes('11');
+                      const isUpcoming = adm.status === 'Upcoming';
+
+                      return (
+                        <div key={adm.admission_id || idx} className="col-12 col-md-6">
+                          <div
+                            className="p-3.5 rounded-3 border bg-white h-100 shadow-xs position-relative"
+                            style={{
+                              borderLeft: isUpcoming ? '4px solid #F59E0B' : '4px solid #168554'
+                            }}
+                          >
+                            <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                              <div>
+                                <span className="badge bg-light text-sa-charcoal border me-2 small fw-bold">
+                                  {isYear1 ? 'Year 1' : 'Year 2'}
+                                </span>
+                                <strong className="text-sa-charcoal">{adm.standard}</strong>
+                              </div>
+                              <span
+                                className={`badge ${
+                                  adm.status === 'Completed' || admRem <= 0
+                                    ? 'bg-success-subtle text-success border border-success-subtle'
+                                    : isUpcoming
+                                    ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
+                                    : 'bg-primary-subtle text-primary border border-primary-subtle'
+                                } rounded-pill px-2.5 py-1 small`}
+                              >
+                                ● {adm.status || (admRem <= 0 ? 'Completed' : isUpcoming ? 'Upcoming' : 'Active')}
+                              </span>
+                            </div>
+
+                            <div className="small text-muted mb-2.5">
+                              <div><strong>Batch:</strong> {adm.academic_batch || adm.batch}</div>
+                              <div><strong>Academic Year:</strong> {adm.academic_year} • <strong>Campus:</strong> {adm.branch || student.branch}</div>
+                              {adm.admission_id && (
+                                <div className="text-secondary mt-0.5" style={{ fontSize: '11px' }}>Ref: <code>{adm.admission_id}</code></div>
+                              )}
+                            </div>
+
+                            <div className="row g-2 text-center small mb-2.5 py-2 rounded bg-light-subtle border">
+                              <div className="col-4">
+                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Original</span>
+                                <span className="fw-semibold text-secondary">₹{admOrig.toLocaleString()}</span>
+                              </div>
+                              <div className="col-4">
+                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Concession</span>
+                                <span className="fw-bold text-success">-₹{admConc.toLocaleString()}</span>
+                              </div>
+                              <div className="col-4">
+                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Net Payable</span>
+                                <span className="fw-bold text-sa-charcoal">₹{admFinal.toLocaleString()}</span>
+                              </div>
+                            </div>
+
+                            <div className="d-flex align-items-center justify-content-between small mb-1">
+                              <span className="text-muted">
+                                Paid: <strong className="text-success">₹{admPaid.toLocaleString()}</strong>
+                              </span>
+                              <span className="text-muted">
+                                Due: <strong className={admRem > 0 ? 'text-danger' : 'text-success'}>₹{admRem.toLocaleString()}</strong>
+                              </span>
+                            </div>
+                            <div className="progress" style={{ height: '6px' }}>
+                              <div
+                                className={`progress-bar ${admRem <= 0 ? 'bg-success' : 'bg-primary'}`}
+                                style={{ width: `${pctPaid}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Student Discount Approval Card */}
             <div className="col-12">
@@ -646,6 +876,233 @@ export default function StudentDetails() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Convert to Two-Year Admission Modal */}
+      <Modal
+        isOpen={convertModalOpen}
+        onClose={() => setConvertModalOpen(false)}
+        title="Convert to Two-Year Integrated Admission"
+      >
+        {(() => {
+          const convBranch = student.branch || 'Tarabai Park';
+          const convY1Batch = student.academicBatch || student.batch || '11th PCM';
+          const convFee1 = Number(student.originalFees) || getCatalogFee(convBranch, convY1Batch, '11th Science');
+          const convFee2 = getCatalogFee(convBranch, conversionForm.secondYearAcademicBatch, '12th Science');
+          const convGross = convFee1 + convFee2;
+          const convVal = Number(conversionForm.concessionValue) || 0;
+          let convDisc = 0;
+          if (conversionForm.concessionType === 'percentage') {
+            convDisc = Math.round((convGross * convVal) / 100);
+          } else {
+            convDisc = convVal;
+          }
+          convDisc = Math.min(convGross, Math.max(0, convDisc));
+          const convFinal = Math.max(0, convGross - convDisc);
+          const convPaid = paidFees;
+          const convRemaining = Math.max(0, convFinal - convPaid);
+
+          return (
+            <form onSubmit={handleConversionSubmit} className="d-flex flex-column gap-3">
+              {/* Student Summary Banner */}
+              <div className="p-2.5 rounded-2 bg-light border small">
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Student Name & Roll No:</span>
+                  <strong className="text-sa-charcoal">{student.name} ({student.rollNumber})</strong>
+                </div>
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Campus & Current 11th Program:</span>
+                  <span className="fw-semibold text-secondary">{convBranch} • {convY1Batch}</span>
+                </div>
+                <div className="d-flex justify-content-between">
+                  <span className="text-muted">Current Payments Logged:</span>
+                  <span className="fw-bold text-success">₹{convPaid.toLocaleString()} (Fully Preserved)</span>
+                </div>
+              </div>
+
+              {/* 12th Academic Batch Stream Selection */}
+              <div>
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                  12th Standard Academic Stream & Batch *
+                </label>
+                <select
+                  className="form-select form-select-sm"
+                  value={conversionForm.secondYearAcademicBatch}
+                  onChange={(e) => setConversionForm({ ...conversionForm, secondYearAcademicBatch: e.target.value })}
+                  required
+                >
+                  <option value="12th PCM">12th PCM (Physics, Chemistry, Mathematics)</option>
+                  <option value="12th PCB">12th PCB (Physics, Chemistry, Biology)</option>
+                  <option value="12th PCMB">12th PCMB (Physics, Chemistry, Maths, Biology)</option>
+                </select>
+                <small className="text-muted">
+                  A linked 12th Standard admission record will be created under this student's profile.
+                </small>
+              </div>
+
+              {/* Concession Type Selector */}
+              <div>
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                  Two-Year Concession Discount Type
+                </label>
+                <div className="btn-group w-100" role="group">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${conversionForm.concessionType === 'fixed' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setConversionForm({ ...conversionForm, concessionType: 'fixed', concessionValue: 10000 })}
+                  >
+                    Fixed ₹ Amount
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${conversionForm.concessionType === 'percentage' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setConversionForm({ ...conversionForm, concessionType: 'percentage', concessionValue: 10 })}
+                  >
+                    Percentage (%)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${conversionForm.concessionType === 'custom' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setConversionForm({ ...conversionForm, concessionType: 'custom', concessionValue: 15000 })}
+                  >
+                    Custom Concession
+                  </button>
+                </div>
+              </div>
+
+              {/* Concession Value Input */}
+              <div>
+                <Input
+                  label={conversionForm.concessionType === 'percentage' ? 'Concession Percentage (%)' : 'Concession Amount (₹)'}
+                  type="number"
+                  min="0"
+                  max={conversionForm.concessionType === 'percentage' ? 50 : convGross}
+                  value={conversionForm.concessionValue}
+                  onChange={(e) => setConversionForm({ ...conversionForm, concessionValue: e.target.value })}
+                  placeholder={conversionForm.concessionType === 'percentage' ? 'e.g. 10' : 'e.g. 10000'}
+                  required
+                />
+                <div className="d-flex gap-1.5 mt-1.5 flex-wrap">
+                  {conversionForm.concessionType === 'percentage' ? (
+                    [5, 10, 15, 20].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded-pill"
+                        style={{ fontSize: '11px' }}
+                        onClick={() => setConversionForm({ ...conversionForm, concessionValue: pct })}
+                      >
+                        {pct}%
+                      </button>
+                    ))
+                  ) : (
+                    [5000, 10000, 15000, 20000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded-pill"
+                        style={{ fontSize: '11px' }}
+                        onClick={() => setConversionForm({ ...conversionForm, concessionValue: amt })}
+                      >
+                        ₹{amt.toLocaleString()}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Concession Reason Dropdown */}
+              <div>
+                <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                  Concession Reason / Category
+                </label>
+                <select
+                  className="form-select form-select-sm"
+                  value={conversionForm.concessionReason}
+                  onChange={(e) => setConversionForm({ ...conversionForm, concessionReason: e.target.value })}
+                >
+                  <option value="Two-Year Integrated Package Discount">Two-Year Integrated Package Discount</option>
+                  <option value="Academic Merit Scholarship (Two-Year)">Academic Merit Scholarship (Two-Year)</option>
+                  <option value="Sibling Two-Year Concession">Sibling Two-Year Concession</option>
+                  <option value="Early Enrolment Multi-Year Benefit">Early Enrolment Multi-Year Benefit</option>
+                  <option value="Other">Other (Custom Reason)</option>
+                </select>
+              </div>
+
+              {conversionForm.concessionReason === 'Other' && (
+                <Input
+                  label="Specify Concession Reason"
+                  value={conversionForm.customReason}
+                  onChange={(e) => setConversionForm({ ...conversionForm, customReason: e.target.value })}
+                  placeholder="Enter details..."
+                  required
+                />
+              )}
+
+              {/* Combined Fee Calculation Preview Card */}
+              <div className="p-3 rounded-2 border bg-white small">
+                <div className="fw-bold text-sa-charcoal mb-2 d-flex align-items-center gap-1.5">
+                  <Sparkles size={15} className="text-sa-primary" />
+                  <span>Two-Year Integrated Fee Calculation Preview</span>
+                </div>
+                <div className="row g-2">
+                  <div className="col-6 d-flex justify-content-between text-muted">
+                    <span>11th Standard Fee:</span>
+                    <strong className="text-secondary">₹{convFee1.toLocaleString()}</strong>
+                  </div>
+                  <div className="col-6 d-flex justify-content-between text-muted">
+                    <span>12th Standard Fee:</span>
+                    <strong className="text-secondary">₹{convFee2.toLocaleString()}</strong>
+                  </div>
+                  <div className="col-12 d-flex justify-content-between text-secondary pt-1 border-top">
+                    <span>Combined Original Fees:</span>
+                    <strong>₹{convGross.toLocaleString()}</strong>
+                  </div>
+                  <div className="col-12 d-flex justify-content-between text-success">
+                    <span>Approved Concession ({conversionForm.concessionType}):</span>
+                    <strong>- ₹{convDisc.toLocaleString()}</strong>
+                  </div>
+                  <div className="col-12 d-flex justify-content-between text-sa-charcoal fw-bold pt-1 border-top">
+                    <span>Combined Net Course Fee:</span>
+                    <span>₹{convFinal.toLocaleString()}</span>
+                  </div>
+                  <div className="col-12 d-flex justify-content-between text-muted">
+                    <span>Previous Paid Payments:</span>
+                    <span className="text-success fw-bold">- ₹{convPaid.toLocaleString()}</span>
+                  </div>
+                  <div className="col-12 d-flex justify-content-between pt-1 border-top">
+                    <span className="fw-bold text-danger">New Outstanding Balance:</span>
+                    <span className="fw-extrabold text-danger fs-6">₹{convRemaining.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Role Notice */}
+              <div className="p-2.5 rounded-2 small" style={{ backgroundColor: isSuperAdmin ? '#F0FDF4' : '#FEF8EB', border: isSuperAdmin ? '1px solid #BBF7D0' : '1px solid #FDE68A' }}>
+                {isSuperAdmin ? (
+                  <div className="d-flex align-items-center gap-2 text-success">
+                    <ShieldCheck size={16} className="flex-shrink-0" />
+                    <span>You are logged in as <strong>Superadmin</strong>. The Two-Year admission and concession will be approved instantly.</span>
+                  </div>
+                ) : (
+                  <div className="d-flex align-items-center gap-2 text-warning">
+                    <AlertTriangle size={16} className="flex-shrink-0 text-warning" />
+                    <span><strong>Superadmin Approval Policy:</strong> As an Admin, this multi-year concession will be logged with status <em>Pending Superadmin Approval</em>.</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="d-flex justify-content-end gap-2 mt-2 pt-2 border-top">
+                <Button variant="light" type="button" onClick={() => setConvertModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" loading={converting} icon={Layers}>
+                  Confirm & Convert to Two-Year
+                </Button>
+              </div>
+            </form>
+          );
+        })()}
       </Modal>
     </div>
   );

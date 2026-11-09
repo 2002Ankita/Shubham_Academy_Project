@@ -73,7 +73,11 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
         "pending_fees": pending_val,
         "discount_amount": getattr(student_obj, "discount_amount", 0.0) if student_obj else 0.0,
         "discount_status": getattr(student_obj, "discount_status", "NONE") if student_obj else "NONE",
-        "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None
+        "discount_approved_by": getattr(student_obj, "discount_approved_by", None) if student_obj else None,
+        "receipt_number": getattr(payment, "receipt_number", None) or f"REC-{str(payment.id)[-6:].upper()}",
+        "admission_type": getattr(student_obj, "admission_type", "11th Standard Only") if student_obj else "11th Standard Only",
+        "academic_year": getattr(payment, "academic_year", None) or (getattr(student_obj, "academic_year", "2025-2026") if student_obj else "2025-2026"),
+        "admission_id": getattr(payment, "admission_id", None)
     }
 
 DEFAULT_CAMPUS_STRUCTURES = [
@@ -381,6 +385,8 @@ async def _lookup_student_fee(student: Student, struct_list: list = None) -> flo
     if orig_fees > 0:
         if disc_status == "APPROVED" and disc_amount > 0:
             return max(0.0, orig_fees - disc_amount)
+        if custom_total > 0:
+            return custom_total
         return orig_fees
 
     if custom_total > 0:
@@ -480,13 +486,63 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
             status_code=400,
             detail=f"Payment amount (₹{payment_in.amount_paid:,.0f}) cannot exceed current outstanding balance (₹{current_pending:,.0f})."
         )
-        
+
+    # Prevent duplicate payment entries by checking non-generic transaction references
+    raw_tx_ref = (payment_in.transaction_reference or "").strip()
+    if raw_tx_ref and raw_tx_ref.upper() not in ["N/A", "CASH", "DIRECT", "OFFLINE", ""]:
+        existing_tx = await FeePayment.find_one(
+            FeePayment.student.id == student.id,
+            FeePayment.transaction_reference == raw_tx_ref
+        )
+        if existing_tx:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Duplicate payment entry detected: Reference '{raw_tx_ref}' was already recorded on {existing_tx.payment_date.strftime('%d-%m-%Y')}."
+            )
+
+    # Allocate payment to linked admission records (e.g. 11th first, then 12th)
+    target_adm_id = getattr(payment_in, "admission_id", None)
+    target_std = getattr(payment_in, "standard", None)
+    target_year = getattr(payment_in, "academic_year", None)
+
+    if getattr(student, "admissions", None):
+        amt_to_alloc = float(payment_in.amount_paid)
+        for adm in student.admissions:
+            if amt_to_alloc <= 0:
+                break
+            adm_pending = float(adm.remaining_fees or 0.0)
+            if adm_pending > 0:
+                alloc_portion = min(amt_to_alloc, adm_pending)
+                adm.paid_fees = float(adm.paid_fees or 0.0) + alloc_portion
+                adm.remaining_fees = max(0.0, float(adm.final_fees or 0.0) - adm.paid_fees)
+                amt_to_alloc -= alloc_portion
+                if not target_adm_id:
+                    target_adm_id = adm.admission_id
+                    target_std = adm.standard
+                    target_year = adm.academic_year
+                try:
+                    from app.models.admission import Admission
+                    adm_doc = await Admission.find_one(Admission.admission_id == adm.admission_id)
+                    if adm_doc:
+                        adm_doc.paid_fees = adm.paid_fees
+                        adm_doc.remaining_fees = adm.remaining_fees
+                        await adm_doc.save()
+                except Exception:
+                    pass
+
+    receipt_no = getattr(payment_in, "receipt_number", None) or f"REC-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
     payment = FeePayment(
         student=student,
         amount_paid=payment_in.amount_paid,
         payment_method=payment_in.payment_method,
         transaction_reference=payment_in.transaction_reference,
         remarks=payment_in.remarks,
+        admission_id=target_adm_id,
+        standard=target_std or getattr(student, "standard", None),
+        academic_year=target_year or getattr(student, "academic_year", "2025-2026"),
+        receipt_number=receipt_no,
+        branch=getattr(student, "branch", "Tarabai Park"),
         payment_date=datetime.utcnow()
     )
     await payment.insert()
@@ -656,7 +712,14 @@ async def get_fee_details(
         discount_status=getattr(student, "discount_status", "NONE") or "NONE",
         discount_offered_by=getattr(student, "discount_offered_by", None),
         discount_approved_by=getattr(student, "discount_approved_by", None),
-        discount_approved_at=getattr(student, "discount_approved_at", None)
+        discount_approved_at=getattr(student, "discount_approved_at", None),
+        admission_type=getattr(student, "admission_type", "11th Standard Only") or "11th Standard Only",
+        admissions=[
+            a.dict() if hasattr(a, "dict") else (a if isinstance(a, dict) else vars(a))
+            for a in (getattr(student, "admissions", None) or [])
+        ],
+        concession_type=getattr(student, "concession_type", "fixed") or "fixed",
+        concession_value=getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0
     )
 
 async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeResponse]:

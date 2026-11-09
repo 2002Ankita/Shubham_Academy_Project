@@ -312,7 +312,9 @@ export const feeService = {
       remarks: data.remarks || data.feeHead || 'Manual Collection',
       total_course_fees_override: totalFeesNum,
       branch: data.branch || undefined,
-      standard: data.standard || undefined
+      standard: data.standard || undefined,
+      admission_id: data.admissionId || data.admission_id || undefined,
+      academic_year: data.academicYear || data.academic_year || undefined
     };
     const res = await api.post('/fees', payload);
     const receiptNo = `REC-${res.data.id.substring(res.data.id.length - 6).toUpperCase()}`;

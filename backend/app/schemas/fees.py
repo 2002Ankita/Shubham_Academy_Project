@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Any
 
 class FeePaymentCreate(BaseModel):
     student_id: str
@@ -11,6 +11,9 @@ class FeePaymentCreate(BaseModel):
     total_course_fees_override: Optional[float] = None
     branch: Optional[str] = None
     standard: Optional[str] = None
+    academic_year: Optional[str] = None
+    admission_id: Optional[str] = None
+    receipt_number: Optional[str] = None
 
 class FeePaymentResponse(FeePaymentCreate):
     id: str
@@ -26,6 +29,7 @@ class FeePaymentResponse(FeePaymentCreate):
     discount_approved_by: Optional[str] = None
     cumulative_paid: Optional[float] = None
     current_pending_fees: Optional[float] = None
+    admission_type: Optional[str] = None
 
 class FeeDetailsResponse(BaseModel):
     student_id: str
@@ -41,6 +45,10 @@ class FeeDetailsResponse(BaseModel):
     discount_offered_by: Optional[str] = None
     discount_approved_by: Optional[str] = None
     discount_approved_at: Optional[datetime] = None
+    admission_type: Optional[str] = "11th Standard Only"
+    admissions: Optional[List[Any]] = []
+    concession_type: Optional[str] = "fixed"
+    concession_value: Optional[float] = 0.0
 
 class FeeStructureCreate(BaseModel):
     standard: str

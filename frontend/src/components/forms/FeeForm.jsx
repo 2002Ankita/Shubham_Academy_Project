@@ -506,6 +506,11 @@ export default function FeeForm({
                       Phone: <strong>{selectedStudent.phone}</strong>
                     </span>
                   )}
+                  {(selectedStudent.admissionType || feeDetails?.admission_type) && (
+                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle small fw-bold">
+                      🎓 {selectedStudent.admissionType || feeDetails?.admission_type}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -516,6 +521,87 @@ export default function FeeForm({
               </span>
             </div>
           </div>
+
+          {/* Multi-Year Integrated Admission Ledger Card */}
+          {((feeDetails?.admissions && feeDetails.admissions.length > 1) || (selectedStudent?.admissions && selectedStudent.admissions.length > 1) || ((feeDetails?.admission_type || selectedStudent?.admissionType || '').includes('Two-Year'))) && (
+            <div className="p-3.5 mb-4 rounded-3 border bg-light-subtle">
+              <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+                <div className="d-flex align-items-center gap-2">
+                  <Layers size={18} className="text-sa-primary flex-shrink-0" />
+                  <div>
+                    <h6 className="fw-bold text-sa-charcoal m-0 small">
+                      Two-Year Integrated Admission Ledger (11th + 12th Standard)
+                    </h6>
+                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                      Installment payments automatically clear Year 1 fees first, then allocate to Year 2.
+                    </span>
+                  </div>
+                </div>
+                <span className="badge bg-primary text-white px-2.5 py-1 rounded-pill small fw-semibold">
+                  Two-Year Program
+                </span>
+              </div>
+
+              <div className="row g-3">
+                {(feeDetails?.admissions || selectedStudent?.admissions || []).map((adm, idx) => {
+                  const isY1 = idx === 0 || (adm.standard || '').includes('11');
+                  const admOrig = Number(adm.original_fees || adm.originalFees || 0);
+                  const admConc = Number(adm.concession_amount || adm.concessionAmount || 0);
+                  const admFinal = Number(adm.final_fees || adm.finalFees || (admOrig - admConc));
+                  const admPaid = Number(adm.paid_fees || adm.paidFees || 0);
+                  const admRem = Number(adm.remaining_fees != null ? (adm.remaining_fees || adm.remainingFees) : Math.max(0, admFinal - admPaid));
+                  const isCleared = admRem <= 0 && admFinal > 0;
+
+                  return (
+                    <div key={adm.admission_id || idx} className="col-12 col-md-6">
+                      <div className="p-3 rounded-2 border bg-white h-100 shadow-xs">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <span className="fw-bold small text-sa-charcoal">
+                            {isY1 ? 'Year 1: 11th Standard' : 'Year 2: 12th Standard'}
+                          </span>
+                          <span
+                            className={`badge ${
+                              isCleared
+                                ? 'bg-success-subtle text-success'
+                                : adm.status === 'Upcoming'
+                                ? 'bg-warning-subtle text-warning-emphasis'
+                                : 'bg-primary-subtle text-primary'
+                            } small`}
+                          >
+                            {isCleared ? 'Cleared ✓' : (adm.status || 'Active')}
+                          </span>
+                        </div>
+                        <div className="d-flex justify-content-between small text-muted mb-1">
+                          <span>Original Fee:</span>
+                          <span className="fw-semibold">₹{admOrig.toLocaleString()}</span>
+                        </div>
+                        {admConc > 0 && (
+                          <div className="d-flex justify-content-between small text-success mb-1">
+                            <span>Concession:</span>
+                            <span className="fw-semibold">- ₹{admConc.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="d-flex justify-content-between small text-sa-charcoal fw-bold mb-1 pt-1 border-top">
+                          <span>Net Payable:</span>
+                          <span>₹{admFinal.toLocaleString()}</span>
+                        </div>
+                        <div className="d-flex justify-content-between small mb-1">
+                          <span className="text-muted">Paid to Date:</span>
+                          <span className="text-success fw-bold">₹{admPaid.toLocaleString()}</span>
+                        </div>
+                        <div className="d-flex justify-content-between small">
+                          <span className="text-muted">Balance Due:</span>
+                          <span className={admRem > 0 ? 'text-danger fw-bold' : 'text-success fw-bold'}>
+                            ₹{admRem.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Fee Details 4-Column Display */}
           <div className="row g-3 g-lg-4 mb-4">

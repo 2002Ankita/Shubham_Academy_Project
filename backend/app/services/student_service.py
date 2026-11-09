@@ -1,13 +1,14 @@
 from app.models.student import Student
 from app.models.user import User
-from app.models.fees import FeePayment
+from app.models.fees import FeePayment, FeeStructure
+from app.models.admission import Admission, AdmissionRecord
 from app.core.security import get_password_hash, verify_password
 from bson import ObjectId
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError
 import uuid
 import re
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
 
 from app.models.discount import DiscountApproval
@@ -21,6 +22,50 @@ from app.core.branch_config import (
     ACADEMIC_BATCHES,
     SESSIONS,
 )
+
+async def get_fee_for_standard_and_stream(branch: Optional[str], standard: Optional[str], academic_batch: Optional[str]) -> float:
+    from app.services.fee_service import DEFAULT_CAMPUS_STRUCTURES
+    structures = await FeeStructure.find_all().to_list()
+    if not structures:
+        structures = [FeeStructure(**s) for s in DEFAULT_CAMPUS_STRUCTURES]
+
+    b_target = (branch or "").lower().strip()
+    is_mangal = "mangal" in b_target
+    std_clean = (standard or "").lower().strip()
+    is_12th = "12" in std_clean or "12th" in (academic_batch or "").lower()
+    
+    stream = ""
+    batch_lower = (academic_batch or "").lower().strip()
+    if "pcmb" in batch_lower:
+        stream = "pcmb"
+    elif "pcb" in batch_lower:
+        stream = "pcb"
+    elif "pcm" in batch_lower:
+        stream = "pcm"
+
+    for s in structures:
+        s_branch = (s.branch or "").lower()
+        s_batch = (s.batch or "").lower()
+        s_std = (s.standard or "").lower()
+        branch_matches = "mangal" in s_branch if is_mangal else ("tarabai" in s_branch or "mangal" not in s_branch)
+        std_matches = ("12" in s_std) if is_12th else ("11" in s_std)
+        if branch_matches and std_matches:
+            if stream == "pcmb" and "pcmb" in s_batch:
+                return float(s.total_fee)
+            elif stream == "pcm" and "pcm" in s_batch and "pcmb" not in s_batch:
+                return float(s.total_fee)
+            elif stream == "pcb" and "pcb" in s_batch and "pcmb" not in s_batch:
+                return float(s.total_fee)
+
+    for s in structures:
+        s_branch = (s.branch or "").lower()
+        s_std = (s.standard or "").lower()
+        branch_matches = "mangal" in s_branch if is_mangal else ("tarabai" in s_branch or "mangal" not in s_branch)
+        std_matches = ("12" in s_std) if is_12th else ("11" in s_std)
+        if branch_matches and std_matches:
+            return float(s.total_fee)
+
+    return 65000.0 if is_12th else 55000.0
 
 async def _format_student(student: Student) -> dict:
     user_obj = None
@@ -95,6 +140,33 @@ async def _format_student(student: Student) -> dict:
         "discount_approved_by": getattr(student, "discount_approved_by", None),
         "discount_approved_at": getattr(student, "discount_approved_at", None),
         "discount_rejection_reason": getattr(student, "discount_rejection_reason", None),
+        "admission_type": getattr(student, "admission_type", "11th Standard Only") or "11th Standard Only",
+        "admissions": [
+            a.dict() if hasattr(a, "dict") else (a if isinstance(a, dict) else vars(a))
+            for a in (getattr(student, "admissions", None) or [])
+        ] if getattr(student, "admissions", None) else [
+            {
+                "admission_id": f"ADM-{str(student.id)[-6:].upper()}",
+                "standard": getattr(student, "standard", norm_std) or norm_std,
+                "academic_year": student.academic_year or "2025-2026",
+                "batch": norm_ab,
+                "academic_batch": norm_ab,
+                "session": norm_se,
+                "branch": norm_br,
+                "original_fees": getattr(student, "original_fees", student.total_fees) or student.total_fees,
+                "concession_amount": getattr(student, "discount_amount", 0.0) or 0.0,
+                "final_fees": total_fees,
+                "paid_fees": actual_paid,
+                "remaining_fees": remaining_fees,
+                "status": "Active",
+                "admission_date": student.admission_date,
+                "created_at": student.admission_date
+            }
+        ],
+        "concession_type": getattr(student, "concession_type", "fixed") or "fixed",
+        "concession_value": getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0,
+        "concession_approved_by": getattr(student, "concession_approved_by", getattr(student, "discount_approved_by", None)),
+        "concession_approved_at": getattr(student, "concession_approved_at", getattr(student, "discount_approved_at", None)),
     }
 
 def is_superadmin_user(user: User) -> bool:
@@ -151,18 +223,80 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     else:
         student_id = await get_next_roll_number(data.get("branch"))
 
-    # Fees and Discount parsing
-    orig_fees = float(data.get("original_fees") or data.get("originalFees") or data.get("total_fees") or data.get("totalFees") or 0.0)
-    disc_amount = float(data.get("discount_amount") or data.get("discountAmount") or data.get("discount_requested_amount") or data.get("discountRequestedAmount") or 0.0)
-    disc_reason = data.get("discount_reason") or data.get("discountReason") or ("Scholarship Concession" if disc_amount > 0 else None)
-    
-    disc_status = "NONE"
-    disc_offered_by = None
-    disc_recommended_by = None
-    disc_offered_at = None
-    disc_approved_by = None
-    disc_approved_at = None
+    # Admission Type Parsing: 11th Standard Only, 12th Standard Only, 11th + 12th Standard (Two-Year Admission)
+    raw_adm_type = str(data.get("admission_type") or data.get("admissionType") or "11th Standard Only").strip()
+    if "two" in raw_adm_type.lower() or "11th + 12th" in raw_adm_type or "2-year" in raw_adm_type.lower():
+        admission_type = "11th + 12th Standard (Two-Year Admission)"
+    elif "12th" in raw_adm_type:
+        admission_type = "12th Standard Only"
+    else:
+        admission_type = "11th Standard Only"
 
+    is_two_year = admission_type == "11th + 12th Standard (Two-Year Admission)"
+    is_12th_only = admission_type == "12th Standard Only"
+
+    # Concession options: fixed, percentage, custom
+    conc_type = str(data.get("concession_type") or data.get("concessionType") or "fixed").lower().strip()
+    if conc_type not in ["fixed", "percentage", "custom"]:
+        conc_type = "fixed"
+    conc_val = float(data.get("concession_value") or data.get("concessionValue") or 0.0)
+
+    # Parse and validate standardized branch, academic_batch, and session
+    raw_branch = data.get("branch")
+    raw_batch = data.get("batch") or data.get("academic_batch") or data.get("academicBatch")
+    raw_academic_batch = data.get("academic_batch") or data.get("academicBatch") or raw_batch
+    raw_session = data.get("session")
+
+    norm_branch, norm_batch, norm_session, norm_std = parse_student_branch_batch(
+        raw_branch, raw_batch, raw_academic_batch, raw_session
+    )
+
+    try:
+        validate_branch_batch_selection(norm_branch, norm_batch, norm_session)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+    # Fee Structure Lookup for each standard
+    y1_std = "12th Science" if is_12th_only else "11th Science"
+    y1_year = str(data.get("academic_year") or "2025-2026").strip()
+    fee_y1 = await get_fee_for_standard_and_stream(norm_branch, y1_std, norm_batch)
+
+    if is_two_year:
+        y1_stream = "pcmb" if "pcmb" in norm_batch.lower() else ("pcb" if "pcb" in norm_batch.lower() else "pcm")
+        y2_academic_batch = data.get("second_year_academic_batch") or data.get("secondYearAcademicBatch") or f"12th {y1_stream.upper()}"
+        y2_std = "12th Science"
+        y2_year = str(data.get("second_year_academic_year") or data.get("secondYearAcademicYear") or "2026-2027").strip()
+        y2_session = data.get("second_year_session") or data.get("secondYearSession") or norm_session
+        y2_batch = data.get("second_year_batch") or data.get("secondYearBatch") or f"{y2_academic_batch} {norm_branch}"
+        fee_y2 = await get_fee_for_standard_and_stream(norm_branch, y2_std, y2_academic_batch)
+        combined_catalog_orig = fee_y1 + fee_y2
+
+        user_orig = float(data.get("original_fees") or data.get("originalFees") or 0.0)
+        orig_fees = user_orig if user_orig > 0 else combined_catalog_orig
+    else:
+        user_orig = float(data.get("original_fees") or data.get("originalFees") or 0.0)
+        orig_fees = user_orig if user_orig > 0 else fee_y1
+
+    # Concession calculation based on type
+    raw_disc = float(data.get("discount_amount") or data.get("discountAmount") or data.get("discount_requested_amount") or data.get("discountRequestedAmount") or 0.0)
+    if conc_type == "percentage":
+        target_pct = conc_val if conc_val > 0 else (raw_disc / orig_fees * 100.0 if orig_fees > 0 and raw_disc > 0 else 0.0)
+        disc_amount = round((orig_fees * target_pct) / 100.0, 2)
+        conc_val = target_pct
+    elif conc_type == "custom":
+        disc_amount = conc_val if conc_val > 0 else raw_disc
+    else:  # fixed
+        disc_amount = conc_val if conc_val > 0 else raw_disc
+
+    disc_amount = min(orig_fees, max(0.0, disc_amount))
+    disc_reason = data.get("discount_reason") or data.get("discountReason") or (f"{admission_type} Concession" if disc_amount > 0 else None)
+    total_fees = max(0.0, orig_fees - disc_amount)
+
+    paid_fees = float(data.get("paid_fees") or data.get("paidFees") or data.get("downPayment") or 0.0)
+    remaining_fees = max(0.0, total_fees - paid_fees)
+
+    # Superadmin authorization check for concession
+    is_super = is_superadmin_user(current_user)
     if disc_amount > 0:
         disc_offered_at = datetime.utcnow()
         recommender = (
@@ -170,24 +304,90 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             or (data.get("discountRecommendedBy") and str(data["discountRecommendedBy"]).strip())
             or (data.get("discount_offered_by") and str(data["discount_offered_by"]).strip())
             or (data.get("discountOfferedBy") and str(data["discountOfferedBy"]).strip())
-            or (data.get("discount_approved_by") and str(data["discount_approved_by"]).strip() and "PENDING" not in str(data["discount_approved_by"]).upper() and str(data["discount_approved_by"]).strip())
-            or (current_user.full_name if current_user else "Miss Shilpa")
+            or (current_user.full_name if current_user else "Miss Shilpa (Counselor)")
         )
         disc_recommended_by = recommender
         disc_offered_by = recommender
-        disc_status = "PENDING"
-        final_total_fees = orig_fees
+        if is_super:
+            disc_status = "APPROVED"
+            disc_approved_by = f"{current_user.full_name} (Superadmin)"
+            disc_approved_at = disc_offered_at
+        else:
+            disc_status = "PENDING"
+            disc_approved_by = None
+            disc_approved_at = None
     else:
-        final_total_fees = orig_fees
+        disc_status = "NONE"
+        disc_offered_by = None
+        disc_recommended_by = None
+        disc_offered_at = None
+        disc_approved_by = None
+        disc_approved_at = None
 
-    # Net course fee payable by student after applying concession
-    if disc_amount > 0:
-        total_fees = max(0.0, orig_fees - disc_amount)
+    # Construct Year-wise Linked Admission Records
+    admissions_list = []
+    if is_two_year:
+        conc_y1 = round((fee_y1 / orig_fees) * disc_amount, 2) if orig_fees > 0 else 0.0
+        conc_y2 = round(disc_amount - conc_y1, 2)
+        final_y1 = max(0.0, fee_y1 - conc_y1)
+        final_y2 = max(0.0, fee_y2 - conc_y2)
+        paid_y1 = min(paid_fees, final_y1)
+        paid_y2 = max(0.0, paid_fees - paid_y1)
+
+        adm_1 = AdmissionRecord(
+            admission_id=f"ADM-{uuid.uuid4().hex[:8].upper()}-11TH",
+            standard=y1_std,
+            academic_year=y1_year,
+            batch=f"{norm_batch} {norm_branch}",
+            academic_batch=norm_batch,
+            session=norm_session,
+            branch=norm_branch,
+            original_fees=fee_y1,
+            concession_amount=conc_y1,
+            final_fees=final_y1,
+            paid_fees=paid_y1,
+            remaining_fees=max(0.0, final_y1 - paid_y1),
+            status="Active",
+            admission_date=datetime.utcnow(),
+            created_at=datetime.utcnow()
+        )
+        adm_2 = AdmissionRecord(
+            admission_id=f"ADM-{uuid.uuid4().hex[:8].upper()}-12TH",
+            standard=y2_std,
+            academic_year=y2_year,
+            batch=y2_batch,
+            academic_batch=y2_academic_batch,
+            session=y2_session,
+            branch=norm_branch,
+            original_fees=fee_y2,
+            concession_amount=conc_y2,
+            final_fees=final_y2,
+            paid_fees=paid_y2,
+            remaining_fees=max(0.0, final_y2 - paid_y2),
+            status="Upcoming",
+            admission_date=datetime.utcnow(),
+            created_at=datetime.utcnow()
+        )
+        admissions_list = [adm_1, adm_2]
     else:
-        total_fees = orig_fees
-
-    paid_fees = float(data.get("paid_fees") or data.get("paidFees") or data.get("downPayment") or 0.0)
-    remaining_fees = max(0.0, total_fees - paid_fees)
+        adm_1 = AdmissionRecord(
+            admission_id=f"ADM-{uuid.uuid4().hex[:8].upper()}",
+            standard=norm_std,
+            academic_year=y1_year,
+            batch=f"{norm_batch} {norm_branch}",
+            academic_batch=norm_batch,
+            session=norm_session,
+            branch=norm_branch,
+            original_fees=orig_fees,
+            concession_amount=disc_amount,
+            final_fees=total_fees,
+            paid_fees=paid_fees,
+            remaining_fees=remaining_fees,
+            status="Active",
+            admission_date=datetime.utcnow(),
+            created_at=datetime.utcnow()
+        )
+        admissions_list = [adm_1]
 
     # Email handling - required as student's unique portal User ID
     raw_email = data.get("email")
@@ -230,21 +430,6 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     else:
         password = str(raw_pass).strip()
 
-    # Parse and validate standardized branch, academic_batch, and session
-    raw_branch = data.get("branch")
-    raw_batch = data.get("batch") or data.get("academic_batch") or data.get("academicBatch")
-    raw_academic_batch = data.get("academic_batch") or data.get("academicBatch") or raw_batch
-    raw_session = data.get("session")
-
-    norm_branch, norm_batch, norm_session, norm_std = parse_student_branch_batch(
-        raw_branch, raw_batch, raw_academic_batch, raw_session
-    )
-
-    try:
-        validate_branch_batch_selection(norm_branch, norm_batch, norm_session)
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-
     # 1. Create User account
     user = User(
         email=email,
@@ -275,6 +460,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         mobile_number=clean_mobile,
         parent_mobile=clean_parent_mobile,
         email=email,
+        admission_type=admission_type,
+        admissions=admissions_list,
         total_fees=total_fees,
         paid_fees=paid_fees,
         remaining_fees=remaining_fees,
@@ -288,13 +475,18 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
         original_fees=orig_fees,
         discount_amount=disc_amount,
+        discount_requested_amount=disc_amount,
         discount_reason=disc_reason,
         discount_status=disc_status,
         discount_offered_by=disc_offered_by,
         discount_recommended_by=disc_recommended_by,
         discount_offered_at=disc_offered_at,
         discount_approved_by=disc_approved_by,
-        discount_approved_at=disc_approved_at
+        discount_approved_at=disc_approved_at,
+        concession_type=conc_type,
+        concession_value=conc_val,
+        concession_approved_by=disc_approved_by,
+        concession_approved_at=disc_approved_at
     )
     if data.get("date_of_birth"):
         student.date_of_birth = data["date_of_birth"]
@@ -307,17 +499,50 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
 
     await student.insert()
 
+    # Create Admission documents in MongoDB collection for relational querying
+    for adm in admissions_list:
+        try:
+            adm_doc = Admission(
+                admission_id=adm.admission_id,
+                student_id=str(student.id),
+                student_name=student.full_name,
+                roll_number=student.student_id,
+                admission_type=admission_type,
+                standard=adm.standard,
+                academic_year=adm.academic_year,
+                batch=adm.batch,
+                academic_batch=adm.academic_batch,
+                session=adm.session,
+                branch=adm.branch,
+                original_fees=adm.original_fees,
+                concession_amount=adm.concession_amount,
+                final_fees=adm.final_fees,
+                paid_fees=adm.paid_fees,
+                remaining_fees=adm.remaining_fees,
+                status=adm.status,
+                admission_date=adm.admission_date
+            )
+            await adm_doc.insert()
+        except Exception as adm_err:
+            print("Notice: Error creating separate Admission document:", adm_err)
+
     # Create discount approval record if discount requested
     if disc_amount > 0:
         approval_record = DiscountApproval(
             student_id=str(student.id),
             student_name=user.full_name or full_name,
             roll_number=student.student_id,
-            standard=student.standard or "General",
+            admission_type=admission_type,
+            standard="11th + 12th Science" if is_two_year else (student.standard or "General"),
+            batch=f"{norm_batch} & {y2_academic_batch}" if is_two_year else student.batch,
+            branch=norm_branch,
             original_fees=orig_fees,
             discount_amount=disc_amount,
             discount_requested_amount=disc_amount,
-            final_fees=max(0.0, orig_fees - disc_amount),
+            final_fees=total_fees,
+            concession_type=conc_type,
+            concession_value=conc_val,
+            year_wise_breakdown=[a.dict() if hasattr(a, "dict") else a for a in admissions_list],
             discount_reason=disc_reason or "Fee Concession",
             status=disc_status,
             offered_by=disc_offered_by or "Admin",
@@ -325,19 +550,25 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             offered_by_email=current_user.email if current_user else None,
             offered_at=disc_offered_at or datetime.utcnow(),
             approved_by=disc_approved_by,
-            approved_by_email=None,
+            approved_by_email=current_user.email if is_super else None,
             approved_at=disc_approved_at
         )
         await approval_record.insert()
 
     # 3. If paid fees > 0, record initial payment ledger entry
     if paid_fees > 0:
+        initial_target_adm = admissions_list[0] if admissions_list else None
         initial_payment = FeePayment(
             student=student,
             amount_paid=paid_fees,
             payment_method="Cash / Admission Counter",
             transaction_reference=f"ADM-INIT-{student_id}",
-            remarks="Initial fee paid at admission",
+            remarks=f"Initial fee paid at admission ({initial_target_adm.standard if initial_target_adm else norm_std})",
+            admission_id=initial_target_adm.admission_id if initial_target_adm else None,
+            standard=initial_target_adm.standard if initial_target_adm else norm_std,
+            academic_year=initial_target_adm.academic_year if initial_target_adm else (student.academic_year or "2025-2026"),
+            receipt_number=f"REC-INIT-{student_id}",
+            branch=norm_branch,
             payment_date=datetime.utcnow()
         )
         await initial_payment.insert()
@@ -918,9 +1149,33 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
     student.discount_status = "APPROVED"
     student.discount_approved_by = f"{current_user.full_name} (Superadmin)"
     student.discount_approved_at = datetime.utcnow()
+    student.concession_approved_by = f"{current_user.full_name} (Superadmin)"
+    student.concession_approved_at = student.discount_approved_at
     student.discount_rejection_reason = None
     student.total_fees = max(0.0, orig_fees - disc_amount)
     student.remaining_fees = max(0.0, student.total_fees - (student.paid_fees or 0.0))
+
+    if getattr(student, "admissions", None):
+        comb_orig = float(student.original_fees or 0.0)
+        for adm in student.admissions:
+            adm_orig = float(adm.original_fees or 0.0)
+            if comb_orig > 0:
+                adm_conc = round((adm_orig / comb_orig) * disc_amount, 2)
+            else:
+                adm_conc = 0.0
+            adm.concession_amount = adm_conc
+            adm.final_fees = max(0.0, adm_orig - adm_conc)
+            adm.remaining_fees = max(0.0, adm.final_fees - float(adm.paid_fees or 0.0))
+            try:
+                adm_docs = await Admission.find(Admission.admission_id == adm.admission_id).to_list()
+                for d in adm_docs:
+                    d.concession_amount = adm_conc
+                    d.final_fees = adm.final_fees
+                    d.remaining_fees = adm.remaining_fees
+                    await d.save()
+            except Exception:
+                pass
+
     await student.save()
 
     # Update or create DiscountApproval record
@@ -968,6 +1223,195 @@ async def approve_student_discount(id: str, current_user: User, payload: dict = 
             approved_at=datetime.utcnow()
         )
         await approval.insert()
+
+    return await _format_student(student)
+
+async def convert_student_to_two_year(student_id: str, conversion_in: Any, current_user: User) -> dict:
+    student = await resolve_student(student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    if user_role not in ["ADMIN", "SUPER_ADMIN", "SUPERADMIN"]:
+        raise HTTPException(status_code=403, detail="Only Admins or Super Admins can convert student admissions")
+
+    is_super = is_superadmin_user(current_user)
+
+    if hasattr(conversion_in, "dict"):
+        data = conversion_in.dict()
+    elif isinstance(conversion_in, dict):
+        data = conversion_in.copy()
+    else:
+        data = vars(conversion_in)
+
+    current_type = getattr(student, "admission_type", "11th Standard Only") or "11th Standard Only"
+    if "two" in current_type.lower() or "11th + 12th" in current_type:
+        raise HTTPException(status_code=400, detail="Student is already enrolled under a Two-Year Admission program.")
+
+    current_std = (getattr(student, "standard", "") or "").lower()
+    if "12" in current_std and "11" not in current_std:
+        raise HTTPException(status_code=400, detail="Only 11th Standard students can be converted to Two-Year Admission.")
+
+    branch = getattr(student, "branch", "Tarabai Park") or "Tarabai Park"
+    y1_batch = getattr(student, "academic_batch", None) or getattr(student, "batch", "11th PCM")
+    y1_stream = "pcmb" if "pcmb" in y1_batch.lower() else ("pcb" if "pcb" in y1_batch.lower() else "pcm")
+    
+    y2_academic_batch = data.get("second_year_academic_batch") or f"12th {y1_stream.upper()}"
+    y2_academic_year = data.get("second_year_academic_year") or "2026-2027"
+    y2_session = data.get("second_year_session") or getattr(student, "session", None)
+    y2_batch = data.get("second_year_batch") or f"{y2_academic_batch} {branch}"
+
+    fee_11th = getattr(student, "original_fees", 0.0)
+    if fee_11th <= 0:
+        fee_11th = await get_fee_for_standard_and_stream(branch, "11th Science", y1_batch)
+
+    fee_12th = await get_fee_for_standard_and_stream(branch, "12th Science", y2_academic_batch)
+    combined_original = fee_11th + fee_12th
+
+    conc_type = (data.get("concession_type") or "fixed").lower()
+    conc_val = float(data.get("concession_value") or 0.0)
+    conc_reason = data.get("concession_reason") or "Two-Year Integrated Package Discount"
+    recommender = data.get("recommended_by") or current_user.full_name or "Miss Shilpa (Counselor)"
+
+    if conc_type == "percentage":
+        disc_amount = round((combined_original * conc_val) / 100.0, 2)
+    elif conc_type == "custom":
+        disc_amount = conc_val
+    else:
+        disc_amount = conc_val
+
+    disc_amount = min(combined_original, max(0.0, disc_amount))
+    combined_final = max(0.0, combined_original - disc_amount)
+    current_paid = float(getattr(student, "paid_fees", 0.0) or 0.0)
+    new_remaining = max(0.0, combined_final - current_paid)
+
+    # Concession split proportionally
+    conc_11th = round((fee_11th / combined_original) * disc_amount, 2)
+    conc_12th = round(disc_amount - conc_11th, 2)
+    final_11th = max(0.0, fee_11th - conc_11th)
+    final_12th = max(0.0, fee_12th - conc_12th)
+
+    paid_11th = min(current_paid, final_11th)
+    paid_12th = max(0.0, current_paid - paid_11th)
+
+    adm_11th = AdmissionRecord(
+        admission_id=f"ADM-{str(student.id)[-6:].upper()}-11TH",
+        standard=getattr(student, "standard", "11th Science") or "11th Science",
+        academic_year=student.academic_year or "2025-2026",
+        batch=getattr(student, "batch", None) or y1_batch,
+        academic_batch=y1_batch,
+        session=getattr(student, "session", None),
+        branch=branch,
+        original_fees=fee_11th,
+        concession_amount=conc_11th,
+        final_fees=final_11th,
+        paid_fees=paid_11th,
+        remaining_fees=max(0.0, final_11th - paid_11th),
+        status="Active",
+        admission_date=student.admission_date or datetime.utcnow(),
+        created_at=datetime.utcnow()
+    )
+
+    adm_12th = AdmissionRecord(
+        admission_id=f"ADM-{str(student.id)[-6:].upper()}-12TH",
+        standard="12th Science",
+        academic_year=y2_academic_year,
+        batch=y2_batch,
+        academic_batch=y2_academic_batch,
+        session=y2_session,
+        branch=branch,
+        original_fees=fee_12th,
+        concession_amount=conc_12th,
+        final_fees=final_12th,
+        paid_fees=paid_12th,
+        remaining_fees=max(0.0, final_12th - paid_12th),
+        status="Upcoming",
+        admission_date=datetime.utcnow(),
+        created_at=datetime.utcnow()
+    )
+
+    student.admission_type = "11th + 12th Standard (Two-Year Admission)"
+    student.admissions = [adm_11th, adm_12th]
+    student.original_fees = combined_original
+    student.discount_amount = disc_amount
+    student.discount_requested_amount = disc_amount
+    student.discount_reason = conc_reason
+    student.concession_type = conc_type
+    student.concession_value = conc_val
+    student.discount_recommended_by = recommender
+    student.discount_offered_by = recommender
+    student.discount_offered_at = datetime.utcnow()
+
+    if is_super:
+        student.discount_status = "APPROVED"
+        student.discount_approved_by = f"{current_user.full_name} (Superadmin)"
+        student.discount_approved_at = datetime.utcnow()
+        student.concession_approved_by = student.discount_approved_by
+        student.concession_approved_at = student.discount_approved_at
+        student.total_fees = combined_final
+        student.remaining_fees = new_remaining
+    else:
+        student.discount_status = "PENDING"
+        student.discount_approved_by = None
+        student.discount_approved_at = None
+        student.total_fees = combined_final
+        student.remaining_fees = new_remaining
+
+    await student.save()
+
+    for adm in [adm_11th, adm_12th]:
+        try:
+            adm_doc = Admission(
+                admission_id=adm.admission_id,
+                student_id=str(student.id),
+                student_name=student.full_name,
+                roll_number=student.student_id,
+                admission_type=student.admission_type,
+                standard=adm.standard,
+                academic_year=adm.academic_year,
+                batch=adm.batch,
+                academic_batch=adm.academic_batch,
+                session=adm.session,
+                branch=adm.branch,
+                original_fees=adm.original_fees,
+                concession_amount=adm.concession_amount,
+                final_fees=adm.final_fees,
+                paid_fees=adm.paid_fees,
+                remaining_fees=adm.remaining_fees,
+                status=adm.status,
+                admission_date=adm.admission_date
+            )
+            await adm_doc.insert()
+        except Exception:
+            pass
+
+    if disc_amount > 0:
+        approval_record = DiscountApproval(
+            student_id=str(student.id),
+            student_name=student.full_name or "Student",
+            roll_number=student.student_id,
+            admission_type=student.admission_type,
+            standard="11th + 12th Science",
+            batch=f"{y1_batch} & {y2_academic_batch}",
+            branch=branch,
+            original_fees=combined_original,
+            discount_amount=disc_amount,
+            discount_requested_amount=disc_amount,
+            final_fees=combined_final,
+            concession_type=conc_type,
+            concession_value=conc_val,
+            year_wise_breakdown=[adm_11th.dict(), adm_12th.dict()],
+            discount_reason=conc_reason,
+            status="APPROVED" if is_super else "PENDING",
+            offered_by=recommender,
+            recommended_by=recommender,
+            offered_by_email=current_user.email,
+            offered_at=datetime.utcnow(),
+            approved_by=f"{current_user.full_name} (Superadmin)" if is_super else None,
+            approved_by_email=current_user.email if is_super else None,
+            approved_at=datetime.utcnow() if is_super else None
+        )
+        await approval_record.insert()
 
     return await _format_student(student)
 

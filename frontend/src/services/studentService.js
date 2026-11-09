@@ -48,7 +48,14 @@ export const studentService = {
           discountOfferedAt: student.discount_offered_at || null,
           discountApprovedBy: student.discount_approved_by || '',
           discountApprovedAt: student.discount_approved_at || null,
-          discountRejectionReason: student.discount_rejection_reason || ''
+          discountRejectionReason: student.discount_rejection_reason || '',
+          admissionType: student.admission_type || '11th Standard Only',
+          admission_type: student.admission_type || '11th Standard Only',
+          admissions: student.admissions || [],
+          concessionType: student.concession_type || 'fixed',
+          concessionValue: student.concession_value || 0,
+          concessionApprovedBy: student.concession_approved_by || '',
+          concessionApprovedAt: student.concession_approved_at || null
         };
       });
 
@@ -106,7 +113,14 @@ export const studentService = {
       discountOfferedAt: student.discount_offered_at || null,
       discountApprovedBy: student.discount_approved_by || '',
       discountApprovedAt: student.discount_approved_at || null,
-      discountRejectionReason: student.discount_rejection_reason || ''
+      discountRejectionReason: student.discount_rejection_reason || '',
+      admissionType: student.admission_type || '11th Standard Only',
+      admission_type: student.admission_type || '11th Standard Only',
+      admissions: student.admissions || [],
+      concessionType: student.concession_type || 'fixed',
+      concessionValue: student.concession_value || 0,
+      concessionApprovedBy: student.concession_approved_by || '',
+      concessionApprovedAt: student.concession_approved_at || null
     };
   },
 
@@ -169,9 +183,23 @@ export const studentService = {
       discount_recommended_by: recommender,
       discount_offered_by: recommender,
       discount_approved_by: data.discountApprovedBy || data.discount_approved_by || '',
-      superadmin_auth_code: data.superadminAuthCode || data.superadmin_auth_code || ''
+      superadmin_auth_code: data.superadminAuthCode || data.superadmin_auth_code || '',
+      admission_type: data.admissionType || data.admission_type || '11th Standard Only',
+      admissionType: data.admissionType || data.admission_type || '11th Standard Only',
+      concession_type: data.concessionType || data.concession_type || 'fixed',
+      concession_value: Number(data.concessionValue ?? data.concession_value ?? discAmount),
+      second_year_standard: data.secondYearStandard || data.second_year_standard || '12th Science',
+      second_year_academic_batch: data.secondYearAcademicBatch || data.second_year_academic_batch || undefined,
+      second_year_academic_year: data.secondYearAcademicYear || data.second_year_academic_year || '2026-2027',
+      second_year_batch: data.secondYearBatch || data.second_year_batch || undefined,
+      second_year_session: data.secondYearSession || data.second_year_session || undefined
     };
     const res = await api.post('/students', payload);
+    return res.data;
+  },
+
+  convertToTwoYear: async (id, data) => {
+    const res = await api.post(`/students/${id}/convert-to-two-year`, data);
     return res.data;
   },
 
