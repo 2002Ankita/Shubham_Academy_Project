@@ -324,16 +324,9 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         disc_approved_by = None
         disc_approved_at = None
 
-    # Construct Year-wise Linked Admission Records
+    # Construct Year-wise Linked Admission Records (Combined single course fee across linked admissions)
     admissions_list = []
     if is_two_year:
-        conc_y1 = round((fee_y1 / orig_fees) * disc_amount, 2) if orig_fees > 0 else 0.0
-        conc_y2 = round(disc_amount - conc_y1, 2)
-        final_y1 = max(0.0, fee_y1 - conc_y1)
-        final_y2 = max(0.0, fee_y2 - conc_y2)
-        paid_y1 = min(paid_fees, final_y1)
-        paid_y2 = max(0.0, paid_fees - paid_y1)
-
         adm_1 = AdmissionRecord(
             admission_id=f"ADM-{uuid.uuid4().hex[:8].upper()}-11TH",
             standard=y1_std,
@@ -342,11 +335,11 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             academic_batch=norm_batch,
             session=norm_session,
             branch=norm_branch,
-            original_fees=fee_y1,
-            concession_amount=conc_y1,
-            final_fees=final_y1,
-            paid_fees=paid_y1,
-            remaining_fees=max(0.0, final_y1 - paid_y1),
+            original_fees=orig_fees,
+            concession_amount=disc_amount,
+            final_fees=total_fees,
+            paid_fees=paid_fees,
+            remaining_fees=remaining_fees,
             status="Active",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
@@ -359,11 +352,11 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             academic_batch=y2_academic_batch,
             session=y2_session,
             branch=norm_branch,
-            original_fees=fee_y2,
-            concession_amount=conc_y2,
-            final_fees=final_y2,
-            paid_fees=paid_y2,
-            remaining_fees=max(0.0, final_y2 - paid_y2),
+            original_fees=orig_fees,
+            concession_amount=disc_amount,
+            final_fees=total_fees,
+            paid_fees=paid_fees,
+            remaining_fees=remaining_fees,
             status="Upcoming",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
@@ -1285,15 +1278,6 @@ async def convert_student_to_two_year(student_id: str, conversion_in: Any, curre
     current_paid = float(getattr(student, "paid_fees", 0.0) or 0.0)
     new_remaining = max(0.0, combined_final - current_paid)
 
-    # Concession split proportionally
-    conc_11th = round((fee_11th / combined_original) * disc_amount, 2)
-    conc_12th = round(disc_amount - conc_11th, 2)
-    final_11th = max(0.0, fee_11th - conc_11th)
-    final_12th = max(0.0, fee_12th - conc_12th)
-
-    paid_11th = min(current_paid, final_11th)
-    paid_12th = max(0.0, current_paid - paid_11th)
-
     adm_11th = AdmissionRecord(
         admission_id=f"ADM-{str(student.id)[-6:].upper()}-11TH",
         standard=getattr(student, "standard", "11th Science") or "11th Science",
@@ -1302,11 +1286,11 @@ async def convert_student_to_two_year(student_id: str, conversion_in: Any, curre
         academic_batch=y1_batch,
         session=getattr(student, "session", None),
         branch=branch,
-        original_fees=fee_11th,
-        concession_amount=conc_11th,
-        final_fees=final_11th,
-        paid_fees=paid_11th,
-        remaining_fees=max(0.0, final_11th - paid_11th),
+        original_fees=combined_original,
+        concession_amount=disc_amount,
+        final_fees=combined_final,
+        paid_fees=current_paid,
+        remaining_fees=new_remaining,
         status="Active",
         admission_date=student.admission_date or datetime.utcnow(),
         created_at=datetime.utcnow()
@@ -1320,11 +1304,11 @@ async def convert_student_to_two_year(student_id: str, conversion_in: Any, curre
         academic_batch=y2_academic_batch,
         session=y2_session,
         branch=branch,
-        original_fees=fee_12th,
-        concession_amount=conc_12th,
-        final_fees=final_12th,
-        paid_fees=paid_12th,
-        remaining_fees=max(0.0, final_12th - paid_12th),
+        original_fees=combined_original,
+        concession_amount=disc_amount,
+        final_fees=combined_final,
+        paid_fees=current_paid,
+        remaining_fees=new_remaining,
         status="Upcoming",
         admission_date=datetime.utcnow(),
         created_at=datetime.utcnow()

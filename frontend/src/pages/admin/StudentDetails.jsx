@@ -475,12 +475,6 @@ export default function StudentDetails() {
 
                   <div className="row g-3">
                     {admissionsList.map((adm, idx) => {
-                      const admPaid = Number(adm.paid_fees || adm.paidFees || 0);
-                      const admFinal = Number(adm.final_fees || adm.finalFees || 0);
-                      const admOrig = Number(adm.original_fees || adm.originalFees || admFinal);
-                      const admConc = Number(adm.concession_amount || adm.concessionAmount || 0);
-                      const admRem = Number(adm.remaining_fees != null ? (adm.remaining_fees || adm.remainingFees) : Math.max(0, admFinal - admPaid));
-                      const pctPaid = admFinal > 0 ? Math.min(100, Math.round((admPaid / admFinal) * 100)) : (admPaid > 0 ? 100 : 0);
                       const isYear1 = idx === 0 || (adm.standard || '').includes('11');
                       const isUpcoming = adm.status === 'Upcoming';
 
@@ -501,58 +495,69 @@ export default function StudentDetails() {
                               </div>
                               <span
                                 className={`badge ${
-                                  adm.status === 'Completed' || admRem <= 0
-                                    ? 'bg-success-subtle text-success border border-success-subtle'
-                                    : isUpcoming
+                                  isUpcoming
                                     ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
-                                    : 'bg-primary-subtle text-primary border border-primary-subtle'
+                                    : 'bg-success-subtle text-success border border-success-subtle'
                                 } rounded-pill px-2.5 py-1 small`}
                               >
-                                ● {adm.status || (admRem <= 0 ? 'Completed' : isUpcoming ? 'Upcoming' : 'Active')}
+                                ● {isUpcoming ? 'Upcoming' : 'Active'}
                               </span>
                             </div>
 
-                            <div className="small text-muted mb-2.5">
-                              <div><strong>Batch:</strong> {adm.academic_batch || adm.batch}</div>
+                            <div className="small text-muted mb-2">
+                              <div><strong>Academic Batch:</strong> {adm.academic_batch || adm.batch}</div>
                               <div><strong>Academic Year:</strong> {adm.academic_year} • <strong>Campus:</strong> {adm.branch || student.branch}</div>
                               {adm.admission_id && (
-                                <div className="text-secondary mt-0.5" style={{ fontSize: '11px' }}>Ref: <code>{adm.admission_id}</code></div>
+                                <div className="text-secondary mt-1" style={{ fontSize: '11px' }}>
+                                  Admission Ref: <code>{adm.admission_id}</code>
+                                </div>
                               )}
                             </div>
 
-                            <div className="row g-2 text-center small mb-2.5 py-2 rounded bg-light-subtle border">
-                              <div className="col-4">
-                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Original</span>
-                                <span className="fw-semibold text-secondary">₹{admOrig.toLocaleString()}</span>
-                              </div>
-                              <div className="col-4">
-                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Concession</span>
-                                <span className="fw-bold text-success">-₹{admConc.toLocaleString()}</span>
-                              </div>
-                              <div className="col-4">
-                                <span className="text-muted d-block" style={{ fontSize: '11px' }}>Net Payable</span>
-                                <span className="fw-bold text-sa-charcoal">₹{admFinal.toLocaleString()}</span>
-                              </div>
-                            </div>
-
-                            <div className="d-flex align-items-center justify-content-between small mb-1">
-                              <span className="text-muted">
-                                Paid: <strong className="text-success">₹{admPaid.toLocaleString()}</strong>
-                              </span>
-                              <span className="text-muted">
-                                Due: <strong className={admRem > 0 ? 'text-danger' : 'text-success'}>₹{admRem.toLocaleString()}</strong>
-                              </span>
-                            </div>
-                            <div className="progress" style={{ height: '6px' }}>
-                              <div
-                                className={`progress-bar ${admRem <= 0 ? 'bg-success' : 'bg-primary'}`}
-                                style={{ width: `${pctPaid}%` }}
-                              />
+                            <div className="p-2 rounded bg-light border text-muted small" style={{ fontSize: '11.5px' }}>
+                              <span>Academic Enrollment: <strong>{isYear1 ? 'Primary Curriculum (Year 1)' : 'Linked Continuation (Year 2)'}</strong></span>
                             </div>
                           </div>
                         </div>
                       );
                     })}
+
+                    {/* Single Combined Fee Ledger Summary */}
+                    <div className="col-12">
+                      <div className="p-3 rounded-2 border bg-white small">
+                        <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                          <span className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5">
+                            <CreditCard size={15} className="text-sa-primary" />
+                            <span>Combined Two-Year Course Fee Ledger (Single Combined Amount)</span>
+                          </span>
+                          <span className="badge bg-success-subtle text-success border border-success-subtle">
+                            Unified Ledger
+                          </span>
+                        </div>
+                        <div className="row g-2 text-center">
+                          <div className="col-6 col-md-3">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Combined Course Fee</span>
+                            <span className="fw-semibold text-secondary" style={{ fontSize: '14px' }}>₹{Number(originalFees).toLocaleString()}</span>
+                          </div>
+                          <div className="col-6 col-md-3">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Total Concession</span>
+                            <span className="fw-bold text-success" style={{ fontSize: '14px' }}>
+                              {student.discountAmount > 0 ? `- ₹${Number(student.discountAmount).toLocaleString()}` : '₹0'}
+                            </span>
+                          </div>
+                          <div className="col-6 col-md-3">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Final Net Payable Fee</span>
+                            <span className="fw-extrabold text-sa-charcoal" style={{ fontSize: '14px' }}>₹{Number(totalFees).toLocaleString()}</span>
+                          </div>
+                          <div className="col-6 col-md-3">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Total Remaining Balance</span>
+                            <span className={`fw-extrabold ${pendingFees > 0 ? 'text-danger' : 'text-success'}`} style={{ fontSize: '14px' }}>
+                              ₹{Number(pendingFees).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1043,19 +1048,11 @@ export default function StudentDetails() {
               <div className="p-3 rounded-2 border bg-white small">
                 <div className="fw-bold text-sa-charcoal mb-2 d-flex align-items-center gap-1.5">
                   <Sparkles size={15} className="text-sa-primary" />
-                  <span>Two-Year Integrated Fee Calculation Preview</span>
+                  <span>Two-Year Combined Fee Calculation Preview (Single Amount)</span>
                 </div>
                 <div className="row g-2">
-                  <div className="col-6 d-flex justify-content-between text-muted">
-                    <span>11th Standard Fee:</span>
-                    <strong className="text-secondary">₹{convFee1.toLocaleString()}</strong>
-                  </div>
-                  <div className="col-6 d-flex justify-content-between text-muted">
-                    <span>12th Standard Fee:</span>
-                    <strong className="text-secondary">₹{convFee2.toLocaleString()}</strong>
-                  </div>
-                  <div className="col-12 d-flex justify-content-between text-secondary pt-1 border-top">
-                    <span>Combined Original Fees:</span>
+                  <div className="col-12 d-flex justify-content-between text-secondary">
+                    <span>Combined Course Fee (Gross):</span>
                     <strong>₹{convGross.toLocaleString()}</strong>
                   </div>
                   <div className="col-12 d-flex justify-content-between text-success">
@@ -1063,11 +1060,11 @@ export default function StudentDetails() {
                     <strong>- ₹{convDisc.toLocaleString()}</strong>
                   </div>
                   <div className="col-12 d-flex justify-content-between text-sa-charcoal fw-bold pt-1 border-top">
-                    <span>Combined Net Course Fee:</span>
-                    <span>₹{convFinal.toLocaleString()}</span>
+                    <span>Final Net Course Fee (Single Combined Amount):</span>
+                    <span className="text-success fs-6">₹{convFinal.toLocaleString()}</span>
                   </div>
                   <div className="col-12 d-flex justify-content-between text-muted">
-                    <span>Previous Paid Payments:</span>
+                    <span>Previous Paid Payments (Preserved):</span>
                     <span className="text-success fw-bold">- ₹{convPaid.toLocaleString()}</span>
                   </div>
                   <div className="col-12 d-flex justify-content-between pt-1 border-top">

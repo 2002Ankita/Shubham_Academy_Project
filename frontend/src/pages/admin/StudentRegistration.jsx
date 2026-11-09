@@ -1327,47 +1327,40 @@ export default function StudentRegistration() {
                   </div>
                 </div>
 
-                {/* Year-wise Breakdown Card for Two-Year Admission */}
+                {/* Combined Course Fee Calculation for Two-Year Admission */}
                 {formData.admissionType === '11th + 12th Standard (Two-Year Admission)' && (
                   <div className="col-12 mt-2">
                     <div className="p-3 rounded-2 border" style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}>
                       <div className="d-flex align-items-center justify-content-between mb-2">
-                        <span className="fw-bold text-success small">
-                          📊 Two-Year Academic Concession Breakdown:
+                        <span className="fw-bold text-success small d-flex align-items-center gap-1.5">
+                          <Sparkles size={16} />
+                          Two-Year Combined Course Fee Calculation:
                         </span>
                         <span className="badge bg-success text-white" style={{ fontSize: '10px' }}>
-                          Linked Academic Records
+                          Single Combined Fee
                         </span>
                       </div>
                       <div className="row g-2 text-center small">
-                        <div className="col-6 col-md-3">
-                          <div className="p-2 bg-white rounded border">
-                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>11th Catalog Fee</span>
-                            <strong className="text-sa-charcoal" style={{ fontSize: '13px' }}>
-                              ₹{getMatchingCourseFee(feeStructures, formData.branch, formData.academicBatch, '11th Science', 55000).toLocaleString('en-IN')}
-                            </strong>
-                          </div>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <div className="p-2 bg-white rounded border">
-                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>12th Catalog Fee</span>
-                            <strong className="text-sa-charcoal" style={{ fontSize: '13px' }}>
-                              ₹{getMatchingCourseFee(feeStructures, formData.branch, formData.secondYearAcademicBatch || '12th PCM', '12th Science', 65000).toLocaleString('en-IN')}
-                            </strong>
-                          </div>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <div className="p-2 bg-white rounded border">
-                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>Combined Original</span>
-                            <strong className="text-primary" style={{ fontSize: '13px' }}>
+                        <div className="col-12 col-md-4">
+                          <div className="p-2.5 bg-white rounded border h-100 d-flex flex-column justify-content-center">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Combined Course Fee (Gross)</span>
+                            <strong className="text-sa-charcoal" style={{ fontSize: '15px' }}>
                               ₹{Number(formData.originalFees).toLocaleString('en-IN')}
                             </strong>
                           </div>
                         </div>
-                        <div className="col-6 col-md-3">
-                          <div className="p-2 bg-white rounded border">
-                            <span className="text-muted d-block" style={{ fontSize: '10px' }}>Net 2-Year Payable</span>
-                            <strong className="text-success fw-bold" style={{ fontSize: '13px' }}>
+                        <div className="col-12 col-md-4">
+                          <div className="p-2.5 bg-white rounded border h-100 d-flex flex-column justify-content-center">
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Total Concession Applied</span>
+                            <strong className="text-success" style={{ fontSize: '15px' }}>
+                              {Number(formData.discountAmount) > 0 ? `- ₹${Number(formData.discountAmount).toLocaleString('en-IN')}` : '₹0'}
+                            </strong>
+                          </div>
+                        </div>
+                        <div className="col-12 col-md-4">
+                          <div className="p-2.5 bg-white rounded border h-100 d-flex flex-column justify-content-center" style={{ borderColor: '#86EFAC' }}>
+                            <span className="text-muted d-block" style={{ fontSize: '11px' }}>Final Net Payable (Single Combined Amount)</span>
+                            <strong className="text-success fw-extrabold" style={{ fontSize: '17px' }}>
                               ₹{Number(formData.totalFees).toLocaleString('en-IN')}
                             </strong>
                           </div>

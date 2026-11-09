@@ -500,35 +500,15 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
                 detail=f"Duplicate payment entry detected: Reference '{raw_tx_ref}' was already recorded on {existing_tx.payment_date.strftime('%d-%m-%Y')}."
             )
 
-    # Allocate payment to linked admission records (e.g. 11th first, then 12th)
+    # Combined single course fee allocation
     target_adm_id = getattr(payment_in, "admission_id", None)
     target_std = getattr(payment_in, "standard", None)
     target_year = getattr(payment_in, "academic_year", None)
 
-    if getattr(student, "admissions", None):
-        amt_to_alloc = float(payment_in.amount_paid)
-        for adm in student.admissions:
-            if amt_to_alloc <= 0:
-                break
-            adm_pending = float(adm.remaining_fees or 0.0)
-            if adm_pending > 0:
-                alloc_portion = min(amt_to_alloc, adm_pending)
-                adm.paid_fees = float(adm.paid_fees or 0.0) + alloc_portion
-                adm.remaining_fees = max(0.0, float(adm.final_fees or 0.0) - adm.paid_fees)
-                amt_to_alloc -= alloc_portion
-                if not target_adm_id:
-                    target_adm_id = adm.admission_id
-                    target_std = adm.standard
-                    target_year = adm.academic_year
-                try:
-                    from app.models.admission import Admission
-                    adm_doc = await Admission.find_one(Admission.admission_id == adm.admission_id)
-                    if adm_doc:
-                        adm_doc.paid_fees = adm.paid_fees
-                        adm_doc.remaining_fees = adm.remaining_fees
-                        await adm_doc.save()
-                except Exception:
-                    pass
+    if not target_adm_id and getattr(student, "admissions", None) and len(student.admissions) > 0:
+        target_adm_id = student.admissions[0].admission_id
+        target_std = student.admissions[0].standard
+        target_year = student.admissions[0].academic_year
 
     receipt_no = getattr(payment_in, "receipt_number", None) or f"REC-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
@@ -557,6 +537,28 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     student.paid_fees = new_total_paid
     student.remaining_fees = new_pending
     student.total_fees = total_fees
+
+    # Sync linked admissions with single combined fee status
+    if getattr(student, "admissions", None):
+        for adm in student.admissions:
+            adm.paid_fees = new_total_paid
+            adm.remaining_fees = new_pending
+            adm.final_fees = total_fees
+            adm.original_fees = getattr(student, "original_fees", total_fees) or total_fees
+            adm.concession_amount = getattr(student, "discount_amount", 0.0) or 0.0
+            try:
+                from app.models.admission import Admission
+                adm_doc = await Admission.find_one(Admission.admission_id == adm.admission_id)
+                if adm_doc:
+                    adm_doc.paid_fees = new_total_paid
+                    adm_doc.remaining_fees = new_pending
+                    adm_doc.final_fees = total_fees
+                    adm_doc.original_fees = adm.original_fees
+                    adm_doc.concession_amount = adm.concession_amount
+                    await adm_doc.save()
+            except Exception:
+                pass
+
     await student.save()
 
     res["total_fees"] = total_fees

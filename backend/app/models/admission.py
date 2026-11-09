@@ -48,3 +48,4 @@ class Admission(Document):
 
     class Settings:
         name = "admissions"
+
