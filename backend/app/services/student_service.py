@@ -179,6 +179,7 @@ async def get_next_roll_number(branch: Optional[str] = None) -> str:
     """
     Computes the next sequential roll number based on existing student entries.
     Scans for STD-(\\d+) pattern and increments from the highest number (minimum STD-101).
+    Guarantees that the returned candidate is completely unique in the database.
     """
     students = await Student.find_all().to_list()
     std_nums = []
@@ -190,7 +191,11 @@ async def get_next_roll_number(branch: Optional[str] = None) -> str:
         elif roll.isdigit():
             std_nums.append(int(roll))
     highest = max(std_nums) if std_nums else 100
-    return f"STD-{highest + 1}"
+    candidate = f"STD-{highest + 1}"
+    while await Student.find_one({"student_id": candidate}):
+        highest += 1
+        candidate = f"STD-{highest + 1}"
+    return candidate
 
 async def create_student(student_in: Any, current_user: Optional[User] = None) -> dict:
     if hasattr(student_in, "dict"):
@@ -220,6 +225,15 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
     raw_roll = str(data.get("rollNumber") or data.get("student_id") or data.get("roll_number") or "").strip()
     if raw_roll and not (raw_roll.startswith("STU-") and len(raw_roll) == 10 and re.match(r"^STU-[0-9A-Fa-f]{6}$", raw_roll)):
         student_id = raw_roll
+        # Pre-validate unique roll number against database
+        existing_with_roll = await Student.find_one({"student_id": student_id})
+        if existing_with_roll:
+            next_suggested = await get_next_roll_number(data.get("branch"))
+            assigned_name = existing_with_roll.full_name or "another student"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Roll Number / Student ID '{student_id}' is already assigned to {assigned_name}. Please choose a unique Roll Number (e.g. {next_suggested})."
+            )
     else:
         student_id = await get_next_roll_number(data.get("branch"))
 
@@ -392,13 +406,34 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         raise HTTPException(status_code=400, detail="Please enter a valid email address for Student User ID")
 
     # Uniqueness check for Email (User ID)
-    existing_user_email = await User.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
     existing_student_email = await Student.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
-    if existing_user_email or existing_student_email:
+    if existing_student_email:
+        student_name = existing_student_email.full_name or "another student"
         raise HTTPException(
             status_code=400,
-            detail=f"The Email ID '{email}' is already registered in the system. Student User ID must be unique."
+            detail=f"The Email ID '{email}' is already registered for {student_name}. Student User ID must be unique."
         )
+
+    existing_user_email = await User.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
+    if existing_user_email:
+        user_role_str = (getattr(existing_user_email, "role", "") or "").upper().replace("-", "_")
+        if user_role_str in ["ADMIN", "SUPER_ADMIN", "TEACHER"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The Email ID '{email}' is already used by academy staff/admin. Student User ID must be unique."
+            )
+        # Check if an active student is linked to this user ID
+        linked_student = await Student.find_one({"user.id": existing_user_email.id})
+        if linked_student:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The Email ID '{email}' is already registered for {linked_student.full_name}. Student User ID must be unique."
+            )
+        # If no active student is linked, this is an orphaned user account from a previous interrupted registration. Clean it up so registration can succeed cleanly.
+        try:
+            await existing_user_email.delete()
+        except Exception:
+            pass
 
     # Uniqueness check for Mobile Number (Password)
     clean_mobile_last10 = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
@@ -430,67 +465,104 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         full_name=full_name,
         role="STUDENT"
     )
+    user_created = False
     try:
         await user.insert()
+        user_created = True
     except DuplicateKeyError:
-        raise HTTPException(status_code=400, detail="Account with this email already exists")
+        raise HTTPException(status_code=400, detail=f"The Email ID '{email}' is already registered in the system.")
 
     # 2. Create Student record
-    admission_date = datetime.utcnow()
-    if data.get("admission_date"):
-        try:
-            if isinstance(data["admission_date"], str):
-                admission_date = datetime.fromisoformat(data["admission_date"].replace('Z', '+00:00'))
-            else:
-                admission_date = data["admission_date"]
-        except Exception:
-            pass
+    try:
+        admission_date = datetime.utcnow()
+        if data.get("admission_date"):
+            try:
+                if isinstance(data["admission_date"], str):
+                    admission_date = datetime.fromisoformat(data["admission_date"].replace('Z', '+00:00'))
+                else:
+                    admission_date = data["admission_date"]
+            except Exception:
+                pass
 
-    student = Student(
-        user=user,
-        student_id=student_id,
-        full_name=full_name,
-        mobile_number=clean_mobile,
-        parent_mobile=clean_parent_mobile,
-        email=email,
-        admission_type=admission_type,
-        admissions=admissions_list,
-        total_fees=total_fees,
-        paid_fees=paid_fees,
-        remaining_fees=remaining_fees,
-        standard=norm_std,
-        batch=norm_batch,
-        academic_batch=norm_batch,
-        session=norm_session,
-        branch=norm_branch,
-        academic_year=data.get("academic_year") or "2025-2026",
-        admission_date=admission_date,
-        rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
-        original_fees=orig_fees,
-        discount_amount=disc_amount,
-        discount_requested_amount=disc_amount,
-        discount_reason=disc_reason,
-        discount_status=disc_status,
-        discount_offered_by=disc_offered_by,
-        discount_recommended_by=disc_recommended_by,
-        discount_offered_at=disc_offered_at,
-        discount_approved_by=disc_approved_by,
-        discount_approved_at=disc_approved_at,
-        concession_type=conc_type,
-        concession_value=conc_val,
-        concession_approved_by=disc_approved_by,
-        concession_approved_at=disc_approved_at
-    )
-    if data.get("date_of_birth"):
-        student.date_of_birth = data["date_of_birth"]
-    if data.get("gender"):
-        student.gender = data["gender"]
-    if data.get("address"):
-        student.address = data["address"]
-    if data.get("parent_name"):
-        student.parent_name = data["parent_name"]
+        student = Student(
+            user=user,
+            student_id=student_id,
+            full_name=full_name,
+            mobile_number=clean_mobile,
+            parent_mobile=clean_parent_mobile,
+            email=email,
+            admission_type=admission_type,
+            admissions=admissions_list,
+            total_fees=total_fees,
+            paid_fees=paid_fees,
+            remaining_fees=remaining_fees,
+            standard=norm_std,
+            batch=norm_batch,
+            academic_batch=norm_batch,
+            session=norm_session,
+            branch=norm_branch,
+            academic_year=data.get("academic_year") or "2025-2026",
+            admission_date=admission_date,
+            rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
+            original_fees=orig_fees,
+            discount_amount=disc_amount,
+            discount_requested_amount=disc_amount,
+            discount_reason=disc_reason,
+            discount_status=disc_status,
+            discount_offered_by=disc_offered_by,
+            discount_recommended_by=disc_recommended_by,
+            discount_offered_at=disc_offered_at,
+            discount_approved_by=disc_approved_by,
+            discount_approved_at=disc_approved_at,
+            concession_type=conc_type,
+            concession_value=conc_val,
+            concession_approved_by=disc_approved_by,
+            concession_approved_at=disc_approved_at
+        )
+        if data.get("date_of_birth"):
+            student.date_of_birth = data["date_of_birth"]
+        if data.get("gender"):
+            student.gender = data["gender"]
+        if data.get("address"):
+            student.address = data["address"]
+        if data.get("parent_name"):
+            student.parent_name = data["parent_name"]
 
-    await student.insert()
+        await student.insert()
+    except DuplicateKeyError as dke:
+        if user_created:
+            try:
+                await user.delete()
+            except Exception:
+                pass
+        dke_str = str(dke)
+        if "student_id" in dke_str:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Roll Number / Student ID '{student_id}' is already registered. Please choose a different Roll Number."
+            )
+        elif "email" in dke_str:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The Email ID '{email}' is already registered in the system."
+            )
+        elif "mobile" in dke_str:
+            raise HTTPException(
+                status_code=400,
+                detail=f"The Mobile Number '{clean_mobile}' is already registered."
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="A record with duplicate roll number, email, or mobile number already exists."
+            )
+    except Exception as exc:
+        if user_created:
+            try:
+                await user.delete()
+            except Exception:
+                pass
+        raise exc
 
     # Create Admission documents in MongoDB collection for relational querying
     for adm in admissions_list:

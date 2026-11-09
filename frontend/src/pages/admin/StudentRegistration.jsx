@@ -284,9 +284,40 @@ export default function StudentRegistration() {
     }).catch((err) => console.warn('Could not load fee structures:', err));
   }, [activeBranch]);
 
+  const handleAutoAssignRollNumber = async () => {
+    try {
+      const nextRoll = await studentService.getNextRollNumber(activeBranch);
+      if (nextRoll) {
+        setFormData(prev => ({ ...prev, rollNumber: nextRoll }));
+        setErrors(prev => ({ ...prev, rollNumber: null }));
+        toast.info(`Assigned available Roll Number: ${nextRoll}`);
+      }
+    } catch (err) {
+      console.warn('Could not auto-assign roll number:', err);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let updated = { ...formData, [name]: value };
+
+    if (errors[name] && name !== 'rollNumber') {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+
+    if (name === 'rollNumber') {
+      const cleanVal = (value || '').trim();
+      if (cleanVal) {
+        const found = existingStudents.find(s => (s.student_id || s.roll_number || '').trim().toLowerCase() === cleanVal.toLowerCase());
+        if (found) {
+          setErrors(prev => ({ ...prev, rollNumber: `Roll Number '${cleanVal}' is already assigned to ${found.full_name || 'another student'}` }));
+        } else {
+          setErrors(prev => ({ ...prev, rollNumber: null }));
+        }
+      } else {
+        setErrors(prev => ({ ...prev, rollNumber: null }));
+      }
+    }
 
     // When mobile number is typed, keep password synced to mobile number
     if (name === 'mobileNumber') {
@@ -416,6 +447,16 @@ export default function StudentRegistration() {
       errs.fullName = 'Student Full Name is required';
     } else if (formData.fullName.trim().length < 3) {
       errs.fullName = 'Full Name must be at least 3 characters';
+    }
+
+    const cleanRoll = (formData.rollNumber || '').trim();
+    if (cleanRoll) {
+      const matchStudent = existingStudents.find(
+        s => (s.student_id || s.roll_number || '').trim().toLowerCase() === cleanRoll.toLowerCase()
+      );
+      if (matchStudent) {
+        errs.rollNumber = `Roll Number '${cleanRoll}' is already assigned to ${matchStudent.full_name || 'another student'}`;
+      }
     }
 
     const cleanEmail = (formData.email || '').trim().toLowerCase();
@@ -598,6 +639,31 @@ export default function StudentRegistration() {
       } else if (error.message) {
         errMsg = error.message;
       }
+
+      // Convert any raw database duplicate key error into clear, actionable guidance
+      if (errMsg.includes('DuplicateKeyError') || errMsg.includes('E11000')) {
+        if (errMsg.includes('student_id')) {
+          errMsg = `Roll Number / Admission ID '${formData.rollNumber || 'provided'}' is already registered to another student. Please click 'Auto-assign Next' or enter a unique Roll Number.`;
+          setErrors(prev => ({ ...prev, rollNumber: errMsg }));
+        } else if (errMsg.includes('email')) {
+          errMsg = `The Email ID '${formData.email}' is already registered in the system.`;
+          setErrors(prev => ({ ...prev, email: errMsg }));
+        } else if (errMsg.includes('mobile')) {
+          errMsg = `The Mobile Number '${formData.mobileNumber}' is already registered.`;
+          setErrors(prev => ({ ...prev, mobileNumber: errMsg }));
+        }
+      } else {
+        const lowerMsg = errMsg.toLowerCase();
+        if (lowerMsg.includes('roll number') || lowerMsg.includes('student id')) {
+          setErrors(prev => ({ ...prev, rollNumber: errMsg }));
+        }
+        if (lowerMsg.includes('email id') || lowerMsg.includes('email')) {
+          setErrors(prev => ({ ...prev, email: errMsg }));
+        }
+        if (lowerMsg.includes('mobile number') || lowerMsg.includes('mobile')) {
+          setErrors(prev => ({ ...prev, mobileNumber: errMsg }));
+        }
+      }
       toast.error(errMsg);
     } finally {
       setLoading(false);
@@ -730,9 +796,15 @@ export default function StudentRegistration() {
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
                       Roll Number / Admission ID
                     </label>
-                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-semibold text-nowrap" style={{ fontSize: '0.70rem' }}>
-                      Auto-assigned
-                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAutoAssignRollNumber}
+                      className="btn btn-link p-0 text-decoration-none d-inline-flex align-items-center gap-1 text-success fw-semibold"
+                      style={{ fontSize: '0.72rem' }}
+                      title="Fetch next available unique roll number"
+                    >
+                      <RotateCcw size={11} /> Auto-assign Next
+                    </button>
                   </div>
                   <div className="input-group">
                     <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: '0.85rem', height: '38px' }}>
@@ -743,15 +815,21 @@ export default function StudentRegistration() {
                       name="rollNumber"
                       value={formData.rollNumber}
                       onChange={handleInputChange}
-                      placeholder="e.g. STD-111"
-                      className="form-control"
+                      placeholder="e.g. STD-117"
+                      className={`form-control ${errors.rollNumber ? 'is-invalid' : ''}`}
                       style={{ height: '38px' }}
                       disabled={loading}
                     />
                   </div>
-                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
-                    Sequential entry ID. Auto-assigned or customize.
-                  </span>
+                  {errors.rollNumber ? (
+                    <div className="text-danger small mt-1" style={{ fontSize: '0.75rem' }}>
+                      {errors.rollNumber}
+                    </div>
+                  ) : (
+                    <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                      Sequential entry ID. Auto-assigned or customize.
+                    </span>
+                  )}
                 </div>
 
                 {/* Student Email ID - Required Unique User ID */}
