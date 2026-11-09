@@ -17,7 +17,8 @@ import {
   Tag,
   ArrowRight,
   RotateCcw,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
