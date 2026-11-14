@@ -1233,21 +1233,35 @@ async def get_batch_attendance_report_service(
     def _extract_sid(student_link) -> Optional[str]:
         if not student_link:
             return None
-        if hasattr(student_link, "id"):
-            return str(student_link.id)
         if hasattr(student_link, "ref") and hasattr(student_link.ref, "id"):
             return str(student_link.ref.id)
+        if hasattr(student_link, "id"):
+            return str(student_link.id)
         if isinstance(student_link, dict) and "$id" in student_link:
             return str(student_link["$id"])
         return str(student_link)
 
     student_records_map: Dict[str, list] = {}
+    batch_slot_1_dates = set()
+    batch_slot_2_dates = set()
     for att in attendance_records:
         sid = _extract_sid(att.student)
         if sid:
             if sid not in student_records_map:
                 student_records_map[sid] = []
             student_records_map[sid].append(att)
+            slot = getattr(att, "lecture_slot", 1)
+            att_date = getattr(att, "date", None)
+            date_str = str(att_date)[:10] if att_date else ""
+            if date_str:
+                if slot == 1:
+                    batch_slot_1_dates.add(date_str)
+                elif slot == 2:
+                    batch_slot_2_dates.add(date_str)
+
+    batch_l1_total = len(batch_slot_1_dates)
+    batch_l2_total = len(batch_slot_2_dates)
+    batch_total_lectures = batch_l1_total + batch_l2_total
 
     student_rows = []
     for s in matched_students:
@@ -1275,15 +1289,17 @@ async def get_batch_attendance_report_service(
         st_atts = student_records_map.get(sid_str, [])
         s1_records = [r for r in st_atts if getattr(r, "lecture_slot", 1) == 1]
         l1_present = sum(1 for r in s1_records if r.status in ["Present", "Working"])
-        l1_total = len(s1_records)
 
         s2_records = [r for r in st_atts if getattr(r, "lecture_slot", 1) == 2]
         l2_present = sum(1 for r in s2_records if r.status in ["Present", "Working"])
-        l2_total = len(s2_records)
 
-        st_total_lectures = l1_total + l2_total
+        # Batch-synchronized lecture totals so all students in the batch have the same count
+        st_l1_total = max(batch_l1_total, len(s1_records))
+        st_l2_total = max(batch_l2_total, len(s2_records))
+        st_total_lectures = max(batch_total_lectures, st_l1_total + st_l2_total)
+
         st_total_present = l1_present + l2_present
-        st_total_absent = st_total_lectures - st_total_present
+        st_total_absent = max(0, st_total_lectures - st_total_present)
         st_rate = round((st_total_present / st_total_lectures * 100)) if st_total_lectures > 0 else 0
 
         if st_total_lectures == 0:
@@ -1306,9 +1322,9 @@ async def get_batch_attendance_report_service(
             "session": st_session,
             "parent_mobile": parent_mobile,
             "lecture_1_present": l1_present,
-            "lecture_1_total": l1_total,
+            "lecture_1_total": st_l1_total,
             "lecture_2_present": l2_present,
-            "lecture_2_total": l2_total,
+            "lecture_2_total": st_l2_total,
             "total_lectures": st_total_lectures,
             "total_present": st_total_present,
             "total_absent": st_total_absent,
