@@ -1189,6 +1189,155 @@ async def get_batch_date_attendance(
         "records": records
     }
 
+async def get_batch_attendance_report_service(
+    branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    session: Optional[str] = None,
+    batch: Optional[str] = None
+) -> dict:
+    from app.core.branch_config import student_matches_filters, parse_student_branch_batch, BRANCH_MANGALWAR, BRANCH_TARABAI
+    from app.models.user import User
+
+    target_batch = academic_batch or batch
+    all_students = await Student.find_all().to_list()
+    matched_students = [
+        s for s in all_students
+        if student_matches_filters(s, branch_filter=branch, academic_batch_filter=target_batch, session_filter=session)
+    ]
+    matched_students.sort(key=lambda s: str(getattr(s, "student_id", "") or ""))
+
+    if not matched_students:
+        return {
+            "branch": branch or "All",
+            "session": session or "",
+            "academic_batch": target_batch or "All",
+            "total_students": 0,
+            "overall_attendance_percent": 0,
+            "total_student_lectures": 0,
+            "total_lectures_conducted": 0,
+            "total_present": 0,
+            "total_absent": 0,
+            "defaulters_count": 0,
+            "students": []
+        }
+
+    mongo_id_list = [s.id for s in matched_students]
+    attendance_records = await Attendance.find({
+        "$or": [
+            {"student.$id": {"$in": mongo_id_list}},
+            {"student.id": {"$in": mongo_id_list}},
+            {"student": {"$in": mongo_id_list}}
+        ]
+    }).to_list()
+
+    def _extract_sid(student_link) -> Optional[str]:
+        if not student_link:
+            return None
+        if hasattr(student_link, "id"):
+            return str(student_link.id)
+        if hasattr(student_link, "ref") and hasattr(student_link.ref, "id"):
+            return str(student_link.ref.id)
+        if isinstance(student_link, dict) and "$id" in student_link:
+            return str(student_link["$id"])
+        return str(student_link)
+
+    student_records_map: Dict[str, list] = {}
+    for att in attendance_records:
+        sid = _extract_sid(att.student)
+        if sid:
+            if sid not in student_records_map:
+                student_records_map[sid] = []
+            student_records_map[sid].append(att)
+
+    student_rows = []
+    for s in matched_students:
+        sid_str = str(s.id)
+        st_branch, st_acad_batch, st_session, _ = parse_student_branch_batch(
+            s.branch, s.batch, s.academic_batch, s.session
+        )
+        session_str = f" ({st_session})" if st_session and st_branch == BRANCH_MANGALWAR else ""
+        batch_label = f"{st_branch} • {st_acad_batch}{session_str}"
+
+        st_name = getattr(s, "full_name", None) or getattr(s, "name", None)
+        if not st_name and s.user:
+            try:
+                u = await User.get(s.user.ref.id) if hasattr(s.user, "ref") else s.user
+                if u:
+                    st_name = u.full_name
+            except Exception:
+                pass
+        if not st_name:
+            st_name = s.student_id or "Student"
+
+        roll_number = s.student_id or getattr(s, "roll_number", None) or str(s.id)[-6:].upper()
+        parent_mobile = s.parent_mobile or getattr(s, "parent_phone", None) or s.mobile_number or getattr(s, "phone", None) or "N/A"
+
+        st_atts = student_records_map.get(sid_str, [])
+        s1_records = [r for r in st_atts if getattr(r, "lecture_slot", 1) == 1]
+        l1_present = sum(1 for r in s1_records if r.status in ["Present", "Working"])
+        l1_total = len(s1_records)
+
+        s2_records = [r for r in st_atts if getattr(r, "lecture_slot", 1) == 2]
+        l2_present = sum(1 for r in s2_records if r.status in ["Present", "Working"])
+        l2_total = len(s2_records)
+
+        st_total_lectures = l1_total + l2_total
+        st_total_present = l1_present + l2_present
+        st_total_absent = st_total_lectures - st_total_present
+        st_rate = round((st_total_present / st_total_lectures * 100)) if st_total_lectures > 0 else 0
+
+        if st_total_lectures == 0:
+            status = "No Attendance Marked"
+        elif st_rate < 75:
+            status = "Defaulter Alert"
+        elif st_rate >= 85:
+            status = "Excellent"
+        else:
+            status = "Good"
+
+        student_rows.append({
+            "id": sid_str,
+            "student_id": sid_str,
+            "roll_number": roll_number,
+            "student_name": st_name,
+            "batch": batch_label,
+            "branch": st_branch,
+            "academic_batch": st_acad_batch,
+            "session": st_session,
+            "parent_mobile": parent_mobile,
+            "lecture_1_present": l1_present,
+            "lecture_1_total": l1_total,
+            "lecture_2_present": l2_present,
+            "lecture_2_total": l2_total,
+            "total_lectures": st_total_lectures,
+            "total_present": st_total_present,
+            "total_absent": st_total_absent,
+            "attendance_rate": st_rate,
+            "status": status
+        })
+
+    total_students = len(student_rows)
+    total_student_lectures = sum(r["total_lectures"] for r in student_rows)
+    total_present = sum(r["total_present"] for r in student_rows)
+    total_absent = sum(r["total_absent"] for r in student_rows)
+    overall_attendance_percent = round((total_present / total_student_lectures * 100)) if total_student_lectures > 0 else 0
+    defaulters_count = sum(1 for r in student_rows if r["status"] == "Defaulter Alert")
+    total_lectures_conducted = max((r["total_lectures"] for r in student_rows), default=0)
+
+    return {
+        "branch": branch or "All",
+        "session": session or "",
+        "academic_batch": target_batch or "All",
+        "total_students": total_students,
+        "overall_attendance_percent": overall_attendance_percent,
+        "total_student_lectures": total_student_lectures,
+        "total_lectures_conducted": total_lectures_conducted,
+        "total_present": total_present,
+        "total_absent": total_absent,
+        "defaulters_count": defaulters_count,
+        "students": student_rows
+    }
+
 async def save_batch_date_attendance(payload: dict) -> dict:
     from app.services.student_service import resolve_student
     from app.core.branch_config import parse_student_branch_batch

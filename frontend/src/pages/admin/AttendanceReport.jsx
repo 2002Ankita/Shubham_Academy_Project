@@ -365,7 +365,7 @@ export default function AttendanceReport() {
           <div className="row g-3">
             <div className="col-12 col-sm-6 col-lg-3">
               <div className="sa-card p-3.5 bg-white h-100">
-                <span className="small text-sa-muted d-block fw-medium">Students Enrolled</span>
+                <span className="small text-sa-muted d-block fw-medium">Total Students</span>
                 <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 mt-1">
                   {batchData?.total_students || 0}
                 </h3>
@@ -379,10 +379,10 @@ export default function AttendanceReport() {
               <div className="sa-card p-3.5 bg-white h-100 border-start border-4 border-success">
                 <span className="small text-sa-muted d-block fw-medium">Overall Attendance Rate</span>
                 <h3 className="brand-font fw-extrabold text-success m-0 mt-1">
-                  {batchData?.overall_attendance_percent || 0}%
+                  {batchData?.overall_attendance_percent ?? 0}%
                 </h3>
                 <span className="small text-muted d-block mt-1" style={{ fontSize: '11px' }}>
-                  {batchData?.total_present || 0} Lectures Attended
+                  {batchData?.total_present || 0} of {batchData?.total_student_lectures || 0} Lectures Attended
                 </span>
               </div>
             </div>
@@ -391,7 +391,7 @@ export default function AttendanceReport() {
               <div className="sa-card p-3.5 bg-white h-100 border-start border-4 border-primary">
                 <span className="small text-sa-muted d-block fw-medium">Total Student Lectures</span>
                 <h3 className="brand-font fw-extrabold text-primary m-0 mt-1">
-                  {batchData?.total_lectures_conducted || 0}
+                  {batchData?.total_student_lectures || 0}
                 </h3>
                 <span className="small text-muted d-block mt-1" style={{ fontSize: '11px' }}>
                   Lecture 1 & 2 Logged Separately
@@ -416,7 +416,7 @@ export default function AttendanceReport() {
           <div className="sa-card p-4 bg-white">
             <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
               <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
-                Batch Student Attendance Breakdown ({batchData?.students?.length || 0} Students)
+                Batch Student Attendance Breakdown ({batchData?.total_students || batchData?.students?.length || 0} Total Students)
               </h5>
               <span className="small text-muted">
                 Dual lecture tracking: Lecture 1 & Lecture 2 recorded independently.

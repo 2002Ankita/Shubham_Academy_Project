@@ -207,29 +207,33 @@ export const attendanceService = {
 
   // Student Attendance: Batch-wise Report
   getBatchReport: async ({ branch, academicBatch, session, batch } = {}) => {
-    try {
-      const params = {};
-      if (branch && branch !== 'All Branches' && branch !== 'All') params.branch = branch;
-      if (academicBatch && academicBatch !== 'All Batches' && academicBatch !== 'All') params.academic_batch = academicBatch;
-      if (session && session !== 'All Sessions' && session !== 'All') params.session = session;
-      if (batch && batch !== 'All Batches') params.batch = batch;
+    const params = {};
+    if (branch && branch !== 'All Branches' && branch !== 'All') params.branch = branch;
+    if (academicBatch && academicBatch !== 'All Batches' && academicBatch !== 'All') params.academic_batch = academicBatch;
+    if (session && session !== 'All Sessions' && session !== 'All') params.session = session;
+    if (batch && batch !== 'All Batches') params.batch = batch;
 
+    try {
+      const res = await api.get('/attendance/batch-report', { params });
+      if (res.data && Array.isArray(res.data.students)) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('getBatchReport /attendance/batch-report endpoint error, falling back:', err);
+    }
+
+    try {
       const studentsRes = await api.get('/students', { params });
       const students = Array.isArray(studentsRes.data) ? studentsRes.data : [];
 
-      const studentsData = students.map((s, idx) => {
-        const studentName = s.user?.full_name || s.name || `Student ${idx + 1}`;
-        const rollNumber = s.roll_number || s.student_id || `SA-${1000 + idx}`;
-        const parentMobile = s.parent_contact?.father_mobile || s.parent_contact?.mother_mobile || s.phone || '+91 98220 33445';
-        const branchLabel = s.branch || branch || 'Tarabai Park';
-        const batchLabel = s.academic_batch || s.academicBatch || academicBatch || s.batch || '11th PCM';
+      const studentsData = students.map((s) => {
+        const studentName = s.full_name || s.name || s.user?.full_name || s.student_id || 'Student';
+        const rollNumber = s.student_id || s.roll_number || 'N/A';
+        const parentMobile = s.parent_mobile || s.parent_phone || s.mobile_number || s.phone || 'N/A';
+        const branchLabel = s.branch || branch || 'Branch';
+        const batchLabel = s.academic_batch || s.academicBatch || academicBatch || s.batch || 'Batch';
         const sessionLabel = s.session ? ` (${s.session})` : '';
         const batchDisplay = `${branchLabel} • ${batchLabel}${sessionLabel}`;
-        const l1Pres = 24 - (idx % 3);
-        const l2Pres = 23 - (idx % 4);
-        const totPres = l1Pres + l2Pres;
-        const totLec = 48;
-        const rate = Math.round((totPres / totLec) * 100);
 
         return {
           id: s.id,
@@ -241,15 +245,15 @@ export const attendanceService = {
           academic_batch: s.academic_batch || s.academicBatch,
           session: s.session,
           parent_mobile: parentMobile,
-          lecture_1_present: l1Pres,
-          lecture_1_total: 24,
-          lecture_2_present: l2Pres,
-          lecture_2_total: 24,
-          total_lectures: totLec,
-          total_present: totPres,
-          total_absent: totLec - totPres,
-          attendance_rate: rate,
-          status: rate >= 85 ? 'Excellent' : (rate >= 75 ? 'Good' : 'Defaulter Alert')
+          lecture_1_present: 0,
+          lecture_1_total: 0,
+          lecture_2_present: 0,
+          lecture_2_total: 0,
+          total_lectures: 0,
+          total_present: 0,
+          total_absent: 0,
+          attendance_rate: 0,
+          status: 'No Attendance Marked'
         };
       });
 
@@ -258,13 +262,17 @@ export const attendanceService = {
         session: session || '',
         academic_batch: academicBatch || 'All',
         total_students: studentsData.length,
-        average_rate: studentsData.length > 0 ? Math.round(studentsData.reduce((acc, s) => acc + s.attendance_rate, 0) / studentsData.length) : 0,
-        defaulters_count: studentsData.filter(s => s.status === 'Defaulter Alert').length,
+        overall_attendance_percent: 0,
+        total_student_lectures: 0,
+        total_lectures_conducted: 0,
+        total_present: 0,
+        total_absent: 0,
+        defaulters_count: 0,
         students: studentsData
       };
     } catch (err) {
-      console.warn('getBatchReport fallback:', err);
-      return { total_students: 0, average_rate: 0, defaulters_count: 0, students: [] };
+      console.warn('getBatchReport fallback error:', err);
+      return { total_students: 0, overall_attendance_percent: 0, total_student_lectures: 0, defaulters_count: 0, students: [] };
     }
   },
 
@@ -278,52 +286,52 @@ export const attendanceService = {
       const sessionLabel = student.session ? ` (${student.session})` : '';
       const batchDisplay = `${branchLabel} • ${batchLabel}${sessionLabel}`;
 
-      const history = [];
-      const today = new Date();
-      for (let i = 0; i < 15; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dStr = d.toISOString().split('T')[0];
-        history.push({
-          date: dStr,
-          lecture_slot: 'Lecture 1 (Morning)',
-          subject: 'Physics',
-          batch: batchDisplay,
-          status: i === 3 ? 'Absent' : 'Present',
-          check_in_time: i === 3 ? '--' : '09:05 AM',
-          notification_sent: i === 3,
-          source: 'Excel Upload / Attendance Tap',
-          remarks: i === 3 ? 'Uninformed Absence' : 'On Time'
-        });
-        history.push({
-          date: dStr,
-          lecture_slot: 'Lecture 2 (Afternoon)',
-          subject: 'Mathematics',
-          batch: batchDisplay,
-          status: 'Present',
-          check_in_time: '11:02 AM',
-          notification_sent: false,
-          source: 'Excel Upload / Attendance Tap',
-          remarks: 'On Time'
-        });
+      const studentName = student.full_name || student.name || student.user?.full_name || student.student_id || 'Student';
+      const rollNumber = student.student_id || student.roll_number || 'N/A';
+      const parentMobile = student.parent_mobile || student.parent_phone || student.mobile_number || student.phone || 'N/A';
+
+      // Query real student attendance logs from backend
+      let historyRecords = [];
+      try {
+        const attRes = await api.get(`/attendance/student/${student.id || studentId}`);
+        historyRecords = Array.isArray(attRes.data) ? attRes.data : [];
+      } catch (attErr) {
+        console.warn('Could not fetch student attendance logs:', attErr);
       }
+
+      const history = historyRecords.map((r) => ({
+        date: r.date ? (typeof r.date === 'string' ? r.date.split('T')[0] : new Date(r.date).toISOString().split('T')[0]) : '--',
+        lecture_slot: r.slot_label || (r.lecture_slot ? `Lecture ${r.lecture_slot}` : 'Gate Tap'),
+        subject: r.subject || '--',
+        batch: r.batch || batchDisplay,
+        status: r.status || 'Present',
+        check_in_time: r.time || (r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'),
+        notification_sent: Boolean(r.smsAlert && !r.smsAlert.toLowerCase().includes('failed')),
+        source: r.mode || 'Digital Terminal',
+        remarks: r.remarks || (r.status === 'Present' ? 'Verified Check-in' : 'Uninformed Absence')
+      }));
+
+      const totalLec = history.length;
+      const presentLec = history.filter(h => h.status === 'Present' || h.status === 'Working').length;
+      const absentLec = totalLec - presentLec;
+      const rate = totalLec > 0 ? Math.round((presentLec / totalLec) * 100) : 0;
 
       return {
         student: {
           id: student.id || studentId,
-          roll_number: student.roll_number || 'SA-1001',
-          name: student.user?.full_name || student.name || 'Student',
+          roll_number: rollNumber,
+          name: studentName,
           branch: student.branch,
           academic_batch: student.academic_batch || student.academicBatch,
           session: student.session,
           batch: batchDisplay,
-          parent_mobile: student.parent_contact?.father_mobile || student.phone || '+91 98220 33445'
+          parent_mobile: parentMobile
         },
         summary: {
-          total_lectures: 30,
-          present_lectures: 29,
-          absent_lectures: 1,
-          attendance_rate: 97
+          total_lectures: totalLec,
+          present_lectures: presentLec,
+          absent_lectures: absentLec,
+          attendance_rate: rate
         },
         history
       };

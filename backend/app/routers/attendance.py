@@ -34,6 +34,27 @@ from app.routers.auth import oauth2_scheme
 
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
+@router.get("/batch-report")
+async def get_batch_attendance_report_endpoint(
+    branch: Optional[str] = Query(None, description="Branch (Tarabai Park or Mangalwar Peth)"),
+    academic_batch: Optional[str] = Query(None, description="Academic batch (e.g. 11th PCMB)"),
+    session: Optional[str] = Query(None, description="Session (Morning/Afternoon) for Mangalwar Peth"),
+    batch: Optional[str] = Query(None, description="Batch filter fallback"),
+    token: str = Depends(oauth2_scheme)
+):
+    current_user = await get_current_user(token)
+    user_role = getattr(current_user, "role", "").upper().replace("-", "_")
+    user_branch = getattr(current_user, "branch", None)
+    if user_role == "ADMIN" and user_branch and not branch:
+        branch = user_branch
+    from app.services.attendance_service import get_batch_attendance_report_service
+    return await get_batch_attendance_report_service(
+        branch=branch,
+        academic_batch=academic_batch,
+        session=session,
+        batch=batch
+    )
+
 @router.get("/ledger", response_model=BatchAttendanceLedgerResponse)
 async def get_batch_attendance_ledger(
     date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
