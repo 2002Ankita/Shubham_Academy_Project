@@ -7,7 +7,9 @@ import {
   SESSIONS,
   ACADEMIC_BATCHES,
   isSessionRequired,
-  normalizeBranch
+  normalizeBranch,
+  normalizeAcademicBatch,
+  normalizeSession
 } from '../../config/branchBatchConfig';
 
 /**
@@ -21,6 +23,7 @@ export default function BranchBatchSelector({
   branch = '',
   session = '',
   academicBatch = '',
+  batch = '',
   onBranchChange,
   onSessionChange,
   onBatchChange,
@@ -36,18 +39,24 @@ export default function BranchBatchSelector({
   labels = {},
   className = ''
 }) {
-  const needsSession = isSessionRequired(branch);
+  const normalizedBranch = normalizeBranch(branch) || branch || '';
+  const needsSession = isSessionRequired(normalizedBranch);
+  const selectedBatch = normalizeAcademicBatch(academicBatch || batch) || academicBatch || batch || '';
+  const currentSession = normalizeSession(session) || session || '';
 
   // When branch changes, reset incompatible session if moving to Tarabai Park
   const handleBranchSelect = (newBranch) => {
     if (onBranchChange) onBranchChange(newBranch);
     if (!isSessionRequired(newBranch)) {
       if (onSessionChange) onSessionChange('');
+    } else if (!session && onSessionChange) {
+      onSessionChange('Morning');
     }
   };
 
-  const isBatchDisabled = disabled || !branch || (needsSession && !session && !showAllOption);
-  const isSessionDisabled = disabled || !branch || !needsSession;
+  // Academic batch is NEVER blocked or disabled if a branch is present
+  const isBatchDisabled = Boolean(disabled || !branch);
+  const isSessionDisabled = Boolean(disabled || !branch || !needsSession);
 
   const selectClass = size === 'sm' ? 'form-select form-select-sm' : 'form-select';
   const labelClass = 'form-label small fw-semibold text-sa-charcoal d-flex align-items-center gap-1.5 mb-1 text-nowrap';
@@ -147,7 +156,7 @@ export default function BranchBatchSelector({
             </label>
             <select
               className={`${selectClass} ${needsSession && !session && required ? 'border-warning' : ''}`}
-              value={session || ''}
+              value={currentSession}
               onChange={(e) => onSessionChange && onSessionChange(e.target.value)}
               disabled={isSessionDisabled}
               required={required && needsSession}
@@ -174,12 +183,15 @@ export default function BranchBatchSelector({
             {required && <span className="text-danger">*</span>}
           </label>
           <select
-            className={`${selectClass} ${!academicBatch && required ? 'border-warning' : ''}`}
-            value={academicBatch || ''}
+            className={`${selectClass} ${!selectedBatch && required ? 'border-warning' : ''}`}
+            value={selectedBatch}
             onChange={(e) => {
               const val = e.target.value;
               if (onBatchChange) onBatchChange(val);
               if (onAcademicBatchChange) onAcademicBatchChange(val);
+              if (needsSession && !session && onSessionChange) {
+                onSessionChange('Morning');
+              }
             }}
             disabled={isBatchDisabled}
             required={required}
@@ -188,7 +200,7 @@ export default function BranchBatchSelector({
               <option value="">{allOptionLabel} Academic Batches</option>
             ) : (
               <option value="">
-                {!branch ? '-- Select Branch First --' : (needsSession && !session ? '-- Select Session First --' : '-- Choose Academic Batch --')}
+                {!branch ? '-- Select Branch First --' : '-- Choose Academic Batch --'}
               </option>
             )}
             {ACADEMIC_BATCHES.map((b) => (

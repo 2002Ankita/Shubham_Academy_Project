@@ -172,10 +172,10 @@ export const attendanceService = {
     try {
       const params = {};
       if (date) params.date = date;
-      if (branch && branch !== 'All Branches' && branch !== 'All') params.branch = branch;
-      if (academicBatch && academicBatch !== 'All Batches' && academicBatch !== 'All') params.academic_batch = academicBatch;
-      if (session && session !== 'All Sessions' && session !== 'All') params.session = session;
-      if (batch && batch !== 'All Batches') params.batch = batch;
+      if (branch && !String(branch).toLowerCase().includes('all')) params.branch = branch;
+      if (academicBatch && !String(academicBatch).toLowerCase().includes('all')) params.academic_batch = academicBatch;
+      if (session && !String(session).toLowerCase().includes('all')) params.session = session;
+      if (batch && !String(batch).toLowerCase().includes('all')) params.batch = batch;
 
       const res = await api.get('/attendance/ledger', { params });
       return res.data;
@@ -208,10 +208,10 @@ export const attendanceService = {
   // Student Attendance: Batch-wise Report
   getBatchReport: async ({ branch, academicBatch, session, batch } = {}) => {
     const params = {};
-    if (branch && branch !== 'All Branches' && branch !== 'All') params.branch = branch;
-    if (academicBatch && academicBatch !== 'All Batches' && academicBatch !== 'All') params.academic_batch = academicBatch;
-    if (session && session !== 'All Sessions' && session !== 'All') params.session = session;
-    if (batch && batch !== 'All Batches') params.batch = batch;
+    if (branch && !String(branch).toLowerCase().includes('all')) params.branch = branch;
+    if (academicBatch && !String(academicBatch).toLowerCase().includes('all')) params.academic_batch = academicBatch;
+    if (session && !String(session).toLowerCase().includes('all')) params.session = session;
+    if (batch && !String(batch).toLowerCase().includes('all')) params.batch = batch;
 
     try {
       const res = await api.get('/attendance/batch-report', { params });

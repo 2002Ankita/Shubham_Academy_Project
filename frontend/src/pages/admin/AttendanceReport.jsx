@@ -41,17 +41,30 @@ export default function AttendanceReport() {
   const activeBranch = getUserBranch(user);
   const isMP = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const defaultBranch = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
+  const defaultSession = isMP ? 'Morning' : '';
 
   // Active Report View: 'batch', 'date', 'student'
   const [activeTab, setActiveTab] = useState('batch');
 
   // Standardized Filter States
   const [reportBranch, setReportBranch] = useState(defaultBranch);
-  const [reportSession, setReportSession] = useState('');
+  const [reportSession, setReportSession] = useState(defaultSession);
   const [reportAcademicBatch, setReportAcademicBatch] = useState(ACADEMIC_BATCHES[0]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
+
+  // Keep branch and session synced when activeBranch is hydrated
+  useEffect(() => {
+    if (activeBranch) {
+      const isMangal = activeBranch.toLowerCase().includes('mangal');
+      const b = isMangal ? BRANCH_MANGALWAR : activeBranch;
+      setReportBranch(b);
+      if (isMangal) {
+        setReportSession(prev => prev || 'Morning');
+      }
+    }
+  }, [activeBranch]);
 
   // Data States
   const [loading, setLoading] = useState(true);
@@ -63,7 +76,7 @@ export default function AttendanceReport() {
   const reportBatchLabel = formatStudentBatchDisplay({
     branch: reportBranch,
     session: reportSession,
-    academicBatch: reportAcademicBatch
+    academicBatch: reportAcademicBatch || 'All Batches'
   });
 
   // Load students for autocomplete
@@ -294,7 +307,8 @@ export default function AttendanceReport() {
               onSessionChange={setReportSession}
               academicBatch={reportAcademicBatch}
               onAcademicBatchChange={setReportAcademicBatch}
-              showAllOption={isSuperAdmin}
+              onBatchChange={setReportAcademicBatch}
+              showAllOption={true}
               fixedBranch={!isSuperAdmin}
               allowedBranches={!isSuperAdmin ? [defaultBranch] : undefined}
               layout="grid"

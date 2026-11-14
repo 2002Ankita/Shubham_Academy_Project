@@ -177,14 +177,14 @@ def student_matches_filters(
     )
 
     # 1. Branch match
-    if b_filter and str(b_filter).strip().upper() not in ["ALL", ""]:
+    if b_filter and "ALL" not in str(b_filter).strip().upper() and str(b_filter).strip() != "":
         req_branch = normalize_branch(b_filter)
         st_norm_branch = normalize_branch(st_branch)
         if req_branch and st_norm_branch and req_branch != st_norm_branch:
             return False
 
     # 2. Session match (only applies when branch is Mangalvar Peth or session is explicitly requested)
-    if s_filter and str(s_filter).strip().upper() not in ["ALL", ""]:
+    if s_filter and "ALL" not in str(s_filter).strip().upper() and str(s_filter).strip() != "":
         req_session = normalize_session(s_filter)
         if req_session:
             if normalize_branch(st_branch) != BRANCH_MANGALWAR:
@@ -193,7 +193,7 @@ def student_matches_filters(
                 return False
 
     # 3. Academic Batch match
-    if ab_filter and str(ab_filter).strip().upper() not in ["ALL", ""]:
+    if ab_filter and "ALL" not in str(ab_filter).strip().upper() and str(ab_filter).strip() != "":
         req_batch = normalize_academic_batch(ab_filter)
         if req_batch and req_batch != st_acad_batch:
             return False
