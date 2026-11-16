@@ -212,7 +212,7 @@ export default function TopicDurationPlanner() {
   const [form, setForm] = useState({
     branch: (userBranch && userBranch !== 'All' ? userBranch : 'Mangalwar Peth'),
     subject: 'Physics (Class 12th)',
-    batch: (userBranch === 'Tarabai Park' ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+    batch: (userBranch === 'Tarabai Park' ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth'),
     chapter: '',
     topicName: '',
     requiredPeriods: '3',
@@ -321,7 +321,7 @@ export default function TopicDurationPlanner() {
     const activeB = (branchFilter && branchFilter !== 'All') ? branchFilter : (userBranch || 'Mangalwar Peth');
     const isTP = activeB.toLowerCase().includes('tarabai') || activeB.toLowerCase().includes('tp');
     const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
-    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth';
 
     setForm({
       branch: resolvedBranch,
@@ -380,7 +380,7 @@ export default function TopicDurationPlanner() {
       topic_name: form.topicName.trim(),
       chapter: form.chapter.trim() || 'Curriculum Chapter',
       subject: form.subject.trim() || 'Physics (Class 12th)',
-      batch: form.batch.trim() || (isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+      batch: form.batch.trim() || (isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth'),
       branch: resolvedBranch,
       requiredPeriods: parseInt(form.requiredPeriods, 10) || 1,
       required_periods: parseInt(form.requiredPeriods, 10) || 1,
@@ -924,7 +924,7 @@ export default function TopicDurationPlanner() {
                   onChange={(e) => {
                     const newBranch = e.target.value;
                     const isTP = newBranch === 'Tarabai Park';
-                    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+                    const defaultBatch = isTP ? '12th pcm tarabai park' : '11th pcm Mangalvar Peth';
                     setForm({
                       ...form,
                       branch: newBranch,

@@ -61,71 +61,38 @@ const isTeacherMatch = (teacherA, teacherB, subject = '') => {
   return false;
 };
 
-// Batch options for both campuses
+// Batch options for both campuses (Clean academic divisions without session suffixes)
 export const MANGALWAR_BATCH_OPTIONS = [
   {
-    group: '☀️ Morning Session (MP)',
-    list: [
-      '11th pcm Mangalvar Peth (Morning)',
-      '11th pcb Mangalvar Peth (Morning)',
-      '11th pcmb Mangalvar Peth (Morning)',
-      '12th pcm Mangalvar Peth (Morning)',
-      '12th pcb Mangalvar Peth (Morning)',
-      '12th pcmb Mangalvar Peth (Morning)'
-    ]
-  },
-  {
-    group: '🌙 Evening Session (MP)',
-    list: [
-      '11th pcm Mangalvar Peth (Evening)',
-      '11th pcb Mangalvar Peth (Evening)',
-      '11th pcmb Mangalvar Peth (Evening)',
-      '12th pcm Mangalvar Peth (Evening)',
-      '12th pcb Mangalvar Peth (Evening)',
-      '12th pcmb Mangalvar Peth (Evening)'
-    ]
-  },
-  {
-    group: 'General Regular Batches (MP)',
+    group: '11th Science',
     list: [
       '11th pcm Mangalvar Peth',
       '11th pcb Mangalvar Peth',
-      '11th pcmb Mangalvar Peth',
+      '11th pcmb Mangalvar Peth'
+    ]
+  },
+  {
+    group: '12th Science',
+    list: [
       '12th pcm Mangalvar Peth',
-      '12th pcb Mangalvar Peth'
+      '12th pcb Mangalvar Peth',
+      '12th pcmb Mangalvar Peth'
     ]
   }
 ];
 
 export const TARABAI_BATCH_OPTIONS = [
   {
-    group: '☀️ Morning Session (TP)',
-    list: [
-      '11th pcm tarabai park (Morning)',
-      '11th pcb tarabai park (Morning)',
-      '11th pcmb tarabai park (Morning)',
-      '12th pcm tarabai park (Morning)',
-      '12th pcb tarabai park (Morning)',
-      '12th pcmb tarabai park (Morning)'
-    ]
-  },
-  {
-    group: '🌙 Evening Session (TP)',
-    list: [
-      '11th pcm tarabai park (Evening)',
-      '11th pcb tarabai park (Evening)',
-      '11th pcmb tarabai park (Evening)',
-      '12th pcm tarabai park (Evening)',
-      '12th pcb tarabai park (Evening)',
-      '12th pcmb tarabai park (Evening)'
-    ]
-  },
-  {
-    group: 'General Regular Batches (TP)',
+    group: '11th Science',
     list: [
       '11th pcm tarabai park',
       '11th pcb tarabai park',
-      '11th pcmb tarabai park',
+      '11th pcmb tarabai park'
+    ]
+  },
+  {
+    group: '12th Science',
+    list: [
       '12th pcm tarabai park',
       '12th pcb tarabai park',
       '12th pcmb tarabai park'
@@ -153,6 +120,7 @@ const isActivityInBranch = (act, targetBranch = 'All') => {
 const normalizeBatch = (b = '') => {
   return String(b || '')
     .toLowerCase()
+    .replace(/\s*\((morning|evening)\)\s*/gi, '')
     .replace(/mangalwar/g, 'mangalvar')
     .replace(/\s+/g, ' ')
     .trim();
@@ -213,8 +181,12 @@ export default function DailyActivityReport() {
   const { user } = useAuth();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const isAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('admin') || location.pathname.startsWith('/admin');
-  const userBranch = getUserBranch(user);
-  const initialBranch = location.state?.branch || userBranch || 'All';
+  const rawBranch = getUserBranch(user) || user?.branch || user?.campus;
+  const userBranch = rawBranch
+    ? (String(rawBranch).toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park')
+    : null;
+  const activeCampus = userBranch;
+  const initialBranch = location.state?.branch || activeCampus || 'All';
 
   // Storage key shared with Dashboard
   const STORAGE_KEY = 'sa_teacher_daily_activities';
@@ -273,8 +245,10 @@ export default function DailyActivityReport() {
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranchFilter, setSelectedBranchFilter] = useState(() => {
-    if (location.state?.branch) return location.state.branch;
-    if (userBranch) return userBranch;
+    if (activeCampus) return activeCampus;
+    if (location.state?.branch) {
+      return String(location.state.branch).toLowerCase().includes('mangal') ? 'Mangalwar Peth' : 'Tarabai Park';
+    }
     return 'All';
   });
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
@@ -282,10 +256,12 @@ export default function DailyActivityReport() {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
 
   useEffect(() => {
-    if (location.state?.branch) {
+    if (activeCampus) {
+      setSelectedBranchFilter(activeCampus);
+    } else if (location.state?.branch) {
       setSelectedBranchFilter(location.state.branch);
     }
-  }, [location.state?.branch]);
+  }, [activeCampus, location.state?.branch]);
 
   // Date selection state (defaults to today's date)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -298,7 +274,7 @@ export default function DailyActivityReport() {
     branch: (userBranch && userBranch !== 'All' ? userBranch : 'Mangalwar Peth'),
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
-    batch: (userBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+    batch: (userBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth'),
     chapter: '',
     topicTaught: '',
     timeSlot: '08:30 AM - 10:00 AM',
@@ -350,7 +326,7 @@ export default function DailyActivityReport() {
 
           const topic = String(norm['topictaught'] || norm['topic'] || norm['topicname'] || norm['syllabus'] || norm['topics'] || '').trim();
           const subject = String(norm['subject'] || norm['sub'] || norm['subjectname'] || 'Physics').trim();
-          const batch = String(norm['classbatch'] || norm['batch'] || norm['class'] || norm['division'] || '11th pcm Mangalvar Peth (Morning)').trim();
+          const batch = String(norm['classbatch'] || norm['batch'] || norm['class'] || norm['division'] || '11th pcm Mangalvar Peth').trim();
           let branch = 'Mangalwar Peth';
           const chapter = String(norm['chapter'] || norm['unit'] || norm['chaptername'] || '').trim();
           const targetDate = String(norm['targetcompletiondate'] || norm['targetdate'] || norm['completeby'] || norm['deadline'] || '').trim();
@@ -445,7 +421,7 @@ export default function DailyActivityReport() {
         "Branch": "Mangalwar Peth",
         "Activity Type": "Classroom Lecture & Theory",
         "Subject": "Physics",
-        "Class / Batch": "11th pcm Mangalvar Peth (Morning)",
+        "Class / Batch": "11th pcm Mangalvar Peth",
         "Chapter": "Chapter 7: Wave Optics",
         "Topic Taught": "Wave Optics - Wavefronts & Huygens Principle",
         "Target Completion Date": "2026-10-24",
@@ -460,7 +436,7 @@ export default function DailyActivityReport() {
         "Branch": "Mangalwar Peth",
         "Activity Type": "Practical Lab Session",
         "Subject": "Physics Laboratory",
-        "Class / Batch": "11th pcm Mangalvar Peth (Evening)",
+        "Class / Batch": "12th pcm Mangalvar Peth",
         "Chapter": "Practical Mechanics & Fluids",
         "Topic Taught": "Surface Tension - Capillary Rise Experiment",
         "Target Completion Date": "2026-10-25",
@@ -506,7 +482,7 @@ export default function DailyActivityReport() {
         branch: isTP ? 'Tarabai Park' : 'Mangalwar Peth',
         activity: item.activity || 'Classroom Lecture & Theory',
         subject: stdSubject,
-        batch: item.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+        batch: item.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth'),
         chapter: item.chapter || '',
         target_date: targetDateVal,
         activity_date: targetDateVal,
@@ -543,7 +519,7 @@ export default function DailyActivityReport() {
       const topic = location.state.prefillTopic;
       const isTP = (topic.branch || '').toLowerCase().includes('tarabai') || (topic.batch || '').toLowerCase().includes('tarabai');
       const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
-      const resolvedBatch = topic.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+      const resolvedBatch = topic.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth');
 
       setEditingActivityId(null);
       setNewActivity({
@@ -653,7 +629,7 @@ export default function DailyActivityReport() {
       : (userBranch || 'Mangalwar Peth');
     const isTP = activeBranch.toLowerCase().includes('tarabai') || activeBranch.toLowerCase().includes('tp');
     const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
-    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth';
 
     setNewActivity({
       branch: resolvedBranch,
@@ -678,7 +654,7 @@ export default function DailyActivityReport() {
     setEditingActivityId(act.id);
     const isTP = (act.branch || '').toLowerCase().includes('tarabai') || (act.batch || '').toLowerCase().includes('tarabai') || (act.branch || '').toLowerCase().includes('tp');
     const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
-    const defaultBatch = act.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+    const defaultBatch = act.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth');
 
     setNewActivity({
       branch: resolvedBranch,
@@ -731,7 +707,7 @@ export default function DailyActivityReport() {
       branch: resolvedBranch,
       activity: newActivity.activity || 'Classroom Lecture & Theory',
       subject: stdSubject,
-      batch: newActivity.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
+      batch: newActivity.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth'),
       chapter: newActivity.chapter || '',
       target_date: targetDateVal,
       activity_date: targetDateVal,
@@ -1239,12 +1215,19 @@ export default function DailyActivityReport() {
                   setSelectedBranchFilter(e.target.value);
                   setSelectedBatchFilter('All');
                 }}
+                disabled={Boolean(activeCampus)}
                 style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '135px' }}
                 title="Filter teaching activities by campus"
               >
-                <option value="All">🏛️ All Campuses</option>
-                <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
-                <option value="Tarabai Park">🏛️ Tarabai Park</option>
+                {activeCampus ? (
+                  <option value={activeCampus}>🏛️ {activeCampus}</option>
+                ) : (
+                  <>
+                    <option value="All">🏛️ All Campuses</option>
+                    <option value="Mangalwar Peth">🏛️ Mangalwar Peth</option>
+                    <option value="Tarabai Park">🏛️ Tarabai Park</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -1283,7 +1266,7 @@ export default function DailyActivityReport() {
                       ))}
                     </optgroup>
                   ))
-                ) : selectedBranchFilter === 'Mangalwar Peth' ? (
+                ) : (
                   MANGALWAR_BATCH_OPTIONS.map(grp => (
                     <optgroup key={grp.group} label={grp.group}>
                       {grp.list.map(b => (
@@ -1291,19 +1274,6 @@ export default function DailyActivityReport() {
                       ))}
                     </optgroup>
                   ))
-                ) : (
-                  <>
-                    <optgroup label="🏛️ Tarabai Park Batches">
-                      {TARABAI_BATCH_OPTIONS.flatMap(g => g.list).map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🏛️ Mangalwar Peth Batches">
-                      {MANGALWAR_BATCH_OPTIONS.flatMap(g => g.list).map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </optgroup>
-                  </>
                 )}
               </select>
             </div>
@@ -1557,7 +1527,7 @@ export default function DailyActivityReport() {
                   onChange={(e) => {
                     const newBranch = e.target.value;
                     const isTP = newBranch === 'Tarabai Park';
-                    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+                    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth';
                     setNewActivity({
                       ...newActivity,
                       branch: newBranch,
