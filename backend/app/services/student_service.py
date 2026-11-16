@@ -175,26 +175,117 @@ def is_superadmin_user(user: User) -> bool:
     role_clean = (user.role or "").lower().replace("-", "_").strip()
     return role_clean in ["super_admin", "superadmin"]
 
-async def get_next_roll_number(branch: Optional[str] = None) -> str:
+def is_test_student_record(s: Any) -> bool:
+    """Helper to detect automated test fixtures so they don't corrupt real roll numbers."""
+    name = (getattr(s, "full_name", None) or (s.get("full_name") if isinstance(s, dict) else "") or "").strip().lower()
+    email = (getattr(s, "email", None) or (s.get("email") if isinstance(s, dict) else "") or "").strip().lower()
+    sid = str(getattr(s, "student_id", None) or (s.get("student_id") if isinstance(s, dict) else "") or "").strip()
+    if name.startswith("test ") or "test student" in name or name.startswith("combined student"):
+        return True
+    if "test" in email or "example.com" in email:
+        return True
+    if re.search(r"1794\d{6}", name) or re.search(r"1794\d{6}", sid):
+        return True
+    return False
+
+def parse_student_roll_id(roll_str: Optional[str]):
+    """Parses roll number string into type, prefix, numeric value, and zero-padding."""
+    if not roll_str:
+        return None
+    clean = str(roll_str).strip()
+    # Skip random hex identifiers (like STU-0D3510)
+    if re.match(r"^STU-[0-9A-Fa-f]{6}$", clean, re.IGNORECASE):
+        return None
+    # Pure numeric (e.g. "10", "5", "01")
+    if clean.isdigit():
+        return {
+            "type": "numeric",
+            "prefix": "",
+            "num": int(clean),
+            "pad": len(clean) if clean.startswith("0") and len(clean) > 1 else 0
+        }
+    # Alphanumeric with digits at the end (e.g. "STD-110", "MP-01")
+    m = re.match(r"^(.*?)(\d+)$", clean)
+    if m:
+        prefix = m.group(1)
+        num_str = m.group(2)
+        return {
+            "type": "prefixed",
+            "prefix": prefix,
+            "num": int(num_str),
+            "pad": len(num_str) if num_str.startswith("0") and len(num_str) > 1 else 0
+        }
+    return None
+
+async def get_next_roll_number(
+    branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    standard: Optional[str] = None
+) -> str:
     """
-    Computes the next sequential roll number based on existing student entries.
-    Scans for STD-(\\d+) pattern and increments from the highest number (minimum STD-101).
-    Guarantees that the returned candidate is completely unique in the database.
+    Computes the next sequential roll number based on the previous student registered.
+    Finds the most recent student in the specified branch, extracts their roll number,
+    and increments to the next sequential number (preserving padding or prefixes).
+    Guarantees that the returned roll number is completely unique in the database.
     """
     students = await Student.find_all().to_list()
-    std_nums = []
+    # Sort newest to oldest using document id
+    students.sort(
+        key=lambda s: str(getattr(s, "id", "")),
+        reverse=True
+    )
+
+    valid_students = []
     for s in students:
-        roll = (s.student_id or "").strip()
-        m = re.match(r"^STD-(\d+)$", roll, re.IGNORECASE)
-        if m:
-            std_nums.append(int(m.group(1)))
-        elif roll.isdigit():
-            std_nums.append(int(roll))
-    highest = max(std_nums) if std_nums else 100
-    candidate = f"STD-{highest + 1}"
+        if is_test_student_record(s):
+            continue
+        p = parse_student_roll_id(s.student_id)
+        if p:
+            valid_students.append((s, p))
+
+    # Filter pool by branch if specified
+    branch_pool = []
+    if branch:
+        b_target = branch.strip().lower()
+        is_mp = "mangal" in b_target
+        branch_pool = [
+            (s, p) for s, p in valid_students
+            if ("mangal" in (s.branch or "").lower()) == is_mp
+        ]
+
+    pool = branch_pool if branch_pool else valid_students
+
+    if pool:
+        # The previous registered student in this pool
+        prev_student, prev_parsed = pool[0]
+        prefix = prev_parsed["prefix"]
+        pad = prev_parsed["pad"]
+        next_num = prev_parsed["num"] + 1
+
+        # Safeguard: ensure we also advance past any higher number with the same prefix in this pool
+        max_num_same_prefix = max(
+            p["num"] for _, p in pool if p["prefix"] == prefix
+        )
+        candidate_num = max(next_num, max_num_same_prefix + 1)
+    else:
+        prefix = ""
+        pad = 0
+        candidate_num = 1
+
+    # Format candidate
+    if pad > 0:
+        candidate = f"{prefix}{candidate_num:0{pad}d}"
+    else:
+        candidate = f"{prefix}{candidate_num}"
+
+    # Ensure candidate does not already exist anywhere in the database
     while await Student.find_one({"student_id": candidate}):
-        highest += 1
-        candidate = f"STD-{highest + 1}"
+        candidate_num += 1
+        if pad > 0:
+            candidate = f"{prefix}{candidate_num:0{pad}d}"
+        else:
+            candidate = f"{prefix}{candidate_num}"
+
     return candidate
 
 async def create_student(student_in: Any, current_user: Optional[User] = None) -> dict:
@@ -228,14 +319,22 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         # Pre-validate unique roll number against database
         existing_with_roll = await Student.find_one({"student_id": student_id})
         if existing_with_roll:
-            next_suggested = await get_next_roll_number(data.get("branch"))
+            next_suggested = await get_next_roll_number(
+                branch=data.get("branch"),
+                academic_batch=data.get("academic_batch") or data.get("academicBatch"),
+                standard=data.get("standard")
+            )
             assigned_name = existing_with_roll.full_name or "another student"
             raise HTTPException(
                 status_code=400,
                 detail=f"Roll Number / Student ID '{student_id}' is already assigned to {assigned_name}. Please choose a unique Roll Number (e.g. {next_suggested})."
             )
     else:
-        student_id = await get_next_roll_number(data.get("branch"))
+        student_id = await get_next_roll_number(
+            branch=data.get("branch"),
+            academic_batch=data.get("academic_batch") or data.get("academicBatch"),
+            standard=data.get("standard")
+        )
 
     # Admission Type Parsing: 11th Standard Only, 12th Standard Only, 11th + 12th Standard (Two-Year Admission)
     raw_adm_type = str(data.get("admission_type") or data.get("admissionType") or "11th Standard Only").strip()

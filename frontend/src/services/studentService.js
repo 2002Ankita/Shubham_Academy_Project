@@ -124,13 +124,17 @@ export const studentService = {
     };
   },
 
-  getNextRollNumber: async (branch) => {
+  getNextRollNumber: async (branch, academic_batch, standard) => {
     try {
-      const res = await api.get('/students/next-roll-number', { params: branch ? { branch } : {} });
-      return res.data?.next_roll_number || 'STD-111';
+      const params = {};
+      if (branch) params.branch = branch;
+      if (academic_batch) params.academic_batch = academic_batch;
+      if (standard) params.standard = standard;
+      const res = await api.get('/students/next-roll-number', { params });
+      return res.data?.next_roll_number || '01';
     } catch (err) {
       console.warn('Could not fetch next roll number:', err);
-      return 'STD-111';
+      return '01';
     }
   },
 

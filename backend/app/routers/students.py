@@ -21,11 +21,13 @@ async def add_student(
 @router.get("/next-roll-number")
 async def get_next_roll_number_endpoint(
     branch: Optional[str] = None,
+    academic_batch: Optional[str] = None,
+    standard: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
     await get_current_user(token)
     from app.services.student_service import get_next_roll_number
-    next_roll = await get_next_roll_number(branch=branch)
+    next_roll = await get_next_roll_number(branch=branch, academic_batch=academic_batch, standard=standard)
     return {"next_roll_number": next_roll}
 
 @router.get("/discounts/approvals")

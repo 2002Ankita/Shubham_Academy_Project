@@ -141,6 +141,7 @@ export default function StudentRegistration() {
 
   const [errors, setErrors] = useState({});
   const [existingStudents, setExistingStudents] = useState([]);
+  const [isRollNumberManuallyEdited, setIsRollNumberManuallyEdited] = useState(false);
 
   // Dynamic fee calculation engine
   const computeAdmissionFees = (
@@ -205,10 +206,13 @@ export default function StudentRegistration() {
   }, []);
 
   useEffect(() => {
-    studentService.getNextRollNumber(activeBranch)
+    studentService.getNextRollNumber(activeBranch, formData.academicBatch, formData.standard)
       .then((nextRoll) => {
         if (nextRoll) {
-          setFormData(prev => ({ ...prev, rollNumber: prev.rollNumber || nextRoll }));
+          setFormData(prev => ({
+            ...prev,
+            rollNumber: isRollNumberManuallyEdited ? prev.rollNumber : (prev.rollNumber || nextRoll)
+          }));
         }
       })
       .catch((err) => console.warn('Could not fetch next roll number:', err));
@@ -286,11 +290,16 @@ export default function StudentRegistration() {
 
   const handleAutoAssignRollNumber = async () => {
     try {
-      const nextRoll = await studentService.getNextRollNumber(activeBranch);
+      setIsRollNumberManuallyEdited(false);
+      const nextRoll = await studentService.getNextRollNumber(
+        formData.branch || activeBranch,
+        formData.academicBatch,
+        formData.standard
+      );
       if (nextRoll) {
         setFormData(prev => ({ ...prev, rollNumber: nextRoll }));
         setErrors(prev => ({ ...prev, rollNumber: null }));
-        toast.info(`Assigned available Roll Number: ${nextRoll}`);
+        toast.info(`Assigned next Roll Number: ${nextRoll}`);
       }
     } catch (err) {
       console.warn('Could not auto-assign roll number:', err);
@@ -306,6 +315,7 @@ export default function StudentRegistration() {
     }
 
     if (name === 'rollNumber') {
+      setIsRollNumberManuallyEdited(true);
       const cleanVal = (value || '').trim();
       if (cleanVal) {
         const found = existingStudents.find(s => (s.student_id || s.roll_number || '').trim().toLowerCase() === cleanVal.toLowerCase());
@@ -402,6 +412,17 @@ export default function StudentRegistration() {
       totalFees: calc.netTotal,
       remainingFees: calc.remainingFees
     }));
+
+    if (!isRollNumberManuallyEdited) {
+      studentService.getNextRollNumber(newBranch, currentAcademic, std)
+        .then((nextRoll) => {
+          if (nextRoll) {
+            setFormData((prev) => ({ ...prev, rollNumber: nextRoll }));
+            setErrors((prev) => ({ ...prev, rollNumber: null }));
+          }
+        })
+        .catch((err) => console.warn('Could not fetch next roll number on branch change:', err));
+    }
 
     setErrors((prev) => ({ ...prev, branch: '', session: '', academicBatch: '' }));
   };
@@ -815,7 +836,7 @@ export default function StudentRegistration() {
                       name="rollNumber"
                       value={formData.rollNumber}
                       onChange={handleInputChange}
-                      placeholder="e.g. STD-117"
+                      placeholder="e.g. 11, 01, or custom"
                       className={`form-control ${errors.rollNumber ? 'is-invalid' : ''}`}
                       style={{ height: '38px' }}
                       disabled={loading}
@@ -827,7 +848,7 @@ export default function StudentRegistration() {
                     </div>
                   ) : (
                     <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
-                      Sequential entry ID. Auto-assigned or customize.
+                      Sequential roll number (auto-incremented from previous student).
                     </span>
                   )}
                 </div>
@@ -1568,8 +1589,17 @@ export default function StudentRegistration() {
                     const isMP = activeBranch && activeBranch.toLowerCase().includes('mangal');
                     const branchToUse = isMP ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
                     const sessionToUse = isMP ? 'Morning' : '';
+                    setIsRollNumberManuallyEdited(false);
+                    studentService.getNextRollNumber(branchToUse, '11th PCM', '11th Science')
+                      .then((nextRoll) => {
+                        if (nextRoll) {
+                          setFormData(prev => ({ ...prev, rollNumber: nextRoll }));
+                        }
+                      })
+                      .catch(err => console.warn('Could not reset roll number:', err));
                     setFormData({
                       fullName: '',
+                      rollNumber: '',
                       email: '',
                       mobileNumber: '',
                       parentPhone: '',
