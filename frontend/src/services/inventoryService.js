@@ -32,7 +32,22 @@ export const inventoryService = {
   },
 
   updateItem: async (id, data) => {
-    const res = await api.put(`/inventory/items/${id}`, data);
+    const payload = {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.category !== undefined && { category: data.category }),
+      ...(data.subject !== undefined && { subject: data.subject }),
+      ...(data.standard !== undefined && { standard: data.standard }),
+      ...(data.branch !== undefined && { branch: data.branch }),
+      ...(data.inStock !== undefined && { in_stock: Number(data.inStock) }),
+      ...(data.in_stock !== undefined && { in_stock: Number(data.in_stock) }),
+      ...(data.totalStock !== undefined && { total_stock: Number(data.totalStock) }),
+      ...(data.total_stock !== undefined && { total_stock: Number(data.total_stock) }),
+      ...(data.reorderLevel !== undefined && { reorder_level: Number(data.reorderLevel) }),
+      ...(data.reorder_level !== undefined && { reorder_level: Number(data.reorder_level) }),
+      ...(data.unitCost !== undefined && { unit_cost: Number(data.unitCost) }),
+      ...(data.unit_cost !== undefined && { unit_cost: Number(data.unit_cost) })
+    };
+    const res = await api.put(`/inventory/items/${id}`, payload);
     return res.data;
   },
 

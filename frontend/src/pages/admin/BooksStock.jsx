@@ -10,6 +10,7 @@ import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   BookMarked,
   Plus,
+  Edit,
   AlertTriangle,
   Send,
   UserCheck,
@@ -118,6 +119,20 @@ export default function BooksStock() {
   // Modals state
   const [handoverModalOpen, setHandoverModalOpen] = useState(false);
   const [addStockModalOpen, setAddStockModalOpen] = useState(false);
+  const [editStockModalOpen, setEditStockModalOpen] = useState(false);
+  const [editingBook, setEditingBook] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    title: '',
+    category: 'Theory',
+    subject: 'Physics',
+    standard: '11th & 12th Science',
+    branch: defaultBranch,
+    inStock: 0,
+    reorderLevel: 15,
+    unitCost: 350
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [restockModalOpen, setRestockModalOpen] = useState(false);
   const [selectedItemForRestock, setSelectedItemForRestock] = useState(null);
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
@@ -377,6 +392,69 @@ export default function BooksStock() {
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to add book module';
       toast.error(msg);
+    }
+  };
+
+  const openEditModal = (book) => {
+    setEditingBook(book);
+    setEditFormData({
+      id: book.id,
+      title: book.title || '',
+      category: book.category || 'Theory',
+      subject: book.subject || 'Physics',
+      standard: book.standard || '11th & 12th Science',
+      branch: book.branch || defaultBranch,
+      inStock: Number(book.inStock) || 0,
+      reorderLevel: Number(book.reorderLevel) || 15,
+      unitCost: Number(book.unitCost) || 350
+    });
+    setEditStockModalOpen(true);
+  };
+
+  const handleUpdateBook = async (e) => {
+    e.preventDefault();
+    if (!editFormData.id) return;
+    if (!editFormData.title?.trim()) {
+      toast.error('Module / Book Title cannot be empty');
+      return;
+    }
+    const inStock = Number(editFormData.inStock);
+    if (isNaN(inStock) || inStock < 0) {
+      toast.error('Available stock must be a non-negative number');
+      return;
+    }
+    const reorderLevel = Number(editFormData.reorderLevel);
+    if (isNaN(reorderLevel) || reorderLevel < 0) {
+      toast.error('Reorder level must be a non-negative number');
+      return;
+    }
+    const unitCost = Number(editFormData.unitCost);
+    if (isNaN(unitCost) || unitCost < 0) {
+      toast.error('Unit cost must be a non-negative number');
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      await inventoryService.updateItem(editFormData.id, {
+        title: editFormData.title.trim(),
+        category: editFormData.category || 'Theory',
+        subject: editFormData.subject,
+        standard: editFormData.standard,
+        branch: editFormData.branch,
+        in_stock: inStock,
+        reorder_level: reorderLevel,
+        unit_cost: unitCost
+      });
+      toast.success(`Book stock for "${editFormData.title.trim()}" updated successfully!`);
+      setEditStockModalOpen(false);
+      setEditingBook(null);
+      await loadData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to update book stock';
+      toast.error(msg);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -976,9 +1054,19 @@ export default function BooksStock() {
                   key: 'id',
                   title: 'Actions',
                   align: 'end',
-                  width: '180px',
+                  width: '260px',
                   render: (val, row) => (
                     <div className="d-flex gap-1.5 justify-content-end align-items-center text-nowrap">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary px-2 py-1 small d-inline-flex align-items-center gap-1 text-nowrap"
+                        style={{ borderRadius: '6px', fontSize: '12px' }}
+                        onClick={() => openEditModal(row)}
+                        title="Edit stock & module details"
+                      >
+                        <Edit size={13} /> Edit
+                      </button>
+
                       <button
                         type="button"
                         className="btn btn-sm btn-light border px-2 py-1 small d-inline-flex align-items-center gap-1 text-secondary text-nowrap"
@@ -1568,6 +1656,130 @@ export default function BooksStock() {
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" onClick={() => setAddStockModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="primary">Register Module in Inventory</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Edit Book Stock & Module Details */}
+      <Modal
+        isOpen={editStockModalOpen}
+        onClose={() => {
+          setEditStockModalOpen(false);
+          setEditingBook(null);
+        }}
+        title="Edit Book Stock & Module Details"
+      >
+        <form onSubmit={handleUpdateBook} className="d-flex flex-column gap-3">
+          <div>
+            <label className="form-label small fw-bold">Campus / Branch Locker *</label>
+            <select
+              className="form-select"
+              value={editFormData.branch || defaultBranch}
+              onChange={(e) => setEditFormData({ ...editFormData, branch: e.target.value })}
+              disabled={!isSuperAdmin}
+            >
+              <option value={BRANCH_TARABAI}>{BRANCH_TARABAI}</option>
+              <option value={BRANCH_MANGALWAR}>{BRANCH_MANGALWAR}</option>
+            </select>
+            {!isSuperAdmin && (
+              <span className="text-muted small" style={{ fontSize: '11px' }}>
+                Assigned to your campus locker ({editFormData.branch || defaultBranch})
+              </span>
+            )}
+          </div>
+
+          <Input
+            label="Module / Book Title *"
+            name="title"
+            value={editFormData.title}
+            onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+            placeholder="e.g. Theory - Physics or Modern Physics Guide"
+            required
+          />
+
+          <div className="row g-2">
+            <div className="col-6">
+              <Select
+                label="Module Category"
+                name="category"
+                value={editFormData.category}
+                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                options={['Theory', 'CET', 'Foundation', 'Board Exam']}
+              />
+            </div>
+            <div className="col-6">
+              <Select
+                label="Subject"
+                name="subject"
+                value={editFormData.subject}
+                onChange={(e) => setEditFormData({ ...editFormData, subject: e.target.value })}
+                options={['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Foundation', 'General']}
+              />
+            </div>
+          </div>
+
+          <div className="row g-2">
+            <div className="col-6">
+              <Select
+                label="Target Class Stream"
+                name="standard"
+                value={editFormData.standard}
+                onChange={(e) => setEditFormData({ ...editFormData, standard: e.target.value })}
+                options={streamOptions}
+              />
+            </div>
+            <div className="col-6">
+              <Input
+                label="Cost per Unit (₹)"
+                name="unitCost"
+                type="number"
+                value={editFormData.unitCost}
+                onChange={(e) => setEditFormData({ ...editFormData, unitCost: e.target.value })}
+                required
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div className="row g-2">
+            <div className="col-6">
+              <Input
+                label="Available Printed Stock Quantity *"
+                name="inStock"
+                type="number"
+                value={editFormData.inStock}
+                onChange={(e) => setEditFormData({ ...editFormData, inStock: e.target.value })}
+                required
+                min="0"
+              />
+            </div>
+            <div className="col-6">
+              <Input
+                label="Low Stock Alert Threshold *"
+                name="reorderLevel"
+                type="number"
+                value={editFormData.reorderLevel}
+                onChange={(e) => setEditFormData({ ...editFormData, reorderLevel: e.target.value })}
+                required
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <Button
+              variant="light"
+              onClick={() => {
+                setEditStockModalOpen(false);
+                setEditingBook(null);
+              }}
+              disabled={savingEdit}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" loading={savingEdit}>
+              Save Changes
+            </Button>
           </div>
         </form>
       </Modal>

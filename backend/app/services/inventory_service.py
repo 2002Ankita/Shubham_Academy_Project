@@ -116,6 +116,9 @@ async def update_inventory_item(item_id: str, update_in: InventoryItemUpdate) ->
             if key == "unit_cost" and float(value) < 0:
                 raise HTTPException(status_code=400, detail="Unit cost cannot be negative")
             setattr(item, key, value)
+
+    if getattr(item, "total_stock", 0) is None or getattr(item, "total_stock", 0) < getattr(item, "in_stock", 0):
+        item.total_stock = item.in_stock
             
     await item.save()
     d = item.model_dump() if hasattr(item, "model_dump") else item.dict()
