@@ -15,23 +15,34 @@ from typing import Optional, List, Dict, Any
 from app.core.branch_config import student_matches_filters
 
 DEFAULT_BOOKS = [
-    # Theory Books
-    {"title": "Theory - Physics", "category": "Theory", "subject": "Physics", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
-    {"title": "Theory - Chemistry", "category": "Theory", "subject": "Chemistry", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
-    {"title": "Theory - Biology", "category": "Theory", "subject": "Biology", "standard": "11th & 12th Science", "in_stock": 45, "reorder_level": 15, "unit_cost": 350.0},
-    {"title": "Theory - Mathematics", "category": "Theory", "subject": "Maths", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
-    # CET Books
-    {"title": "CET - Physics", "category": "CET", "subject": "Physics", "standard": "11th & 12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
-    {"title": "CET - Chemistry", "category": "CET", "subject": "Chemistry", "standard": "11th & 12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
-    {"title": "CET - Biology", "category": "CET", "subject": "Biology", "standard": "11th & 12th Science", "in_stock": 40, "reorder_level": 15, "unit_cost": 400.0},
-    {"title": "CET - Mathematics", "category": "CET", "subject": "Maths", "standard": "11th & 12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 400.0},
+    # ── 11th Standard - Theory Books ──
+    {"title": "Theory - Physics (11th)", "category": "Theory", "subject": "Physics", "standard": "11th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Chemistry (11th)", "category": "Theory", "subject": "Chemistry", "standard": "11th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Mathematics (11th)", "category": "Theory", "subject": "Maths", "standard": "11th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Biology (11th)", "category": "Theory", "subject": "Biology", "standard": "11th Science", "in_stock": 45, "reorder_level": 15, "unit_cost": 350.0},
+    # ── 11th Standard - CET Books ──
+    {"title": "CET - Physics (11th)", "category": "CET", "subject": "Physics", "standard": "11th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Chemistry (11th)", "category": "CET", "subject": "Chemistry", "standard": "11th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Mathematics (11th)", "category": "CET", "subject": "Maths", "standard": "11th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Biology (11th)", "category": "CET", "subject": "Biology", "standard": "11th Science", "in_stock": 40, "reorder_level": 15, "unit_cost": 400.0},
+
+    # ── 12th Standard - Theory Books ──
+    {"title": "Theory - Physics (12th)", "category": "Theory", "subject": "Physics", "standard": "12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Chemistry (12th)", "category": "Theory", "subject": "Chemistry", "standard": "12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Mathematics (12th)", "category": "Theory", "subject": "Maths", "standard": "12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 350.0},
+    {"title": "Theory - Biology (12th)", "category": "Theory", "subject": "Biology", "standard": "12th Science", "in_stock": 45, "reorder_level": 15, "unit_cost": 350.0},
+    # ── 12th Standard - CET Books ──
+    {"title": "CET - Physics (12th)", "category": "CET", "subject": "Physics", "standard": "12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Chemistry (12th)", "category": "CET", "subject": "Chemistry", "standard": "12th Science", "in_stock": 55, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Mathematics (12th)", "category": "CET", "subject": "Maths", "standard": "12th Science", "in_stock": 50, "reorder_level": 15, "unit_cost": 400.0},
+    {"title": "CET - Biology (12th)", "category": "CET", "subject": "Biology", "standard": "12th Science", "in_stock": 40, "reorder_level": 15, "unit_cost": 400.0},
 ]
 
 BRANCH_TARABAI = "Tarabai Park"
 BRANCH_MANGALWAR = "Mangalvar Peth"
 
 async def ensure_default_books():
-    """Ensure existing items have total_stock and branch populated, and both branches have their book sets."""
+    """Ensure existing items have total_stock and branch populated, and both branches have their book sets for 11th and 12th."""
     try:
         # 1. Update any existing items with missing branch or total_stock
         await InventoryItem.get_motor_collection().update_many(
@@ -43,13 +54,14 @@ async def ensure_default_books():
             [{"$set": {"total_stock": "$in_stock"}}]
         )
 
-        # 2. Ensure each branch has the full set of DEFAULT_BOOKS
+        # 2. Ensure each branch has the full set of DEFAULT_BOOKS (11th and 12th)
         for branch_name in [BRANCH_TARABAI, BRANCH_MANGALWAR]:
             for book_spec in DEFAULT_BOOKS:
                 existing = await InventoryItem.find_one({
                     "branch": branch_name,
                     "category": book_spec["category"],
-                    "subject": book_spec["subject"]
+                    "subject": book_spec["subject"],
+                    "standard": book_spec["standard"]
                 })
                 if not existing:
                     new_item = InventoryItem(

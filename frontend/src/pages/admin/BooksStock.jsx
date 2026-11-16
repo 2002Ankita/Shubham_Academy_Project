@@ -126,7 +126,7 @@ export default function BooksStock() {
     title: '',
     category: 'Theory',
     subject: 'Physics',
-    standard: '11th & 12th Science',
+    standard: '11th Science',
     branch: defaultBranch,
     inStock: 0,
     reorderLevel: 15,
@@ -153,15 +153,13 @@ export default function BooksStock() {
   const [restockQty, setRestockQty] = useState(25);
   const [restockRemarks, setRestockRemarks] = useState('');
 
-  const defaultStandard = !isSuperAdmin
-    ? (isMangalwar ? '11th pcm Mangalvar peth' : '11th pcm tarabai park')
-    : '11th & 12th Science';
+  const defaultStandard = '11th Science';
 
   const [newBook, setNewBook] = useState({
     title: '',
     category: 'Theory',
     subject: 'Physics',
-    standard: '11th & 12th Science',
+    standard: '11th Science',
     branch: defaultBranch,
     inStock: 50,
     reorderLevel: 15,
@@ -382,7 +380,7 @@ export default function BooksStock() {
         title: '',
         category: 'Theory',
         subject: 'Physics',
-        standard: '11th & 12th Science',
+        standard: '11th Science',
         branch: defaultBranch,
         inStock: 50,
         reorderLevel: 15,
@@ -402,7 +400,7 @@ export default function BooksStock() {
       title: book.title || '',
       category: book.category || 'Theory',
       subject: book.subject || 'Physics',
-      standard: book.standard || '11th & 12th Science',
+      standard: book.standard || '11th Science',
       branch: book.branch || defaultBranch,
       inStock: Number(book.inStock) || 0,
       reorderLevel: Number(book.reorderLevel) || 15,
@@ -493,6 +491,37 @@ export default function BooksStock() {
     '12th pcmb tarabai park'
   ];
 
+  // Standard 11th & 12th book categories
+  const BOOK_STANDARDS_11 = [
+    '11th Science',
+    '11th - Physics Theory',
+    '11th - Chemistry Theory',
+    '11th - Mathematics Theory',
+    '11th - Biology Theory',
+    '11th - Physics CET',
+    '11th - Chemistry CET',
+    '11th - Mathematics CET',
+    '11th - Biology CET',
+  ];
+  const BOOK_STANDARDS_12 = [
+    '12th Science',
+    '12th - Physics Theory',
+    '12th - Chemistry Theory',
+    '12th - Mathematics Theory',
+    '12th - Biology Theory',
+    '12th - Physics CET',
+    '12th - Chemistry CET',
+    '12th - Mathematics CET',
+    '12th - Biology CET',
+  ];
+  const ALL_BOOK_STANDARDS = [
+    '11th Science',
+    '12th Science',
+    '11th & 12th Science',
+    ...BOOK_STANDARDS_11.filter(s => s !== '11th Science'),
+    ...BOOK_STANDARDS_12.filter(s => s !== '12th Science'),
+  ];
+
   // Branch-scoped stock & deliveries to guarantee zero cross-campus leakage
   const branchScopedStock = React.useMemo(() => {
     if (isSuperAdmin || !userBranch) return stock;
@@ -528,33 +557,34 @@ export default function BooksStock() {
 
   // Dynamic streams strictly scoped to user's branch unless SuperAdmin
   const streamOptions = React.useMemo(() => {
+    const rawStds = Array.from(new Set(branchScopedStock.map(s => s.standard).filter(Boolean)));
+    const campusBatches = isMangalwar ? MANGALWAR_STREAMS : TARABAI_STREAMS;
+
     if (isSuperAdmin || !userBranch) {
       return Array.from(
         new Set([
+          '11th Science',
+          '12th Science',
           '11th & 12th Science',
-          ...TARABAI_STREAMS,
+          ...rawStds,
           ...MANGALWAR_STREAMS,
-          ...stock.map(s => s.standard).filter(Boolean)
+          ...TARABAI_STREAMS
         ])
       );
     }
 
-    if (isMangalwar) {
-      const extra = branchScopedStock
-        .map(s => s.standard)
-        .filter(Boolean)
-        .filter(std => !std.toLowerCase().includes('tarabai'));
-      return Array.from(new Set([...MANGALWAR_STREAMS, ...extra]));
-    } else {
-      const extra = branchScopedStock
-        .map(s => s.standard)
-        .filter(Boolean)
-        .filter(std => !std.toLowerCase().includes('mangal'));
-      return Array.from(new Set([...TARABAI_STREAMS, ...extra]));
-    }
+    return Array.from(
+      new Set([
+        '11th Science',
+        '12th Science',
+        '11th & 12th Science',
+        ...rawStds,
+        ...campusBatches
+      ])
+    );
   }, [branchScopedStock, stock, isSuperAdmin, userBranch, isMangalwar]);
 
-  // Filtered stock list
+  // Filtered stock list supporting 11th and 12th standard breakdown
   const filteredStock = branchScopedStock.filter(item => {
     const q = searchStock.trim().toLowerCase();
     const matchesSearch = !q ||
@@ -563,8 +593,46 @@ export default function BooksStock() {
       (item.standard && item.standard.toLowerCase().includes(q)) ||
       (item.id && item.id.toLowerCase().includes(q));
 
-    const matchesStream = selectedStockStream === 'All' || 
-      (item.standard && item.standard.toLowerCase() === selectedStockStream.toLowerCase());
+    let matchesStream = true;
+    if (selectedStockStream !== 'All') {
+      const sel = selectedStockStream.toLowerCase().trim();
+      const itemStd = (item.standard || '').toLowerCase().trim();
+      const itemTitle = (item.title || '').toLowerCase().trim();
+      const itemSubj = (item.subject || '').toLowerCase().trim();
+      const itemCat = (item.category || '').toLowerCase().trim();
+
+      if (sel === '11th & 12th science') {
+        matchesStream = itemStd.includes('11th & 12th') || (itemStd.includes('11') && itemStd.includes('12'));
+      } else if (sel === '11th science') {
+        // Show all 11th books
+        matchesStream = itemStd.includes('11') && !itemStd.includes('11th & 12th') && !itemStd.includes('12th');
+      } else if (sel === '12th science') {
+        // Show all 12th books
+        matchesStream = itemStd.includes('12') && !itemStd.includes('11th & 12th') && !itemStd.includes('11th');
+      } else if (sel.startsWith('11th - ') || sel.startsWith('12th - ')) {
+        const is11 = sel.startsWith('11th');
+        const targetStdMatches = is11
+          ? (itemStd.includes('11') || itemTitle.includes('11'))
+          : (itemStd.includes('12') || itemTitle.includes('12'));
+        const isCet = sel.includes('cet');
+        const isTheory = sel.includes('theory');
+        const catMatches = isCet
+          ? (itemCat.includes('cet') || itemTitle.includes('cet'))
+          : isTheory
+          ? (itemCat.includes('theory') || itemTitle.includes('theory'))
+          : true;
+
+        let subjMatches = true;
+        if (sel.includes('physic')) subjMatches = itemSubj.includes('physic') || itemTitle.includes('physic');
+        else if (sel.includes('chem')) subjMatches = itemSubj.includes('chem') || itemTitle.includes('chem');
+        else if (sel.includes('math')) subjMatches = itemSubj.includes('math') || itemTitle.includes('math');
+        else if (sel.includes('bio')) subjMatches = itemSubj.includes('bio') || itemTitle.includes('bio');
+
+        matchesStream = targetStdMatches && catMatches && subjMatches;
+      } else {
+        matchesStream = itemStd === sel || itemStd.includes(sel);
+      }
+    }
 
     let matchesStatus = true;
     const currentStock = Number(item.inStock) || 0;
@@ -907,7 +975,7 @@ export default function BooksStock() {
                   </div>
                 </div>
 
-{/* Stream / Center Filter */}
+                {/* Stream / Standard Filter with separated 11th and 12th options */}
                 <div className="col-6 col-md-3.5">
                   <select
                     className="form-select form-select-sm w-100"
@@ -915,12 +983,48 @@ export default function BooksStock() {
                     value={selectedStockStream}
                     onChange={(e) => setSelectedStockStream(e.target.value)}
                   >
-                    <option value="All">
-                      {isSuperAdmin ? 'All Streams & Centers' : `All ${userBranch || 'Campus'} Streams`}
-                    </option>
-                    {streamOptions.map(st => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
+                    <option value="All">All Standards &amp; Streams</option>
+
+                    <optgroup label="── Standard Overview ──">
+                      <option value="11th Science">11th Science (All 11th Books)</option>
+                      <option value="12th Science">12th Science (All 12th Books)</option>
+                      <option value="11th & 12th Science">11th &amp; 12th Science (Combined)</option>
+                    </optgroup>
+
+                    <optgroup label="── 11th Standard Book Stock ──">
+                      <option value="11th - Physics Theory">11th - Physics Theory</option>
+                      <option value="11th - Chemistry Theory">11th - Chemistry Theory</option>
+                      <option value="11th - Mathematics Theory">11th - Mathematics Theory</option>
+                      <option value="11th - Biology Theory">11th - Biology Theory</option>
+                      <option value="11th - Physics CET">11th - Physics CET</option>
+                      <option value="11th - Chemistry CET">11th - Chemistry CET</option>
+                      <option value="11th - Mathematics CET">11th - Mathematics CET</option>
+                      <option value="11th - Biology CET">11th - Biology CET</option>
+                    </optgroup>
+
+                    <optgroup label="── 12th Standard Book Stock ──">
+                      <option value="12th - Physics Theory">12th - Physics Theory</option>
+                      <option value="12th - Chemistry Theory">12th - Chemistry Theory</option>
+                      <option value="12th - Mathematics Theory">12th - Mathematics Theory</option>
+                      <option value="12th - Biology Theory">12th - Biology Theory</option>
+                      <option value="12th - Physics CET">12th - Physics CET</option>
+                      <option value="12th - Chemistry CET">12th - Chemistry CET</option>
+                      <option value="12th - Mathematics CET">12th - Mathematics CET</option>
+                      <option value="12th - Biology CET">12th - Biology CET</option>
+                    </optgroup>
+
+                    {streamOptions.filter(st => 
+                      !ALL_BOOK_STANDARDS.includes(st) && 
+                      !st.toLowerCase().includes('science')
+                    ).length > 0 && (
+                      <optgroup label="── Batch Streams ──">
+                        {streamOptions
+                          .filter(st => !ALL_BOOK_STANDARDS.includes(st) && !st.toLowerCase().includes('science'))
+                          .map(st => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
 
