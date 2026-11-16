@@ -23,12 +23,16 @@ export default function Input({
   const isPassword = type === 'password';
   const currentType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
+  // Prevent double asterisks when label already contains '*'
+  const cleanLabel = typeof label === 'string' ? label.replace(/\s*\*+\s*$/, '').trim() : label;
+  const isRequired = required || (typeof label === 'string' && label.includes('*'));
+
   return (
     <div className={`mb-3 ${className}`}>
       {label && (
-        <label htmlFor={name} className="form-label d-flex justify-content-between">
-          <span>
-            {label} {required && <span className="text-danger">*</span>}
+        <label htmlFor={name} className="form-label d-flex justify-content-between align-items-center mb-1">
+          <span className="fw-semibold" style={{ fontSize: '13px' }}>
+            {cleanLabel} {isRequired && <span className="text-danger ms-0.5">*</span>}
           </span>
         </label>
       )}

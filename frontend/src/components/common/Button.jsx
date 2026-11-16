@@ -14,13 +14,13 @@ export default function Button({
 }) {
   const getVariantClass = () => {
     switch (variant) {
-      case 'primary': return 'btn-sa-primary';
-      case 'outline': return 'btn-sa-outline';
-      case 'mustard': return 'btn-sa-mustard';
+      case 'primary': return 'btn btn-sa-primary';
+      case 'outline': return 'btn btn-sa-outline';
+      case 'mustard': return 'btn btn-sa-mustard';
       case 'secondary': return 'btn btn-secondary';
       case 'danger': return 'btn btn-outline-danger';
       case 'light': return 'btn btn-light border';
-      default: return 'btn-sa-primary';
+      default: return 'btn btn-sa-primary';
     }
   };
 

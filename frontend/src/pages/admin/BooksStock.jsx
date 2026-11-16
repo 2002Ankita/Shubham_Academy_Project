@@ -1587,8 +1587,22 @@ export default function BooksStock() {
           </div>
 
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <Button variant="light" onClick={() => setHandoverModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" icon={Send}>Record Handover</Button>
+            <button
+              type="button"
+              className="btn btn-light border px-4 py-2 fw-semibold text-secondary"
+              style={{ borderRadius: '8px', fontSize: '13.5px' }}
+              onClick={() => setHandoverModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn text-white px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 shadow-xs"
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13.5px' }}
+            >
+              <Send size={15} />
+              <span>Record Handover</span>
+            </button>
           </div>
         </form>
       </Modal>
@@ -1647,8 +1661,22 @@ export default function BooksStock() {
             </div>
 
             <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-              <Button variant="light" onClick={() => setRestockModalOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="primary">Confirm Restock</Button>
+              <button
+                type="button"
+                className="btn btn-light border px-4 py-2 fw-semibold text-secondary"
+                style={{ borderRadius: '8px', fontSize: '13.5px' }}
+                onClick={() => setRestockModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn text-white px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 shadow-xs"
+                style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13.5px' }}
+              >
+                <Plus size={16} />
+                <span>Confirm Restock</span>
+              </button>
             </div>
           </form>
         </Modal>
@@ -1680,7 +1708,7 @@ export default function BooksStock() {
           </div>
 
           <Input
-            label="Module / Book Title *"
+            label="Module / Book Title"
             name="title"
             value={newBook.title}
             onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
@@ -1735,31 +1763,47 @@ export default function BooksStock() {
           <div className="row g-2">
             <div className="col-6">
               <Input
-                label="Initial Printed Stock Quantity *"
+                label="Initial Stock (Copies)"
                 name="inStock"
                 type="number"
                 value={newBook.inStock}
                 onChange={(e) => setNewBook({ ...newBook, inStock: e.target.value })}
                 required
                 min="0"
+                placeholder="Initial count"
               />
             </div>
             <div className="col-6">
               <Input
-                label="Low Stock Alert Threshold *"
+                label="Low Stock Alert (Copies)"
                 name="reorderLevel"
                 type="number"
                 value={newBook.reorderLevel}
                 onChange={(e) => setNewBook({ ...newBook, reorderLevel: e.target.value })}
                 required
                 min="0"
+                placeholder="Alert threshold"
               />
             </div>
           </div>
 
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <Button variant="light" onClick={() => setAddStockModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary">Register Module in Inventory</Button>
+            <button
+              type="button"
+              className="btn btn-light border px-4 py-2 fw-semibold text-secondary"
+              style={{ borderRadius: '8px', fontSize: '13.5px' }}
+              onClick={() => setAddStockModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn text-white px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 shadow-xs"
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13.5px' }}
+            >
+              <Plus size={16} />
+              <span>Register Module in Inventory</span>
+            </button>
           </div>
         </form>
       </Modal>
@@ -1793,7 +1837,7 @@ export default function BooksStock() {
           </div>
 
           <Input
-            label="Module / Book Title *"
+            label="Module / Book Title"
             name="title"
             value={editFormData.title}
             onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
@@ -1848,31 +1892,35 @@ export default function BooksStock() {
           <div className="row g-2">
             <div className="col-6">
               <Input
-                label="Available Printed Stock Quantity *"
+                label="Available Stock (Copies)"
                 name="inStock"
                 type="number"
                 value={editFormData.inStock}
                 onChange={(e) => setEditFormData({ ...editFormData, inStock: e.target.value })}
                 required
                 min="0"
+                placeholder="Available count"
               />
             </div>
             <div className="col-6">
               <Input
-                label="Low Stock Alert Threshold *"
+                label="Low Stock Alert (Copies)"
                 name="reorderLevel"
                 type="number"
                 value={editFormData.reorderLevel}
                 onChange={(e) => setEditFormData({ ...editFormData, reorderLevel: e.target.value })}
                 required
                 min="0"
+                placeholder="Alert threshold"
               />
             </div>
           </div>
 
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-            <Button
-              variant="light"
+            <button
+              type="button"
+              className="btn btn-light border px-4 py-2 fw-semibold text-secondary"
+              style={{ borderRadius: '8px', fontSize: '13.5px' }}
               onClick={() => {
                 setEditStockModalOpen(false);
                 setEditingBook(null);
@@ -1880,10 +1928,25 @@ export default function BooksStock() {
               disabled={savingEdit}
             >
               Cancel
-            </Button>
-            <Button type="submit" variant="primary" loading={savingEdit}>
-              Save Changes
-            </Button>
+            </button>
+            <button
+              type="submit"
+              className="btn text-white px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 shadow-xs"
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216', borderRadius: '8px', fontSize: '13.5px' }}
+              disabled={savingEdit}
+            >
+              {savingEdit ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
           </div>
         </form>
       </Modal>
