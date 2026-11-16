@@ -724,7 +724,7 @@ async def get_fee_details(
         concession_value=getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0
     )
 
-async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeResponse]:
+async def get_pending_fees(branch: Optional[str] = None, standard: Optional[str] = None) -> list[PendingFeeResponse]:
     students = await Student.find_all().to_list()
     structures = await FeeStructure.find_all().to_list()
     payments = await FeePayment.find_all().to_list()
@@ -750,6 +750,18 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
         if branch and str(branch).upper() != "ALL":
             from app.services.student_service import student_matches_branch
             if not student_matches_branch(student, branch):
+                continue
+
+        if standard and str(standard).upper() != "ALL":
+            std_clean = str(standard).lower()
+            is_11 = "11" in std_clean
+            is_12 = "12" in std_clean
+            s_std = (student.standard or "").lower()
+            s_batch = (student.batch or "").lower()
+            s_acad = (getattr(student, "academic_batch", "") or "").lower()
+            if is_11 and not ("11" in s_std or "11" in s_batch or "11" in s_acad):
+                continue
+            if is_12 and not ("12" in s_std or "12" in s_batch or "12" in s_acad):
                 continue
 
         total_fees = await _lookup_student_fee(student, structures)
@@ -792,7 +804,8 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
                         pass
             if not student_name:
                 student_name = getattr(student, "full_name", "") or getattr(student, "name", "") or "Student"
-                        
+            
+            raw_roll = getattr(student, "student_id", None) or getattr(student, "roll_number", None) or str(student.id)[-6:]
             pending_list.append(PendingFeeResponse(
                 student_id=str(student.id),
                 student_name=student_name,
@@ -801,7 +814,8 @@ async def get_pending_fees(branch: Optional[str] = None) -> list[PendingFeeRespo
                 branch=normalize_branch_name(student.branch, student.batch),
                 total_fees=total_fees,
                 amount_paid=amount_paid,
-                pending_fees=pending_fees
+                pending_fees=pending_fees,
+                roll_number=str(raw_roll)
             ))
             
     return pending_list

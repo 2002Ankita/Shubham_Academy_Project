@@ -84,6 +84,7 @@ class PendingFeeResponse(BaseModel):
     total_fees: float
     amount_paid: float
     pending_fees: float
+    roll_number: Optional[str] = None
 
 class BranchUpiScannerCreate(BaseModel):
     branch: str

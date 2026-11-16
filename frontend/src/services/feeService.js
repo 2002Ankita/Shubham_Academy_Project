@@ -115,11 +115,13 @@ export const feeService = {
 
   getPending: async (params = {}) => {
     const activeBranch = params?.branch || getUserBranch();
+    const standard = params?.standard;
     try {
       // Backend returns PendingFeeResponse
       const res = await api.get('/fees/pending', {
         params: {
           ...(activeBranch && activeBranch !== 'ALL' ? { branch: activeBranch } : {}),
+          ...(standard && standard !== 'ALL' ? { standard } : {}),
           _t: Date.now()
         }
       });
@@ -128,9 +130,10 @@ export const feeService = {
         receiptNo: 'PENDING',
         studentId: fee.student_id,
         studentName: fee.student_name,
-        rollNumber: fee.student_id ? fee.student_id.substring(fee.student_id.length - 6) : 'N/A',
+        rollNumber: fee.roll_number || (fee.student_id ? fee.student_id.substring(fee.student_id.length - 6) : 'N/A'),
         batch: fee.batch || '',
         branch: fee.branch || '',
+        rawStandard: fee.standard || '',
         standard: fee.standard + (fee.batch ? ' - ' + fee.batch : ''),
         totalFees: fee.total_fees,
         originalFees: fee.original_fees || 0,
