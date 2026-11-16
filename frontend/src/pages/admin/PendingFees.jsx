@@ -5,7 +5,7 @@ import feeService from '../../services/feeService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch, isSuperAdminUser } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
-import { AlertCircle, Send, ArrowLeft, RefreshCw, Search, X, Filter, GraduationCap, Users, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Send, ArrowLeft, RefreshCw, Search, X, Filter, GraduationCap, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 

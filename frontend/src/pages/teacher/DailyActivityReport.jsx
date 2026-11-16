@@ -4,23 +4,19 @@ import {
   ArrowLeft,
   BookOpen,
   Clock,
-  CheckCircle2,
   Zap,
   Plus,
   Trash2,
   Edit3,
   Calendar,
-  CalendarDays,
   MapPin,
   Filter,
   Search,
-  Printer,
   Layers,
   ChevronRight,
   Check,
   FileSpreadsheet,
-  Download,
-  Upload
+  Download
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
