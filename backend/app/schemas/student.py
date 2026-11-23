@@ -8,6 +8,10 @@ class StudentBase(BaseModel):
     email: Optional[str] = None
     mobile_number: Optional[str] = ""
     parent_mobile: Optional[str] = ""
+    father_mobile: Optional[str] = ""
+    fatherPhone: Optional[str] = ""
+    mother_mobile: Optional[str] = ""
+    motherPhone: Optional[str] = ""
     total_fees: Optional[float] = 0.0
     paid_fees: Optional[float] = 0.0
     remaining_fees: Optional[float] = 0.0
@@ -68,6 +72,12 @@ class StudentAdminCreate(BaseModel):
     parent_mobile: Optional[str] = None
     parentMobile: Optional[str] = None
     parentPhone: Optional[str] = None
+    father_mobile: Optional[str] = None
+    fatherMobile: Optional[str] = None
+    fatherPhone: Optional[str] = None
+    mother_mobile: Optional[str] = None
+    motherMobile: Optional[str] = None
+    motherPhone: Optional[str] = None
     total_fees: Optional[float] = 0.0
     totalFees: Optional[float] = 0.0
     paid_fees: Optional[float] = 0.0

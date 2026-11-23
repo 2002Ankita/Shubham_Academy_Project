@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
-import batchService from '../../services/batchService';
 import BackButton from '../../components/common/BackButton';
 import {
   User,
@@ -9,40 +8,23 @@ import {
   Phone,
   GraduationCap,
   MapPin,
-  CheckCircle2,
   Check,
   Pencil,
-  X,
   Save,
   Camera,
   Upload,
   ShieldCheck,
-  AlertCircle,
   Building2,
-  CalendarCheck,
   CreditCard,
-  Award,
   Lock,
   ArrowLeft,
-  Calendar,
-  Sparkles,
-  BookOpen
+  Calendar
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function StudentProfile() {
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef(null);
-  const [batchesList, setBatchesList] = useState([]);
-
-  // Fetch batches for academic selection
-  useEffect(() => {
-    batchService.getBatches()
-      .then((data) => {
-        if (Array.isArray(data)) setBatchesList(data);
-      })
-      .catch((err) => console.warn('Could not load batches list:', err));
-  }, []);
 
   // Initial default student profile structure
   const defaultProfile = {
@@ -51,6 +33,8 @@ export default function StudentProfile() {
     name: user?.name || user?.full_name || '',
     phone: user?.phone || user?.mobile_number || '',
     parentPhone: user?.parentPhone || user?.parent_mobile || '',
+    fatherPhone: user?.fatherPhone || user?.father_mobile || user?.parentPhone || user?.parent_mobile || '',
+    motherPhone: user?.motherPhone || user?.mother_mobile || '',
     email: user?.email || '',
     dob: '',
     gender: 'Male',
@@ -94,17 +78,24 @@ export default function StudentProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form State for editing
+  // Form State for editing (Only student-editable fields can be changed; admin fields remain strictly locked)
   const [formData, setFormData] = useState({
-    // Admin-entered fields (strictly read-only for students):
+    // Admin-entered fields (Strictly Read-Only / Locked for students):
     name: profile.name,
+    studentId: profile.studentId,
     phone: profile.phone,
+    fatherPhone: profile.fatherPhone,
+    motherPhone: profile.motherPhone,
     parentPhone: profile.parentPhone,
+    standard: profile.standard,
+    batch: profile.batch,
+    branch: profile.branch,
+    academicYear: profile.academicYear,
     totalFees: profile.totalFees,
     paidFees: profile.paidFees,
     remainingFees: profile.remainingFees,
 
-    // Student-entered personal fields:
+    // Student-entered personal fields (Editable):
     email: profile.email,
     dob: profile.dob,
     gender: profile.gender || 'Male',
@@ -112,16 +103,10 @@ export default function StudentProfile() {
     city: profile.city || '',
     state: profile.state || 'Maharashtra',
     pincode: profile.pincode || '',
+    previousSchool: profile.previousSchool || '',
     avatar: profile.avatar,
 
-    // Student-entered academic fields:
-    standard: profile.standard,
-    batch: profile.batch,
-    branch: profile.branch || 'Kolhapur Main Branch',
-    academicYear: profile.academicYear || '2025-2026',
-    previousSchool: profile.previousSchool || '',
-
-    // Student-entered parent fields:
+    // Student-entered parent fields (Editable):
     parentName: profile.parentName,
     relation: profile.relation || 'Father',
     parentEmail: profile.parentEmail || '',
@@ -132,16 +117,16 @@ export default function StudentProfile() {
 
   // Dynamic Profile Completion calculation based on all required profile fields
   const profileFields = useMemo(() => [
-    { key: 'name', label: 'Student Full Name (Admin)', isComplete: Boolean(profile?.name?.trim()) },
-    { key: 'phone', label: 'Mobile Number (Admin)', isComplete: Boolean(profile?.phone?.trim()) },
-    { key: 'parentPhone', label: 'Parent Mobile (Admin)', isComplete: Boolean(profile?.parentPhone?.trim()) },
-    { key: 'dob', label: 'Date of Birth (Student)', isComplete: Boolean(profile?.dob) },
-    { key: 'gender', label: 'Gender (Student)', isComplete: Boolean(profile?.gender) },
-    { key: 'email', label: 'Student Email (Student)', isComplete: Boolean(profile?.email?.trim()) },
-    { key: 'address', label: 'Residential Address (Student)', isComplete: Boolean(profile?.address?.trim()) },
-    { key: 'standard', label: 'Class / Standard (Student)', isComplete: Boolean(profile?.standard && profile.standard !== 'Pending Selection') },
-    { key: 'batch', label: 'Study Batch (Student)', isComplete: Boolean(profile?.batch && profile.batch !== 'Pending Allocation') },
-    { key: 'parentName', label: 'Parent / Guardian Name (Student)', isComplete: Boolean(profile?.parentName?.trim()) }
+    { key: 'name', label: 'Student Full Name', isComplete: Boolean(profile?.name?.trim()) },
+    { key: 'phone', label: 'Student Mobile', isComplete: Boolean(profile?.phone?.trim()) },
+    { key: 'fatherPhone', label: 'Father Mobile', isComplete: Boolean((profile?.fatherPhone || profile?.parentPhone)?.trim()) },
+    { key: 'dob', label: 'Date of Birth', isComplete: Boolean(profile?.dob) },
+    { key: 'gender', label: 'Gender', isComplete: Boolean(profile?.gender) },
+    { key: 'email', label: 'Student Email', isComplete: Boolean(profile?.email?.trim()) },
+    { key: 'address', label: 'Residential Address', isComplete: Boolean(profile?.address?.trim()) },
+    { key: 'standard', label: 'Class / Standard', isComplete: Boolean(profile?.standard && profile.standard !== 'Pending Selection') },
+    { key: 'batch', label: 'Study Batch', isComplete: Boolean(profile?.batch && profile.batch !== 'Pending Allocation') },
+    { key: 'parentName', label: 'Parent / Guardian Name', isComplete: Boolean(profile?.parentName?.trim()) }
   ], [profile]);
 
   const totalFields = profileFields.length;
@@ -169,7 +154,9 @@ export default function StudentProfile() {
             studentId: data.student_id || data.rollNumber || profile.studentId,
             name: data.full_name || data.name || profile.name,
             phone: data.mobile_number || data.phone || profile.phone,
-            parentPhone: data.parent_mobile || data.parentPhone || profile.parentPhone,
+            parentPhone: data.father_mobile || data.parent_mobile || data.parentPhone || profile.parentPhone,
+            fatherPhone: data.father_mobile || data.fatherPhone || data.parent_mobile || data.parentPhone || profile.fatherPhone || '',
+            motherPhone: data.mother_mobile || data.motherPhone || profile.motherPhone || '',
             email: data.email || profile.email,
             dob: formattedDob || profile.dob,
             gender: data.gender || profile.gender,
@@ -199,37 +186,42 @@ export default function StudentProfile() {
           localStorage.setItem('student_profile_data', JSON.stringify(updated));
         }
       } catch (err) {
-        console.warn('Could not fetch real profile data:', err);
+        console.warn('Could not fetch student profile from backend:', err);
       }
     };
 
     fetchRealProfile();
   }, [user?.id]);
 
-  // Keep form data in sync when entering edit mode
+  // Sync formData whenever profile or isEditing changes
   useEffect(() => {
     if (isEditing) {
       setFormData({
         name: profile.name,
+        studentId: profile.studentId,
         phone: profile.phone,
+        fatherPhone: profile.fatherPhone,
+        motherPhone: profile.motherPhone,
         parentPhone: profile.parentPhone,
+        standard: profile.standard,
+        batch: profile.batch,
+        branch: profile.branch,
+        academicYear: profile.academicYear,
         totalFees: profile.totalFees,
         paidFees: profile.paidFees,
         remainingFees: profile.remainingFees,
-        email: profile.email,
-        dob: profile.dob,
+
+        email: profile.email || '',
+        dob: profile.dob || '',
         gender: profile.gender || 'Male',
-        address: profile.address,
+        address: profile.address || '',
         city: profile.city || '',
         state: profile.state || 'Maharashtra',
         pincode: profile.pincode || '',
-        avatar: profile.avatar,
-        standard: profile.standard,
-        batch: profile.batch,
-        branch: profile.branch || 'Kolhapur Main Branch',
-        academicYear: profile.academicYear || '2025-2026',
         previousSchool: profile.previousSchool || '',
-        parentName: profile.parentName,
+        avatar: profile.avatar,
+
+        parentName: profile.parentName || '',
         relation: profile.relation || 'Father',
         parentEmail: profile.parentEmail || '',
         parentOccupation: profile.parentOccupation || ''
@@ -261,7 +253,7 @@ export default function StudentProfile() {
     const reader = new FileReader();
     reader.onload = (event) => {
       handleInputChange('avatar', event.target.result);
-      toast.info('Photo preview updated. Click "Save Changes" to save.');
+      toast.info('Photo preview updated. Click "Save Profile" to submit.');
     };
     reader.readAsDataURL(file);
   };
@@ -284,13 +276,14 @@ export default function StudentProfile() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!validate()) {
+      toast.error('Please correct the highlighted fields before saving.');
       return;
     }
 
     setSaving(true);
     try {
       // Payload for Student Role Update:
-      // Note: Admin-locked fields (name, phone, parentPhone, fees) are stripped/ignored by backend RBAC for safety
+      // Note: Only non-admin personal/guardian fields are submitted. Admin fields are protected.
       const updatedFields = {
         email: formData.email?.trim() || undefined,
         dob: formData.dob || undefined,
@@ -300,10 +293,6 @@ export default function StudentProfile() {
         city: (formData.city || '').trim(),
         state: (formData.state || '').trim(),
         pincode: (formData.pincode || '').trim(),
-        standard: formData.standard || undefined,
-        batch: formData.batch || undefined,
-        branch: formData.branch,
-        academic_year: formData.academicYear,
         previous_school: (formData.previousSchool || '').trim(),
         parent_name: (formData.parentName || '').trim(),
         relation: formData.relation,
@@ -323,11 +312,10 @@ export default function StudentProfile() {
         previousSchool: updatedFields.previous_school,
         parentEmail: updatedFields.parent_email,
         parentOccupation: updatedFields.parent_occupation,
-        academicYear: updatedFields.academic_year,
         profileCompleted: Boolean(
-          updatedFields.date_of_birth && 
-          updatedFields.gender && 
-          updatedFields.address && 
+          updatedFields.date_of_birth &&
+          updatedFields.gender &&
+          updatedFields.address &&
           updatedFields.parent_name
         )
       };
@@ -339,15 +327,13 @@ export default function StudentProfile() {
       if (updateUser) {
         updateUser({
           email: merged.email,
-          standard: merged.standard,
-          batch: merged.batch,
           avatar: merged.avatar
         });
       }
 
       setIsEditing(false);
       setErrors({});
-      toast.success('Student profile updated successfully!');
+      toast.success('Your profile details were updated successfully!');
     } catch (err) {
       console.error('Error updating student profile:', err);
       const detail = err.response?.data?.detail;
@@ -391,7 +377,7 @@ export default function StudentProfile() {
                 My Student Profile
               </h3>
               <span className="small text-sa-muted">
-                Role-Based Student Profile: Admin-entered fields are protected. Personal and academic details can be edited below.
+                Role-Based Student Profile: Admin-entered fields are protected. Personal and address details can be updated below.
               </span>
             </div>
 
@@ -471,7 +457,7 @@ export default function StudentProfile() {
                           right: '2px',
                           zIndex: 4
                         }}
-                        title="Profile 100% Completed"
+                        title="Profile Verified"
                       >
                         <Check size={18} strokeWidth={3.5} className="text-white" />
                       </div>
@@ -532,7 +518,7 @@ export default function StudentProfile() {
             </div>
           </div>
 
-          {/* Fee Structure Summary (Admin-Entered & Locked) */}
+          {/* Fee Structure Summary (Read-Only) */}
           <div className="sa-card p-4">
             <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
               <div className="d-flex align-items-center gap-2 min-w-0">
@@ -572,15 +558,15 @@ export default function StudentProfile() {
             </div>
           </div>
 
-          {/* 3-Section Cards (Admin-Entered Details, Personal Details, Academic Details) */}
+          {/* 4-Section Grid */}
           <div className="row g-4">
-            {/* Section 1: Admin-Entered Data (Read-Only) */}
+            {/* Section 1: Admin-Entered Core Information (Locked) */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
                 <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
                   <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2 min-w-0">
                     <ShieldCheck size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
-                    <span>Admin-Entered Basic Info</span>
+                    <span>Admin Registered Details</span>
                   </h6>
                   <span className="badge bg-light text-secondary border small d-inline-flex align-items-center gap-1 text-nowrap">
                     <Lock size={12} /> Read-Only
@@ -597,18 +583,22 @@ export default function StudentProfile() {
                     <strong className="text-sa-charcoal">{profile.phone}</strong>
                   </div>
                   <div>
-                    <span className="text-muted d-block">Parent Mobile (Alerts & SMS)</span>
-                    <strong className="text-sa-charcoal">{profile.parentPhone}</strong>
+                    <span className="text-muted d-block">Father Mobile Number (Alerts & SMS)</span>
+                    <strong className="text-sa-charcoal">{profile.fatherPhone || profile.parentPhone || 'Not provided'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted d-block">Mother Mobile Number</span>
+                    <strong className="text-sa-charcoal">{profile.motherPhone || 'Not provided'}</strong>
                   </div>
                   <div className="p-2.5 rounded-2 bg-light border text-muted small mt-2">
                     <Lock size={13} className="me-1 inline-block" />
-                    These core identification details were registered by Academy Admin. To request changes, please contact the admin desk.
+                    These core identification and parent phone numbers were registered by the Academy Admin. Only the Batch Manager has edit access.
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Student-Entered Personal Information */}
+            {/* Section 2: Personal Profile Details (Editable by Student) */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
                 <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
@@ -640,11 +630,15 @@ export default function StudentProfile() {
                         : 'Not provided'}
                     </span>
                   </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">RFID Smart Card:</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.rfidCard || 'Pending Assignment'}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Section 3: Academic Details */}
+            {/* Section 3: Academic & Batch Information (Admin-Locked) */}
             <div className="col-12 col-md-6">
               <div className="sa-card p-4 h-100">
                 <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
@@ -652,7 +646,9 @@ export default function StudentProfile() {
                     <GraduationCap size={18} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                     <span>Academic & Batch Information</span>
                   </h6>
-                  <span className="badge bg-light text-muted border small text-nowrap">Editable by Student</span>
+                  <span className="badge bg-light text-secondary border small d-inline-flex align-items-center gap-1 text-nowrap">
+                    <Lock size={12} /> Read-Only
+                  </span>
                 </div>
 
                 <div className="d-flex flex-column gap-2.5 small">
@@ -701,8 +697,12 @@ export default function StudentProfile() {
                     <span className="fw-semibold text-sa-charcoal">{profile.relation}</span>
                   </div>
                   <div className="d-flex justify-content-between border-bottom pb-1.5">
-                    <span className="text-muted">Parent Mobile (Locked):</span>
-                    <span className="fw-semibold text-sa-charcoal">{profile.parentPhone}</span>
+                    <span className="text-muted">Father Mobile (Locked):</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.fatherPhone || profile.parentPhone || 'Not provided'}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-bottom pb-1.5">
+                    <span className="text-muted">Mother Mobile (Locked):</span>
+                    <span className="fw-semibold text-sa-charcoal">{profile.motherPhone || 'Not provided'}</span>
                   </div>
                   <div className="d-flex justify-content-between border-bottom pb-1.5">
                     <span className="text-muted">Parent Email:</span>
@@ -738,7 +738,7 @@ export default function StudentProfile() {
                     Complete Student Profile
                   </h3>
                   <span className="small text-sa-muted">
-                    Fill in your personal, academic, and parent details. Admin-entered fields remain read-only.
+                    Update your personal and guardian information. All details registered by the Academy Admin remain strictly protected.
                   </span>
                 </div>
 
@@ -775,10 +775,10 @@ export default function StudentProfile() {
             >
               <div className="d-flex align-items-center gap-2 mb-2" style={{ color: '#8B1216' }}>
                 <Lock size={18} />
-                <h6 className="fw-bold m-0 fs-6">Admin-Entered Fields (Read-Only)</h6>
+                <h6 className="fw-bold m-0 fs-6">Admin Registered Details (Read-Only)</h6>
               </div>
               <p className="text-muted small m-0 mb-3" style={{ fontSize: '0.82rem' }}>
-                The following identification and fee details were set by the Academy Admin at registration and cannot be modified by students.
+                The following identification, academic placement, fee status, and parent mobile details were set by the Academy Admin at admission and cannot be modified by students.
               </p>
 
               <div className="row g-2 small">
@@ -790,19 +790,43 @@ export default function StudentProfile() {
                 </div>
                 <div className="col-12 col-sm-6 col-md-3">
                   <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Roll Number</span>
+                    <strong className="text-sa-charcoal">{formData.studentId}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
                     <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Student Mobile</span>
                     <strong className="text-sa-charcoal">{formData.phone}</strong>
                   </div>
                 </div>
                 <div className="col-12 col-sm-6 col-md-3">
                   <div className="bg-white p-2.5 rounded-2 border">
-                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Parent Mobile</span>
-                    <strong className="text-sa-charcoal">{formData.parentPhone}</strong>
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Father Mobile</span>
+                    <strong className="text-sa-charcoal">{formData.fatherPhone || formData.parentPhone || 'Not set'}</strong>
                   </div>
                 </div>
                 <div className="col-12 col-sm-6 col-md-3">
                   <div className="bg-white p-2.5 rounded-2 border">
-                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Fee Status</span>
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Mother Mobile</span>
+                    <strong className="text-sa-charcoal">{formData.motherPhone || 'Not set'}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Class & Batch</span>
+                    <strong className="text-sa-charcoal">{formData.standard} • {formData.batch}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Campus / Branch</span>
+                    <strong className="text-sa-charcoal">{formData.branch}</strong>
+                  </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                  <div className="bg-white p-2.5 rounded-2 border">
+                    <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Fee Balance</span>
                     <strong className="text-sa-primary">₹{formData.paidFees} / ₹{formData.totalFees}</strong>
                   </div>
                 </div>
@@ -963,143 +987,16 @@ export default function StudentProfile() {
               </div>
             </div>
 
-            {/* Section 2: Academic Details */}
+            {/* Section 2: Academic Background */}
             <div className="sa-card p-4">
               <h6 className="fw-bold text-sa-charcoal mb-3 fs-6 pb-2 border-bottom d-flex align-items-center gap-2">
                 <GraduationCap size={18} style={{ color: '#8B1216' }} />
-                <span>2. Academic & Course Information</span>
+                <span>2. Academic Background</span>
               </h6>
 
               <div className="row g-3">
-                {/* Standard / Class */}
-                <div className="col-12 col-md-6">
-                  <div className="d-flex align-items-center justify-content-between mb-1">
-                    <label className="form-label fw-semibold small text-sa-charcoal m-0">
-                      Enrolled Class / Standard
-                    </label>
-                    {profile.standard && profile.standard !== 'Pending Selection' && (
-                      <span className="badge bg-light text-muted border small" style={{ fontSize: '11px' }}>
-                        <Lock size={11} className="me-1 inline-block" /> Assigned by Admin
-                      </span>
-                    )}
-                  </div>
-                  {profile.standard && profile.standard !== 'Pending Selection' ? (
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        value={formData.standard || profile.standard}
-                        readOnly
-                        disabled
-                        className="form-control bg-light fw-bold text-sa-charcoal"
-                      />
-                      <span className="input-group-text bg-light text-muted">
-                        <Lock size={15} />
-                      </span>
-                    </div>
-                  ) : (
-                    <select
-                      className={`form-select ${errors.standard ? 'is-invalid' : ''}`}
-                      value={formData.standard}
-                      onChange={(e) => handleInputChange('standard', e.target.value)}
-                    >
-                      <option value="">-- Select Class --</option>
-                      <option value="11th Science">11th Science</option>
-                      <option value="12th Science">12th Science</option>
-                      <option value="11th Commerce">11th Commerce</option>
-                      <option value="12th Commerce">12th Commerce</option>
-                      <option value="Foundation (8th-10th)">Foundation (8th-10th)</option>
-                    </select>
-                  )}
-                  {errors.standard && <div className="invalid-feedback">{errors.standard}</div>}
-                </div>
-
-                {/* Study Batch */}
-                <div className="col-12 col-md-6">
-                  <div className="d-flex align-items-center justify-content-between mb-1">
-                    <label className="form-label fw-semibold small text-sa-charcoal m-0">
-                      Study Batch
-                    </label>
-                    {profile.batch && profile.batch !== 'Pending Allocation' && (
-                      <span className="badge bg-light text-muted border small" style={{ fontSize: '11px' }}>
-                        <Lock size={11} className="me-1 inline-block" /> Assigned by Admin
-                      </span>
-                    )}
-                  </div>
-                  {profile.batch && profile.batch !== 'Pending Allocation' ? (
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        value={formData.batch || profile.batch}
-                        readOnly
-                        disabled
-                        className="form-control bg-light fw-bold text-sa-primary"
-                      />
-                      <span className="input-group-text bg-light text-muted">
-                        <Lock size={15} />
-                      </span>
-                    </div>
-                  ) : (
-                    <select
-                      className={`form-select ${errors.batch ? 'is-invalid' : ''}`}
-                      value={formData.batch}
-                      onChange={(e) => handleInputChange('batch', e.target.value)}
-                    >
-                      <option value="">-- Select Batch --</option>
-                      {batchesList.length > 0 ? (
-                        batchesList.map((b) => (
-                          <option key={b.id || b.name} value={b.name}>
-                            {b.name}
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="11th pcm tarabai park">11th pcm tarabai park</option>
-                          <option value="11th pcb tarabai park">11th pcb tarabai park</option>
-                          <option value="11th pcmb tarabai park">11th pcmb tarabai park</option>
-                          <option value="12th pcm tarabai park">12th pcm tarabai park</option>
-                          <option value="12th pcb tarabai park">12th pcb tarabai park</option>
-                          <option value="12th pcmb tarabai park">12th pcmb tarabai park</option>
-                          <option value="11th pcm Mangalvar Peth">11th pcm Mangalvar Peth</option>
-                          <option value="11th pcb Mangalvar Peth">11th pcb Mangalvar Peth</option>
-                          <option value="11th pcmb Mangalvar Peth">11th pcmb Mangalvar Peth</option>
-                          <option value="12th pcm Mangalvar Peth">12th pcm Mangalvar Peth</option>
-                          <option value="12th pcb Mangalvar Peth">12th pcb Mangalvar Peth</option>
-                          <option value="12th pcmb Mangalvar Peth">12th pcmb Mangalvar Peth</option>
-                        </>
-                      )}
-                    </select>
-                  )}
-                  {errors.batch && <div className="invalid-feedback">{errors.batch}</div>}
-                </div>
-
-                {/* Branch */}
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-semibold small text-sa-charcoal">Branch Location</label>
-                  <select
-                    className="form-select"
-                    value={formData.branch}
-                    onChange={(e) => handleInputChange('branch', e.target.value)}
-                  >
-                    <option value="Mangalwar Peth">Mangalwar Peth Campus</option>
-                    <option value="Tarabai Park">Tarabai Park Campus</option>
-                  </select>
-                </div>
-
-                {/* Academic Year */}
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-semibold small text-sa-charcoal">Academic Year</label>
-                  <select
-                    className="form-select"
-                    value={formData.academicYear}
-                    onChange={(e) => handleInputChange('academicYear', e.target.value)}
-                  >
-                    <option value="2025-2026">2025 - 2026</option>
-                    <option value="2024-2025">2024 - 2025</option>
-                  </select>
-                </div>
-
                 {/* Previous School */}
-                <div className="col-12 col-md-4">
+                <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold small text-sa-charcoal">Previous School / College</label>
                   <input
                     type="text"
@@ -1108,6 +1005,29 @@ export default function StudentProfile() {
                     placeholder="e.g. St. Xavier High School"
                     className="form-control"
                   />
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Institution where you completed 10th / previous exams.
+                  </span>
+                </div>
+
+                {/* Enrolled Program - Read Only */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Enrolled Standard & Batch (Fixed)
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Lock size={15} /></span>
+                    <input
+                      type="text"
+                      value={`${formData.standard} • ${formData.batch}`}
+                      readOnly
+                      disabled
+                      className="form-control bg-light fw-bold text-sa-charcoal"
+                    />
+                  </div>
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Batch allocation is managed exclusively by the Batch Manager.
+                  </span>
                 </div>
               </div>
             </div>
@@ -1121,7 +1041,7 @@ export default function StudentProfile() {
 
               <div className="row g-3">
                 {/* Parent Name */}
-                <div className="col-12 col-md-5">
+                <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold small text-sa-charcoal">
                     Parent / Guardian Full Name
                   </label>
@@ -1136,7 +1056,7 @@ export default function StudentProfile() {
                 </div>
 
                 {/* Relation */}
-                <div className="col-12 col-md-3">
+                <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold small text-sa-charcoal">Relationship</label>
                   <select
                     className="form-select"
@@ -1149,16 +1069,44 @@ export default function StudentProfile() {
                   </select>
                 </div>
 
-                {/* Parent Occupation */}
-                <div className="col-12 col-md-4">
-                  <label className="form-label fw-semibold small text-sa-charcoal">Parent Occupation</label>
-                  <input
-                    type="text"
-                    value={formData.parentOccupation}
-                    onChange={(e) => handleInputChange('parentOccupation', e.target.value)}
-                    placeholder="e.g. Business / Engineer"
-                    className="form-control"
-                  />
+                {/* Father Mobile - Locked Note */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Father Mobile Number (Locked)
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Lock size={16} /></span>
+                    <input
+                      type="text"
+                      value={formData.fatherPhone || formData.parentPhone}
+                      readOnly
+                      disabled
+                      className="form-control bg-light"
+                    />
+                  </div>
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Registered by admin for SMS gateway delivery. Contact Batch Manager to change.
+                  </span>
+                </div>
+
+                {/* Mother Mobile - Locked Note */}
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold small text-sa-charcoal">
+                    Mother Mobile Number (Locked)
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted"><Lock size={16} /></span>
+                    <input
+                      type="text"
+                      value={formData.motherPhone || 'Not Registered'}
+                      readOnly
+                      disabled
+                      className="form-control bg-light"
+                    />
+                  </div>
+                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                    Contact Batch Manager to update parent numbers.
+                  </span>
                 </div>
 
                 {/* Parent Email */}
@@ -1173,24 +1121,16 @@ export default function StudentProfile() {
                   />
                 </div>
 
-                {/* Parent Mobile - Locked Note */}
+                {/* Parent Occupation */}
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold small text-sa-charcoal">
-                    Parent Alert Phone (Locked)
-                  </label>
-                  <div className="input-group">
-                    <span className="input-group-text bg-light text-muted"><Lock size={16} /></span>
-                    <input
-                      type="text"
-                      value={formData.parentPhone}
-                      readOnly
-                      disabled
-                      className="form-control bg-light"
-                    />
-                  </div>
-                  <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                    Entered by admin for SMS gateway delivery.
-                  </span>
+                  <label className="form-label fw-semibold small text-sa-charcoal">Parent Occupation</label>
+                  <input
+                    type="text"
+                    value={formData.parentOccupation}
+                    onChange={(e) => handleInputChange('parentOccupation', e.target.value)}
+                    placeholder="e.g. Business / Engineer"
+                    className="form-control"
+                  />
                 </div>
               </div>
             </div>

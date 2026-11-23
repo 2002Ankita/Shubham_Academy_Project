@@ -380,10 +380,13 @@ export default function StudentDetails() {
 
             <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Parent Details (SMS Alert)</h6>
             <p className="small text-sa-muted mb-1">
-              <strong>Parent Name:</strong> {student.parent_name || student.parentName || 'Pending student entry'}
+              <strong>Parent Name:</strong> {student.parent_name || student.parentName || 'Pending entry'}
+            </p>
+            <p className="small text-sa-muted mb-1">
+              <strong>Father Mobile (Alerts):</strong> {student.father_mobile || student.fatherPhone || student.parent_mobile || student.parentPhone || '+91 98220 00000'}
             </p>
             <p className="small text-sa-muted mb-0">
-              <strong>Emergency / Alert Phone:</strong> {student.parent_mobile || student.parentPhone || '+91 98220 00000'}
+              <strong>Mother Mobile:</strong> {student.mother_mobile || student.motherPhone || 'Not registered'}
             </p>
 
             <hr className="my-3 opacity-25" />

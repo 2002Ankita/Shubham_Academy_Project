@@ -11,6 +11,8 @@ class Student(Document):
     full_name: Optional[str] = None
     mobile_number: Annotated[str, Indexed(unique=True)]
     parent_mobile: Optional[str] = None
+    father_mobile: Optional[str] = None
+    mother_mobile: Optional[str] = None
     email: Optional[str] = None
     date_of_birth: Optional[datetime] = None
     gender: Optional[str] = None

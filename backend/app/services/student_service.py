@@ -103,7 +103,13 @@ async def _format_student(student: Student) -> dict:
         "full_name": student_name,
         "email": student_email,
         "mobile_number": getattr(student, "mobile_number", "") or "",
-        "parent_mobile": getattr(student, "parent_mobile", "") or "",
+        "phone": getattr(student, "mobile_number", "") or "",
+        "parent_mobile": getattr(student, "parent_mobile", "") or getattr(student, "father_mobile", "") or getattr(student, "mother_mobile", "") or "",
+        "parentPhone": getattr(student, "parent_mobile", "") or getattr(student, "father_mobile", "") or getattr(student, "mother_mobile", "") or "",
+        "father_mobile": getattr(student, "father_mobile", "") or getattr(student, "parent_mobile", "") or "",
+        "fatherPhone": getattr(student, "father_mobile", "") or getattr(student, "parent_mobile", "") or "",
+        "mother_mobile": getattr(student, "mother_mobile", "") or "",
+        "motherPhone": getattr(student, "mother_mobile", "") or "",
         "date_of_birth": student.date_of_birth,
         "gender": student.gender or "",
         "address": student.address or "",
@@ -304,14 +310,24 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         raise HTTPException(status_code=400, detail="Student full name is required")
 
     clean_mobile = re.sub(r'\D', '', raw_mobile)
-    clean_parent_mobile = re.sub(r'\D', '', raw_parent_mobile)
+    raw_father_mobile = str(data.get("father_mobile") or data.get("fatherMobile") or data.get("fatherPhone") or data.get("parent_mobile") or data.get("parentPhone") or data.get("parentMobile") or "").strip()
+    raw_mother_mobile = str(data.get("mother_mobile") or data.get("motherMobile") or data.get("motherPhone") or "").strip()
+
+    clean_father_mobile = re.sub(r'\D', '', raw_father_mobile) if raw_father_mobile else ""
+    clean_mother_mobile = re.sub(r'\D', '', raw_mother_mobile) if raw_mother_mobile else ""
+    clean_parent_mobile = clean_father_mobile or clean_mother_mobile or re.sub(r'\D', '', raw_parent_mobile)
 
     if len(clean_mobile) < 10:
         raise HTTPException(status_code=400, detail="Student mobile number must be at least 10 digits")
-    if len(clean_parent_mobile) < 10:
-        raise HTTPException(status_code=400, detail="Parent mobile number must be at least 10 digits")
-    if clean_mobile == clean_parent_mobile:
-        raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
+    if not clean_parent_mobile or len(clean_parent_mobile) < 10:
+        raise HTTPException(status_code=400, detail="Father or Parent mobile number must be at least 10 digits")
+    if clean_mobile == clean_parent_mobile or (clean_father_mobile and clean_mobile == clean_father_mobile):
+        raise HTTPException(status_code=400, detail="Student and father/parent mobile numbers must be different")
+    if clean_mother_mobile:
+        if len(clean_mother_mobile) < 10:
+            raise HTTPException(status_code=400, detail="Mother mobile number must be at least 10 digits")
+        if clean_mobile == clean_mother_mobile:
+            raise HTTPException(status_code=400, detail="Student and mother mobile numbers must be different")
 
     raw_roll = str(data.get("rollNumber") or data.get("student_id") or data.get("roll_number") or "").strip()
     if raw_roll and not (raw_roll.startswith("STU-") and len(raw_roll) == 10 and re.match(r"^STU-[0-9A-Fa-f]{6}$", raw_roll)):
@@ -589,6 +605,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             full_name=full_name,
             mobile_number=clean_mobile,
             parent_mobile=clean_parent_mobile,
+            father_mobile=clean_father_mobile or clean_parent_mobile or None,
+            mother_mobile=clean_mother_mobile or None,
             email=email,
             admission_type=admission_type,
             admissions=admissions_list,
@@ -880,39 +898,47 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    is_student_role = current_user and getattr(current_user, "role", "").upper() == "STUDENT"
+    user_role = (getattr(current_user, "role", "") or "").upper().replace("-", "_") if current_user else ""
+    is_student_role = user_role == "STUDENT"
 
-    # Role-Based Access Control for STUDENT role:
     if is_student_role:
         # 1. Authorize: Student can only edit their own profile
         linked_user_id = str(student.user.id if isinstance(student.user, User) else student.user.ref.id)
-        if linked_user_id != str(current_user.id):
+        if current_user and linked_user_id != str(current_user.id):
             raise HTTPException(status_code=403, detail="Forbidden: You can only update your own student profile.")
 
-        # 2. Enforce READ-ONLY for Admin-entered fields:
+        # 2. Enforce READ-ONLY for all Admin-entered fields:
+        # Whatever Academy Admin / Batch Manager fills during admission cannot be edited by student
         admin_locked_fields = [
-            "full_name",
-            "name",
-            "mobile_number",
-            "phone",
-            "parent_mobile",
-            "parentPhone",
-            "total_fees",
-            "totalFees",
-            "paid_fees",
-            "paidFees",
-            "remaining_fees",
-            "remainingFees",
-            "rfid_tag",
-            "rfidCard",
-            "student_id",
-            "rollNumber"
+            "full_name", "name", "fullName",
+            "mobile_number", "phone", "mobileNumber",
+            "father_mobile", "fatherMobile", "fatherPhone",
+            "mother_mobile", "motherMobile", "motherPhone",
+            "parent_mobile", "parentMobile", "parentPhone",
+            "student_id", "rollNumber", "roll_number",
+            "branch",
+            "session",
+            "academic_batch", "academicBatch",
+            "standard",
+            "batch",
+            "academic_year",
+            "total_fees", "totalFees",
+            "paid_fees", "paidFees",
+            "remaining_fees", "remainingFees",
+            "rfid_tag", "rfidCard",
+            "original_fees", "originalFees",
+            "discount_amount", "discountAmount",
+            "discount_requested_amount", "discountRequestedAmount",
+            "discount_reason", "discountReason",
+            "discount_status",
+            "discount_offered_by",
+            "discount_recommended_by",
+            "discount_approved_by",
+            "concession_type",
+            "concession_value",
+            "admission_type", "admissionType",
+            "admissions"
         ]
-        if getattr(student, "batch", None):
-            admin_locked_fields.append("batch")
-        if getattr(student, "standard", None):
-            admin_locked_fields.append("standard")
-
         for field in admin_locked_fields:
             student_in.pop(field, None)
 
@@ -929,20 +955,18 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                 await student.user.save()
             del student_in["email"]
 
-        # 4. Check profile completeness based on filled data
+        # 4. Check profile completeness based on remaining personal fields filled by student
         check_dob = student_in.get("date_of_birth") or student.date_of_birth
         check_gender = student_in.get("gender") or student.gender
         check_address = student_in.get("address") or student.address
         check_parent_name = student_in.get("parent_name") or student.parent_name
-        check_standard = student_in.get("standard") or student.standard
-        check_batch = student_in.get("batch") or student.batch
 
         student_in["profile_completed"] = bool(
-            check_dob and check_gender and check_address and check_parent_name and check_standard and check_batch
+            check_dob and check_gender and check_address and check_parent_name
         )
 
     else:
-        # Admin / Super Admin role: can update all fields including name and fees
+        # Admin / Super Admin / Batch Manager role: can update all fields including name and fees
         if "full_name" in student_in or "name" in student_in or "fullName" in student_in:
             new_name = (student_in.get("full_name") or student_in.get("name") or student_in.get("fullName") or "").strip()
             if new_name:
@@ -995,6 +1019,24 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                 student_in["parent_mobile"] = clean_p
             student_in.pop("parentPhone", None)
             student_in.pop("parentMobile", None)
+
+        if "father_mobile" in student_in or "fatherPhone" in student_in or "fatherMobile" in student_in:
+            clean_f = re.sub(r"\D", "", str(student_in.get("father_mobile") or student_in.get("fatherPhone") or student_in.get("fatherMobile") or ""))
+            if clean_f:
+                student.father_mobile = clean_f
+                student_in["father_mobile"] = clean_f
+                if not student.parent_mobile:
+                    student.parent_mobile = clean_f
+            student_in.pop("fatherPhone", None)
+            student_in.pop("fatherMobile", None)
+
+        if "mother_mobile" in student_in or "motherPhone" in student_in or "motherMobile" in student_in:
+            clean_m = re.sub(r"\D", "", str(student_in.get("mother_mobile") or student_in.get("motherPhone") or student_in.get("motherMobile") or ""))
+            if clean_m:
+                student.mother_mobile = clean_m
+                student_in["mother_mobile"] = clean_m
+            student_in.pop("motherPhone", None)
+            student_in.pop("motherMobile", None)
 
         if "parent_name" in student_in or "parentName" in student_in:
             pname = (student_in.get("parent_name") or student_in.get("parentName") or "").strip()

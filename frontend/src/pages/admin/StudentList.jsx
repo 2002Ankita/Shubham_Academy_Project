@@ -124,6 +124,8 @@ export default function StudentList() {
     mobileNumber: '',
     parentName: '',
     parentPhone: '',
+    fatherPhone: '',
+    motherPhone: '',
     relation: 'Father',
     date_of_birth: '',
     gender: 'Male',
@@ -231,7 +233,9 @@ export default function StudentList() {
       email: stu.email || '',
       mobileNumber: stu.phone || stu.mobile_number || '',
       parentName: stu.parentName || stu.parent_name || '',
-      parentPhone: stu.parentPhone || stu.parent_mobile || '',
+      parentPhone: stu.fatherPhone || stu.father_mobile || stu.parentPhone || stu.parent_mobile || '',
+      fatherPhone: stu.fatherPhone || stu.father_mobile || stu.parentPhone || stu.parent_mobile || '',
+      motherPhone: stu.motherPhone || stu.mother_mobile || '',
       relation: stu.relation || 'Father',
       date_of_birth: stu.date_of_birth ? new Date(stu.date_of_birth).toISOString().split('T')[0] : '',
       gender: stu.gender || 'Male',
@@ -313,11 +317,18 @@ export default function StudentList() {
     if (!editFormData.fullName.trim()) errs.fullName = 'Student Full Name is required';
     const cleanMobile = editFormData.mobileNumber.replace(/\D/g, '');
     if (!cleanMobile || cleanMobile.length !== 10) errs.mobileNumber = 'Must be a 10-digit mobile number';
-    const cleanParent = editFormData.parentPhone.replace(/\D/g, '');
-    if (!cleanParent || cleanParent.length !== 10) {
-      errs.parentPhone = 'Parent Mobile Number is required (10 digits)';
-    } else if (cleanMobile && cleanMobile === cleanParent) {
-      errs.parentPhone = 'Parent mobile must be different from student mobile';
+    const cleanFather = (editFormData.fatherPhone || editFormData.parentPhone || '').replace(/\D/g, '');
+    if (!cleanFather || cleanFather.length !== 10) {
+      errs.fatherPhone = 'Father Mobile Number is required (10 digits)';
+    } else if (cleanMobile && cleanMobile === cleanFather) {
+      errs.fatherPhone = 'Father mobile must be different from student mobile';
+    }
+
+    const cleanMother = (editFormData.motherPhone || '').replace(/\D/g, '');
+    if (cleanMother && cleanMother.length !== 10) {
+      errs.motherPhone = 'Mother Mobile Number must be 10 digits';
+    } else if (cleanMobile && cleanMobile === cleanMother) {
+      errs.motherPhone = 'Mother mobile must be different from student mobile';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -342,7 +353,11 @@ export default function StudentList() {
         phone: cleanMobile,
         email: editFormData.email.trim() || undefined,
         parentName: editFormData.parentName.trim() || undefined,
-        parentPhone: cleanParent,
+        parentPhone: cleanFather || cleanMother,
+        fatherPhone: cleanFather,
+        father_mobile: cleanFather,
+        motherPhone: cleanMother,
+        mother_mobile: cleanMother,
         relation: editFormData.relation,
         gender: editFormData.gender,
         dob: editFormData.date_of_birth || undefined,
@@ -1497,7 +1512,7 @@ export default function StudentList() {
                 </h6>
               </div>
               <div className="row g-2.5">
-                <div className="col-12 col-md-4">
+                <div className="col-12 col-md-3">
                   <label className="form-label small fw-semibold text-sa-charcoal mb-1">
                     Parent / Guardian Full Name
                   </label>
@@ -1511,25 +1526,7 @@ export default function StudentList() {
                   />
                 </div>
 
-                <div className="col-12 col-md-4">
-                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
-                    Parent Mobile Number <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="parentPhone"
-                    value={editFormData.parentPhone}
-                    onChange={handleEditInputChange}
-                    maxLength={10}
-                    className={`form-control form-control-sm ${editErrors.parentPhone ? 'is-invalid' : ''}`}
-                    placeholder="10-digit mobile"
-                    required
-                  />
-                  {editErrors.parentPhone && <div className="invalid-feedback small">{editErrors.parentPhone}</div>}
-                  <span className="text-muted" style={{ fontSize: '11px' }}>Required for attendance & fee alerts</span>
-                </div>
-
-                <div className="col-12 col-md-4">
+                <div className="col-12 col-md-3">
                   <label className="form-label small fw-semibold text-sa-charcoal mb-1">Relationship</label>
                   <select
                     name="relation"
@@ -1541,6 +1538,44 @@ export default function StudentList() {
                     <option value="Mother">Mother</option>
                     <option value="Guardian">Guardian</option>
                   </select>
+                </div>
+
+                <div className="col-12 col-md-3">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Father Mobile Number <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="fatherPhone"
+                    value={editFormData.fatherPhone || editFormData.parentPhone}
+                    onChange={(e) => {
+                      handleEditInputChange(e);
+                      setEditFormData(prev => ({ ...prev, fatherPhone: e.target.value, parentPhone: e.target.value }));
+                    }}
+                    maxLength={10}
+                    className={`form-control form-control-sm ${editErrors.fatherPhone ? 'is-invalid' : ''}`}
+                    placeholder="10-digit mobile"
+                    required
+                  />
+                  {editErrors.fatherPhone && <div className="invalid-feedback small">{editErrors.fatherPhone}</div>}
+                  <span className="text-muted" style={{ fontSize: '11px' }}>Primary alerts & fee notifications</span>
+                </div>
+
+                <div className="col-12 col-md-3">
+                  <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                    Mother Mobile Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="motherPhone"
+                    value={editFormData.motherPhone}
+                    onChange={handleEditInputChange}
+                    maxLength={10}
+                    className={`form-control form-control-sm ${editErrors.motherPhone ? 'is-invalid' : ''}`}
+                    placeholder="10-digit mobile"
+                  />
+                  {editErrors.motherPhone && <div className="invalid-feedback small">{editErrors.motherPhone}</div>}
+                  <span className="text-muted" style={{ fontSize: '11px' }}>Secondary parent contact</span>
                 </div>
 
                 <div className="col-12 col-md-4">

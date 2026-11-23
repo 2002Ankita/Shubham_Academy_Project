@@ -40,7 +40,9 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     rollNumber: initialData?.rollNumber || initialData?.student_id || '',
     totalFees: initialData?.totalFees || 45000,
     parentName: initialData?.parentName || '',
-    parentPhone: initialData?.parentPhone || '',
+    parentPhone: initialData?.parentPhone || initialData?.fatherPhone || initialData?.father_mobile || '',
+    fatherPhone: initialData?.fatherPhone || initialData?.father_mobile || initialData?.parentPhone || '',
+    motherPhone: initialData?.motherPhone || initialData?.mother_mobile || '',
     address: initialData?.address || '',
     password: '',
   });
@@ -78,9 +80,14 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
     if (!formData.name.trim()) newErrors.name = 'Student name is required';
     if (!formData.email.trim()) newErrors.email = 'Email address is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.parentPhone.trim()) newErrors.parentPhone = 'Parent phone is required';
-    if (formData.phone.trim() && formData.parentPhone.trim() && formData.phone.trim() === formData.parentPhone.trim()) {
-      newErrors.parentPhone = 'Student and parent mobile numbers must be different';
+    if (!formData.fatherPhone.trim() && !formData.parentPhone.trim()) {
+      newErrors.fatherPhone = 'Father phone is required';
+    }
+    if (formData.phone.trim() && formData.fatherPhone.trim() && formData.phone.trim() === formData.fatherPhone.trim()) {
+      newErrors.fatherPhone = 'Student and father mobile numbers must be different';
+    }
+    if (formData.phone.trim() && formData.motherPhone.trim() && formData.phone.trim() === formData.motherPhone.trim()) {
+      newErrors.motherPhone = 'Student and mother mobile numbers must be different';
     }
     if (!initialData && !formData.password.trim()) newErrors.password = 'Password is required';
 
@@ -211,14 +218,29 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
 
         <div className="col-12 col-md-6">
           <Input
-            label="Parent Phone (SMS Gateway Alerts)"
-            name="parentPhone"
+            label="Father Mobile Number *"
+            name="fatherPhone"
             placeholder="+91 98231 XXXXX"
-            value={formData.parentPhone}
-            onChange={handleChange}
-            error={errors.parentPhone}
-            helperText="Attendance gate notifications will be sent to this number"
+            value={formData.fatherPhone || formData.parentPhone}
+            onChange={(e) => {
+              handleChange(e);
+              setFormData(prev => ({ ...prev, fatherPhone: e.target.value, parentPhone: e.target.value }));
+            }}
+            error={errors.fatherPhone}
+            helperText="Primary SMS alerts & fee notifications"
             required
+          />
+        </div>
+
+        <div className="col-12 col-md-6">
+          <Input
+            label="Mother Mobile Number"
+            name="motherPhone"
+            placeholder="+91 98231 XXXXX"
+            value={formData.motherPhone}
+            onChange={handleChange}
+            error={errors.motherPhone}
+            helperText="Secondary contact for parent communication"
           />
         </div>
 

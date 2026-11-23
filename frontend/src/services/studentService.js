@@ -22,7 +22,9 @@ export const studentService = {
           ...student,
           name: student.full_name,
           phone: student.mobile_number,
-          parentPhone: student.parent_mobile,
+          parentPhone: student.father_mobile || student.parent_mobile || '',
+          fatherPhone: student.father_mobile || student.parent_mobile || '',
+          motherPhone: student.mother_mobile || '',
           parentName: student.parent_name,
           standard: student.standard || '11th Science',
           batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
@@ -88,7 +90,9 @@ export const studentService = {
       ...student,
       name: student.full_name,
       phone: student.mobile_number,
-      parentPhone: student.parent_mobile,
+      parentPhone: student.father_mobile || student.parent_mobile || '',
+      fatherPhone: student.father_mobile || student.parent_mobile || '',
+      motherPhone: student.mother_mobile || '',
       parentName: student.parent_name,
       standard: student.standard || '11th Science',
       batch: student.academic_batch || student.academicBatch || student.batch || '11th PCM',
@@ -144,7 +148,9 @@ export const studentService = {
     const remainingFees = Number(data.remainingFees ?? data.remaining_fees ?? Math.max(0, totalFees - paidFees));
 
     const cleanMobile = String(data.phone || data.mobile_number || data.mobileNumber || '').replace(/\D/g, '');
-    const cleanParentMobile = String(data.parentPhone || data.parent_mobile || data.parentMobile || '').replace(/\D/g, '');
+    const cleanFatherMobile = String(data.fatherPhone || data.father_mobile || data.fatherMobile || data.parentPhone || data.parent_mobile || data.parentMobile || '').replace(/\D/g, '');
+    const cleanMotherMobile = String(data.motherPhone || data.mother_mobile || data.motherMobile || '').replace(/\D/g, '');
+    const cleanParentMobile = cleanFatherMobile || cleanMotherMobile;
 
     const discAmount = Number(
       data.discount_amount ?? data.discountAmount ?? data.discount_requested_amount ?? data.discountRequestedAmount ?? 0
@@ -165,7 +171,9 @@ export const studentService = {
       email: data.email?.trim() ? data.email.trim() : undefined,
       password: data.password || cleanMobile || undefined,
       mobile_number: cleanMobile || data.phone || data.mobile_number,
-      parent_mobile: cleanParentMobile || data.parentPhone || data.parent_mobile || undefined,
+      parent_mobile: cleanParentMobile || undefined,
+      father_mobile: cleanFatherMobile || undefined,
+      mother_mobile: cleanMotherMobile || undefined,
       total_fees: totalFees,
       paid_fees: paidFees,
       remaining_fees: remainingFees,
@@ -215,6 +223,12 @@ export const studentService = {
     if (data.mobileNumber) payload.mobile_number = data.mobileNumber;
     if (data.parentPhone) payload.parent_mobile = data.parentPhone;
     if (data.parentMobile) payload.parent_mobile = data.parentMobile;
+    if (data.fatherPhone) payload.father_mobile = data.fatherPhone;
+    if (data.fatherMobile) payload.father_mobile = data.fatherMobile;
+    if (data.father_mobile) payload.father_mobile = data.father_mobile;
+    if (data.motherPhone) payload.mother_mobile = data.motherPhone;
+    if (data.motherMobile) payload.mother_mobile = data.motherMobile;
+    if (data.mother_mobile) payload.mother_mobile = data.mother_mobile;
     if (data.parentName) payload.parent_name = data.parentName;
     if (data.relation) payload.relation = data.relation;
     if (data.standard) payload.standard = data.standard;

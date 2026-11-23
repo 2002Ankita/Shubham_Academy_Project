@@ -115,6 +115,8 @@ export default function StudentRegistration() {
     fullName: '',
     email: '',
     mobileNumber: '',
+    fatherPhone: '',
+    motherPhone: '',
     parentPhone: '',
     rollNumber: '',
     admissionType: '11th Standard Only', // '11th Standard Only', '12th Standard Only', '11th + 12th Standard (Two-Year Admission)'
@@ -501,13 +503,22 @@ export default function StudentRegistration() {
       errs.mobileNumber = 'This Mobile Number is already registered for another student';
     }
 
-    const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
-    if (!cleanParentMobile) {
-      errs.parentPhone = 'Parent Mobile Number is required for alerts';
-    } else if (cleanParentMobile.length !== 10) {
-      errs.parentPhone = 'Must be a valid 10-digit mobile number';
-    } else if (cleanMobile && cleanMobile === cleanParentMobile) {
-      errs.parentPhone = 'Parent mobile must be different from student mobile';
+    const cleanFatherMobile = (formData.fatherPhone || formData.parentPhone || '').replace(/\D/g, '');
+    if (!cleanFatherMobile) {
+      errs.fatherPhone = 'Father Mobile Number is required for alerts';
+    } else if (cleanFatherMobile.length !== 10) {
+      errs.fatherPhone = 'Must be a valid 10-digit mobile number';
+    } else if (cleanMobile && cleanMobile === cleanFatherMobile) {
+      errs.fatherPhone = 'Father mobile must be different from student mobile';
+    }
+
+    const cleanMotherMobile = (formData.motherPhone || '').replace(/\D/g, '');
+    if (!cleanMotherMobile) {
+      errs.motherPhone = 'Mother Mobile Number is required';
+    } else if (cleanMotherMobile.length !== 10) {
+      errs.motherPhone = 'Must be a valid 10-digit mobile number';
+    } else if (cleanMobile && cleanMobile === cleanMotherMobile) {
+      errs.motherPhone = 'Mother mobile must be different from student mobile';
     }
 
     if (!formData.branch) {
@@ -556,7 +567,9 @@ export default function StudentRegistration() {
     setLoading(true);
     try {
       const cleanMobile = formData.mobileNumber.replace(/\D/g, '');
-      const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
+      const cleanFatherMobile = (formData.fatherPhone || formData.parentPhone || '').replace(/\D/g, '');
+      const cleanMotherMobile = (formData.motherPhone || '').replace(/\D/g, '');
+      const cleanParentMobile = cleanFatherMobile || cleanMotherMobile;
       const discAmount = Number(formData.discountAmount) || 0;
       const origFees = Number(formData.originalFees) || 0;
       const paidFees = Number(formData.paidFees) || 0;
@@ -573,6 +586,10 @@ export default function StudentRegistration() {
         mobile_number: cleanMobile,
         parentPhone: cleanParentMobile,
         parent_mobile: cleanParentMobile,
+        fatherPhone: cleanFatherMobile,
+        father_mobile: cleanFatherMobile,
+        motherPhone: cleanMotherMobile,
+        mother_mobile: cleanMotherMobile,
         branch: formData.branch,
         session: formData.session || undefined,
         academic_batch: formData.academicBatch,
@@ -910,11 +927,11 @@ export default function StudentRegistration() {
                   </span>
                 </div>
 
-                {/* Parent Mobile Number */}
+                {/* Father Mobile Number */}
                 <div className="col-12 col-md-6">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
-                      Parent Mobile Number <span className="text-danger">*</span>
+                      Father Mobile Number <span className="text-danger">*</span>
                     </label>
                   </div>
                   <div className="input-group">
@@ -923,19 +940,48 @@ export default function StudentRegistration() {
                     </span>
                     <input
                       type="tel"
-                      name="parentPhone"
-                      value={formData.parentPhone}
+                      name="fatherPhone"
+                      value={formData.fatherPhone}
                       onChange={handleInputChange}
                       maxLength={10}
-                      placeholder="Parent 10-digit mobile"
-                      className={`form-control ${errors.parentPhone ? 'is-invalid' : ''}`}
+                      placeholder="Father 10-digit mobile"
+                      className={`form-control ${errors.fatherPhone ? 'is-invalid' : ''}`}
                       style={{ height: '38px' }}
                       disabled={loading}
                     />
-                    {errors.parentPhone && <div className="invalid-feedback">{errors.parentPhone}</div>}
+                    {errors.fatherPhone && <div className="invalid-feedback">{errors.fatherPhone}</div>}
                   </div>
                   <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
-                    Used for gate entry notifications and fee reminder SMS.
+                    Primary alert contact for gate entry & fee receipts.
+                  </span>
+                </div>
+
+                {/* Mother Mobile Number */}
+                <div className="col-12 col-md-6">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Mother Mobile Number <span className="text-danger">*</span>
+                    </label>
+                  </div>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
+                      <Phone size={16} />
+                    </span>
+                    <input
+                      type="tel"
+                      name="motherPhone"
+                      value={formData.motherPhone}
+                      onChange={handleInputChange}
+                      maxLength={10}
+                      placeholder="Mother 10-digit mobile"
+                      className={`form-control ${errors.motherPhone ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
+                      disabled={loading}
+                    />
+                    {errors.motherPhone && <div className="invalid-feedback">{errors.motherPhone}</div>}
+                  </div>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                    Secondary parent contact for emergency & academic notices.
                   </span>
                 </div>
               </div>
