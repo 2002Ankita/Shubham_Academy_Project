@@ -46,18 +46,18 @@ export const STANDARD_BATCHES = [
 
 export const getMatchingCourseFee = (structures, branch, academicBatch, standard, fallbackFee = 55000) => {
   if (!structures || structures.length === 0) return fallbackFee;
-  
+
   const bLower = (branch || '').toLowerCase();
   const isMangal = bLower.includes('mangal');
   const std = standard || (academicBatch?.startsWith('12th') ? '12th Science' : '11th Science');
   const batchStr = (academicBatch || '').toLowerCase();
-  
+
   // Extract stream: 'pcmb', 'pcb', 'pcm'
   let stream = '';
   if (batchStr.includes('pcmb')) stream = 'pcmb';
   else if (batchStr.includes('pcb')) stream = 'pcb';
   else if (batchStr.includes('pcm')) stream = 'pcm';
-  
+
   // 1. Exact match: branch + standard + specific stream
   if (stream) {
     const streamMatch = structures.find(s => {
@@ -67,7 +67,7 @@ export const getMatchingCourseFee = (structures, branch, academicBatch, standard
       const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
       const stdMatches = sStd.includes(std.startsWith('12') ? '12' : '11');
       if (!branchMatches || !stdMatches) return false;
-      
+
       if (stream === 'pcmb') return sBatch.includes('pcmb');
       if (stream === 'pcm') return sBatch.includes('pcm') && !sBatch.includes('pcmb');
       if (stream === 'pcb') return sBatch.includes('pcb') && !sBatch.includes('pcmb');
@@ -75,7 +75,7 @@ export const getMatchingCourseFee = (structures, branch, academicBatch, standard
     });
     if (streamMatch && streamMatch.total_fee > 0) return streamMatch.total_fee;
   }
-  
+
   // 2. Branch + batch name includes academic batch
   const batchMatch = structures.find(s => {
     const sBranch = (s.branch || '').toLowerCase();
@@ -1055,7 +1055,7 @@ export default function StudentRegistration() {
                             type="radio"
                             name="admissionType"
                             checked={isSelected}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             className="form-check-input"
                             style={{ accentColor: '#8B1216' }}
                           />
@@ -1437,21 +1437,21 @@ export default function StudentRegistration() {
                     </span>
                     {(formData.concessionType === 'percentage'
                       ? [
-                          { label: '5%', val: 5 },
-                          { label: '10%', val: 10 },
-                          { label: '15%', val: 15 },
-                          { label: '20%', val: 20 },
-                          { label: '25%', val: 25 },
-                          { label: '0%', val: 0 }
-                        ]
+                        { label: '5%', val: 5 },
+                        { label: '10%', val: 10 },
+                        { label: '15%', val: 15 },
+                        { label: '20%', val: 20 },
+                        { label: '25%', val: 25 },
+                        { label: '0%', val: 0 }
+                      ]
                       : [
-                          { label: '₹2,000', val: 2000 },
-                          { label: '₹5,000', val: 5000 },
-                          { label: '₹10,000', val: 10000 },
-                          { label: '₹15,000', val: 15000 },
-                          { label: '₹20,000', val: 20000 },
-                          { label: 'Clear (₹0)', val: 0 }
-                        ]
+                        { label: '₹2,000', val: 2000 },
+                        { label: '₹5,000', val: 5000 },
+                        { label: '₹10,000', val: 10000 },
+                        { label: '₹15,000', val: 15000 },
+                        { label: '₹20,000', val: 20000 },
+                        { label: 'Clear (₹0)', val: 0 }
+                      ]
                     ).map((p) => (
                       <button
                         key={p.label}
@@ -1552,11 +1552,10 @@ export default function StudentRegistration() {
                     className="progress-bar transition-all"
                     role="progressbar"
                     style={{
-                      width: `${
-                        formData.totalFees > 0
+                      width: `${formData.totalFees > 0
                           ? Math.min(100, ((formData.paidFees || 0) / formData.totalFees) * 100)
                           : 0
-                      }%`,
+                        }%`,
                       backgroundColor: '#8B1216',
                       borderRadius: '4px'
                     }}

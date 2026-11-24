@@ -23,17 +23,18 @@ export default function BackButton({
   return (
     <button
       type="button"
-      className={`btn btn-link p-0 d-inline-flex align-items-center gap-1.5 small text-sa-muted text-decoration-none transition-all sa-back-btn mb-2 ${className}`}
+      className={`btn btn-link p-0 d-inline-flex align-items-center gap-1.5 small text-sa-muted text-decoration-none transition-all sa-back-btn mb-2 text-nowrap flex-shrink-0 ${className}`}
       onClick={handleBack}
       style={{
         fontSize: '0.82rem',
         fontWeight: 500,
         color: '#64748b',
-        width: 'fit-content'
+        width: 'fit-content',
+        whiteSpace: 'nowrap'
       }}
     >
       <ArrowLeft size={16} className="sa-back-arrow flex-shrink-0" />
-      <span>{label}</span>
+      <span className="text-nowrap">{label}</span>
     </button>
   );
 }

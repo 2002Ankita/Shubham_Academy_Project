@@ -650,20 +650,36 @@ export default function AttendanceReport() {
                             📱 SMS
                           </span>
                         </div>
-                        {row.parent_mobile && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const text = `*Shubham Academy • Attendance Update*\n\nDear Parent, your ward *${row.student_name}* (${row.roll_number}) was recorded absent for today's lecture session (${selectedDate}). Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
-                              notificationService.sendWhatsAppWeb(row.parent_mobile, text);
-                            }}
-                            className="btn btn-xs btn-outline-success d-inline-flex align-items-center gap-1 py-0.5 px-2 mt-0.5 rounded-2"
-                            style={{ fontSize: '10px', width: 'fit-content' }}
-                            title="Open direct WhatsApp chat with parent"
-                          >
-                            <span>💬 Chat on WhatsApp</span>
-                          </button>
-                        )}
+                        <div className="d-flex flex-wrap gap-1 mt-0.5">
+                          {(row.father_mobile || row.parent_mobile) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const text = `*Shubham Academy • Attendance Update*\n\nDear Parent (Father), your ward *${row.student_name}* (${row.roll_number}) was recorded absent for today's lecture session (${selectedDate}). Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
+                                notificationService.sendWhatsAppWeb(row.father_mobile || row.parent_mobile, text);
+                              }}
+                              className="btn btn-xs btn-outline-success d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-2"
+                              style={{ fontSize: '10px', width: 'fit-content' }}
+                              title="Open direct WhatsApp chat with Father"
+                            >
+                              <span>💬 WA Father</span>
+                            </button>
+                          )}
+                          {row.mother_mobile && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const text = `*Shubham Academy • Attendance Update*\n\nDear Parent (Mother), your ward *${row.student_name}* (${row.roll_number}) was recorded absent for today's lecture session (${selectedDate}). Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
+                                notificationService.sendWhatsAppWeb(row.mother_mobile, text);
+                              }}
+                              className="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-2"
+                              style={{ fontSize: '10px', width: 'fit-content' }}
+                              title="Open direct WhatsApp chat with Mother"
+                            >
+                              <span>💬 WA Mother</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   }

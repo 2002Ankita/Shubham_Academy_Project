@@ -29,7 +29,10 @@ import {
   Grid,
   List,
   Sparkles,
-  Bell
+  Bell,
+  XCircle,
+  AlertTriangle,
+  CalendarX
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Modal from '../../components/common/Modal';
@@ -950,6 +953,19 @@ export default function ActivityTimetableManagement() {
     remarks: ''
   });
 
+  // Emergency Lecture Cancellation Modal States
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancellingItem, setCancellingItem] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Faculty Emergency');
+  const [cancelDate, setCancelDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const handleOpenCancelModal = (item, type = 'slot') => {
+    setCancellingItem({ ...item, cancelType: type });
+    setCancelReason(item.remarks || item.cancellationReason || 'Faculty Emergency');
+    setCancelDate(item.targetDate || item.date || item.activity_date || new Date().toISOString().split('T')[0]);
+    setCancelModalOpen(true);
+  };
+
   // Excel Daily Activities Import States
   const dailyExcelInputRef = useRef(null);
   const [isDailyImportModalOpen, setIsDailyImportModalOpen] = useState(false);
@@ -1243,6 +1259,19 @@ export default function ActivityTimetableManagement() {
       } else {
         await curriculumService.createDailyActivity(payload);
         toast.success(`Activity logged & routed to ${payload.teacher_name}!`);
+      }
+
+      if (payload.status === 'Cancelled') {
+        notificationService.notifyLectureCancelled({
+          subject: payload.subject,
+          branch: payload.branch,
+          batch: payload.batch,
+          date: payload.target_date,
+          time: payload.time_slot,
+          teacherName: payload.teacher_name,
+          reason: payload.remarks || 'Faculty Emergency'
+        });
+        toast.warning(`Lecture marked as Cancelled & alert dispatched to students!`);
       }
 
       // Auto-sync into batch timetable so it reflects immediately in teacher's My Classes
@@ -1643,6 +1672,86 @@ export default function ActivityTimetableManagement() {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleConfirmCancelLecture = async () => {
+    if (!cancellingItem) return;
+    setLoading(true);
+    try {
+      const subject = cancellingItem.subject || 'Class';
+      const branch = cancellingItem.branch || userBranchNormalized || 'Tarabai Park';
+      const batch = cancellingItem.batch || cancellingItem.batchName || 'All Batches';
+      const time = cancellingItem.time || cancellingItem.timeSlot || 'Scheduled Time';
+      const teacherName = cancellingItem.teacher_name || cancellingItem.teacherName || '';
+      const date = cancelDate || new Date().toISOString().split('T')[0];
+      const reason = cancelReason.trim() || 'Faculty Emergency / Unavoidable Circumstances';
+
+      // 1. Create or update DailyActivity as Cancelled
+      if (cancellingItem.cancelType === 'daily' && cancellingItem.id) {
+        await curriculumService.updateDailyActivity(cancellingItem.id, {
+          status: 'Cancelled',
+          remarks: reason
+        });
+      } else {
+        await curriculumService.createDailyActivity({
+          branch,
+          activity: 'Classroom Lecture & Theory',
+          subject,
+          batch,
+          topic_taught: `[CANCELLED] ${subject} Lecture - ${reason}`,
+          time_slot: time,
+          periods: 1,
+          total_planned_periods: 1,
+          hours: 1.0,
+          target_date: date,
+          status: 'Cancelled',
+          teacher_name: teacherName,
+          remarks: reason,
+          frequency: 'Daily',
+          activity_date: date
+        });
+      }
+
+      // 2. If it's a timetable slot, also update the timetable slot in batch
+      if (cancellingItem.cancelType === 'slot') {
+        try {
+          await batchService.addTimetableSlot({
+            day: cancellingItem.day || 'Monday',
+            time: cancellingItem.time,
+            subject: cancellingItem.subject,
+            teacher_name: cancellingItem.teacher_name,
+            batch: cancellingItem.batch,
+            branch: cancellingItem.branch,
+            room: cancellingItem.room,
+            status: 'Cancelled',
+            cancel_reason: reason
+          });
+        } catch (_) {}
+      }
+
+      // 3. Dispatch Notification via notificationService
+      notificationService.notifyLectureCancelled({
+        subject,
+        branch,
+        batch,
+        date,
+        time,
+        teacherName,
+        reason
+      });
+
+      toast.success(`Lecture for ${subject} marked as Cancelled & notification dispatched to students!`);
+      setCancelModalOpen(false);
+      setCancellingItem(null);
+      window.dispatchEvent(new CustomEvent('sa_timetable_updated'));
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
+      await loadData();
+    } catch (err) {
+      console.error('Failed to cancel lecture:', err);
+      toast.error('Failed to cancel lecture.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -3050,13 +3159,21 @@ export default function ActivityTimetableManagement() {
                           <span
                             className="badge rounded-pill fw-semibold"
                             style={{
-                              backgroundColor: (item.status === 'Completed' || item.status === 'completed') ? '#EAF6EF' : '#FEF3C7',
-                              color: (item.status === 'Completed' || item.status === 'completed') ? '#168554' : '#D97706',
-                              border: (item.status === 'Completed' || item.status === 'completed') ? '1px solid #C6E7D2' : '1px solid #FDE68A',
+                              backgroundColor: (item.status === 'Cancelled' || item.status === 'cancelled')
+                                ? '#FEE2E2'
+                                : (item.status === 'Completed' || item.status === 'completed') ? '#EAF6EF' : '#FEF3C7',
+                              color: (item.status === 'Cancelled' || item.status === 'cancelled')
+                                ? '#DC2626'
+                                : (item.status === 'Completed' || item.status === 'completed') ? '#168554' : '#D97706',
+                              border: (item.status === 'Cancelled' || item.status === 'cancelled')
+                                ? '1px solid #FCA5A5'
+                                : (item.status === 'Completed' || item.status === 'completed') ? '1px solid #C6E7D2' : '1px solid #FDE68A',
                               fontSize: '11px'
                             }}
                           >
-                            {(item.status === 'Completed' || item.status === 'completed') ? '✓ Completed' : '⏳ In Progress'}
+                            {(item.status === 'Cancelled' || item.status === 'cancelled')
+                              ? '✕ Cancelled'
+                              : (item.status === 'Completed' || item.status === 'completed') ? '✓ Completed' : '⏳ In Progress'}
                           </span>
                         </td>
                         <td
@@ -3073,6 +3190,26 @@ export default function ActivityTimetableManagement() {
                           }}
                         >
                           <div className="d-inline-flex align-items-center justify-content-center gap-1.5">
+                            {item.status !== 'Cancelled' && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCancelModal(item, 'daily')}
+                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                                style={{
+                                  width: '30px',
+                                  height: '30px',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#FFF1F2',
+                                  color: '#E11D48',
+                                  border: '1px solid #FECDD3',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title="Cancel Lecture & Notify Students"
+                              >
+                                <XCircle size={14} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleOpenEditDailyModal(item)}
@@ -3542,8 +3679,19 @@ export default function ActivityTimetableManagement() {
                                         </span>
                                       </div>
 
-                                      {/* Action Buttons: Edit / Delete */}
+                                      {/* Action Buttons: Cancel / Edit / Delete */}
                                       <div className="d-flex align-items-center justify-content-end gap-1 mt-1.5 pt-1 border-top" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenCancelModal(s, 'slot')}
+                                          className="btn btn-sm btn-link p-0 text-danger d-inline-flex align-items-center gap-0.5 text-decoration-none"
+                                          style={{ fontSize: '11px', fontWeight: 600 }}
+                                          title="Cancel Lecture and Dispatch Alert"
+                                        >
+                                          <XCircle size={11} />
+                                          <span>Cancel</span>
+                                        </button>
+                                        <span className="text-muted" style={{ fontSize: '10px' }}>•</span>
                                         <button
                                           type="button"
                                           onClick={() => handleOpenEditTimetableModal(s)}
@@ -3707,6 +3855,24 @@ export default function ActivityTimetableManagement() {
                             }}
                           >
                             <div className="d-inline-flex align-items-center justify-content-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCancelModal(slot, 'slot')}
+                                className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
+                                style={{
+                                  width: '30px',
+                                  height: '30px',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#FFF1F2',
+                                  color: '#E11D48',
+                                  border: '1px solid #FECDD3',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title="Cancel Lecture and Dispatch Alert"
+                              >
+                                <XCircle size={14} />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditTimetableModal(slot)}
@@ -4262,8 +4428,19 @@ export default function ActivityTimetableManagement() {
               >
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled (Emergency / Off)</option>
               </select>
             </div>
+            {dailyForm.status === 'Cancelled' && (
+              <div className="col-12">
+                <div className="p-2.5 rounded-3 border" style={{ backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }}>
+                  <span className="small text-danger fw-semibold d-flex align-items-center gap-1.5">
+                    <AlertTriangle size={14} />
+                    When saved as Cancelled, an in-app notification alert will automatically be dispatched to all students of this batch.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -4747,6 +4924,122 @@ export default function ActivityTimetableManagement() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL: CANCEL LECTURE & DISPATCH STUDENT ALERT           */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={cancelModalOpen}
+        onClose={() => {
+          setCancelModalOpen(false);
+          setCancellingItem(null);
+        }}
+        title="⚠️ Cancel Lecture & Notify Students"
+        size="md"
+      >
+        {cancellingItem && (
+          <div className="d-flex flex-column gap-3">
+            <div className="p-3 rounded-3 border" style={{ backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }}>
+              <div className="d-flex align-items-center gap-2 mb-1">
+                <AlertTriangle size={18} className="text-danger flex-shrink-0" />
+                <span className="fw-bold text-danger" style={{ fontSize: '13.5px' }}>
+                  Emergency Lecture Cancellation Alert
+                </span>
+              </div>
+              <p className="small text-secondary m-0" style={{ fontSize: '12px', lineHeight: 1.4 }}>
+                Cancelling this lecture will immediately flag it as <strong>Cancelled</strong> on the <strong>Student Dashboard</strong>, display a cancellation alert banner, and dispatch an in-app notification to enrolled students.
+              </p>
+            </div>
+
+            <div className="d-flex flex-column gap-2 bg-light p-3 rounded-3 border">
+              <div className="d-flex justify-content-between small">
+                <span className="text-muted fw-medium">Subject:</span>
+                <span className="fw-bold text-dark">{cancellingItem.subject || 'Class'}</span>
+              </div>
+              <div className="d-flex justify-content-between small">
+                <span className="text-muted fw-medium">Batch:</span>
+                <span className="fw-semibold text-dark">{cancellingItem.batch || cancellingItem.batchName || 'All Batches'}</span>
+              </div>
+              <div className="d-flex justify-content-between small">
+                <span className="text-muted fw-medium">Campus:</span>
+                <span className="fw-semibold text-dark">{cancellingItem.branch || userBranchNormalized || 'Tarabai Park'}</span>
+              </div>
+              <div className="d-flex justify-content-between small">
+                <span className="text-muted fw-medium">Scheduled Time:</span>
+                <span className="fw-semibold text-sa-primary">{cancellingItem.time || cancellingItem.timeSlot || 'Scheduled Time'}</span>
+              </div>
+              {(cancellingItem.teacher_name || cancellingItem.teacherName) && (
+                <div className="d-flex justify-content-between small">
+                  <span className="text-muted fw-medium">Faculty:</span>
+                  <span className="fw-semibold text-dark">{cancellingItem.teacher_name || cancellingItem.teacherName}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="form-label text-sa-muted small fw-semibold mb-1">Date of Cancellation</label>
+              <input
+                type="date"
+                className="form-control form-control-sm border shadow-xs"
+                value={cancelDate}
+                onChange={(e) => setCancelDate(e.target.value)}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div>
+              <label className="form-label text-sa-muted small fw-semibold mb-1">
+                Reason for Cancellation (Shown to Students & Parents)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Faculty Emergency, Heavy Rainfall Alert, Rescheduled"
+                className="form-control form-control-sm border shadow-xs mb-2"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{ height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
+              />
+              <div className="d-flex gap-1.5 flex-wrap">
+                {['Faculty Emergency', 'Medical Leave', 'Heavy Rainfall / Bad Weather', 'Exam Preparation Day', 'Rescheduled'].map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    className="btn btn-sm btn-light border py-0.5 px-2 small"
+                    style={{ fontSize: '11px', borderRadius: '4px' }}
+                    onClick={() => setCancelReason(r)}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="d-flex justify-content-end align-items-center gap-2 pt-2 border-top mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setCancellingItem(null);
+                }}
+                className="btn btn-sm btn-light border px-3 py-1.5 fw-medium"
+                style={{ borderRadius: '6px', fontSize: '12px' }}
+              >
+                Keep Lecture Active
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancelLecture}
+                disabled={loading}
+                className="btn btn-sm btn-danger px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{ borderRadius: '6px', fontSize: '12.5px' }}
+              >
+                <XCircle size={14} />
+                <span>{loading ? 'Cancelling...' : 'Confirm & Dispatch Alert'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

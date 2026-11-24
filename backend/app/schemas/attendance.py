@@ -82,6 +82,8 @@ class StudentLedgerRecord(BaseModel):
     academic_batch: Optional[str] = None
     session: Optional[str] = None
     parent_mobile: Optional[str] = None
+    father_mobile: Optional[str] = None
+    mother_mobile: Optional[str] = None
     lecture_1: StudentLectureSlotInfo
     lecture_2: StudentLectureSlotInfo
 

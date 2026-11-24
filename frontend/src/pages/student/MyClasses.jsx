@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Table from '../../components/common/Table';
 import BackButton from '../../components/common/BackButton';
-import { BookOpen, UserCheck, Clock, MapPin, Users, Sparkles } from 'lucide-react';
+import { BookOpen, UserCheck, Clock, MapPin, Users, Sparkles, AlertTriangle, CalendarX, XCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
 import batchService from '../../services/batchService';
+import curriculumService from '../../services/curriculumService';
+import notificationService from '../../services/notificationService';
 import { toast } from 'react-toastify';
 
 export default function StudentClasses() {
@@ -12,6 +14,7 @@ export default function StudentClasses() {
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [studentInfo, setStudentInfo] = useState(null);
+  const [cancelledLectures, setCancelledLectures] = useState([]);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -33,7 +36,38 @@ export default function StudentClasses() {
           user?.academic_batch ||
           (activeBranch === 'Mangalvar Peth' ? '11th PCMB' : '11th PCM');
 
-        const batchesRes = await batchService.getBatches().catch(() => []);
+        const [batchesRes, dailyActsRes] = await Promise.all([
+          batchService.getBatches().catch(() => []),
+          curriculumService.getDailyActivities().catch(() => [])
+        ]);
+
+        const notifCancelled = notificationService.getCancelledLectures(activeBranch, activeBatch);
+        const dailyCancelled = (Array.isArray(dailyActsRes) ? dailyActsRes : []).filter(act => {
+          return act.status === 'Cancelled' || act.status === 'cancelled';
+        });
+
+        const allCancelled = [];
+        dailyCancelled.forEach(c => {
+          allCancelled.push({
+            id: c.id,
+            subject: c.subject || 'Class',
+            time: c.time_slot || c.time || '',
+            date: c.target_date || c.activity_date || '',
+            reason: c.remarks || 'Faculty Emergency'
+          });
+        });
+        notifCancelled.forEach(n => {
+          if (!allCancelled.some(x => x.subject === n.subject)) {
+            allCancelled.push({
+              id: n.id,
+              subject: n.subject || 'Class',
+              time: n.slotTime || n.time || '',
+              date: n.date || '',
+              reason: n.cancellationReason || 'Faculty Emergency'
+            });
+          }
+        });
+        setCancelledLectures(allCancelled);
 
         const isMangalvar = activeBranch.toLowerCase().includes('mangal');
         const isTarabai = activeBranch.toLowerCase().includes('tarabai');
@@ -89,12 +123,19 @@ export default function StudentClasses() {
               if (isMangalvar && (slotBranch.includes('tarabai') || (slot.class_code || '').includes('TP'))) return;
               if (isTarabai && (slotBranch.includes('mangal') || (slot.class_code || '').includes('MP'))) return;
 
+              const matchingCancel = allCancelled.find(c =>
+                (c.subject || '').toLowerCase() === (slot.subject || b.subject || '').toLowerCase()
+              );
+              const isCancelled = slot.status === 'Cancelled' || Boolean(matchingCancel);
+
               formattedSlots.push({
                 day: slot.day || 'Weekly',
                 time: slot.time || b.time || '08:00 AM – 10:30 AM',
                 subject: slot.subject || b.subject || 'Core Session',
                 teacher: slot.teacher_name || b.teacher_name || 'Faculty',
-                room: slot.room || (isMangalvar ? 'Hall 1 (Mangalvar Peth)' : 'Hall 101 (Tarabai Park)')
+                room: slot.room || (isMangalvar ? 'Hall 1 (Mangalvar Peth)' : 'Hall 101 (Tarabai Park)'),
+                status: isCancelled ? 'Cancelled' : 'Scheduled',
+                cancel_reason: matchingCancel?.reason || slot.cancel_reason || 'Faculty Emergency'
               });
             });
           } else {
@@ -170,7 +211,17 @@ export default function StudentClasses() {
             return true;
           });
 
-          setTimetable(fallbackWeekly);
+          const enrichedFallback = fallbackWeekly.map(item => {
+            const matchingCancel = allCancelled.find(c =>
+              (c.subject || '').toLowerCase() === (item.subject || '').toLowerCase()
+            );
+            return {
+              ...item,
+              status: matchingCancel ? 'Cancelled' : 'Scheduled',
+              cancel_reason: matchingCancel?.reason || 'Faculty Emergency'
+            };
+          });
+          setTimetable(enrichedFallback);
         }
       } catch (err) {
         console.error('Failed to load classes:', err);
@@ -180,6 +231,20 @@ export default function StudentClasses() {
       }
     };
     fetchClasses();
+
+    const handleUpdate = () => {
+      fetchClasses();
+    };
+
+    window.addEventListener('sa_lecture_cancelled', handleUpdate);
+    window.addEventListener('sa_timetable_updated', handleUpdate);
+    window.addEventListener('sa_notifications_updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('sa_lecture_cancelled', handleUpdate);
+      window.removeEventListener('sa_timetable_updated', handleUpdate);
+      window.removeEventListener('sa_notifications_updated', handleUpdate);
+    };
   }, [user]);
 
   const displayBranch = studentInfo?.branch ||
@@ -215,6 +280,47 @@ export default function StudentClasses() {
         </div>
       </div>
 
+      {/* Lecture Cancellation Banner */}
+      {cancelledLectures.length > 0 && (
+        <div className="d-flex flex-column gap-2">
+          {cancelledLectures.map((c, i) => (
+            <div
+              key={c.id || i}
+              className="p-3.5 rounded-4 border shadow-xs d-flex align-items-center justify-content-between gap-3 flex-wrap"
+              style={{
+                background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                borderColor: '#FDA4AF',
+                borderLeft: '5px solid #DC2626'
+              }}
+            >
+              <div className="d-flex align-items-center gap-2.5">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                  style={{ width: '40px', height: '40px', backgroundColor: '#FEE2E2', color: '#DC2626' }}
+                >
+                  <CalendarX size={20} />
+                </div>
+                <div>
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <span className="fw-bold text-danger" style={{ fontSize: '0.96rem' }}>
+                      ⚠️ Notice: {c.subject} Lecture Cancelled
+                    </span>
+                    {c.time && (
+                      <span className="badge bg-white text-dark border px-2 py-0.5 rounded-pill small">
+                        🕒 {c.time}
+                      </span>
+                    )}
+                  </div>
+                  <span className="small text-secondary d-block mt-0.5">
+                    Reason: <strong className="text-danger">{c.reason}</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="sa-card p-4">
         <Table
           columns={[
@@ -222,7 +328,29 @@ export default function StudentClasses() {
             { key: 'time', title: 'Session Timing', render: (val) => <span className="fw-semibold text-sa-primary">{val}</span> },
             { key: 'subject', title: 'Subject & Topic', render: (val) => <span className="fw-medium text-dark">{val}</span> },
             { key: 'teacher', title: 'Faculty', render: (val) => <span className="text-secondary">{val || 'TBD'}</span> },
-            { key: 'room', title: 'Classroom / Lab', render: (val) => <span className="badge bg-light text-dark border">{val}</span> }
+            { key: 'room', title: 'Classroom / Lab', render: (val) => <span className="badge bg-light text-dark border">{val}</span> },
+            {
+              key: 'status',
+              title: 'Status',
+              render: (val, row) => (
+                row.status === 'Cancelled' ? (
+                  <div className="d-flex flex-column gap-0.5">
+                    <span className="badge bg-danger text-white rounded-pill px-2.5 py-1 small fw-bold d-inline-flex align-items-center gap-1" style={{ width: 'fit-content' }}>
+                      <XCircle size={10} /> Cancelled
+                    </span>
+                    {row.cancel_reason && (
+                      <span className="text-danger small" style={{ fontSize: '0.70rem' }}>
+                        {row.cancel_reason}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small fw-semibold">
+                    ✓ Scheduled
+                  </span>
+                )
+              )
+            }
           ]}
           data={timetable}
           loading={loading}

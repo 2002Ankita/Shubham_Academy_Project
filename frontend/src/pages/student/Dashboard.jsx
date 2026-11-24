@@ -26,7 +26,13 @@ import {
   AlertCircle,
   BookMarked,
   ShieldAlert,
-  Sparkles
+  Sparkles,
+  AlertTriangle,
+  CalendarX,
+  XCircle,
+  X,
+  User,
+  MapPin
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { toast } from 'react-toastify';
@@ -40,6 +46,8 @@ import marksService from '../../services/marksService';
 import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
 import inventoryService from '../../services/inventoryService';
+import curriculumService from '../../services/curriculumService';
+import notificationService from '../../services/notificationService';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -53,6 +61,8 @@ export default function StudentDashboard() {
   const [fees, setFees] = useState([]);
   const [feeDetails, setFeeDetails] = useState({ total_fees: 0, amount_paid: 0, pending_fees: 0 });
   const [todaysClasses, setTodaysClasses] = useState([]);
+  const [cancelledLectures, setCancelledLectures] = useState([]);
+  const [dismissedCancellationIds, setDismissedCancellationIds] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [loading, setLoading] = useState(true);
@@ -87,7 +97,8 @@ export default function StudentDashboard() {
           attendanceData,
           detailsData,
           batchesDataRes,
-          deliveryDataRes
+          deliveryDataRes,
+          dailyActivitiesRes
         ] = await Promise.allSettled([
           studentService.getById(studentId),
           noticeService.getAll(),
@@ -97,7 +108,8 @@ export default function StudentDashboard() {
           studentId ? attendanceService.getStudentAttendance(studentId).catch(() => attendanceService.getLogs()) : attendanceService.getLogs(),
           feeService.getFeeDetails(studentId),
           batchService.getBatches(),
-          inventoryService.getStudentDeliveryStatus(studentId).catch(() => inventoryService.getMyDeliveryStatus().catch(() => null))
+          inventoryService.getStudentDeliveryStatus(studentId).catch(() => inventoryService.getMyDeliveryStatus().catch(() => null)),
+          curriculumService.getDailyActivities().catch(() => [])
         ]);
 
         if (studentData.status === 'fulfilled' && studentData.value) {
@@ -246,7 +258,27 @@ export default function StudentDashboard() {
     };
 
     loadDashboardData();
+
+    const handleRealtimeUpdate = () => {
+      loadDashboardData();
+    };
+
+    window.addEventListener('sa_lecture_cancelled', handleRealtimeUpdate);
+    window.addEventListener('sa_notifications_updated', handleRealtimeUpdate);
+    window.addEventListener('sa_timetable_updated', handleRealtimeUpdate);
+    window.addEventListener('sa_daily_activities_updated', handleRealtimeUpdate);
+
+    return () => {
+      window.removeEventListener('sa_lecture_cancelled', handleRealtimeUpdate);
+      window.removeEventListener('sa_notifications_updated', handleRealtimeUpdate);
+      window.removeEventListener('sa_timetable_updated', handleRealtimeUpdate);
+      window.removeEventListener('sa_daily_activities_updated', handleRealtimeUpdate);
+    };
   }, [user]);
+
+  const handleDismissCancellation = (id) => {
+    setDismissedCancellationIds(prev => [...prev, id]);
+  };
 
   // Derived Dynamic Greeting & Student Name
   const currentHour = new Date().getHours();
@@ -368,6 +400,97 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 1.1 LECTURE CANCELLATION EMERGENCY ALERT BANNER                         */}
+      {/* ========================================================================= */}
+      {cancelledLectures.filter(c => !dismissedCancellationIds.includes(c.id)).length > 0 && (
+        <div className="d-flex flex-column gap-2.5">
+          {cancelledLectures.filter(c => !dismissedCancellationIds.includes(c.id)).map((item, idx) => (
+            <div
+              key={item.id || idx}
+              className="rounded-4 p-3.5 p-md-4 border shadow-xs position-relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                borderColor: '#FDA4AF',
+                borderLeft: '6px solid #DC2626'
+              }}
+            >
+              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                <div className="d-flex align-items-start gap-3">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-0.5"
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      backgroundColor: '#FEE2E2',
+                      color: '#E11D48',
+                      border: '1px solid #FECDD3',
+                      boxShadow: '0 2px 8px rgba(225, 29, 72, 0.12)'
+                    }}
+                  >
+                    <CalendarX size={24} />
+                  </div>
+                  <div>
+                    <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                      <h5 className="fw-bold m-0 text-danger brand-font" style={{ fontSize: '1.1rem', letterSpacing: '-0.01em' }}>
+                        ⚠️ Lecture Cancelled: {item.subject || 'Class'}
+                      </h5>
+                      <span className="badge bg-danger text-white px-2.5 py-1 rounded-pill small fw-bold text-uppercase" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>
+                        Cancelled Notice
+                      </span>
+                      {(item.time || item.timeSlot) && (
+                        <span className="badge bg-white text-dark border px-2.5 py-1 rounded-pill small fw-semibold" style={{ fontSize: '0.72rem' }}>
+                          🕒 {item.time || item.timeSlot}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sa-charcoal small m-0 mb-1.5 fw-medium" style={{ maxWidth: '680px', lineHeight: 1.45, fontSize: '0.86rem' }}>
+                      {item.details || `The scheduled ${item.subject} lecture for ${item.batch || 'your batch'} today has been officially cancelled.`}
+                    </p>
+                    <div className="d-flex align-items-center gap-3 text-muted small flex-wrap" style={{ fontSize: '0.78rem' }}>
+                      <span className="text-danger fw-bold d-inline-flex align-items-center gap-1">
+                        <AlertTriangle size={13} />
+                        Reason: {item.cancellationReason || 'Faculty Emergency / Unavoidable Circumstances'}
+                      </span>
+                      {item.batch && (
+                        <span className="text-secondary fw-medium">
+                          • Batch: <strong>{item.batch}</strong>
+                        </span>
+                      )}
+                      {item.branch && (
+                        <span className="text-secondary fw-medium">
+                          • Campus: <strong>{item.branch}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 px-3 py-2 rounded-3 fw-semibold shadow-xs"
+                    onClick={() => navigate('/student/classes')}
+                    style={{ fontSize: '0.82rem' }}
+                  >
+                    <span>View Timetable</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border p-2 rounded-3 text-secondary"
+                    onClick={() => handleDismissCancellation(item.id || idx)}
+                    title="Dismiss alert"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Role-Based Profile Completion Alert Banner */}
       {(!student?.profileCompleted || !student?.standard || student?.standard === 'Pending Selection') && (
@@ -556,6 +679,153 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* TODAY'S LECTURES & SCHEDULE                                               */}
+      {/* ========================================================================= */}
+      <div className="sa-card p-3.5 p-xl-4 bg-white border rounded-4 shadow-xs">
+        <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-2.5 mb-3 pb-2 border-bottom">
+          <div className="d-flex align-items-start gap-2.5 min-w-0">
+            <div
+              className="p-2 rounded-3 text-white flex-shrink-0 mt-0.5 d-flex align-items-center justify-content-center"
+              style={{ backgroundColor: '#8B1216', width: '38px', height: '38px' }}
+            >
+              <Calendar size={18} />
+            </div>
+            <div className="min-w-0 flex-grow-1">
+              <div className="d-flex align-items-center gap-2 flex-wrap mb-0.5">
+                <h5 className="m-0 fw-bold brand-font text-sa-charcoal" style={{ fontSize: '1.05rem', lineHeight: 1.25 }}>
+                  Today's Lectures & Schedule
+                </h5>
+                <span className="badge rounded-pill bg-light text-secondary border px-2.5 py-1 fw-semibold small">
+                  {formattedDate}
+                </span>
+                {todaysClasses.some(c => c.status === 'Cancelled') && (
+                  <span className="badge rounded-pill bg-danger text-white px-2.5 py-1 fw-bold small">
+                    ⚠️ {todaysClasses.filter(c => c.status === 'Cancelled').length} Lecture Cancelled
+                  </span>
+                )}
+              </div>
+              <p className="m-0 small text-sa-muted" style={{ fontSize: '12.5px', lineHeight: 1.35 }}>
+                Real-time lecture schedule, classroom allocations, and faculty status for your enrolled batch
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold w-100 w-sm-auto flex-shrink-0"
+            style={{ fontSize: '0.80rem', height: '34px' }}
+            onClick={() => navigate('/student/classes')}
+          >
+            <span>Weekly Timetable</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {todaysClasses.length > 0 ? (
+          <div className="row g-3">
+            {todaysClasses.map((cls, idx) => {
+              const isCancelled = cls.status === 'Cancelled' || cls.status === 'cancelled';
+              const isOngoing = cls.isOngoing;
+              const subColors = {
+                Physics: { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
+                Chemistry: { bg: '#FDF2F8', text: '#BE185D', border: '#FBCFE8' },
+                Mathematics: { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
+                Biology: { bg: '#FAF5FF', text: '#7E22CE', border: '#E9D5FF' }
+              };
+              const col = subColors[cls.subject] || { bg: '#F8FAFC', text: '#334155', border: '#E2E8F0' };
+
+              return (
+                <div key={cls.id || idx} className="col-12 col-md-6 col-xl-4">
+                  <div
+                    className="p-3 rounded-3 border h-100 position-relative transition-all"
+                    style={{
+                      backgroundColor: isCancelled ? '#FFF1F2' : '#FFFFFF',
+                      borderColor: isCancelled ? '#FDA4AF' : '#E2E8F0',
+                      borderLeft: isCancelled ? '4px solid #DC2626' : isOngoing ? '4px solid #10B981' : '4px solid #8B1216',
+                      boxShadow: isCancelled ? '0 2px 10px rgba(220, 38, 38, 0.08)' : '0 1px 4px rgba(0,0,0,0.03)'
+                    }}
+                  >
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <span
+                        className="badge px-2.5 py-1 rounded-pill fw-bold"
+                        style={{
+                          backgroundColor: isCancelled ? '#FEE2E2' : col.bg,
+                          color: isCancelled ? '#DC2626' : col.text,
+                          border: `1px solid ${isCancelled ? '#FECDD3' : col.border}`,
+                          fontSize: '0.74rem'
+                        }}
+                      >
+                        {cls.subject || 'Core Subject'}
+                      </span>
+
+                      {isCancelled ? (
+                        <span className="badge bg-danger text-white px-2.5 py-1 rounded-pill small fw-bold d-inline-flex align-items-center gap-1">
+                          <XCircle size={11} /> Cancelled
+                        </span>
+                      ) : isOngoing ? (
+                        <span className="badge bg-success text-white px-2.5 py-1 rounded-pill small fw-bold d-inline-flex align-items-center gap-1">
+                          <span className="spinner-grow spinner-grow-sm" style={{ width: '6px', height: '6px' }} /> Ongoing
+                        </span>
+                      ) : (
+                        <span className="badge bg-light text-secondary border px-2 py-0.5 rounded-pill small fw-medium">
+                          Scheduled
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mb-2">
+                      <h6
+                        className={`fw-bold m-0 ${isCancelled ? 'text-decoration-line-through text-muted' : 'text-sa-charcoal'}`}
+                        style={{ fontSize: '0.96rem' }}
+                      >
+                        {cls.subject} {cls.topic ? `– ${cls.topic}` : 'Theory Session'}
+                      </h6>
+                      {isCancelled && cls.cancellationReason && (
+                        <div className="mt-1.5 p-1.5 rounded-2 bg-white border border-danger-subtle small text-danger fw-semibold" style={{ fontSize: '0.75rem' }}>
+                          ⚠️ Cancelled: {cls.cancellationReason}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="d-flex flex-column gap-1 pt-2 border-top small text-secondary" style={{ fontSize: '0.78rem' }}>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <span className="d-flex align-items-center gap-1 text-sa-muted">
+                          <Clock size={12} className="text-sa-primary" /> Timing:
+                        </span>
+                        <span className="fw-semibold text-dark">{cls.time}</span>
+                      </div>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <span className="d-flex align-items-center gap-1 text-sa-muted">
+                          <User size={12} /> Faculty:
+                        </span>
+                        <span className="fw-semibold text-dark">{cls.teacher || 'Assigned Faculty'}</span>
+                      </div>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <span className="d-flex align-items-center gap-1 text-sa-muted">
+                          <MapPin size={12} /> Classroom:
+                        </span>
+                        <span className="badge bg-light text-dark border px-2 py-0.5">{cls.room || 'Room 101'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-4 text-sa-muted">
+            <CheckCircle2 size={32} className="text-success mb-2" />
+            <p className="fw-bold text-sa-charcoal m-0" style={{ fontSize: '0.92rem' }}>
+              No Scheduled Lectures Today
+            </p>
+            <p className="small text-sa-muted m-0 mt-0.5">
+              Review your study materials or prepare for upcoming examinations.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}

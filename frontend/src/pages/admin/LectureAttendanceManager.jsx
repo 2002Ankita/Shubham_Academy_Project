@@ -6,6 +6,8 @@ import Table from '../../components/common/Table';
 import attendanceService from '../../services/attendanceService';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
+import curriculumService from '../../services/curriculumService';
+import Modal from '../../components/common/Modal';
 import {
   Upload,
   Download,
@@ -22,7 +24,10 @@ import {
   Save,
   Check,
   CheckCheck,
-  X
+  X,
+  XCircle,
+  AlertTriangle,
+  CalendarX
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
@@ -69,6 +74,65 @@ export default function LectureAttendanceManager() {
   const [uploadChannels, setUploadChannels] = useState('both'); // 'both', 'whatsapp', 'sms'
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+
+  // Emergency Lecture Cancellation States
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelSubject, setCancelSubject] = useState('Physics');
+  const [cancelReason, setCancelReason] = useState('Faculty Emergency');
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelLectureSubmit = async (e) => {
+    e?.preventDefault?.();
+    setCancelling(true);
+    try {
+      const subject = cancelSubject;
+      const branch = selectedBranch;
+      const batch = selectedBatchLabel;
+      const date = selectedDate;
+      const reason = cancelReason.trim() || 'Faculty Emergency / Unavoidable Circumstances';
+      const slotTime = selectedSlot === '2' ? '10:30 AM – 01:00 PM' : '08:00 AM – 10:30 AM';
+
+      // 1. Record daily activity log as Cancelled
+      await curriculumService.createDailyActivity({
+        branch,
+        activity: 'Classroom Lecture & Theory',
+        subject,
+        batch,
+        topic_taught: `[CANCELLED] ${subject} Lecture - ${reason}`,
+        time_slot: slotTime,
+        periods: 1,
+        total_planned_periods: 1,
+        hours: 1.0,
+        target_date: date,
+        status: 'Cancelled',
+        remarks: reason,
+        frequency: 'Daily',
+        activity_date: date
+      });
+
+      // 2. Dispatch notification
+      notificationService.notifyLectureCancelled({
+        subject,
+        branch,
+        batch,
+        date,
+        time: slotTime,
+        reason,
+        students: attendanceRows
+      });
+
+      toast.success(`Lecture for ${subject} cancelled and alert notification sent to students!`);
+      setCancelModalOpen(false);
+      window.dispatchEvent(new CustomEvent('sa_lecture_cancelled'));
+      window.dispatchEvent(new CustomEvent('sa_timetable_updated'));
+      window.dispatchEvent(new CustomEvent('sa_daily_activities_updated'));
+    } catch (err) {
+      console.error('Failed to cancel lecture:', err);
+      toast.error('Failed to cancel lecture.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const selectedBatchLabel = formatStudentBatchDisplay({
     branch: selectedBranch,
@@ -424,11 +488,15 @@ export default function LectureAttendanceManager() {
         const roll = row['Roll Number'] || row['Roll'] || row['roll_number'] || 'SA-1002';
         const name = row['Student Name'] || row['Name'] || row['student_name'] || 'Student';
         const slotFromRow = String(row['Lecture Slot'] || '').toLowerCase().includes('2') ? 2 : uploadSlot;
+        const fatherMobile = row.father_mobile || row['Father Mobile'] || row['Father Phone'] || row['Parent Mobile'] || row.parent_mobile;
+        const motherMobile = row.mother_mobile || row['Mother Mobile'] || row['Mother Phone'];
         const resDisp = notificationService.recordAbsenceDispatch({
           studentId: roll,
           rollNumber: roll,
           studentName: name,
-          parentMobile: row['Parent Mobile'] || '+91 98220 33445',
+          parentMobile: fatherMobile || '+91 98220 33445',
+          fatherMobile: fatherMobile,
+          motherMobile: motherMobile,
           batch: uploadBatchLabel,
           subject: row['Subject'] || uploadSubject,
           lectureNumber: slotFromRow,
@@ -472,11 +540,15 @@ export default function LectureAttendanceManager() {
         const roll = row['Roll Number'] || row['Roll'] || row['roll_number'] || 'SA-1002';
         const name = row['Student Name'] || row['Name'] || row['student_name'] || 'Student';
         const slotFromRow = String(row['Lecture Slot'] || '').toLowerCase().includes('2') ? 2 : uploadSlot;
+        const fatherMobile = row.father_mobile || row['Father Mobile'] || row['Father Phone'] || row['Parent Mobile'] || row.parent_mobile;
+        const motherMobile = row.mother_mobile || row['Mother Mobile'] || row['Mother Phone'];
         const resDisp = notificationService.recordAbsenceDispatch({
           studentId: roll,
           rollNumber: roll,
           studentName: name,
-          parentMobile: row['Parent Mobile'] || '+91 98220 33445',
+          parentMobile: fatherMobile || '+91 98220 33445',
+          fatherMobile: fatherMobile,
+          motherMobile: motherMobile,
           batch: uploadBatchLabel,
           subject: row['Subject'] || uploadSubject,
           lectureNumber: slotFromRow,
@@ -561,6 +633,19 @@ export default function LectureAttendanceManager() {
             title="Download formatted sample Excel sheet pre-filled with student roll numbers"
           >
             Download Excel Template (.xlsx)
+          </Button>
+
+          <Button
+            variant="outline"
+            icon={XCircle}
+            className="text-danger border-danger"
+            onClick={() => {
+              setCancelReason('Faculty Emergency');
+              setCancelModalOpen(true);
+            }}
+            title="Cancel today's lecture and notify enrolled students"
+          >
+            Cancel Lecture
           </Button>
 
           <Button
@@ -1050,20 +1135,36 @@ export default function LectureAttendanceManager() {
                         <span>📱 SMS</span>
                       </span>
                     </div>
-                    {row.parent_mobile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const text = `*Shubham Academy • Urgent Attendance Alert* ⚠️\n\nDear Parent, your ward *${row.student_name}* (${row.roll_number}) was marked *ABSENT* on ${selectedDate} for academic lectures. Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
-                          notificationService.sendWhatsAppWeb(row.parent_mobile, text);
-                        }}
-                        className="btn btn-xs btn-outline-success d-inline-flex align-items-center gap-1 py-0.5 px-2 mt-0.5 rounded-2"
-                        style={{ fontSize: '10.5px', width: 'fit-content' }}
-                        title="Open direct WhatsApp chat with parent"
-                      >
-                        <span>💬 Open WhatsApp Chat</span>
-                      </button>
-                    )}
+                    <div className="d-flex flex-wrap gap-1 mt-0.5">
+                      {(row.father_mobile || row.parent_mobile) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const text = `*Shubham Academy • Urgent Attendance Alert* ⚠️\n\nDear Parent (Father), your ward *${row.student_name}* (${row.roll_number}) was marked *ABSENT* on ${selectedDate} for academic lectures. Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
+                            notificationService.sendWhatsAppWeb(row.father_mobile || row.parent_mobile, text);
+                          }}
+                          className="btn btn-xs btn-outline-success d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-2"
+                          style={{ fontSize: '10.5px', width: 'fit-content' }}
+                          title="Open WhatsApp chat with Father"
+                        >
+                          <span>💬 WA Father</span>
+                        </button>
+                      )}
+                      {row.mother_mobile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const text = `*Shubham Academy • Urgent Attendance Alert* ⚠️\n\nDear Parent (Mother), your ward *${row.student_name}* (${row.roll_number}) was marked *ABSENT* on ${selectedDate} for academic lectures. Please contact academy administration for inquiries.\n\n_Shubham Academy_`;
+                            notificationService.sendWhatsAppWeb(row.mother_mobile, text);
+                          }}
+                          className="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-2"
+                          style={{ fontSize: '10.5px', width: 'fit-content' }}
+                          title="Open WhatsApp chat with Mother"
+                        >
+                          <span>💬 WA Mother</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               }

@@ -225,6 +225,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       return;
     }
 
+    if (notif.type === 'lecture_cancelled') {
+      navigate(isStudent ? '/student/dashboard' : '/admin/activity-timetable');
+      return;
+    }
+
     const targetRoute = isStudent
       ? '/student/announcements'
       : isTeacher
@@ -712,6 +717,63 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                               <span>Review</span>
                               <ChevronRight size={12} />
                             </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // For lecture cancellation alerts
+                    if (item.type === 'lecture_cancelled') {
+                      return (
+                        <div
+                          key={item.id}
+                          className="w-100 p-2.5 rounded-3 border d-flex flex-column gap-1.5"
+                          style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            backgroundColor: '#FFF1F2',
+                            borderColor: '#FECDD3',
+                            borderLeft: '4px solid #DC2626',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                          }}
+                          onClick={() => handleNotificationClick(item)}
+                        >
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <div className="d-flex align-items-center gap-1.5 flex-grow-1 min-w-0">
+                              <span
+                                className="badge rounded-pill fw-bold"
+                                style={{
+                                  backgroundColor: '#FEE2E2',
+                                  color: '#DC2626',
+                                  fontSize: '0.68rem',
+                                  padding: '0.25em 0.55em'
+                                }}
+                              >
+                                ⚠️ Lecture Cancelled
+                              </span>
+                              <span className="fw-bold text-danger text-truncate" style={{ fontSize: '0.82rem' }}>
+                                {item.subject || item.title}
+                              </span>
+                            </div>
+                            <span
+                              className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                color: '#64748B',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.68rem',
+                                padding: '0.25em 0.5em',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <Clock size={10} className="me-1 align-text-top flex-shrink-0" />
+                              <span>{item.time}</span>
+                            </span>
+                          </div>
+
+                          <div className="small text-secondary" style={{ fontSize: '0.75rem', lineHeight: 1.35 }}>
+                            {item.details || item.title}
                           </div>
                         </div>
                       );
