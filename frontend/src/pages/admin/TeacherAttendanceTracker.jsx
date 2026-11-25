@@ -679,11 +679,13 @@ export default function TeacherAttendanceTracker() {
   return (
     <div className="d-flex flex-column gap-4 w-100">
       {/* 1. Header & View Mode Switcher */}
-      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1">
-        <div className="min-w-0 flex-grow-1">
-          <BackButton to="/admin/teachers" label="Back to Faculty" />
+      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1 w-100">
+        <div className="min-w-0 flex-grow-1 w-100">
+          <div className="w-100 mb-1.5">
+            <BackButton to="/admin/teachers" label="Back to Faculty" />
+          </div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
+            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: 'clamp(1.15rem, 3.5vw, 1.375rem)', lineHeight: 1.25, wordBreak: 'break-word' }}>
               Teacher Check-In & Check-Out Tracking
             </h1>
               {isSuperAdmin ? (

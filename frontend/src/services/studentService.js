@@ -305,6 +305,16 @@ export const studentService = {
     } catch (e) {
       return [];
     }
+  },
+
+  getAdmissionConfirmation: async (tokenOrId) => {
+    const res = await api.get(`/students/admission-confirmation/${encodeURIComponent(tokenOrId)}`);
+    return res.data;
+  },
+
+  acceptAdmissionConfirmation: async (tokenOrId, payload = {}) => {
+    const res = await api.post(`/students/admission-confirmation/${encodeURIComponent(tokenOrId)}/accept`, payload);
+    return res.data;
   }
 };
 

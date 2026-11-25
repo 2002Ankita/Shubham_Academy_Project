@@ -16,6 +16,7 @@ import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 import ResetPassword from '../pages/auth/ResetPassword';
 import Unauthorized from '../pages/auth/Unauthorized';
+import AdmissionConfirmation from '../pages/public/AdmissionConfirmation';
 
 // Super Admin Pages
 import SuperAdminDashboard from '../pages/super-admin/Dashboard';
@@ -118,6 +119,7 @@ export default function AppRoutes() {
       </Route>
 
       <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/confirm-admission/:token" element={<AdmissionConfirmation />} />
 
       {/* Super Admin Protected Routes */}
       <Route

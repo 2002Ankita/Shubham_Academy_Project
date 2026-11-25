@@ -402,6 +402,40 @@ export default function StudentDashboard() {
       </div>
 
       {/* ========================================================================= */}
+      {/* 1.05 PARENT ADMISSION CONFIRMATION PENDING BANNER                         */}
+      {/* ========================================================================= */}
+      {student?.admission_confirmation_status === 'PENDING' && (
+        <div
+          className="rounded-4 p-3.5 p-md-4 border shadow-xs"
+          style={{
+            background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+            borderColor: '#FCD34D',
+            borderLeft: '6px solid #D97706'
+          }}
+        >
+          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div>
+              <div className="fw-bold text-warning-emphasis d-flex align-items-center gap-2 mb-1">
+                <Clock size={18} />
+                <span>Admission Confirmation Pending Parent Acceptance</span>
+              </div>
+              <p className="small text-dark m-0">
+                Your admission is currently provisional. Please ask your parent/guardian to review the filled inquiry details and accept the Terms & Conditions to confirm admission.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/confirm-admission/${student.admission_confirmation_token || student.student_id || student.id}`)}
+              className="btn btn-sm fw-bold text-white border-0 px-3 py-2 rounded-3 text-nowrap flex-shrink-0"
+              style={{ backgroundColor: '#B45309' }}
+            >
+              Review Details & Accept Terms →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 1.1 LECTURE CANCELLATION EMERGENCY ALERT BANNER                         */}
       {/* ========================================================================= */}
       {cancelledLectures.filter(c => !dismissedCancellationIds.includes(c.id)).length > 0 && (

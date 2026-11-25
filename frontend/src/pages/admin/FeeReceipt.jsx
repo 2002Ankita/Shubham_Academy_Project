@@ -257,14 +257,29 @@ export default function FeeReceipt() {
                   ₹ {formatCurrency(amountPaidNum)}
                 </td>
               </tr>
-              <tr>
-                <td className="text-muted">Outstanding Balance Due</td>
-                <td className="text-end fw-semibold text-danger">
-                  ₹ {formatCurrency(pendingAmountNum)}
+              <tr className={pendingAmountNum <= 0 ? 'bg-success-subtle' : ''}>
+                <td className={pendingAmountNum <= 0 ? 'fw-bold text-success d-flex align-items-center gap-1.5' : 'text-muted'}>
+                  <span>Outstanding Balance Due</span>
+                  {pendingAmountNum <= 0 && (
+                    <span className="badge bg-success text-white px-2 py-0.5 rounded-pill fw-bold" style={{ fontSize: '0.72rem' }}>
+                      Fees Completed ✓
+                    </span>
+                  )}
+                </td>
+                <td className={`text-end fw-semibold ${pendingAmountNum <= 0 ? 'text-success fw-bold fs-6' : 'text-danger'}`}>
+                  ₹ {pendingAmountNum <= 0 ? '0.00' : formatCurrency(pendingAmountNum)}
                 </td>
               </tr>
             </tbody>
           </table>
+          {pendingAmountNum <= 0 && (
+            <div className="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mt-3 mb-0 rounded-3 shadow-2xs" style={{ fontSize: '0.84rem' }}>
+              <CheckCircle2 size={18} className="text-success flex-shrink-0" />
+              <span>
+                <strong>100% Course Fees Fully Settled!</strong> Official "Fees Completed" confirmation dispatched to parents (Father & Mother).
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Footer & Signature */}

@@ -857,18 +857,32 @@ export default function StudentList() {
               },
               {
                 key: 'profileCompleted',
-                title: 'Profile Status',
-                render: (val, row) => (
-                  val ? (
-                    <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold">
-                      Complete ✓
-                    </span>
-                  ) : (
-                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2.5 py-1 rounded-pill small fw-semibold" title="Student has not yet completed remaining profile">
-                      Pending Entry
-                    </span>
-                  )
-                )
+                title: 'Admission & Profile',
+                render: (val, row) => {
+                  const isAdmConfirmed = (row.admission_confirmation_status || 'CONFIRMED') === 'CONFIRMED';
+                  return (
+                    <div className="d-flex flex-column gap-1 align-items-start">
+                      {isAdmConfirmed ? (
+                        <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '0.7rem' }}>
+                          Admission Confirmed ✓
+                        </span>
+                      ) : (
+                        <span className="badge bg-warning bg-opacity-15 text-warning-emphasis border border-warning border-opacity-50 px-2 py-0.5 rounded-pill fw-semibold" style={{ fontSize: '0.7rem' }} title="Waiting for parent to accept Terms & Conditions">
+                          Pending Parent Accept
+                        </span>
+                      )}
+                      {val ? (
+                        <span className="badge bg-light text-secondary border px-2 py-0.5 rounded-pill fw-medium" style={{ fontSize: '0.68rem' }}>
+                          Profile Complete
+                        </span>
+                      ) : (
+                        <span className="badge bg-light text-muted border px-2 py-0.5 rounded-pill fw-medium" style={{ fontSize: '0.68rem' }}>
+                          Pending Entry
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
               },
               {
                 key: 'attendancePercent',

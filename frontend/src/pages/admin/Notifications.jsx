@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   MessageSquare,
   ExternalLink,
+  CreditCard,
   X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -668,15 +669,21 @@ export default function Notifications() {
             <div className="d-flex flex-column gap-3">
               {inboxNotifications.map((n, i) => {
                 const isDiscountApproval = n.type === 'discount_approval';
+                const isFeeCollection = n.type === 'daily_fee_collected';
+                const isFeesCompleted = n.type === 'fees_completed';
                 return (
                   <div
                     key={n.id || i}
                     className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${
                       isDiscountApproval
                         ? 'bg-warning-subtle border-warning'
-                        : n.read
-                          ? 'bg-light bg-opacity-50'
-                          : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
+                        : isFeesCompleted
+                          ? 'bg-success-subtle bg-opacity-30 border-success'
+                          : isFeeCollection
+                            ? 'bg-success-subtle bg-opacity-25 border-success-subtle'
+                            : n.read
+                              ? 'bg-light bg-opacity-50'
+                              : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
                     }`}
                   >
                     <div className="d-flex align-items-start gap-3 flex-grow-1">
@@ -684,23 +691,68 @@ export default function Notifications() {
                         className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${
                           isDiscountApproval
                             ? 'bg-warning text-dark'
-                            : 'bg-sa-primary bg-opacity-10 text-sa-primary'
+                            : (isFeeCollection || isFeesCompleted)
+                              ? 'bg-success bg-opacity-10 text-success'
+                              : 'bg-sa-primary bg-opacity-10 text-sa-primary'
                         }`}
                       >
-                        {isDiscountApproval ? <ShieldCheck size={18} /> : <Bell size={18} />}
+                        {isDiscountApproval ? <ShieldCheck size={18} /> : (isFeeCollection || isFeesCompleted) ? <CreditCard size={18} /> : <Bell size={18} />}
                       </div>
                       <div className="flex-grow-1">
-                        <div className="d-flex align-items-center gap-2 mb-1">
+                        <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
                           <h6 className="fw-bold text-sa-charcoal mb-0 fs-6">{n.title}</h6>
                           {isDiscountApproval && (
                             <span className="badge bg-warning text-dark small fw-semibold">
                               Superadmin Approval Required
                             </span>
                           )}
+                          {isFeeCollection && (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle small fw-semibold">
+                              Daily Fee Collection
+                            </span>
+                          )}
+                          {isFeesCompleted && (
+                            <span className="badge bg-success text-white small fw-bold">
+                              ✓ 100% Fees Settled • Parents Notified
+                            </span>
+                          )}
                         </div>
                         <p className="text-sa-muted small mb-1" style={{ lineHeight: 1.45 }}>
                           {n.details || n.message}
                         </p>
+                        {isFeeCollection && n.collectedBy && (
+                          <div className="small text-secondary mt-1 d-flex align-items-center gap-3 flex-wrap" style={{ fontSize: '0.78rem' }}>
+                            <span>👤 Collected by: <strong className="text-dark">{n.collectedBy}</strong></span>
+                            {n.branch && <span>🏷️ Campus: <strong className="text-dark">{n.branch}</strong></span>}
+                            {n.paymentMethod && <span>💳 Mode: <strong className="text-dark">{n.paymentMethod}</strong></span>}
+                          </div>
+                        )}
+                        {isFeesCompleted && (
+                          <div className="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 py-1 px-2.5 small rounded-2"
+                              onClick={() => {
+                                const text = `*Shubham Academy • Course Fees Fully Paid Confirmation* 🎓✅\n\nDear Parent,\nAll academic course fees for your ward *${n.studentName}* (${n.rollNumber}) have been *FULLY SETTLED*.\nClearance Receipt: #${n.receiptNumber || 'CLEARED'}.\nThank you!\n\n_Shubham Academy_`;
+                                notificationService.sendWhatsAppWeb(n.fatherMobile || n.parentMobile || '+91 98220 12345', text);
+                              }}
+                            >
+                              <span>💬 WA Father: Fees Completed</span>
+                            </button>
+                            {n.motherMobile && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 py-1 px-2.5 small rounded-2"
+                                onClick={() => {
+                                  const text = `*Shubham Academy • Course Fees Fully Paid Confirmation* 🎓✅\n\nDear Parent,\nAll academic course fees for your ward *${n.studentName}* (${n.rollNumber}) have been *FULLY SETTLED*.\nClearance Receipt: #${n.receiptNumber || 'CLEARED'}.\nThank you!\n\n_Shubham Academy_`;
+                                  notificationService.sendWhatsAppWeb(n.motherMobile, text);
+                                }}
+                              >
+                                <span>💬 WA Mother: Fees Completed</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {isDiscountApproval && isSuperAdmin && (
                           <div className="mt-2">
                             <button
@@ -709,6 +761,18 @@ export default function Notifications() {
                               onClick={() => navigate('/super-admin/discounts?status=PENDING')}
                             >
                               <span>Open Concession Queue</span>
+                              <ChevronRight size={13} />
+                            </button>
+                          </div>
+                        )}
+                        {isFeeCollection && isSuperAdmin && (
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 py-1 px-2.5 small rounded-2"
+                              onClick={() => navigate('/super-admin/reports')}
+                            >
+                              <span>View Financial Reports</span>
                               <ChevronRight size={13} />
                             </button>
                           </div>

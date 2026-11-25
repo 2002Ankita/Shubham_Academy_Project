@@ -26,6 +26,7 @@ import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import { ADMISSION_TERMS_AND_CONDITIONS } from '../../utils/admissionTerms';
 import {
   BRANCH_TARABAI,
   BRANCH_MANGALWAR,
@@ -105,6 +106,7 @@ export default function StudentRegistration() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const initialBranch = isMangal ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
   const [loading, setLoading] = useState(false);
+  const [confirmationDispatch, setConfirmationDispatch] = useState(null);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [feeStructures, setFeeStructures] = useState([]);
@@ -656,12 +658,24 @@ export default function StudentRegistration() {
         }
       }
 
+      // Send Admission Confirmation (all inquiry details + Terms & Conditions) to BOTH Father & Mother
+      let dispatchInfo = null;
+      try {
+        dispatchInfo = notificationService.notifyAdmissionConfirmationToParents(result || payload);
+      } catch (admNotifErr) {
+        console.warn('Could not dispatch parent admission confirmation:', admNotifErr);
+      }
+
       toast.success(
         discAmount > 0
-          ? `Student ${formData.fullName} successfully registered! Concession of ₹${discAmount.toLocaleString()} submitted to Superadmin for approval.`
-          : `Student ${formData.fullName} successfully registered to ${formData.batch || 'Batch'}! ID: ${result?.student_id || result?.rollNumber || 'Created'}`
+          ? `Student ${formData.fullName} registered! Admission confirmation & Terms sent to parents (Pending Parent Acceptance).`
+          : `Student ${formData.fullName} registered! Admission confirmation & Terms sent to parents (Pending Parent Acceptance).`
       );
-      navigate('/admin/students');
+      if (dispatchInfo) {
+        setConfirmationDispatch({ student: result || payload, ...dispatchInfo });
+      } else {
+        navigate('/admin/students');
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       const detail = error.response?.data?.detail;
@@ -1827,11 +1841,34 @@ export default function StudentRegistration() {
                 </span>
               </div>
 
-              <div className="d-flex justify-content-between">
+              <div className="d-flex justify-content-between border-bottom pb-2">
                 <span className="text-muted">Profile Status:</span>
                 <span className="badge bg-warning text-dark fw-semibold">
                   Pending Student Entry
                 </span>
+              </div>
+
+              <div className="d-flex justify-content-between">
+                <span className="text-muted">Admission Status:</span>
+                <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold">
+                  Pending Parent Acceptance
+                </span>
+              </div>
+            </div>
+
+            {/* Terms & Conditions Summary */}
+            <div className="mt-3 p-3 rounded-3 bg-light border">
+              <div className="fw-bold small text-sa-charcoal mb-1.5 d-flex align-items-center gap-1.5">
+                <ShieldCheck size={14} style={{ color: '#8B1216' }} />
+                <span>Terms & Conditions (Sent to Parents)</span>
+              </div>
+              <ul className="list-unstyled m-0 d-flex flex-column gap-1 text-muted" style={{ fontSize: '0.73rem' }}>
+                {ADMISSION_TERMS_AND_CONDITIONS.slice(0, 4).map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+              <div className="text-danger fw-semibold mt-1.5" style={{ fontSize: '0.72rem' }}>
+                * Admission will confirm only after the parent reviews these details & accepts Terms & Conditions.
               </div>
             </div>
 
@@ -1853,6 +1890,79 @@ export default function StudentRegistration() {
         </div>
       </div>
 
+      {/* Parent Admission Confirmation Dispatch Modal */}
+      {confirmationDispatch && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header text-white border-0" style={{ background: 'linear-gradient(135deg, #8B1216 0%, #5F0A0D 100%)' }}>
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2 fs-6">
+                  <ShieldCheck size={18} />
+                  <span>Admission Confirmation Sent to Parents</span>
+                </h5>
+              </div>
+              <div className="modal-body p-4 d-flex flex-column gap-3">
+                <div className="alert alert-warning py-2 px-3 small m-0">
+                  <strong>Status: Pending Parent Acceptance</strong> — Admission for{' '}
+                  <strong>{confirmationDispatch.student?.full_name || formData.fullName}</strong> will be confirmed once the parent opens the link below, reviews all inquiry details, and accepts the Terms & Conditions.
+                </div>
+
+                <div>
+                  <label className="form-label small fw-semibold text-muted mb-1">Parent Confirmation & Terms Link</label>
+                  <div className="input-group input-group-sm">
+                    <input type="text" className="form-control bg-light" readOnly value={confirmationDispatch.confirmUrl || ''} />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary fw-semibold"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(confirmationDispatch.confirmUrl || '');
+                        toast.success('Confirmation link copied!');
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+
+                <div className="d-flex flex-wrap gap-2">
+                  {confirmationDispatch.fatherUrl && (
+                    <a
+                      href={confirmationDispatch.fatherUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success btn-sm flex-grow-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5"
+                    >
+                      💬 Send WhatsApp (Father)
+                    </a>
+                  )}
+                  {confirmationDispatch.motherUrl && (
+                    <a
+                      href={confirmationDispatch.motherUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success btn-sm flex-grow-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5"
+                    >
+                      💬 Send WhatsApp (Mother)
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer border-top bg-light">
+                <button
+                  type="button"
+                  className="btn btn-dark btn-sm px-4 fw-semibold"
+                  onClick={() => {
+                    setConfirmationDispatch(null);
+                    navigate('/admin/students');
+                  }}
+                >
+                  Done & Go to Student Directory
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

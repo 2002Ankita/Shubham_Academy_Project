@@ -77,7 +77,12 @@ async def _format_fee_payment(payment: FeePayment) -> dict:
         "receipt_number": getattr(payment, "receipt_number", None) or f"REC-{str(payment.id)[-6:].upper()}",
         "admission_type": getattr(student_obj, "admission_type", "11th Standard Only") if student_obj else "11th Standard Only",
         "academic_year": getattr(payment, "academic_year", None) or (getattr(student_obj, "academic_year", "2025-2026") if student_obj else "2025-2026"),
-        "admission_id": getattr(payment, "admission_id", None)
+        "admission_id": getattr(payment, "admission_id", None),
+        "collected_by": getattr(payment, "collected_by", None) or "Academy Admin",
+        "father_mobile": (getattr(student_obj, "father_mobile", None) or getattr(student_obj, "parent_mobile", None)) if student_obj else None,
+        "mother_mobile": getattr(student_obj, "mother_mobile", None) if student_obj else None,
+        "parent_mobile": (getattr(student_obj, "parent_mobile", None) or getattr(student_obj, "father_mobile", None)) if student_obj else None,
+        "is_fully_paid": pending_val <= 0
     }
 
 DEFAULT_CAMPUS_STRUCTURES = [
@@ -523,6 +528,7 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
         academic_year=target_year or getattr(student, "academic_year", "2025-2026"),
         receipt_number=receipt_no,
         branch=getattr(student, "branch", "Tarabai Park"),
+        collected_by=getattr(payment_in, "collected_by", None) or "Academy Admin",
         payment_date=datetime.utcnow()
     )
     await payment.insert()
@@ -569,6 +575,7 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
     res["discount_amount"] = getattr(student, "discount_amount", 0.0) or 0.0
     res["discount_status"] = getattr(student, "discount_status", "NONE") or "NONE"
     res["discount_approved_by"] = getattr(student, "discount_approved_by", None)
+    res["is_fully_paid"] = new_pending <= 0
     return res
 
 async def get_all_fee_payments(

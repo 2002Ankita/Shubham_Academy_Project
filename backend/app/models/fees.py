@@ -31,6 +31,7 @@ class FeePayment(Document):
     academic_year: Optional[str] = None
     receipt_number: Optional[str] = None
     branch: Optional[str] = None
+    collected_by: Optional[str] = None
 
     class Settings:
         name = "fee_payments"

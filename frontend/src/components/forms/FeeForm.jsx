@@ -279,7 +279,8 @@ export default function FeeForm({
         branch: selectedBranch,
         academic_batch: selectedAcademicBatch,
         session: selectedSession,
-        batch: selectedStudent.batch || `${selectedAcademicBatch} ${selectedBranch}`
+        batch: selectedStudent.batch || `${selectedAcademicBatch} ${selectedBranch}`,
+        collectedBy: user?.full_name || user?.name || user?.username || 'Academy Admin'
       });
     } finally {
       setSubmitting(false);

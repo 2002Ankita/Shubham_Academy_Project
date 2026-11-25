@@ -102,7 +102,10 @@ export default function FeeCollection() {
 
   const handleFeeSubmit = async (formData) => {
     try {
-      const res = await feeService.collectFee(formData);
+      const res = await feeService.collectFee({
+        ...formData,
+        collectedBy: formData.collectedBy || user?.full_name || user?.name || 'Academy Admin'
+      });
       toast.success(`Fee collected! Receipt #${res.receipt.receiptNo} generated.`);
 
       // Refresh payment history and fee details for this student

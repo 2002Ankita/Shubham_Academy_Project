@@ -55,6 +55,16 @@ class StudentBase(BaseModel):
     discount_approved_at: Optional[Any] = None
     discount_rejection_reason: Optional[str] = None
 
+    # Admission Parent Confirmation & Terms Acceptance
+    admission_confirmation_status: Optional[str] = "PENDING"
+    admission_confirmation_token: Optional[str] = None
+    admission_confirmation_sent_at: Optional[Any] = None
+    parent_confirmed_at: Optional[Any] = None
+    parent_confirmed_by: Optional[str] = None
+    terms_accepted: Optional[bool] = False
+    terms_accepted_at: Optional[Any] = None
+    inquiry_details: Optional[dict] = None
+
     class Config:
         extra = "allow"
 

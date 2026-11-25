@@ -248,8 +248,43 @@ export default function OfflineFeeRequests() {
           author: `${selectedRequest.branch} Accounts Counter`,
           details: `Your offline ${selectedRequest.payment_mode} fee payment of ₹${Number(selectedRequest.amount).toLocaleString()} has been verified & approved by ${verifierName}. Collected by Faculty: ${finalFaculty}. Official fee receipt #${updated.receipt_no} has been credited to your student ledger.`
         });
+
+        // Dispatch executive alert to Super Admin with amount, student & who collected
+        notificationService.notifyDailyFeeCollected({
+          amount: selectedRequest.amount,
+          studentName: selectedRequest.student_name,
+          rollNumber: selectedRequest.roll_number,
+          studentId: selectedRequest.student_id,
+          branch: selectedRequest.branch,
+          standard: selectedRequest.standard,
+          batch: selectedRequest.batch,
+          collectedBy: finalFaculty || verifierName,
+          paymentMethod: selectedRequest.payment_mode,
+          receiptNumber: updated.receipt_no
+        });
+
+        // Check if student's course fees are now fully completed
+        try {
+          const feeDetails = await feeService.getFeeDetails(selectedRequest.student_id, {
+            branch: selectedRequest.branch,
+            standard: selectedRequest.standard
+          });
+          if (feeDetails && (Number(feeDetails.pendingAmount ?? feeDetails.pending_fees) <= 0)) {
+            notificationService.notifyFeeCompletedToParents({
+              studentId: selectedRequest.student_id,
+              studentName: selectedRequest.student_name,
+              rollNumber: selectedRequest.roll_number,
+              branch: selectedRequest.branch,
+              standard: selectedRequest.standard,
+              batch: selectedRequest.batch,
+              totalFees: feeDetails.totalFees || feeDetails.total_fees,
+              amountPaid: selectedRequest.amount,
+              receiptNumber: updated.receipt_no
+            });
+          }
+        } catch (_) {}
       } catch (notifErr) {
-        console.warn('Student notification dispatch error:', notifErr);
+        console.warn('Fee notification dispatch error:', notifErr);
       }
 
       toast.success(
@@ -306,15 +341,15 @@ export default function OfflineFeeRequests() {
         </div>
 
         {/* Branch Selector (Automated for Branch Admins) */}
-        <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
-          <div className="d-flex align-items-center justify-content-between justify-content-sm-start gap-2 bg-white px-3 py-1.5 rounded-2 border shadow-xs w-100 w-sm-auto" style={{ minHeight: '38px' }}>
+        <div className="d-flex flex-column flex-sm-row flex-wrap align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
+          <div className="d-flex align-items-center justify-content-between justify-content-sm-start gap-2 bg-white px-3 py-1.5 rounded-2 border shadow-xs w-100 w-sm-auto flex-grow-1 flex-md-grow-0" style={{ minHeight: '38px', maxWidth: '100%' }}>
             <div className="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0">
               <Building2 size={16} className="text-danger flex-shrink-0" />
               <span className="small fw-semibold text-sa-muted text-nowrap">Branch:</span>
               {isSuperAdmin ? (
                 <select
                   className="form-select form-select-sm border-0 bg-transparent fw-bold text-sa-charcoal shadow-none py-0 flex-grow-1 flex-sm-grow-0"
-                  style={{ width: 'auto', cursor: 'pointer' }}
+                  style={{ width: 'auto', cursor: 'pointer', maxWidth: '100%' }}
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                 >
@@ -335,8 +370,8 @@ export default function OfflineFeeRequests() {
             icon={RefreshCw}
             onClick={fetchRequests}
             loading={loading}
-            className="w-100 w-sm-auto justify-content-center"
-            style={{ height: '38px' }}
+            className="w-100 w-sm-auto justify-content-center flex-shrink-0 text-nowrap"
+            style={{ height: '38px', whiteSpace: 'nowrap' }}
           >
             Refresh
           </Button>

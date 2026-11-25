@@ -304,11 +304,11 @@ export default function BatchManagement() {
           </span>
         </div>
 
-        <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2.5 w-100 w-md-auto">
+        <div className="d-flex flex-column flex-sm-row flex-wrap align-items-stretch align-items-sm-center gap-2.5 w-100 w-md-auto">
           {/* Branch context indicator for regular Admin */}
           {!isSuperAdmin && (
             <div
-              className="d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs w-100 w-sm-auto text-nowrap"
+              className="d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs w-100 w-sm-auto text-nowrap flex-shrink-0"
               style={{
                 backgroundColor: effectiveCampus.toLowerCase().includes('mangal') ? '#FDF0F0' : '#EFF6FF',
                 border: effectiveCampus.toLowerCase().includes('mangal') ? '1px solid #FECACA' : '1px solid #BFDBFE',
@@ -318,14 +318,14 @@ export default function BatchManagement() {
                 height: '40px'
               }}
             >
-              <Building2 size={14} />
+              <Building2 size={14} className="flex-shrink-0" />
               <span>{effectiveCampus}</span>
             </div>
           )}
 
           {/* Unified Branch Filter Dropdown - Only shown to SuperAdmin */}
           {isSuperAdmin && (
-            <div className="position-relative d-inline-flex align-items-center w-100 w-sm-auto" style={{ minWidth: '200px' }}>
+            <div className="position-relative d-inline-flex align-items-center w-100 w-sm-auto flex-grow-1 flex-md-grow-0" style={{ minWidth: '180px', maxWidth: '100%' }}>
               <Building2
                 size={15}
                 className="position-absolute"
@@ -363,7 +363,7 @@ export default function BatchManagement() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs w-100 w-sm-auto text-nowrap"
+            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs w-100 w-sm-auto text-nowrap flex-shrink-0"
             style={{
               backgroundColor: '#8B1216',
               fontSize: '13px',

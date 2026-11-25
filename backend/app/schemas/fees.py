@@ -14,6 +14,7 @@ class FeePaymentCreate(BaseModel):
     academic_year: Optional[str] = None
     admission_id: Optional[str] = None
     receipt_number: Optional[str] = None
+    collected_by: Optional[str] = None
 
 class FeePaymentResponse(FeePaymentCreate):
     id: str
@@ -30,6 +31,10 @@ class FeePaymentResponse(FeePaymentCreate):
     cumulative_paid: Optional[float] = None
     current_pending_fees: Optional[float] = None
     admission_type: Optional[str] = None
+    father_mobile: Optional[str] = None
+    mother_mobile: Optional[str] = None
+    parent_mobile: Optional[str] = None
+    is_fully_paid: Optional[bool] = False
 
 class FeeDetailsResponse(BaseModel):
     student_id: str

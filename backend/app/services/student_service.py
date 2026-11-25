@@ -173,6 +173,14 @@ async def _format_student(student: Student) -> dict:
         "concession_value": getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0,
         "concession_approved_by": getattr(student, "concession_approved_by", getattr(student, "discount_approved_by", None)),
         "concession_approved_at": getattr(student, "concession_approved_at", getattr(student, "discount_approved_at", None)),
+        "admission_confirmation_status": getattr(student, "admission_confirmation_status", None) or ("CONFIRMED" if not getattr(student, "admission_confirmation_token", None) else "PENDING"),
+        "admission_confirmation_token": getattr(student, "admission_confirmation_token", None),
+        "admission_confirmation_sent_at": getattr(student, "admission_confirmation_sent_at", None),
+        "parent_confirmed_at": getattr(student, "parent_confirmed_at", None),
+        "parent_confirmed_by": getattr(student, "parent_confirmed_by", None),
+        "terms_accepted": bool(getattr(student, "terms_accepted", False)),
+        "terms_accepted_at": getattr(student, "terms_accepted_at", None),
+        "inquiry_details": getattr(student, "inquiry_details", None),
     }
 
 def is_superadmin_user(user: User) -> bool:
@@ -469,7 +477,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             final_fees=total_fees,
             paid_fees=paid_fees,
             remaining_fees=remaining_fees,
-            status="Active",
+            status="Pending Parent Confirmation",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
         )
@@ -505,7 +513,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             final_fees=total_fees,
             paid_fees=paid_fees,
             remaining_fees=remaining_fees,
-            status="Active",
+            status="Pending Parent Confirmation",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
         )
@@ -634,7 +642,34 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             concession_type=conc_type,
             concession_value=conc_val,
             concession_approved_by=disc_approved_by,
-            concession_approved_at=disc_approved_at
+            concession_approved_at=disc_approved_at,
+            admission_confirmation_status="PENDING",
+            admission_confirmation_token=f"CONF-{uuid.uuid4().hex[:10].upper()}",
+            admission_confirmation_sent_at=datetime.utcnow(),
+            terms_accepted=False,
+            inquiry_details={
+                "full_name": full_name,
+                "student_id": student_id,
+                "email": email,
+                "mobile_number": clean_mobile,
+                "father_mobile": clean_father_mobile or clean_parent_mobile or "",
+                "mother_mobile": clean_mother_mobile or "",
+                "branch": norm_branch,
+                "admission_type": admission_type,
+                "standard": norm_std,
+                "academic_batch": norm_batch,
+                "session": norm_session,
+                "academic_year": data.get("academic_year") or "2025-2026",
+                "original_fees": orig_fees,
+                "discount_amount": disc_amount,
+                "discount_reason": disc_reason,
+                "total_fees": total_fees,
+                "paid_fees": paid_fees,
+                "remaining_fees": remaining_fees,
+                "previous_school": data.get("previous_school") or "",
+                "address": data.get("address") or "",
+                "parent_name": data.get("parent_name") or "",
+            }
         )
         if data.get("date_of_birth"):
             student.date_of_birth = data["date_of_birth"]
@@ -1691,3 +1726,73 @@ async def get_discount_approvals(status: str = None, branch: str = None) -> list
             "rejection_reason": a.rejection_reason
         })
     return res
+
+
+ADMISSION_TERMS_AND_CONDITIONS = [
+    "1. Admission is provisional until the parent/guardian verifies all inquiry/registration details and accepts these Terms & Conditions.",
+    "2. Course fees paid are non-refundable and non-transferable under any circumstances once the batch commences.",
+    "3. Minimum 85% attendance in lectures and weekly/monthly tests is mandatory for academic progression and performance reporting.",
+    "4. All core academic & contact records (Name, Batch, Campus, Parent Mobile Numbers, Fee Structure) are strictly read-only on the student portal and can only be modified by Academy Management.",
+    "5. Any fee concession/discount is subject to final Superadmin approval and timely payment of remaining installments as per the agreed schedule.",
+    "6. Parents consent to receive official SMS, WhatsApp, and in-app notifications regarding attendance, lecture schedules, cancellations, exam results, and fee updates on both Father and Mother mobile numbers.",
+    "7. Students must adhere to Shubham Academy's code of conduct, RFID gate discipline, and campus rules at all times."
+]
+
+
+async def _find_student_by_confirmation_token_or_id(token_or_id: str) -> Optional[Student]:
+    if not token_or_id:
+        return None
+    clean = token_or_id.strip()
+    student = await Student.find_one({"admission_confirmation_token": clean})
+    if student:
+        return student
+    return await resolve_student(clean)
+
+
+async def get_admission_confirmation_details(token_or_id: str) -> dict:
+    student = await _find_student_by_confirmation_token_or_id(token_or_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Admission confirmation record not found or invalid link.")
+    formatted = await _format_student(student)
+    formatted["terms_and_conditions"] = ADMISSION_TERMS_AND_CONDITIONS
+    return formatted
+
+
+async def accept_admission_confirmation(
+    token_or_id: str,
+    terms_accepted: bool = False,
+    accepted_by: str = "Parent",
+    remarks: Optional[str] = None
+) -> dict:
+    if not terms_accepted:
+        raise HTTPException(
+            status_code=400,
+            detail="Parent must accept the Terms & Conditions to confirm admission."
+        )
+    student = await _find_student_by_confirmation_token_or_id(token_or_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Admission confirmation record not found or invalid link.")
+
+    now = datetime.utcnow()
+    student.admission_confirmation_status = "CONFIRMED"
+    student.terms_accepted = True
+    student.terms_accepted_at = now
+    student.parent_confirmed_at = now
+    student.parent_confirmed_by = (accepted_by or "Parent").strip()
+    if remarks and getattr(student, "inquiry_details", None) is not None:
+        details = dict(student.inquiry_details or {})
+        details["parent_remarks"] = remarks.strip()
+        student.inquiry_details = details
+
+    if getattr(student, "admissions", None):
+        updated_adms = []
+        for idx, adm in enumerate(student.admissions):
+            if getattr(adm, "status", "") == "Pending Parent Confirmation":
+                adm.status = "Active" if idx == 0 else "Upcoming"
+            updated_adms.append(adm)
+        student.admissions = updated_adms
+
+    await student.save()
+    formatted = await _format_student(student)
+    formatted["terms_and_conditions"] = ADMISSION_TERMS_AND_CONDITIONS
+    return formatted

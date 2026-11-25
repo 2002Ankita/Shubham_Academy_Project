@@ -1,5 +1,6 @@
 import api from './api';
 import { getUserBranch, filterFeesByBranch } from '../utils/branchUtils';
+import notificationService from './notificationService';
 
 export const feeService = {
   getAll: async (params = {}) => {
@@ -317,7 +318,8 @@ export const feeService = {
       branch: data.branch || undefined,
       standard: data.standard || undefined,
       admission_id: data.admissionId || data.admission_id || undefined,
-      academic_year: data.academicYear || data.academic_year || undefined
+      academic_year: data.academicYear || data.academic_year || undefined,
+      collected_by: data.collectedBy || data.collected_by || undefined
     };
     const res = await api.post('/fees', payload);
     const receiptNo = `REC-${res.data.id.substring(res.data.id.length - 6).toUpperCase()}`;
@@ -331,6 +333,7 @@ export const feeService = {
       standard: res.data.standard || data.standard || 'N/A',
       batch: res.data.batch || data.batch || '',
       branch: res.data.branch || data.branch || '',
+      collectedBy: data.collectedBy || data.collected_by || res.data.collected_by || 'Academy Admin',
       amountPaid: Number(res.data.amount_paid) || amountPaidNum,
       totalFees: Number(res.data.total_fees) || (totalFeesNum || 0),
       pendingAmount: Number(res.data.pending_fees != null ? res.data.pending_fees : (Number(res.data.total_fees || totalFeesNum || 0) - amountPaidNum)),
@@ -351,6 +354,50 @@ export const feeService = {
       const updatedRecent = [formattedReceipt, ...recent.filter(r => r.id !== formattedReceipt.id)].slice(0, 50);
       localStorage.setItem('sa_recent_payments', JSON.stringify(updatedRecent));
     } catch (_) {}
+
+    // Dispatch executive notification to Super Admin with collected amount, student & who collected
+    try {
+      notificationService.notifyDailyFeeCollected({
+        amount: formattedReceipt.amountPaid,
+        studentName: formattedReceipt.studentName,
+        rollNumber: formattedReceipt.rollNumber,
+        studentId: formattedReceipt.studentId,
+        branch: formattedReceipt.branch,
+        standard: formattedReceipt.standard,
+        batch: formattedReceipt.batch,
+        collectedBy: formattedReceipt.collectedBy,
+        paymentMethod: formattedReceipt.paymentMode,
+        receiptNumber: formattedReceipt.receiptNo,
+        transactionReference: formattedReceipt.transactionId
+      });
+    } catch (notifErr) {
+      console.warn('Could not trigger superadmin fee collection notification:', notifErr);
+    }
+
+    // If fees are fully settled (balance = 0), send "fees completed" message to the parents
+    const isCompleted = formattedReceipt.pendingAmount <= 0 || res.data.is_fully_paid;
+    if (isCompleted) {
+      try {
+        notificationService.notifyFeeCompletedToParents({
+          studentId: formattedReceipt.studentId,
+          studentName: formattedReceipt.studentName,
+          rollNumber: formattedReceipt.rollNumber,
+          branch: formattedReceipt.branch,
+          standard: formattedReceipt.standard,
+          batch: formattedReceipt.batch,
+          totalFees: formattedReceipt.totalFees,
+          amountPaid: formattedReceipt.amountPaid,
+          receiptNumber: formattedReceipt.receiptNo,
+          fatherMobile: res.data.father_mobile || data.fatherMobile || data.father_mobile,
+          motherMobile: res.data.mother_mobile || data.motherMobile || data.mother_mobile,
+          parentMobile: res.data.parent_mobile || data.parentMobile || data.parent_mobile
+        });
+      } catch (completeErr) {
+        console.warn('Could not trigger parent fee completed notification:', completeErr);
+      }
+    }
+
+    formattedReceipt.isFullyPaid = isCompleted;
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('sa_fees_updated', { detail: formattedReceipt }));
