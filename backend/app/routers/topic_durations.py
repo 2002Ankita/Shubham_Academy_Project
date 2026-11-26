@@ -236,20 +236,24 @@ async def save_bulk_syllabus_plan(payload: SyllabusPlanBulkSaveRequest):
     subject = payload.subject or "Physics"
     branch_scope = payload.branch_scope or "mp/tp"
 
-    # Cleanly remove old syllabus records for this subject under branch_scope to avoid ghost rows
+    norm_std = standard.strip().lower()
+
+    # Cleanly remove old syllabus records for this subject and THIS standard under branch_scope to avoid ghost rows
     await TopicDuration.find({
         "subject": {"$regex": f"^{subject}$", "$options": "i"},
-        "branch_scope": branch_scope
+        "branch_scope": branch_scope,
+        "standard": {"$regex": f"^{norm_std}", "$options": "i"}
     }).delete()
 
     saved_count = 0
+    std_prefix = "11T" if "11" in norm_std else "12T"
     for idx, item in enumerate(payload.chapters):
         if not item.title or not item.title.strip():
             continue
         sr = item.sr_no or (idx + 1)
         tot = item.total_lectures or (item.boards_lectures + item.entrance_lectures)
         doc = TopicDuration(
-            topic_id=f"SYL-{subject[:3].upper()}-{sr:02d}",
+            topic_id=f"SYL-{std_prefix}-{subject[:3].upper()}-{sr:02d}",
             standard=standard,
             branch=None,
             batch=None,

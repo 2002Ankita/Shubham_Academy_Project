@@ -385,26 +385,26 @@ export default function ActivityTimetableManagement() {
   // Helper to detect subject from chapter title keywords as a secondary fallback
   const detectSubjectFromChapterTitle = (title = '') => {
     const t = String(title).toLowerCase();
-    // Biology keywords
-    if (/reproduction|inheritance|molecular basis|origin and evalution|origin and evolution|water relation|plant growth|respiration|circulation|control and co-ordination|human health|food production|biotechnology|organisms and populations|ecosystems|biodiversity|botany|zoology/.test(t)) {
+    // Biology keywords (11th & 12th)
+    if (/reproduction|inheritance|molecular basis|origin and evalution|origin and evolution|water relation|plant growth|respiration|circulation|control and co-ordination|human health|food production|biotechnology|organisms and populations|ecosystems|biodiversity|botany|zoology|living world|systematics|plantae|animalia|cell structure|biomolecules|cell division|plant tissues|flowering plants|animal tissue|cockroach|photosynthesis|human nutrition|excretion|skeleton|locomotion/.test(t)) {
       return 'Biology';
     }
-    // Chemistry keywords
-    if (/solid state|solutions|ionic equilibria|chemical thermodynamics|electrochemistry|chemical kinetics|groups 16|transition|coordination compounds|halogen|alcohols|aldehydes|corboxylic|amines|biomolecules|polymer chemistry|green chemistry/.test(t)) {
+    // Chemistry keywords (11th & 12th)
+    if (/solid state|solutions|ionic equilibria|chemical thermodynamics|electrochemistry|chemical kinetics|groups? 16|transition|coordination compounds|halogen|alcohols|aldehydes|corboxylic|amines|biomolecules|polymer chemistry|green chemistry|basic concepts|structure of atom|chemical bonding|redox|redox reactions|groups? 1|groups? 2|states of matter|adsorption|colloids|hydrocarbons/.test(t)) {
       return 'Chemistry';
     }
-    // Physics keywords
-    if (/rotational dynamics|mechanical properties|kinetic theory|radiation|oscillations|superposition|waves optics|wave optics|electrostatics|current electricity|magnetic fields|magnetic materials|electromagnetic|electromegnetic|ac circuits|atoms and nuclei|semiconductor/.test(t)) {
+    // Physics keywords (11th & 12th)
+    if (/rotational dynamics|mechanical properties|kinetic theory|radiation|oscillations|superposition|waves optics|wave optics|electrostatics|current electricity|magnetic fields|magnetic materials|electromagnetic|electromegnetic|ac circuits|atoms and nuclei|semiconductor|units and measurements|mathematical methods|motion in a plane|laws of motion|gravitation|thermal properties|sound|optics|refraction|dispersion/.test(t)) {
       return 'Physics';
     }
-    // Mathematics keywords
-    if (/mathematical logic|matrices|trigonometric|trignometric|straight lines|vectors|line and plane|linear programming|differentiation|applications of derivatives|integration|integrations|differential equations|probability distributions|binomial/.test(t)) {
+    // Mathematics keywords (11th & 12th)
+    if (/mathematical logic|matrices|trigonometric|trignometric|straight lines?|vectors|line and plane|linear programming|differentiation|applications of derivatives|integration|integrations|differential equations|probability distributions|binomial|angle and its measurement|determinants|circle|conic sections|measures of dispersion|probability|complex numbers|sequences and series|permutations|combinations|mathematical induction|sets and relations|functions|limits|continuity/.test(t)) {
       return 'Mathematics';
     }
     return null;
   };
 
-  // Smart Multi-Subject Parser for Syllabus Excel Sheets (Handles single-sheet stacked & multi-sheet files)
+  // Smart Multi-Subject Parser for Syllabus Excel Sheets (Handles single-sheet stacked & multi-sheet files for 11th & 12th)
   const processSyllabusWorkbook = async (workbook, shouldSwitchTab = true) => {
     let totalImportedChapters = 0;
     const chaptersBySubject = {
@@ -414,8 +414,8 @@ export default function ActivityTimetableManagement() {
       'Biology': []
     };
 
-    let detectedYear = '2026 – 2027';
-    let detectedStandard = '12th';
+    let detectedYear = syllabusAcademicYear || '2026 – 2027';
+    let detectedStandard = syllabusStandard || '11th';
     let detectedScope = 'Mangalwar Peth & Tarabai Park';
 
     for (const sheetName of workbook.SheetNames) {
@@ -434,14 +434,19 @@ export default function ActivityTimetableManagement() {
         const rowCleanStr = row.map(c => String(c).trim()).filter(Boolean).join(' ').toLowerCase();
         if (!rowCleanStr) continue;
 
-        // Check for 12th 2026 - 2027 academic year header
-        if (rowCleanStr.includes('2026') || rowCleanStr.includes('2027')) {
-          const match = rowCleanStr.match(/(11th|12th)?.*?(202[4-9]\s*[-–]\s*202[5-9])/i);
-          if (match) {
-            if (match[1]) detectedStandard = match[1];
-            if (match[2]) detectedYear = match[2].replace('-', '–');
+        // Check for 11th / 12th standard and academic year header
+        if (rowCleanStr.includes('11th') || rowCleanStr.includes('12th') || rowCleanStr.includes('class 11') || rowCleanStr.includes('class 12') || rowCleanStr.includes('std 11') || rowCleanStr.includes('std 12') || rowCleanStr.includes('2025') || rowCleanStr.includes('2026') || rowCleanStr.includes('2027')) {
+          const stdMatch = rowCleanStr.match(/(11th|12th|class\s*11|class\s*12|std\s*11|std\s*12|\bxi\b|\bxii\b)/i);
+          if (stdMatch) {
+            detectedStandard = (stdMatch[1].toLowerCase().includes('11') || stdMatch[1].toLowerCase() === 'xi') ? '11th' : '12th';
           }
-          continue; // Skip the top year banner
+          const yrMatch = rowCleanStr.match(/(202[4-9]\s*[-–]\s*202[5-9])/i);
+          if (yrMatch) {
+            detectedYear = yrMatch[1].replace('-', '–');
+          }
+          if (rowCleanStr.includes('2025') || rowCleanStr.includes('2026') || rowCleanStr.includes('2027') || /^(11th|12th)\s*$/i.test(rowCleanStr)) {
+            continue; // Skip the top year banner
+          }
         }
 
         // Check if this row is a Table Column Header Row (Sr.no, Title, Boards, Entrance)
@@ -560,13 +565,13 @@ export default function ActivityTimetableManagement() {
     }
 
     if (totalImportedChapters > 0) {
-      toast.success(`Successfully imported ${totalImportedChapters} chapters! (${importedSummary.join(', ')})`);
-      // Keep Excel sheet view focused on the first imported subject (e.g. Physics) rather than merging into All
+      toast.success(`Successfully imported ${totalImportedChapters} chapters for ${detectedStandard}! (${importedSummary.join(', ')})`);
+      setSyllabusStandard(detectedStandard);
       setSyllabusSubject(firstImportedSubject || 'Physics');
-      if (shouldSwitchTab) {
+      if (shouldSwitchTab && activeTab !== 'daily' && activeTab !== 'syllabus') {
         setActiveTab('syllabus');
       }
-      await loadSyllabusData();
+      await loadSyllabusData(detectedStandard);
       return { success: true, chaptersBySubject, totalImportedChapters, detectedStandard, detectedYear, detectedScope };
     }
     return { success: false, chaptersBySubject: {}, totalImportedChapters: 0, detectedStandard, detectedYear, detectedScope };
@@ -639,10 +644,30 @@ export default function ActivityTimetableManagement() {
 
   const handleDownloadSyllabusTemplate = () => {
     const wb = XLSX.utils.book_new();
+    const is11th = syllabusStandard === '11th';
+    const headerYear = `${is11th ? '11th' : '12th'} ${syllabusAcademicYear}`;
 
     // Physics Sheet
-    const physicsData = [
-      ['', '12th 2026 – 2027', '', ''],
+    const physicsData = is11th ? [
+      ['', headerYear, '', ''],
+      ['', 'Physics', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Units and Measurements', 5, 2],
+      [2, 'Mathematical Methods', 6, 2],
+      [3, 'Motion in a Plane', 7, 3],
+      [4, 'Laws of Motion', 7, 3],
+      [5, 'Gravitation', 6, 2],
+      [6, 'Mechanical Properties of Solids', 5, 2],
+      [7, 'Thermal Properties of Matter', 6, 2],
+      [8, 'Sound', 5, 2],
+      [9, 'Optics', 8, 3],
+      [10, 'Electrostatics', 6, 2],
+      [11, 'Electric Current Through Conductors', 6, 2],
+      [12, 'Magnetism', 5, 2],
+      [13, 'Electromagnetic Waves and Communication System', 4, 1],
+      [14, 'Semiconductors', 5, 2]
+    ] : [
+      ['', headerYear, '', ''],
       ['', 'Physics', 'No of lec for mp/tp', ''],
       ['Sr.no', 'Title', 'Boards', 'Entrance'],
       [1, 'Rotational Dynamics', 7, 3],
@@ -670,8 +695,27 @@ export default function ActivityTimetableManagement() {
     XLSX.utils.book_append_sheet(wb, wsPhysics, 'Physics');
 
     // Chemistry Sheet
-    const chemData = [
-      ['', '12th 2026 – 2027', '', ''],
+    const chemData = is11th ? [
+      ['', headerYear, '', ''],
+      ['', 'Chemistry', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Some Basic Concepts of Chemistry', 6, 2],
+      [2, 'Introduction to Analytical Chemistry', 4, 1],
+      [3, 'Basic Analytical Techniques', 4, 1],
+      [4, 'Structure of Atom', 7, 3],
+      [5, 'Chemical Bonding', 8, 3],
+      [6, 'Redox Reactions', 5, 2],
+      [7, 'Modern Periodic Table', 5, 2],
+      [8, 'Elements of Group 1 and 2', 6, 2],
+      [9, 'States of Matter', 6, 2],
+      [10, 'Adsorption and Colloids', 5, 2],
+      [11, 'Chemical Equilibrium', 7, 3],
+      [12, 'Surface Chemistry', 4, 1],
+      [13, 'Hydrocarbons', 8, 3],
+      [14, 'Basic Principles of Organic Chemistry', 7, 3],
+      [15, 'Chemistry in Everyday Life', 4, 1]
+    ] : [
+      ['', headerYear, '', ''],
       ['', 'Chemistry', 'No of lec for mp/tp', ''],
       ['Sr.no', 'Title', 'Boards', 'Entrance'],
       [1, 'Solid State', 6, 3],
@@ -699,8 +743,30 @@ export default function ActivityTimetableManagement() {
     XLSX.utils.book_append_sheet(wb, wsChem, 'Chemistry');
 
     // Mathematics Sheet
-    const mathData = [
-      ['', '12th 2026 – 2027', '', ''],
+    const mathData = is11th ? [
+      ['', headerYear, '', ''],
+      ['', 'Mathematics', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Angle and Its Measurement', 5, 2],
+      [2, 'Trigonometry - I', 6, 2],
+      [3, 'Trigonometry - II', 7, 3],
+      [4, 'Determinants and Matrices', 6, 2],
+      [5, 'Straight Line', 7, 3],
+      [6, 'Circle', 6, 2],
+      [7, 'Conic Sections', 8, 3],
+      [8, 'Measures of Dispersion', 5, 2],
+      [9, 'Probability', 6, 2],
+      [10, 'Complex Numbers', 6, 2],
+      [11, 'Sequences and Series', 6, 2],
+      [12, 'Permutations and Combinations', 7, 3],
+      [13, 'Mathematical Induction & Binomial Theorem', 5, 2],
+      [14, 'Sets and Relations', 5, 2],
+      [15, 'Functions', 6, 2],
+      [16, 'Limits', 6, 2],
+      [17, 'Continuity', 5, 2],
+      [18, 'Differentiation', 7, 3]
+    ] : [
+      ['', headerYear, '', ''],
       ['', 'Mathematics', 'No of lec for mp/tp', ''],
       ['Sr.no', 'Title', 'Boards', 'Entrance'],
       [1, 'Mathematical Logic', 11, 2],
@@ -727,8 +793,28 @@ export default function ActivityTimetableManagement() {
     XLSX.utils.book_append_sheet(wb, wsMath, 'Mathematics');
 
     // Biology Sheet
-    const bioData = [
-      ['', '12th 2026 – 2027', '', ''],
+    const bioData = is11th ? [
+      ['', headerYear, '', ''],
+      ['', 'Biology', 'No of lec for mp/tp', ''],
+      ['Sr.no', 'Title', 'Boards', 'Entrance'],
+      [1, 'Living World', 4, 1],
+      [2, 'Systematics of Living Organisms', 5, 2],
+      [3, 'Kingdom Plantae', 6, 2],
+      [4, 'Kingdom Animalia', 6, 2],
+      [5, 'Cell Structure and Organization', 6, 2],
+      [6, 'Biomolecules', 7, 2],
+      [7, 'Cell Division', 5, 2],
+      [8, 'Plant Tissues and Anatomy', 5, 2],
+      [9, 'Morphology of Flowering Plants', 6, 2],
+      [10, 'Animal Tissue', 4, 1],
+      [11, 'Study of Animal Type: Cockroach', 5, 1],
+      [12, 'Photosynthesis', 7, 3],
+      [13, 'Respiration and Energy Transfer', 6, 2],
+      [14, 'Human Nutrition', 5, 2],
+      [15, 'Excretion and Osmoregulation', 5, 2],
+      [16, 'Skeleton and Locomotion', 5, 2]
+    ] : [
+      ['', headerYear, '', ''],
       ['', 'Biology', 'No of lec for mp/tp', ''],
       ['Sr.no', 'Title', 'Boards', 'Entrance'],
       [1, 'Reproduction in Lower and Higher Plants', 8, 2],
@@ -754,8 +840,8 @@ export default function ActivityTimetableManagement() {
     ];
     XLSX.utils.book_append_sheet(wb, wsBio, 'Biology');
 
-    XLSX.writeFile(wb, 'Shubham_Academy_Syllabus_Plan_Template.xlsx');
-    toast.success('Downloaded complete 4-subject syllabus template (Physics, Chemistry, Maths, Biology)!');
+    XLSX.writeFile(wb, `Shubham_Academy_${syllabusStandard}_Syllabus_Plan_Template.xlsx`);
+    toast.success(`Downloaded complete 4-subject ${syllabusStandard} syllabus template (Physics, Chemistry, Maths, Biology)!`);
   };
 
   const handleOpenAddChapterModal = (targetSubject) => {
@@ -977,14 +1063,17 @@ export default function ActivityTimetableManagement() {
         const binaryString = evt.target.result;
         const workbook = XLSX.read(binaryString, { type: 'binary' });
 
-        // Auto-detect if this is the Syllabus / Lecture Plan format (Boards vs Entrance for mp/tp)
+        // Auto-detect if this is the Syllabus / Lecture Plan format (Boards vs Entrance for mp/tp, 11th or 12th)
         const firstSheetName = workbook.SheetNames[0];
         const sheetDump = JSON.stringify(workbook.Sheets[firstSheetName] || {}).toLowerCase();
-        const isSyllabusSheet = (sheetDump.includes('entrance') && (sheetDump.includes('boards') || sheetDump.includes('mp/tp') || sheetDump.includes('rotational') || sheetDump.includes('solid state')));
+        const isSyllabusSheet = (
+          (sheetDump.includes('entrance') || sheetDump.includes('boards') || sheetDump.includes('no of lec') || sheetDump.includes('rotational') || sheetDump.includes('units and measurements') || sheetDump.includes('living world')) &&
+          (sheetDump.includes('boards') || sheetDump.includes('entrance') || sheetDump.includes('11th') || sheetDump.includes('12th') || sheetDump.includes('mp/tp') || sheetDump.includes('physics') || sheetDump.includes('chemistry') || sheetDump.includes('math') || sheetDump.includes('bio'))
+        );
 
         if (isSyllabusSheet) {
-          // Immediately process syllabus and switch to the exact As-It-Is Excel sheet view
-          await processSyllabusWorkbook(workbook, true);
+          // Immediately process syllabus and switch to the exact As-It-Is Excel sheet view for this standard
+          await processSyllabusWorkbook(workbook, false);
           return;
         }
 
@@ -2518,6 +2607,22 @@ export default function ActivityTimetableManagement() {
         </div>
       </div>
 
+      {/* Universal Hidden File Inputs for Excel Uploads (Accessible across all tabs & standard modes) */}
+      <input
+        type="file"
+        ref={dailyExcelInputRef}
+        accept=".xlsx, .xls, .csv"
+        style={{ display: 'none' }}
+        onChange={handleDailyExcelChange}
+      />
+      <input
+        type="file"
+        ref={syllabusExcelInputRef}
+        accept=".xlsx, .xls"
+        style={{ display: 'none' }}
+        onChange={handleSyllabusExcelUpload}
+      />
+
       {/* ========================================================= */}
       {/* SECTION 1: DAILY ACTIVITIES TAB CONTENT */}
       {/* ========================================================= */}
@@ -2538,15 +2643,6 @@ export default function ActivityTimetableManagement() {
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap">
-              {/* Hidden File Input for Excel Import */}
-              <input
-                type="file"
-                ref={dailyExcelInputRef}
-                accept=".xlsx, .xls, .csv"
-                style={{ display: 'none' }}
-                onChange={handleDailyExcelChange}
-              />
-
               <button
                 type="button"
                 onClick={handleTriggerDailyExcel}
@@ -3894,15 +3990,6 @@ export default function ActivityTimetableManagement() {
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-md-auto">
-              {/* Hidden File Input for Syllabus Excel Import */}
-              <input
-                type="file"
-                ref={syllabusExcelInputRef}
-                accept=".xlsx, .xls"
-                style={{ display: 'none' }}
-                onChange={handleSyllabusExcelUpload}
-              />
-
               <button
                 type="button"
                 onClick={handleTriggerSyllabusExcel}
