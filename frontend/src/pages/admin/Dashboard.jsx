@@ -54,10 +54,15 @@ import {
   Coins,
   CreditCard,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Unlock,
+  KeyRound
 } from 'lucide-react';
+import { useAccountsAuth } from '../../context/AccountsAuthContext';
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { isAccountsUnlocked, openAccountsModal } = useAccountsAuth();
   const { user } = useAuth();
   const isSuperAdmin = (user?.role || '').toLowerCase().replace('-', '_').includes('super_admin');
   const activeBranch = getUserBranch(user);
@@ -1327,7 +1332,13 @@ export default function AdminDashboard() {
             <div className="col-6 col-sm-auto">
               <button
                 type="button"
-                onClick={() => navigate('/admin/teachers/salary')}
+                onClick={() => {
+                  if (!isAccountsUnlocked) {
+                    openAccountsModal('/admin/teachers/salary', selectedCampus);
+                  } else {
+                    navigate('/admin/teachers/salary');
+                  }
+                }}
                 className="btn btn-sm text-white d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 shadow-xs w-100 text-nowrap"
                 style={{ backgroundColor: '#8B1216', fontSize: '0.78rem', fontWeight: 600, height: '36px' }}
               >
@@ -1592,13 +1603,46 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate('/admin/teachers/salary')}
+                  onClick={() => {
+                    if (!isAccountsUnlocked) {
+                      openAccountsModal('/admin/teachers/salary', selectedCampus);
+                    } else {
+                      navigate('/admin/teachers/salary');
+                    }
+                  }}
                   className="btn btn-link p-0 text-decoration-none fw-semibold"
                   style={{ fontSize: '0.78rem', color: 'var(--sa-primary-red)' }}
                 >
                   Salary Register &rarr;
                 </button>
               </div>
+
+              {!isAccountsUnlocked ? (
+                <div className="p-3.5 text-center my-auto d-flex flex-column align-items-center justify-content-center bg-light rounded-3 border">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center mb-2"
+                    style={{ width: '38px', height: '38px', backgroundColor: '#FDF0F0', color: '#8B1216' }}
+                  >
+                    <Lock size={18} />
+                  </div>
+                  <h6 className="fw-bold text-sa-charcoal mb-1" style={{ fontSize: '13px' }}>
+                    Payroll Confidential
+                  </h6>
+                  <p className="text-muted small mb-2.5" style={{ fontSize: '11px', maxWidth: '240px', lineHeight: 1.35 }}>
+                    Teacher salaries are protected from general staff view. Enter Accounts ID & Password to reveal.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openAccountsModal('/admin/teachers/salary', selectedCampus)}
+                    className="btn btn-sm text-white px-3 py-1 rounded-2 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-2xs"
+                    style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
+                  >
+                    <KeyRound size={12} />
+                    <span>Unlock Accounts</span>
+                  </button>
+                </div>
+              ) : (
+                <>
 
               {/* KPI Pill */}
               <div
@@ -1693,19 +1737,27 @@ export default function AdminDashboard() {
                   })
                 )}
               </div>
+            </>
+          )}
 
-              {/* Card Footer */}
-              <div className="mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
-                <span>Payroll cycle: Monthly 1st-30th</span>
-                <button
-                  type="button"
-                  onClick={() => navigate('/admin/teachers/salary')}
-                  className="btn btn-link p-0 text-decoration-none fw-semibold"
-                  style={{ fontSize: '0.74rem', color: '#8B1216' }}
-                >
-                  Disburse &rarr;
-                </button>
-              </div>
+          {/* Card Footer */}
+          <div className="mt-2.5 pt-2 border-top d-flex align-items-center justify-content-between text-sa-muted" style={{ fontSize: '0.74rem' }}>
+            <span>Payroll cycle: Monthly 1st-30th</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isAccountsUnlocked) {
+                  openAccountsModal('/admin/teachers/salary', selectedCampus);
+                } else {
+                  navigate('/admin/teachers/salary');
+                }
+              }}
+              className="btn btn-link p-0 text-decoration-none fw-semibold"
+              style={{ fontSize: '0.74rem', color: '#8B1216' }}
+            >
+              Disburse &rarr;
+            </button>
+          </div>
             </div>
           </div>
         </div>

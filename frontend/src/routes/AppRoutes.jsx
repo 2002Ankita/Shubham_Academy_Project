@@ -47,6 +47,8 @@ import FeeReminderSettings from '../pages/admin/FeeReminderSettings';
 import FeeReminderHistory from '../pages/admin/FeeReminderHistory';
 import BranchUpiScannerSettings from '../pages/admin/BranchUpiScannerSettings';
 import OfflineFeeRequests from '../pages/admin/OfflineFeeRequests';
+import Accounts from '../pages/admin/Accounts';
+import AccountsProtectedRoute from '../components/accounts/AccountsProtectedRoute';
 import CreateExam from '../pages/admin/CreateExam';
 import MarksEntry from '../pages/admin/MarksEntry';
 import Results from '../pages/admin/Results';
@@ -159,21 +161,22 @@ export default function AppRoutes() {
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />
+        <Route path="/admin/accounts" element={<AccountsProtectedRoute><Accounts /></AccountsProtectedRoute>} />
         <Route path="/admin/teachers" element={<TeacherList />} />
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
-        <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
+        <Route path="/admin/teachers/salary" element={<AccountsProtectedRoute><TeacherSalary /></AccountsProtectedRoute>} />
         <Route path="/admin/teachers/attendance" element={<TeacherAttendanceTracker />} />
         <Route path="/admin/teachers/leave-approvals" element={<LeaveApprovals />} />
         <Route path="/admin/teachers/:id/working-time" element={<WorkingTime />} />
         <Route path="/admin/attendance" element={<AttendanceManagement />} />
         <Route path="/admin/attendance/report" element={<AttendanceReport />} />
-        <Route path="/admin/fees" element={<FeeCollection />} />
-        <Route path="/admin/fees/offline-requests" element={<OfflineFeeRequests />} />
-        <Route path="/admin/fees/upi-scanner" element={<BranchUpiScannerSettings />} />
-        <Route path="/admin/fees/structure" element={<FeeStructure />} />
+        <Route path="/admin/fees" element={<AccountsProtectedRoute><FeeCollection /></AccountsProtectedRoute>} />
+        <Route path="/admin/fees/offline-requests" element={<AccountsProtectedRoute><OfflineFeeRequests /></AccountsProtectedRoute>} />
+        <Route path="/admin/fees/upi-scanner" element={<AccountsProtectedRoute><BranchUpiScannerSettings /></AccountsProtectedRoute>} />
+        <Route path="/admin/fees/structure" element={<AccountsProtectedRoute><FeeStructure /></AccountsProtectedRoute>} />
         <Route path="/admin/fees/pending" element={<PendingFees />} />
-        <Route path="/admin/fees/receipts" element={<FeeReceiptsList />} />
-        <Route path="/admin/fees/receipt" element={<FeeReceipt />} />
+        <Route path="/admin/fees/receipts" element={<AccountsProtectedRoute><FeeReceiptsList /></AccountsProtectedRoute>} />
+        <Route path="/admin/fees/receipt" element={<AccountsProtectedRoute><FeeReceipt /></AccountsProtectedRoute>} />
         <Route path="/admin/discounts" element={<DiscountApprovals />} />
         <Route path="/admin/discount-approvals" element={<DiscountApprovals />} />
         <Route path="/admin/fees/reminder-settings" element={<FeeReminderSettings />} />

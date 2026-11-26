@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useAccountsAuth } from '../../context/AccountsAuthContext';
 import studentService from '../../services/studentService';
 import feeService from '../../services/feeService';
 import { getUserBranch } from '../../utils/branchUtils';
@@ -43,7 +44,10 @@ import {
   LifeBuoy,
   StickyNote,
   BadgePercent,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Unlock,
+  AlertCircle
 } from 'lucide-react';
 
 // Custom Teacher Icon with bust and pen matching reference screenshot for Super Admin
@@ -264,6 +268,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const usesPearlNavigation = isAdmin || isSuperAdmin || isStudent || isTeacher;
   const sidebarWidth = usesPearlNavigation ? '265px' : (width || 'var(--sa-sidebar-width)');
   const userBranch = getUserBranch(user);
+  const { isAccountsUnlocked, openAccountsModal, lockAccounts } = useAccountsAuth();
 
   const handleLogout = async () => {
     if (onClose) onClose();
@@ -327,20 +332,22 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const getNavLinks = () => {
     const role = (user?.role || 'admin').toLowerCase().replace('-', '_');
 
-    const feeSubmenuItem = {
-      label: 'Fees Collection',
+    const accountsSubmenuItem = {
+      label: 'Accounts & Finance',
       icon: FeeRupeeIcon,
       isSubmenu: true,
-      menuKey: 'Fees Collection',
-      path: '/admin/fees',
-      matchPrefixes: ['/admin/fees'],
+      menuKey: 'Accounts & Finance',
+      path: '/admin/accounts',
+      isAccountsProtected: true,
+      matchPrefixes: ['/admin/accounts', '/admin/fees', '/admin/teachers/salary'],
       children: [
-        { label: 'Fee Collection', path: '/admin/fees', exact: true },
+        { label: 'Accounts Dashboard', path: '/admin/accounts', exact: true },
+        { label: 'Monthly Fees Counter', path: '/admin/fees', exact: true },
+        { label: 'Teacher Salary & Payroll', path: '/admin/teachers/salary', exact: true },
         { label: 'Cash & Cheque Requests', path: '/admin/fees/offline-requests', badge: pendingOfflineCount, isNew: true },
         { label: 'Branch UPI Scanner & QR', path: '/admin/fees/upi-scanner', isNew: true },
-        { label: 'Pending Fees', path: '/admin/fees/pending' },
-        { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Fee Receipts', path: '/admin/fees/receipts' },
+        { label: 'Fee Structure', path: '/admin/fees/structure' },
         { label: 'Fee Reminder Settings', path: '/admin/fees/reminder-settings', isNew: true },
         { label: 'Reminder History', path: '/admin/fees/reminder-history', isNew: true }
       ]
@@ -354,7 +361,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
-        feeSubmenuItem,
+        { label: 'Fee Defaulters & Recovery', path: '/admin/fees/pending', icon: AlertCircle, matchPrefixes: ['/admin/fees/pending'] },
+        accountsSubmenuItem,
         { label: 'Discount Approvals', path: '/super-admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/super-admin/discounts', '/super-admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
         { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
@@ -397,7 +405,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
-        feeSubmenuItem,
+        { label: 'Fee Defaulters & Recovery', path: '/admin/fees/pending', icon: AlertCircle, matchPrefixes: ['/admin/fees/pending'] },
+        accountsSubmenuItem,
         { label: 'Discount Approvals', path: '/admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/admin/discounts', '/admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
         { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
@@ -632,12 +641,20 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
               if (item.isSubmenu) {
                 const isSubmenuOpen = !!openSubmenus[item.menuKey];
-                const active = location.pathname.startsWith('/admin/fees');
+                const active = item.matchPrefixes ? item.matchPrefixes.some(p => location.pathname.startsWith(p)) : location.pathname.startsWith(item.path);
+
+                const handleSubmenuToggle = () => {
+                  if (item.isAccountsProtected && !isAccountsUnlocked) {
+                    openAccountsModal(item.path, userBranch);
+                    return;
+                  }
+                  toggleSubmenu(item.menuKey);
+                };
 
                 return (
                   <div key={item.menuKey} className="d-flex flex-column" style={{ gap: '3px' }}>
                     <div
-                      onClick={() => toggleSubmenu(item.menuKey)}
+                      onClick={handleSubmenuToggle}
                       role="button"
                       className="d-flex align-items-center justify-content-between text-decoration-none transition-all cursor-pointer"
                       style={{
@@ -675,8 +692,34 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                         <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
                         <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
                       </div>
-                      <div className="text-white text-opacity-80 transition-all ps-1">
-                        {isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      <div className="d-flex align-items-center gap-1.5">
+                        {item.isAccountsProtected && (
+                          isAccountsUnlocked ? (
+                            <span
+                              className="badge d-inline-flex align-items-center gap-1 py-0.5 px-1.5 rounded-pill"
+                              style={{ backgroundColor: 'rgba(34, 197, 94, 0.25)', color: '#86EFAC', fontSize: '9.5px', border: '1px solid rgba(34, 197, 94, 0.4)' }}
+                              title="Accounts Unlocked - Click to Lock Session"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                lockAccounts();
+                              }}
+                            >
+                              <Unlock size={10} />
+                              <span>Lock</span>
+                            </span>
+                          ) : (
+                            <span
+                              className="badge d-inline-flex align-items-center gap-1 py-0.5 px-1.5 rounded-pill"
+                              style={{ backgroundColor: 'rgba(239, 68, 68, 0.25)', color: '#FCA5A5', fontSize: '9.5px', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                            >
+                              <Lock size={10} />
+                              <span>Locked</span>
+                            </span>
+                          )
+                        )}
+                        <div className="text-white text-opacity-80 transition-all ps-1">
+                          {isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
                       </div>
                     </div>
 
@@ -696,7 +739,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                             <NavLink
                               key={child.path}
                               to={child.path}
-                              onClick={onClose}
+                              onClick={(e) => {
+                                if (item.isAccountsProtected && !isAccountsUnlocked) {
+                                  e.preventDefault();
+                                  openAccountsModal(child.path, userBranch);
+                                  return;
+                                }
+                                if (onClose) onClose();
+                              }}
                               className="d-flex align-items-center justify-content-between text-decoration-none transition-all py-1.5 px-2.5 rounded-2"
                               style={{
                                 backgroundColor: childActive

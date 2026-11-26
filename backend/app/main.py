@@ -74,7 +74,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 from app.routers import (
     auth, students, teachers, attendance, marks, exams, fees, salary, notices,
     reports, materials, leave_requests, inventory, batches, reminders,
-    daily_activities, topic_durations
+    daily_activities, topic_durations, accounts
 )
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(students.router, prefix=settings.API_V1_STR)
@@ -84,6 +84,7 @@ app.include_router(marks.router, prefix=settings.API_V1_STR)
 app.include_router(exams.router, prefix=settings.API_V1_STR)
 app.include_router(fees.router, prefix=settings.API_V1_STR)
 app.include_router(salary.router, prefix=settings.API_V1_STR)
+app.include_router(accounts.router, prefix=settings.API_V1_STR)
 app.include_router(notices.router, prefix=settings.API_V1_STR)
 app.include_router(reports.router, prefix=settings.API_V1_STR)
 app.include_router(materials.router, prefix=settings.API_V1_STR)

@@ -287,6 +287,44 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
             transaction_ref=txn_ref
         ))
         await s.save()
+
+        # Automatic Salary Disbursement Notification dispatched directly to Super Admin
+        try:
+            from app.models.notices import Notice
+            from app.models.user import User
+
+            teacher_name = "Teacher"
+            teacher_branch = "Academy"
+            if s.teacher:
+                t_obj = await s.teacher.fetch()
+                if t_obj:
+                    teacher_branch = getattr(t_obj, 'branch', 'Academy') or 'Academy'
+                    if hasattr(t_obj, 'user') and t_obj.user:
+                        u_obj = await t_obj.user.fetch()
+                        if u_obj:
+                            teacher_name = getattr(u_obj, 'full_name', None) or getattr(u_obj, 'name', 'Teacher')
+                    if teacher_name == "Teacher":
+                        teacher_name = getattr(t_obj, 'employee_id', 'Faculty')
+
+            super_user = await User.find_one(User.role == "super_admin") or await User.find_one(User.role == "admin")
+            if super_user:
+                notice = Notice(
+                    title=f"💸 Salary Disbursed: {teacher_name} (₹{payment_amount:,.2f})",
+                    content=(
+                        f"Faculty payroll disbursement of ₹{payment_amount:,.2f} has been processed for {teacher_name} "
+                        f"({s.month_name}). Campus: {teacher_branch}. NEFT Ref: {txn_ref}. "
+                        f"Status: {s.status} (Pending Balance: ₹{s.amount_pending:,.2f})."
+                    ),
+                    target_audiences=["SUPER_ADMIN"],
+                    category="Salary & Accounts",
+                    priority="High",
+                    created_by=super_user
+                )
+                await notice.insert()
+                print(f"[Salary Notification] Successfully notified Super Admin of ₹{payment_amount} disbursement for {teacher_name}")
+        except Exception as notify_err:
+            print("Salary disbursement notice dispatch warning:", notify_err)
+
         return await _format_salary(s)
     except:
         raise HTTPException(status_code=404, detail="Salary not found")
