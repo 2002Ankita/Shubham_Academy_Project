@@ -301,11 +301,14 @@ export default function ActivityTimetableManagement() {
     branch_scope: 'mp/tp'
   });
 
-  const loadSyllabusData = async () => {
+  const loadSyllabusData = async (targetStandard = null) => {
     try {
+      const activeStd = (targetStandard === '11th' || targetStandard === '12th')
+        ? targetStandard
+        : syllabusStandard;
       const data = await curriculumService.getSyllabusPlan({
         subject: 'All',
-        standard: syllabusStandard,
+        standard: activeStd,
         academic_year: syllabusAcademicYear
       });
       if (Array.isArray(data)) {
@@ -317,20 +320,22 @@ export default function ActivityTimetableManagement() {
   };
 
   useEffect(() => {
-    if (activeTab === 'syllabus') {
-      loadSyllabusData();
+    if (activeTab === 'syllabus' || dailyViewMode === 'excel') {
+      loadSyllabusData(syllabusStandard);
     }
-  }, [activeTab]);
+  }, [activeTab, dailyViewMode, syllabusStandard]);
 
   const filteredSyllabusList = useMemo(() => {
     return syllabusList
       .filter((item) => {
         const matchSubject = syllabusSubject === 'All' || !syllabusSubject ||
           (item.subject && item.subject.toLowerCase() === syllabusSubject.toLowerCase());
+        const matchStandard = !syllabusStandard || !item.standard ||
+          item.standard.toLowerCase().includes(syllabusStandard.toLowerCase());
         const matchSearch = !syllabusSearch.trim() ||
           (item.title && item.title.toLowerCase().includes(syllabusSearch.toLowerCase())) ||
           String(item.sr_no).includes(syllabusSearch);
-        return matchSubject && matchSearch;
+        return matchSubject && matchStandard && matchSearch;
       })
       .sort((a, b) => {
         const subA = String(a.subject || '');
@@ -1726,18 +1731,66 @@ export default function ActivityTimetableManagement() {
           style={{ backgroundColor: '#F8FAFC', borderColor: '#475569' }}
         >
           {/* Row 1 on mobile: Sheet Badge on left, Action buttons on right */}
-          <div className="d-flex align-items-center justify-content-between w-100 w-md-auto gap-2">
-            <span
-              className="badge px-2.5 py-1.5 fw-bold text-white shadow-xs text-nowrap"
-              style={{
-                backgroundColor: facultyColorMap[subjectName] || '#1E293B',
-                fontSize: '11.5px',
-                letterSpacing: '0.3px',
-                borderRadius: '6px'
-              }}
-            >
-              📑 Sheet: {subjectName}
-            </span>
+          <div className="d-flex align-items-center justify-content-between w-100 w-md-auto gap-2 flex-wrap">
+            <div className="d-flex align-items-center gap-2">
+              <span
+                className="badge px-2.5 py-1.5 fw-bold text-white shadow-xs text-nowrap"
+                style={{
+                  backgroundColor: facultyColorMap[subjectName] || '#1E293B',
+                  fontSize: '11.5px',
+                  letterSpacing: '0.3px',
+                  borderRadius: '6px'
+                }}
+              >
+                📑 Sheet: {subjectName}
+              </span>
+
+              {/* Standard Switcher Buttons (11th & 12th) */}
+              <div className="d-inline-flex align-items-center p-0.5 bg-white border rounded-2 shadow-2xs" style={{ borderColor: '#CBD5E1' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyllabusStandard('11th');
+                    loadSyllabusData('11th');
+                  }}
+                  className={`btn btn-xs px-2.5 py-0.5 fw-bold text-nowrap transition-all ${
+                    syllabusStandard === '11th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: syllabusStandard === '11th' ? '#8B1216' : 'transparent',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    height: '24px'
+                  }}
+                  title="Switch to 11th Standard"
+                >
+                  📘 11th
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyllabusStandard('12th');
+                    loadSyllabusData('12th');
+                  }}
+                  className={`btn btn-xs px-2.5 py-0.5 fw-bold text-nowrap transition-all ${
+                    syllabusStandard === '12th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: syllabusStandard === '12th' ? '#8B1216' : 'transparent',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    height: '24px'
+                  }}
+                  title="Switch to 12th Standard"
+                >
+                  📙 12th
+                </button>
+              </div>
+            </div>
 
             {/* Action buttons (Add Chapter & Import) on mobile view */}
             <div className="d-flex d-md-none align-items-center gap-1.5">
@@ -2772,61 +2825,118 @@ export default function ActivityTimetableManagement() {
             </div>
           </div>
 
-          {/* View Format Switcher */}
-          <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2.5 pt-1">
-            <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 w-100 w-md-auto">
-              <span className="fw-bold text-sa-charcoal text-nowrap" style={{ fontSize: '12.5px' }}>
-                View Format:
-              </span>
-              <div
-                className="d-flex align-items-center p-0.5 bg-light border rounded-3 w-100 w-sm-auto shadow-2xs"
-                style={{ borderColor: '#CBD5E1' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setDailyViewMode('excel')}
-                  className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
-                    dailyViewMode === 'excel' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-                  }`}
-                  style={{
-                    backgroundColor: dailyViewMode === 'excel' ? '#8B1216' : 'transparent',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    height: '34px',
-                    lineHeight: 1
-                  }}
+          {/* View Format Switcher & Separate 11th / 12th Buttons */}
+          <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-2.5 pt-1">
+            <div className="d-flex flex-wrap align-items-center gap-2.5 w-100 w-lg-auto">
+              {/* View Format Switcher */}
+              <div className="d-flex align-items-center gap-2">
+                <span className="fw-bold text-sa-charcoal text-nowrap" style={{ fontSize: '12.5px' }}>
+                  View Format:
+                </span>
+                <div
+                  className="d-flex align-items-center p-0.5 bg-light border rounded-3 shadow-2xs"
+                  style={{ borderColor: '#CBD5E1' }}
                 >
-                  <FileSpreadsheet size={13} className="flex-shrink-0" />
-                  <span className="d-none d-sm-inline">Excel Sheet Structure (As-It-Is)</span>
-                  <span className="d-inline d-sm-none">Excel Structure</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDailyViewMode('logs')}
-                  className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
-                    dailyViewMode === 'logs' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
-                  }`}
-                  style={{
-                    backgroundColor: dailyViewMode === 'logs' ? '#8B1216' : 'transparent',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    height: '34px',
-                    lineHeight: 1
-                  }}
+                  <button
+                    type="button"
+                    onClick={() => setDailyViewMode('excel')}
+                    className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
+                      dailyViewMode === 'excel' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                    }`}
+                    style={{
+                      backgroundColor: dailyViewMode === 'excel' ? '#8B1216' : 'transparent',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      height: '34px',
+                      lineHeight: 1
+                    }}
+                  >
+                    <FileSpreadsheet size={13} className="flex-shrink-0" />
+                    <span className="d-none d-sm-inline">Excel Sheet Structure (As-It-Is)</span>
+                    <span className="d-inline d-sm-none">Excel Structure</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDailyViewMode('logs')}
+                    className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 fw-semibold px-3 py-1.5 flex-grow-1 flex-sm-grow-0 text-nowrap transition-all ${
+                      dailyViewMode === 'logs' ? 'bg-sa-maroon text-white shadow-xs' : 'text-sa-charcoal'
+                    }`}
+                    style={{
+                      backgroundColor: dailyViewMode === 'logs' ? '#8B1216' : 'transparent',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      height: '34px',
+                      lineHeight: 1
+                    }}
+                  >
+                    <CalendarDays size={13} className="flex-shrink-0" />
+                    <span className="d-none d-sm-inline">Detailed Activity Logs</span>
+                    <span className="d-inline d-sm-none">Activity Logs</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Standard Switcher: 11th and 12th Buttons Separately */}
+              <div className="d-flex align-items-center gap-1.5">
+                <span className="small fw-bold text-sa-muted text-nowrap" style={{ fontSize: '11.5px' }}>
+                  Standard:
+                </span>
+                <div
+                  className="d-flex align-items-center p-0.5 bg-white border rounded-3 shadow-2xs"
+                  style={{ borderColor: '#CBD5E1' }}
                 >
-                  <CalendarDays size={13} className="flex-shrink-0" />
-                  <span className="d-none d-sm-inline">Detailed Activity Logs</span>
-                  <span className="d-inline d-sm-none">Activity Logs</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSyllabusStandard('11th');
+                      loadSyllabusData('11th');
+                    }}
+                    className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-bold px-3 py-1 text-nowrap transition-all ${
+                      syllabusStandard === '11th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                    }`}
+                    style={{
+                      backgroundColor: syllabusStandard === '11th' ? '#8B1216' : 'transparent',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      height: '32px'
+                    }}
+                    title="View 11th Standard Syllabus & Activities"
+                  >
+                    <span>📘 11th Standard</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSyllabusStandard('12th');
+                      loadSyllabusData('12th');
+                    }}
+                    className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-bold px-3 py-1 text-nowrap transition-all ${
+                      syllabusStandard === '12th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                    }`}
+                    style={{
+                      backgroundColor: syllabusStandard === '12th' ? '#8B1216' : 'transparent',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      height: '32px'
+                    }}
+                    title="View 12th Standard Syllabus & Activities"
+                  >
+                    <span>📙 12th Standard</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {dailyViewMode === 'excel' && (
-              <div className="d-flex align-items-center gap-1.5 flex-wrap w-100 w-md-auto mt-1 mt-md-0">
+              <div className="d-flex align-items-center gap-1.5 flex-wrap w-100 w-lg-auto mt-1 mt-lg-0">
                 {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
                   const isSelected = syllabusSubject === sub;
                   return (
@@ -2835,7 +2945,7 @@ export default function ActivityTimetableManagement() {
                       type="button"
                       onClick={() => {
                         setSyllabusSubject(sub);
-                        loadSyllabusData(sub);
+                        loadSyllabusData(syllabusStandard);
                       }}
                       className="btn btn-sm px-2.5 py-1.5 fw-semibold flex-grow-1 flex-md-grow-0 text-center text-nowrap transition-all shadow-2xs"
                       style={{
@@ -3877,46 +3987,94 @@ export default function ActivityTimetableManagement() {
 
           {/* Subject Navigation Tabs & Search Controls */}
           <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
-            {/* Subject Tabs - Authentic Excel Sheet Tabs */}
-            <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap w-100 w-md-auto" style={{ borderColor: '#E2E8F0', maxWidth: '100%' }}>
-              {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
-                const count = sub === 'All'
-                  ? syllabusList.length
-                  : syllabusList.filter((s) => s.subject && s.subject.toLowerCase() === sub.toLowerCase()).length;
-                const isSelected = syllabusSubject === sub;
-                const label = sub === 'All' ? '📑 All Sheets (Stacked)' : `📑 ${sub}`;
-                return (
-                  <button
-                    key={sub}
-                    type="button"
-                    onClick={() => {
-                      setSyllabusSubject(sub);
-                      loadSyllabusData(sub);
-                    }}
-                    className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold transition-all px-3 py-1.5`}
-                    style={{
-                      backgroundColor: isSelected ? '#8B1216' : '#FFFFFF',
-                      color: isSelected ? '#FFFFFF' : '#334155',
-                      border: isSelected ? '1px solid #8B1216' : '1px solid #CBD5E1',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span>{label}</span>
-                    <span
-                      className="badge rounded-pill"
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              {/* Standard Switcher: 11th & 12th Buttons */}
+              <div className="d-flex align-items-center p-0.5 bg-white border rounded-3 shadow-2xs" style={{ borderColor: '#CBD5E1' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyllabusStandard('11th');
+                    loadSyllabusData('11th');
+                  }}
+                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-bold px-3 py-1 text-nowrap transition-all ${
+                    syllabusStandard === '11th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: syllabusStandard === '11th' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    height: '32px'
+                  }}
+                  title="View 11th Standard Syllabus Plan"
+                >
+                  <span>📘 11th Standard</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyllabusStandard('12th');
+                    loadSyllabusData('12th');
+                  }}
+                  className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-bold px-3 py-1 text-nowrap transition-all ${
+                    syllabusStandard === '12th' ? 'text-white shadow-xs' : 'text-sa-charcoal'
+                  }`}
+                  style={{
+                    backgroundColor: syllabusStandard === '12th' ? '#8B1216' : 'transparent',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    height: '32px'
+                  }}
+                  title="View 12th Standard Syllabus Plan"
+                >
+                  <span>📙 12th Standard</span>
+                </button>
+              </div>
+
+              {/* Subject Tabs - Authentic Excel Sheet Tabs */}
+              <div className="d-flex align-items-center gap-1.5 p-1 bg-light border rounded-3 flex-wrap" style={{ borderColor: '#E2E8F0', maxWidth: '100%' }}>
+                {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'All'].map((sub) => {
+                  const count = sub === 'All'
+                    ? syllabusList.length
+                    : syllabusList.filter((s) => s.subject && s.subject.toLowerCase() === sub.toLowerCase()).length;
+                  const isSelected = syllabusSubject === sub;
+                  const label = sub === 'All' ? '📑 All Sheets (Stacked)' : `📑 ${sub}`;
+                  return (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => {
+                        setSyllabusSubject(sub);
+                        loadSyllabusData(syllabusStandard);
+                      }}
+                      className={`btn btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold transition-all px-3 py-1.5`}
                       style={{
-                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
-                        color: isSelected ? '#FFFFFF' : '#475569',
-                        fontSize: '10.5px'
+                        backgroundColor: isSelected ? '#8B1216' : '#FFFFFF',
+                        color: isSelected ? '#FFFFFF' : '#334155',
+                        border: isSelected ? '1px solid #8B1216' : '1px solid #CBD5E1',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer'
                       }}
                     >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>{label}</span>
+                      <span
+                        className="badge rounded-pill"
+                        style={{
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
+                          color: isSelected ? '#FFFFFF' : '#475569',
+                          fontSize: '10.5px'
+                        }}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Chapter Search Filter */}

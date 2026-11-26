@@ -91,6 +91,80 @@ DEFAULT_SYLLABUS_PLANS = [
     {"sr_no": 15, "title": "Biodiversity, Conservations and Environmental Issues", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "12th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"}
 ]
 
+DEFAULT_11TH_SYLLABUS_PLANS = [
+    # 1. Physics - 11th (14 Chapters)
+    {"sr_no": 1, "title": "Units and Measurements", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Mathematical Methods (Vectors)", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Motion in a Plane", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Laws of Motion", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Gravitation", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Mechanical Properties of Solids", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Thermal Properties of Matter", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Sound", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Optics", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Electrostatics", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Electric Current Through Conductors", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Magnetism", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Electromagnetic Waves & Communication", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Semiconductors", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Physics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 2. Chemistry - 11th (16 Chapters)
+    {"sr_no": 1, "title": "Some Basic Concepts of Chemistry", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Introduction to Analytical Chemistry", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Basic Analytical Techniques", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Structure of Atom", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Chemical Bonding", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Redox Reactions", "boards_lectures": 4, "entrance_lectures": 2, "total_lectures": 6, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Modern Periodic Table", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Elements of Group 1 and 2", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Elements of Group 13, 14 and 15", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "States of Matter", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Adsorption and Colloids", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Chemical Equilibrium", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Nuclear Chemistry and Radioactivity", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Basic Principles of Organic Chemistry", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Hydrocarbons", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 16, "title": "Chemistry in Everyday Life", "boards_lectures": 3, "entrance_lectures": 1, "total_lectures": 4, "subject": "Chemistry", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 3. Mathematics - 11th (18 Chapters)
+    {"sr_no": 1, "title": "Angle and Its Measurement", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Trigonometry - I", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Trigonometry - II", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Determinants and Matrices", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Straight Line", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Circle", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Conic Sections", "boards_lectures": 8, "entrance_lectures": 3, "total_lectures": 11, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Measures of Dispersion", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Probability", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Complex Numbers", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Sequences and Series", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Permutations and Combinations", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Mathematical Induction & Binomial Theorem", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Sets and Relations", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Functions", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 16, "title": "Limits", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 17, "title": "Continuity", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 18, "title": "Differentiation", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Mathematics", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+
+    # 4. Biology - 11th (16 Chapters)
+    {"sr_no": 1, "title": "Living World", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 2, "title": "Systematics of Living Organisms", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 3, "title": "Kingdom Plantae", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 4, "title": "Kingdom Animalia", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 5, "title": "Cell Structure and Organization", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 6, "title": "Biomolecules", "boards_lectures": 7, "entrance_lectures": 2, "total_lectures": 9, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 7, "title": "Cell Division", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 8, "title": "Plant Tissues and Anatomy", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 9, "title": "Morphology of Flowering Plants", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 10, "title": "Animal Tissue", "boards_lectures": 4, "entrance_lectures": 1, "total_lectures": 5, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 11, "title": "Study of Animal Type: Cockroach", "boards_lectures": 5, "entrance_lectures": 1, "total_lectures": 6, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 12, "title": "Photosynthesis", "boards_lectures": 7, "entrance_lectures": 3, "total_lectures": 10, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 13, "title": "Respiration and Energy Transfer", "boards_lectures": 6, "entrance_lectures": 2, "total_lectures": 8, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 14, "title": "Human Nutrition", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 15, "title": "Excretion and Osmoregulation", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"},
+    {"sr_no": 16, "title": "Skeleton and Locomotion", "boards_lectures": 5, "entrance_lectures": 2, "total_lectures": 7, "subject": "Biology", "standard": "11th", "academic_year": "2026 - 2027", "branch_scope": "mp/tp"}
+]
+
 @router.get("/syllabus-plan")
 async def get_syllabus_plan(
     subject: Optional[str] = None,
@@ -98,12 +172,19 @@ async def get_syllabus_plan(
     academic_year: Optional[str] = "2026 - 2027"
 ):
     """Retrieve syllabus & lecture breakdown for mp/tp (Boards vs Entrance)"""
-    # Seed default plans if none exist for branch_scope
-    count_existing = await TopicDuration.find({"branch_scope": "mp/tp"}).count()
-    if count_existing == 0:
-        for plan in DEFAULT_SYLLABUS_PLANS:
+    norm_std = (standard or "12th").strip().lower()
+
+    # Seed default plans if none exist for branch_scope and target standard
+    count_std = await TopicDuration.find({
+        "branch_scope": "mp/tp",
+        "standard": {"$regex": f"^{norm_std}", "$options": "i"}
+    }).count()
+
+    if count_std == 0:
+        plans_to_seed = DEFAULT_11TH_SYLLABUS_PLANS if "11" in norm_std else DEFAULT_SYLLABUS_PLANS
+        for plan in plans_to_seed:
             doc = TopicDuration(
-                topic_id=f"SYL-{plan['subject'][:3].upper()}-{plan['sr_no']:02d}",
+                topic_id=f"SYL-{plan['standard']}-{plan['subject'][:3].upper()}-{plan['sr_no']:02d}",
                 standard=plan.get("standard", "12th"),
                 branch=None,
                 batch=None,
@@ -124,6 +205,8 @@ async def get_syllabus_plan(
             await doc.insert()
 
     query = {"branch_scope": "mp/tp"}
+    if standard and standard.strip().lower() != "all":
+        query["standard"] = {"$regex": f"^{standard.strip()}", "$options": "i"}
     if subject and subject.strip().lower() != "all":
         query["subject"] = {"$regex": f"^{subject.strip()}$", "$options": "i"}
 
