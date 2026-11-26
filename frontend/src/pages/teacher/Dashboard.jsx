@@ -509,6 +509,26 @@ export default function TeacherDashboard() {
 
               <button
                 type="button"
+                onClick={() => navigate('/teacher/daily-activity', { state: { prefillBranch: 'Mangalwar Peth', prefillSession: 'Morning' } })}
+                className="btn btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{ fontSize: '0.82rem', padding: '5px 12px', borderRadius: '8px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', color: '#92400E' }}
+                title="Log teaching activity for Mangalwar Peth Morning Session"
+              >
+                <span>☀️ MP Morning Log</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/teacher/daily-activity', { state: { prefillBranch: 'Mangalwar Peth', prefillSession: 'Afternoon' } })}
+                className="btn btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+                style={{ fontSize: '0.82rem', padding: '5px 12px', borderRadius: '8px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}
+                title="Log teaching activity for Mangalwar Peth Afternoon Session"
+              >
+                <span>🌅 MP Afternoon Log</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => navigate('/teacher/daily-activity')}
                 className="btn btn-sm btn-light border text-sa-charcoal fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
                 style={{ fontSize: '0.82rem', padding: '5px 13px', borderRadius: '8px' }}

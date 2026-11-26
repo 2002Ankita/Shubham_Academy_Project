@@ -12,6 +12,7 @@ import AuthContext from '../../context/AuthContext';
 import { getUserBranch, filterExamsByBranch } from '../../utils/branchUtils';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import TestAttendanceModal from '../../components/common/TestAttendanceModal';
 import {
   BookCheck,
   FileSpreadsheet,
@@ -63,6 +64,8 @@ export default function TeacherExaminations() {
   const [editingExam, setEditingExam] = useState(null);
   const [viewingExam, setViewingExam] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showTestAttendanceModal, setShowTestAttendanceModal] = useState(false);
+  const [selectedTestExam, setSelectedTestExam] = useState(null);
 
   // Create / Edit Form State
   const initialForm = {
@@ -908,6 +911,30 @@ export default function TeacherExaminations() {
                           type="button"
                           className="btn btn-sm d-inline-flex align-items-center justify-content-center fw-medium shadow-2xs"
                           style={{
+                            backgroundColor: '#ECFDF5',
+                            color: '#065F46',
+                            border: '1px solid #A7F3D0',
+                            height: '32px',
+                            fontSize: '12px',
+                            padding: '0 10px',
+                            borderRadius: '8px',
+                            lineHeight: 1,
+                            transition: 'all 0.15s ease'
+                          }}
+                          onClick={() => {
+                            setSelectedTestExam(row);
+                            setShowTestAttendanceModal(true);
+                          }}
+                          title="Record student test attendance for this exam"
+                        >
+                          <ClipboardList size={13} className="me-1" />
+                          <span>Attendance</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-sm d-inline-flex align-items-center justify-content-center fw-medium shadow-2xs"
+                          style={{
                             backgroundColor: '#FFF5F5',
                             color: '#8B1216',
                             border: '1px solid #FCA5A5',
@@ -1312,6 +1339,17 @@ export default function TeacherExaminations() {
           </div>
         </div>
       </Modal>
+
+      {/* TEST ATTENDANCE MODAL */}
+      <TestAttendanceModal
+        isOpen={showTestAttendanceModal}
+        onClose={() => {
+          setShowTestAttendanceModal(false);
+          setSelectedTestExam(null);
+        }}
+        exam={selectedTestExam}
+        initialBranch={userBranch}
+      />
     </div>
   );
 }

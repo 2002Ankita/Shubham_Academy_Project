@@ -7,11 +7,12 @@ import examService from '../../services/examService';
 import teacherService from '../../services/teacherService';
 import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
-import { Calendar, Trash2, Bell, Building, Building2 } from 'lucide-react';
+import { Calendar, Trash2, Bell, Building, Building2, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getUserBranch, filterExamsByBranch, CAMPUS } from '../../utils/branchUtils';
 import { toast } from 'react-toastify';
+import TestAttendanceModal from '../../components/common/TestAttendanceModal';
 
 export default function CreateExam() {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ export default function CreateExam() {
   const [createLoading, setCreateLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
+  const [showTestAttendanceModal, setShowTestAttendanceModal] = useState(false);
+  const [selectedTestExam, setSelectedTestExam] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -233,6 +236,19 @@ export default function CreateExam() {
           )}
           <Button
             variant="outline"
+            icon={ClipboardList}
+            onClick={() => {
+              setSelectedTestExam(displayedExams[0] || null);
+              setShowTestAttendanceModal(true);
+            }}
+            className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
+            title="Mark and record test attendance for scheduled exams"
+          >
+            Test Attendance
+          </Button>
+
+          <Button
+            variant="outline"
             icon={Bell}
             onClick={() => navigate('/admin/notifications?tab=history&type=test_schedule')}
             className="flex-grow-1 flex-sm-grow-0 d-inline-flex align-items-center justify-content-center text-nowrap"
@@ -358,7 +374,20 @@ export default function CreateExam() {
               title: 'Action',
               align: 'end',
               render: (val, row) => (
-                <div className="d-flex gap-2 justify-content-end">
+                <div className="d-flex gap-2 justify-content-end align-items-center">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-success fw-semibold d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 shadow-2xs"
+                    style={{ fontSize: '11.5px', height: '29px' }}
+                    onClick={() => {
+                      setSelectedTestExam(row);
+                      setShowTestAttendanceModal(true);
+                    }}
+                    title="Mark student test attendance and question paper submission"
+                  >
+                    <ClipboardList size={13} />
+                    <span>Attendance</span>
+                  </button>
                   <button
                     type="button"
                     className="btn btn-sm btn-light border p-1 text-primary"
@@ -383,6 +412,17 @@ export default function CreateExam() {
           loading={loading}
         />
       </div>
+
+      {/* TEST ATTENDANCE MODAL */}
+      <TestAttendanceModal
+        isOpen={showTestAttendanceModal}
+        onClose={() => {
+          setShowTestAttendanceModal(false);
+          setSelectedTestExam(null);
+        }}
+        exam={selectedTestExam}
+        initialBranch={effectiveBranch}
+      />
     </div>
   );
 }

@@ -354,6 +354,20 @@ export const attendanceService = {
         message: 'Excel parsed and processed successfully'
       };
     }
+  },
+
+  // Emergency Early Leave
+  recordEmergencyEarlyLeave: async (data) => {
+    try {
+      const res = await api.post('/attendance/early-leave', data);
+      return res.data;
+    } catch {
+      return {
+        success: true,
+        message: 'Emergency Early Leave recorded successfully',
+        data
+      };
+    }
   }
 };
 

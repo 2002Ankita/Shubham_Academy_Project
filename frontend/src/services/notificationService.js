@@ -603,6 +603,153 @@ export const notificationService = {
     };
   },
 
+  // Emergency Early Leave Parent Notification mentioning Staff Name
+  recordEmergencyEarlyLeaveDispatch: ({
+    studentId,
+    studentName,
+    rollNumber,
+    parentMobile,
+    branch,
+    batch,
+    departureDate,
+    departureTime,
+    reason,
+    authorizedByStaff,
+    channels = ['SMS', 'WhatsApp']
+  }) => {
+    const activeBranch = branch || getUserBranch() || 'Mangalvar Peth';
+    const isTP = (activeBranch || '').toLowerCase().includes('tarabai');
+    const branchName = isTP ? 'Tarabai Park' : 'Mangalvar Peth';
+    const history = getLocalDispatchHistory();
+    const now = new Date();
+    const dateFormatted = departureDate || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeFormatted = departureTime || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const staffName = authorizedByStaff || 'Academic Supervisor';
+    const reasonText = reason || 'Health / Emergency Reason';
+    const parentPhone = parentMobile || '98XXXXXXXX';
+
+    const activeChannels = Array.isArray(channels) && channels.length > 0
+      ? channels
+      : (channels === 'both' ? ['SMS', 'WhatsApp'] : [channels || 'SMS']);
+
+    const newLogs = [];
+
+    activeChannels.forEach(ch => {
+      const isWA = ch.toLowerCase().includes('whatsapp');
+      const channelName = isWA ? 'WhatsApp' : 'SMS';
+      const logId = `EEL-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      const smsText = `Dear Parent, your ward ${studentName} (Roll: ${rollNumber || 'N/A'}, Batch: ${batch || 'Regular'}) has been granted Emergency Early Leave from Shubham Academy (${branchName}) on ${dateFormatted} at ${timeFormatted} due to: ${reasonText}. Authorized by staff: ${staffName}. Please ensure their safe arrival. - Shubham Academy`;
+
+      const waText = `*Shubham Academy • Emergency Early Leave Alert* 🚨\n\nDear Parent, your ward *${studentName}* (Roll: *${rollNumber || 'N/A'}*, Batch: *${batch || 'Regular'}*) has been granted *Emergency Early Leave* from *${branchName} Campus*.\n\n📅 *Date:* ${dateFormatted}\n⏰ *Departure Time:* ${timeFormatted}\n📋 *Reason:* ${reasonText}\n👤 *Authorized By Staff:* ${staffName}\n\nPlease ensure their safe transit home. For inquiries, contact academy admin.`;
+
+      const log = {
+        id: logId,
+        type: 'early_leave_alert',
+        student_id: studentId,
+        student_name: studentName,
+        roll_number: rollNumber || 'N/A',
+        batch: batch || 'Regular',
+        branch: branchName,
+        phone_number: parentPhone,
+        channel: channelName,
+        timestamp: `${dateFormatted}, ${timeFormatted}`,
+        time: timeFormatted,
+        date: dateFormatted,
+        delivery_status: 'Delivered',
+        failure_reason: null,
+        message: isWA ? waText : smsText,
+        reason: reasonText,
+        authorized_by_staff: staffName,
+        departure_time: timeFormatted
+      };
+
+      newLogs.push(log);
+      history.unshift(log);
+    });
+
+    saveLocalDispatchHistory(history);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+    }
+
+    return {
+      success: true,
+      logs: newLogs,
+      message: `Emergency early leave parent alert sent to ${parentPhone} via ${activeChannels.join(' & ')} (Authorized by: ${staffName})`
+    };
+  },
+
+  // Record Test Attendance Parent Absence Dispatch
+  recordTestAttendanceDispatch: ({
+    testName,
+    subject,
+    batch,
+    testDate,
+    testTime,
+    students = [],
+    channels = ['SMS', 'WhatsApp']
+  }) => {
+    const activeBranch = getUserBranch() || 'Mangalvar Peth';
+    const branchVal = (batch && batch.toLowerCase().includes('tarabai'))
+      ? 'Tarabai Park'
+      : ((batch && (batch.toLowerCase().includes('mangalvar') || batch.toLowerCase().includes('mangalwar')))
+        ? 'Mangalvar Peth'
+        : activeBranch);
+    const history = getLocalDispatchHistory();
+    const createdLogs = [];
+    const now = new Date();
+    const timeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateFormatted = testDate || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const activeChannels = Array.isArray(channels) && channels.length > 0
+      ? channels
+      : (channels === 'both' ? ['SMS', 'WhatsApp'] : [channels || 'SMS']);
+
+    students.forEach(st => {
+      activeChannels.forEach(ch => {
+        const isWA = ch.toLowerCase().includes('whatsapp');
+        const channelName = isWA ? 'WhatsApp' : 'SMS';
+        const logId = `TEST-ABS-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+        const smsText = `Dear Parent, your ward ${st.name || st.student_name} (Roll: ${st.roll_number || st.roll}) was marked ABSENT for the scheduled test '${testName}' (${subject || 'All Subjects'}) on ${dateFormatted} at ${testTime || 'Scheduled Slot'} at Shubham Academy. Please contact academy office for clarification.`;
+
+        const waText = `*Shubham Academy • Scheduled Test Absence Alert* ⚠️\n\nDear Parent, your ward *${st.name || st.student_name}* (Roll: *${st.roll_number || st.roll}*) was marked *ABSENT* for:\n\n📝 *Test Name:* ${testName}\n📚 *Subject:* ${subject || 'All Subjects'}\n📅 *Date:* ${dateFormatted}\n⏰ *Time:* ${testTime || 'Scheduled Slot'}\n👥 *Batch:* ${batch}\n\nPlease verify this absence or contact academy office immediately.\n\n_Shubham Academy Examination Wing_`;
+
+        const log = {
+          id: logId,
+          type: 'test_absence_alert',
+          student_id: st.id || st.student_id,
+          student_name: st.name || st.student_name,
+          roll_number: st.roll_number || st.roll || 'N/A',
+          batch: batch || 'Regular',
+          branch: branchVal,
+          phone_number: st.parent_mobile || st.parentPhone || '98XXXXXXXX',
+          channel: channelName,
+          timestamp: `${dateFormatted}, ${timeFormatted}`,
+          time: timeFormatted,
+          date: dateFormatted,
+          delivery_status: 'Delivered',
+          failure_reason: null,
+          message: isWA ? waText : smsText
+        };
+
+        createdLogs.push(log);
+        history.unshift(log);
+      });
+    });
+
+    saveLocalDispatchHistory(history);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+    }
+
+    return {
+      total: createdLogs.length,
+      items: createdLogs
+    };
+  },
+
   // Academy Admin: Re-dispatch / resend notification
   resendNotification: async (logId) => {
     try {

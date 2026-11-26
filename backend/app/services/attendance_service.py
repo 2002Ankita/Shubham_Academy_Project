@@ -1830,3 +1830,64 @@ async def get_teachers_monthly_hours_summary(month_str: Optional[str] = None) ->
         "faculty_records": faculty_list
     }
 
+async def record_emergency_early_leave_service(payload: dict, current_user) -> dict:
+    student_id = payload.get("student_id")
+    student_name = payload.get("student_name", "Student")
+    roll_number = payload.get("roll_number", "")
+    parent_mobile = payload.get("parent_mobile", "")
+    branch = payload.get("branch", "Mangalvar Peth")
+    batch = payload.get("batch", "Regular")
+    departure_date_str = payload.get("departure_date")
+    departure_time = payload.get("departure_time", datetime.utcnow().strftime("%I:%M %p"))
+    reason = payload.get("reason", "Emergency / Medical Reason")
+    staff_name = payload.get("authorized_by_staff") or getattr(current_user, "name", None) or getattr(current_user, "full_name", None) or "Academy Staff"
+
+    now = datetime.utcnow()
+    date_val = now
+    if departure_date_str:
+        try:
+            date_val = datetime.strptime(departure_date_str, "%Y-%m-%d")
+        except Exception:
+            date_val = now
+
+    remarks_text = f"Early Leave at {departure_time}. Reason: {reason}. Authorized by staff: {staff_name}"
+
+    from app.services.student_service import resolve_student
+    student_doc = None
+    if student_id:
+        try:
+            student_doc = await resolve_student(str(student_id))
+        except Exception:
+            student_doc = None
+
+    rec = Attendance(
+        student=student_doc,
+        date=date_val,
+        status="Early Leave",
+        remarks=remarks_text,
+        branch=branch,
+        batch=batch
+    )
+    await rec.insert()
+
+    # Send SMS notification to parent
+    msg = (
+        f"Dear Parent, your ward {student_name} (Roll: {roll_number}, Batch: {batch}) "
+        f"has been granted Emergency Early Leave from Shubham Academy ({branch}) on {date_val.strftime('%d-%m-%Y')} "
+        f"at {departure_time} due to: {reason}. Authorized by staff: {staff_name}. "
+        f"Please ensure their safe arrival. - Shubham Academy"
+    )
+    if parent_mobile:
+        try:
+            from app.services.notification_service import notification_service
+            await notification_service.send_sms(parent_mobile, msg)
+        except Exception as e:
+            print(f"[EarlyLeave] SMS alert notification dispatch notice: {e}")
+
+    return {
+        "success": True,
+        "id": str(rec.id),
+        "message": f"Emergency early leave recorded and parent SMS dispatched. Authorized by {staff_name}."
+    }
+
+

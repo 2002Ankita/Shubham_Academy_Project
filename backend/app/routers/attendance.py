@@ -88,6 +88,15 @@ async def save_batch_attendance_ledger(
         raise HTTPException(status_code=403, detail="Not authorized to save attendance ledger")
     return await save_batch_date_attendance(payload.model_dump())
 
+@router.post("/early-leave")
+async def record_early_leave(payload: dict, token: str = Depends(oauth2_scheme)):
+    user = await get_current_user(token)
+    role = getattr(user, "role", "").upper().replace("-", "_")
+    if role not in ["ADMIN", "SUPER_ADMIN", "TEACHER"]:
+        raise HTTPException(status_code=403, detail="Not authorized to record early leave")
+    from app.services.attendance_service import record_emergency_early_leave_service
+    return await record_emergency_early_leave_service(payload, user)
+
 
 @router.get("/summary")
 async def get_attendance_summary(

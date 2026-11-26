@@ -22,8 +22,13 @@ import {
   Save,
   Check,
   CheckCheck,
-  X
+  X,
+  Printer,
+  LogOut,
+  FileText,
+  Phone
 } from 'lucide-react';
+import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
 import {
@@ -55,6 +60,26 @@ export default function LectureAttendanceManager() {
   const [attendanceRows, setAttendanceRows] = useState([]);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Digital Attendance Sheet vs Multi-Slot Grid view mode
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'sheet'
+
+  // Emergency Early Leave Modal State
+  const [showEarlyLeaveModal, setShowEarlyLeaveModal] = useState(false);
+  const [earlyLeaveForm, setEarlyLeaveForm] = useState({
+    studentId: '',
+    studentName: '',
+    rollNumber: '',
+    parentMobile: '',
+    branch: defaultBranch,
+    batch: '',
+    departureDate: new Date().toISOString().split('T')[0],
+    departureTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    reason: 'Feeling Unwell / Medical Reason',
+    authorizedByStaff: user?.name || user?.full_name || 'Prof. Shubham Shinde',
+    channels: ['SMS', 'WhatsApp']
+  });
+  const [savingEarlyLeave, setSavingEarlyLeave] = useState(false);
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -103,6 +128,117 @@ export default function LectureAttendanceManager() {
   useEffect(() => {
     fetchData();
   }, [selectedDate, selectedBranch, selectedSession, selectedAcademicBatch]);
+
+  // Open Emergency Early Leave modal with prefilled student details
+  const handleOpenEarlyLeave = (student = null) => {
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const nowDate = selectedDate || new Date().toISOString().split('T')[0];
+    const staffName = user?.name || user?.full_name || 'Academic Supervisor';
+
+    if (student) {
+      setEarlyLeaveForm({
+        studentId: student.id || student.student_id,
+        studentName: student.student_name,
+        rollNumber: student.roll_number,
+        parentMobile: student.parent_mobile || '',
+        branch: selectedBranch,
+        batch: selectedBatchLabel,
+        departureDate: nowDate,
+        departureTime: nowTime,
+        reason: 'Feeling Unwell / Medical Reason',
+        authorizedByStaff: staffName,
+        channels: ['SMS', 'WhatsApp']
+      });
+    } else {
+      const firstStudent = attendanceRows[0] || {};
+      setEarlyLeaveForm({
+        studentId: firstStudent.id || firstStudent.student_id || '',
+        studentName: firstStudent.student_name || '',
+        rollNumber: firstStudent.roll_number || '',
+        parentMobile: firstStudent.parent_mobile || '',
+        branch: selectedBranch,
+        batch: selectedBatchLabel,
+        departureDate: nowDate,
+        departureTime: nowTime,
+        reason: 'Feeling Unwell / Medical Reason',
+        authorizedByStaff: staffName,
+        channels: ['SMS', 'WhatsApp']
+      });
+    }
+    setShowEarlyLeaveModal(true);
+  };
+
+  // Submit Emergency Early Leave and notify parents mentioning authorizing staff name
+  const handleSaveEarlyLeave = async (e) => {
+    e?.preventDefault();
+    if (!earlyLeaveForm.studentName) {
+      toast.warning('Please select a student.');
+      return;
+    }
+    if (!earlyLeaveForm.authorizedByStaff || !earlyLeaveForm.authorizedByStaff.trim()) {
+      toast.warning('Please specify the staff name who authorized this early leave.');
+      return;
+    }
+
+    setSavingEarlyLeave(true);
+    try {
+      // 1. Record via backend attendance service
+      await attendanceService.recordEmergencyEarlyLeave({
+        student_id: earlyLeaveForm.studentId,
+        student_name: earlyLeaveForm.studentName,
+        roll_number: earlyLeaveForm.rollNumber,
+        parent_mobile: earlyLeaveForm.parentMobile,
+        branch: earlyLeaveForm.branch,
+        batch: earlyLeaveForm.batch,
+        departure_date: earlyLeaveForm.departureDate,
+        departure_time: earlyLeaveForm.departureTime,
+        reason: earlyLeaveForm.reason,
+        authorized_by_staff: earlyLeaveForm.authorizedByStaff
+      });
+
+      // 2. Dispatch parent SMS & WhatsApp notification mentioning authorizing staff
+      notificationService.recordEmergencyEarlyLeaveDispatch({
+        studentId: earlyLeaveForm.studentId,
+        studentName: earlyLeaveForm.studentName,
+        rollNumber: earlyLeaveForm.rollNumber,
+        parentMobile: earlyLeaveForm.parentMobile,
+        branch: earlyLeaveForm.branch,
+        batch: earlyLeaveForm.batch,
+        departureDate: earlyLeaveForm.departureDate,
+        departureTime: earlyLeaveForm.departureTime,
+        reason: earlyLeaveForm.reason,
+        authorizedByStaff: earlyLeaveForm.authorizedByStaff,
+        channels: earlyLeaveForm.channels || ['SMS', 'WhatsApp']
+      });
+
+      // 3. Update in-memory row
+      setAttendanceRows(prev =>
+        prev.map(r => {
+          if (r.id === earlyLeaveForm.studentId || r.student_id === earlyLeaveForm.studentId) {
+            return {
+              ...r,
+              lecture_2: {
+                status: 'Early Leave',
+                remarks: `Early Leave authorized by ${earlyLeaveForm.authorizedByStaff}: ${earlyLeaveForm.reason}`
+              },
+              remarks: `Early Leave authorized by ${earlyLeaveForm.authorizedByStaff}: ${earlyLeaveForm.reason}`
+            };
+          }
+          return r;
+        })
+      );
+
+      toast.success(
+        `Emergency early leave authorized by ${earlyLeaveForm.authorizedByStaff}! Notification dispatched to parent (${earlyLeaveForm.parentMobile}).`
+      );
+      setShowEarlyLeaveModal(false);
+    } catch (err) {
+      console.error('Error saving early leave:', err);
+      toast.error('Failed to log emergency early leave.');
+    } finally {
+      setSavingEarlyLeave(false);
+    }
+  };
 
   // Mark single student slot status manually (Present / Absent)
   const handleMarkStatus = (studentId, slotNumber, newStatus) => {
@@ -545,6 +681,37 @@ export default function LectureAttendanceManager() {
         </div>
 
         <div className="d-flex flex-wrap align-items-center gap-2">
+          {/* View Mode: Multi-Slot Grid vs Official Classroom Attendance Sheet */}
+          <div className="btn-group btn-group-sm shadow-2xs me-1" role="group">
+            <button
+              type="button"
+              className={`btn fw-semibold px-2.5 ${viewMode === 'grid' ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+              onClick={() => setViewMode('grid')}
+              style={{ height: '36px', fontSize: '12px' }}
+            >
+              📊 Multi-Slot Grid
+            </button>
+            <button
+              type="button"
+              className={`btn fw-semibold px-2.5 ${viewMode === 'sheet' ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+              onClick={() => setViewMode('sheet')}
+              style={{ height: '36px', fontSize: '12px' }}
+              title="Official Classroom Attendance Sheet inside the software"
+            >
+              📋 Attendance Sheet
+            </button>
+          </div>
+
+          <Button
+            variant="outline"
+            icon={LogOut}
+            onClick={() => handleOpenEarlyLeave()}
+            style={{ backgroundColor: '#FFFBEB', borderColor: '#FDE68A', color: '#B45309' }}
+            title="Authorize Emergency Early Leave for a student and send parent alert with staff name"
+          >
+            Emergency Early Leave
+          </Button>
+
           <Button
             variant="outline"
             icon={Bell}
@@ -836,8 +1003,187 @@ export default function LectureAttendanceManager() {
         </div>
       </div>
 
-      {/* Attendance Ledger Table */}
-      <div className="sa-card p-3.5 p-md-4 bg-white">
+      {/* Attendance View Mode: Digital In-Software Sheet OR Interactive Ledger Grid */}
+      {viewMode === 'sheet' ? (
+        <div className="sa-card p-4 bg-white border border-secondary-subtle shadow-xs printable-attendance-sheet">
+          {/* Header */}
+          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 pb-3 border-bottom mb-3">
+            <div className="d-flex align-items-center gap-3">
+              <div
+                style={{
+                  width: '46px',
+                  height: '46px',
+                  backgroundColor: '#8B1216',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '18px'
+                }}
+              >
+                SA
+              </div>
+              <div>
+                <h4 className="brand-font fw-extrabold text-sa-charcoal m-0" style={{ letterSpacing: '-0.3px', fontSize: '1.25rem' }}>
+                  SHUBHAM ACADEMY
+                </h4>
+                <span className="small text-muted fw-semibold" style={{ fontSize: '12px' }}>
+                  OFFICIAL CLASSROOM ATTENDANCE REGISTER & DATA SHEET
+                </span>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center gap-2 d-print-none">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className="btn btn-sm btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-1.5 px-3"
+                style={{ height: '34px', fontSize: '12px', borderRadius: '8px' }}
+              >
+                <span>← Back to Grid</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn btn-sm btn-outline-dark fw-semibold d-inline-flex align-items-center gap-1.5 px-3"
+                style={{ height: '34px', fontSize: '12px', borderRadius: '8px' }}
+                title="Print clean attendance register"
+              >
+                <Printer size={14} />
+                <span>Print Register</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="btn btn-sm btn-outline-success fw-semibold d-inline-flex align-items-center gap-1.5 px-3"
+                style={{ height: '34px', fontSize: '12px', borderRadius: '8px' }}
+                title="Export attendance ledger to Excel"
+              >
+                <Download size={14} />
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Metadata Bar */}
+          <div className="row g-2.5 p-3 rounded-3 mb-3" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', fontSize: '12px' }}>
+            <div className="col-6 col-md-3">
+              <span className="small text-muted d-block fw-semibold" style={{ fontSize: '10.5px' }}>CAMPUS</span>
+              <span className="fw-bold text-sa-charcoal">🏛️ {selectedBranch}</span>
+            </div>
+            <div className="col-6 col-md-3">
+              <span className="small text-muted d-block fw-semibold" style={{ fontSize: '10.5px' }}>ACADEMIC BATCH</span>
+              <span className="fw-bold text-sa-charcoal">👥 {selectedBatchLabel}</span>
+            </div>
+            <div className="col-6 col-md-3">
+              <span className="small text-muted d-block fw-semibold" style={{ fontSize: '10.5px' }}>DATE</span>
+              <span className="fw-bold text-sa-charcoal">📅 {selectedDate}</span>
+            </div>
+            <div className="col-6 col-md-3">
+              <span className="small text-muted d-block fw-semibold" style={{ fontSize: '10.5px' }}>ATTENDANCE STATS</span>
+              <span className="fw-bold text-success">
+                {l1Present} Present (L1) | {l2Present} Present (L2) of {totalEnrolled}
+              </span>
+            </div>
+          </div>
+
+          {/* Formal Attendance Sheet Table */}
+          <div className="table-responsive border rounded-3 overflow-hidden">
+            <table className="table table-bordered table-sm align-middle m-0" style={{ fontSize: '12px' }}>
+              <thead style={{ backgroundColor: '#F1F5F9', borderBottom: '2px solid #CBD5E1' }}>
+                <tr className="text-center align-middle">
+                  <th style={{ width: '40px' }}>#</th>
+                  <th style={{ width: '90px' }}>Roll No</th>
+                  <th className="text-start">Student Name</th>
+                  <th style={{ width: '110px' }}>Parent Mobile</th>
+                  <th style={{ width: '130px' }}>Lecture 1 (Morning)</th>
+                  <th style={{ width: '130px' }}>Lecture 2 (Afternoon)</th>
+                  <th style={{ width: '100px' }}>Day Status</th>
+                  <th style={{ width: '170px' }}>Early Leave / Remarks</th>
+                  <th style={{ width: '100px' }}>Student Sign</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-4 text-muted">
+                      No student records found for {selectedBatchLabel} on {selectedDate}.
+                    </td>
+                  </tr>
+                ) : (
+                  attendanceRows.map((st, idx) => {
+                    const isL1P = st.lecture_1?.status === 'Present';
+                    const isL2P = st.lecture_2?.status === 'Present';
+                    const isEarly = st.lecture_2?.status === 'Early Leave' || (st.remarks && st.remarks.includes('Early Leave'));
+                    return (
+                      <tr key={st.id || idx}>
+                        <td className="text-center text-muted fw-semibold">{idx + 1}</td>
+                        <td className="text-center fw-bold text-sa-charcoal">{st.roll_number || st.student_id}</td>
+                        <td className="fw-semibold text-sa-charcoal text-start">{st.student_name}</td>
+                        <td className="text-center text-muted font-monospace" style={{ fontSize: '11px' }}>{st.parent_mobile || '--'}</td>
+                        <td className="text-center">
+                          <span className={`badge ${isL1P ? 'bg-success text-white' : 'bg-danger text-white'}`} style={{ fontSize: '10.5px', minWidth: '60px' }}>
+                            {isL1P ? '✓ Present' : '✕ Absent'}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          {isEarly ? (
+                            <span className="badge bg-warning text-dark" style={{ fontSize: '10.5px' }}>
+                              ⚠️ Early Leave
+                            </span>
+                          ) : (
+                            <span className={`badge ${isL2P ? 'bg-success text-white' : 'bg-danger text-white'}`} style={{ fontSize: '10.5px', minWidth: '60px' }}>
+                              {isL2P ? '✓ Present' : '✕ Absent'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-center fw-bold">
+                          {isEarly ? (
+                            <span className="text-warning">Early Leave</span>
+                          ) : isL1P && isL2P ? (
+                            <span className="text-success">Full Day</span>
+                          ) : isL1P || isL2P ? (
+                            <span className="text-primary">Half Day</span>
+                          ) : (
+                            <span className="text-danger">Absent</span>
+                          )}
+                        </td>
+                        <td className="small text-muted" style={{ fontSize: '11px' }}>
+                          {st.remarks || (isEarly ? 'Authorized early departure' : '--')}
+                        </td>
+                        <td className="text-center text-muted">
+                          <span style={{ display: 'inline-block', width: '60px', borderBottom: '1px dotted #94A3B8' }}>&nbsp;</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Signatures Footer */}
+          <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+            <span className="text-muted small" style={{ fontSize: '11px' }}>
+              Generated by Shubham Academy ERP | Official Attendance Sheet
+            </span>
+            <div className="d-flex gap-5 text-center">
+              <div>
+                <div style={{ width: '140px', borderBottom: '1.5px solid #334155', marginBottom: '4px' }}></div>
+                <span className="small fw-semibold text-sa-charcoal" style={{ fontSize: '11px' }}>Class Faculty Signature</span>
+              </div>
+              <div>
+                <div style={{ width: '140px', borderBottom: '1.5px solid #334155', marginBottom: '4px' }}></div>
+                <span className="small fw-semibold text-sa-charcoal" style={{ fontSize: '11px' }}>Academic Incharge</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Attendance Ledger Table Grid */
+        <div className="sa-card p-3.5 p-md-4 bg-white">
         <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 border-bottom pb-3">
           <div className="w-100 w-md-auto">
             <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6" style={{ letterSpacing: '-0.2px' }}>
@@ -1067,6 +1413,23 @@ export default function LectureAttendanceManager() {
                   </div>
                 );
               }
+            },
+            {
+              key: 'actions',
+              title: 'Actions',
+              align: 'end',
+              render: (_, row) => (
+                <button
+                  type="button"
+                  onClick={() => handleOpenEarlyLeave(row)}
+                  className="btn btn-xs fw-semibold d-inline-flex align-items-center gap-1 px-2.5 py-1 rounded-2 shadow-2xs text-nowrap"
+                  style={{ fontSize: '11px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309' }}
+                  title="Authorize Emergency Early Leave for this student and send parent alert with staff name"
+                >
+                  <LogOut size={12} />
+                  <span>Early Leave</span>
+                </button>
+              )
             }
           ]}
           data={filteredRecords}
@@ -1090,6 +1453,7 @@ export default function LectureAttendanceManager() {
           </div>
         )}
       </div>
+      )}
 
       {/* UPLOAD EXCEL SHEET MODAL */}
       {showUploadModal && (
@@ -1360,6 +1724,205 @@ export default function LectureAttendanceManager() {
           </div>
         </div>
       )}
+
+      {/* EMERGENCY EARLY LEAVE MODAL */}
+      <Modal
+        isOpen={showEarlyLeaveModal}
+        onClose={() => setShowEarlyLeaveModal(false)}
+        title="Authorize Emergency Early Student Departure"
+        size="lg"
+      >
+        <form onSubmit={handleSaveEarlyLeave} className="d-flex flex-column gap-3">
+          <div className="p-3 bg-danger-subtle rounded-3 border border-danger-subtle d-flex align-items-center gap-2.5">
+            <LogOut size={20} className="text-danger flex-shrink-0" />
+            <div>
+              <span className="small fw-bold text-danger d-block">
+                Emergency Early Leave Parent Notification System
+              </span>
+              <span className="small text-muted" style={{ fontSize: '11.5px' }}>
+                An automated SMS alert will be immediately sent to the student's parent mentioning the early departure time, reason, and explicitly specifying the authorizing staff member's name.
+              </span>
+            </div>
+          </div>
+
+          <div className="row g-3">
+            {/* Student Selection */}
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Student Name <span className="text-danger">*</span>
+              </label>
+              <select
+                className="form-select form-select-sm fw-semibold"
+                value={earlyLeaveForm.studentId}
+                onChange={(e) => {
+                  const sId = e.target.value;
+                  const found = attendanceRows.find(r => (r.id === sId || r.student_id === sId));
+                  if (found) {
+                    setEarlyLeaveForm(prev => ({
+                      ...prev,
+                      studentId: sId,
+                      studentName: found.student_name,
+                      rollNumber: found.roll_number,
+                      parentMobile: found.parent_mobile || prev.parentMobile
+                    }));
+                  }
+                }}
+                required
+                style={{ height: '34px', fontSize: '12.5px' }}
+              >
+                {attendanceRows.map(st => (
+                  <option key={st.id || st.student_id} value={st.id || st.student_id}>
+                    {st.student_name} (Roll: {st.roll_number})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Roll Number & Batch */}
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Roll Number & Batch
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm bg-light"
+                value={`${earlyLeaveForm.rollNumber || 'N/A'} • ${earlyLeaveForm.batch || selectedBatchLabel}`}
+                readOnly
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            {/* Parent Phone Number */}
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1 d-flex align-items-center gap-1">
+                <Phone size={13} className="text-sa-maroon" />
+                <span>Parent Mobile Number <span className="text-danger">*</span></span>
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm fw-semibold font-monospace"
+                value={earlyLeaveForm.parentMobile}
+                onChange={(e) => setEarlyLeaveForm({ ...earlyLeaveForm, parentMobile: e.target.value })}
+                placeholder="10-digit parent mobile"
+                required
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+              <small className="text-muted" style={{ fontSize: '11px' }}>
+                SMS alert will be dispatched to this number.
+              </small>
+            </div>
+
+            {/* Authorized Staff Name */}
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Authorized By Staff Name <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm fw-bold border-danger-subtle"
+                value={earlyLeaveForm.authorizedByStaff}
+                onChange={(e) => setEarlyLeaveForm({ ...earlyLeaveForm, authorizedByStaff: e.target.value })}
+                placeholder="Staff / Teacher Name"
+                required
+                style={{ height: '34px', fontSize: '12.5px', backgroundColor: '#FFF5F5' }}
+              />
+              <small className="text-muted fw-semibold text-danger" style={{ fontSize: '11px' }}>
+                ⚠️ This staff name will be explicitly sent in the message to the parent.
+              </small>
+            </div>
+
+            {/* Departure Date & Time */}
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Departure Date <span className="text-danger">*</span>
+              </label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                value={earlyLeaveForm.departureDate}
+                onChange={(e) => setEarlyLeaveForm({ ...earlyLeaveForm, departureDate: e.target.value })}
+                required
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Departure Time <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                value={earlyLeaveForm.departureTime}
+                onChange={(e) => setEarlyLeaveForm({ ...earlyLeaveForm, departureTime: e.target.value })}
+                placeholder="e.g. 11:30 AM"
+                required
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+            </div>
+
+            {/* Reason for Early Leave */}
+            <div className="col-12">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Reason for Emergency Early Leave <span className="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                value={earlyLeaveForm.reason}
+                onChange={(e) => setEarlyLeaveForm({ ...earlyLeaveForm, reason: e.target.value })}
+                placeholder="e.g. Severe headache, High fever, Family emergency"
+                required
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+              {/* Quick tags */}
+              <div className="d-flex align-items-center gap-1.5 flex-wrap mt-1.5">
+                {['Feeling Unwell / Fever', 'Severe Headache', 'Family Emergency', 'Doctor Appointment', 'Official Permission'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="btn btn-2xs btn-light border py-0.5 px-2 rounded-pill text-muted fw-semibold"
+                    style={{ fontSize: '11px' }}
+                    onClick={() => setEarlyLeaveForm(prev => ({ ...prev, reason: tag }))}
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Message Preview */}
+            <div className="col-12">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">
+                Live SMS & WhatsApp Message Preview
+              </label>
+              <div className="p-3 bg-light rounded-3 border font-monospace text-dark" style={{ fontSize: '11.5px', lineHeight: 1.5 }}>
+                Dear Parent, your ward <strong>{earlyLeaveForm.studentName || '[Student]'}</strong> (Roll: {earlyLeaveForm.rollNumber || '[Roll]'}, Batch: {earlyLeaveForm.batch || selectedBatchLabel}) has been granted Emergency Early Leave from Shubham Academy ({selectedBranch}) on {earlyLeaveForm.departureDate} at {earlyLeaveForm.departureTime} due to: {earlyLeaveForm.reason || '[Reason]'}. Authorized by staff: <strong>{earlyLeaveForm.authorizedByStaff || '[Staff Name]'}</strong>. Please ensure their safe arrival. - Shubham Academy
+              </div>
+            </div>
+          </div>
+
+          <div className="d-flex align-items-center justify-content-end gap-2 border-top pt-3">
+            <Button
+              variant="light"
+              type="button"
+              onClick={() => setShowEarlyLeaveModal(false)}
+              disabled={savingEarlyLeave}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              icon={Send}
+              loading={savingEarlyLeave}
+              style={{ backgroundColor: '#8B1216', borderColor: '#8B1216' }}
+            >
+              Authorize & Dispatch Parent SMS
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

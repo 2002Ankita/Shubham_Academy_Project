@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Check,
   FileSpreadsheet,
-  Download
+  Download,
+  GraduationCap
 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import { toast } from 'react-toastify';
@@ -71,14 +72,14 @@ export const MANGALWAR_BATCH_OPTIONS = [
     ]
   },
   {
-    group: '🌙 Evening Session (MP)',
+    group: '🌅 Afternoon Session (MP)',
     list: [
-      '11th pcm Mangalvar Peth (Evening)',
-      '11th pcb Mangalvar Peth (Evening)',
-      '11th pcmb Mangalvar Peth (Evening)',
-      '12th pcm Mangalvar Peth (Evening)',
-      '12th pcb Mangalvar Peth (Evening)',
-      '12th pcmb Mangalvar Peth (Evening)'
+      '11th pcm Mangalvar Peth (Afternoon)',
+      '11th pcb Mangalvar Peth (Afternoon)',
+      '11th pcmb Mangalvar Peth (Afternoon)',
+      '12th pcm Mangalvar Peth (Afternoon)',
+      '12th pcb Mangalvar Peth (Afternoon)',
+      '12th pcmb Mangalvar Peth (Afternoon)'
     ]
   },
   {
@@ -88,7 +89,8 @@ export const MANGALWAR_BATCH_OPTIONS = [
       '11th pcb Mangalvar Peth',
       '11th pcmb Mangalvar Peth',
       '12th pcm Mangalvar Peth',
-      '12th pcb Mangalvar Peth'
+      '12th pcb Mangalvar Peth',
+      '12th pcmb Mangalvar Peth'
     ]
   }
 ];
@@ -276,6 +278,7 @@ export default function DailyActivityReport() {
   const [selectedActivityFilter, setSelectedActivityFilter] = useState('All');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+  const [selectedStandardFilter, setSelectedStandardFilter] = useState('All'); // 'All', '11th Standard', '12th Standard'
 
   useEffect(() => {
     if (location.state?.branch) {
@@ -292,6 +295,8 @@ export default function DailyActivityReport() {
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [newActivity, setNewActivity] = useState({
     branch: (userBranch && userBranch !== 'All' ? userBranch : 'Mangalwar Peth'),
+    standard: '11th Standard',
+    session: 'Morning',
     activity: 'Classroom Lecture & Theory',
     subject: 'Physics',
     batch: (userBranch === 'Tarabai Park' ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
@@ -533,17 +538,21 @@ export default function DailyActivityReport() {
     toast.success(`Successfully imported and logged ${savedList.length} activities from Excel! Teaching hours updated.`);
   };
 
-  // Handle redirect from Topic Duration Matrix if topic was sent
+  // Handle redirect from Topic Duration Matrix or Dashboard if topic/session was sent
   useEffect(() => {
     if (location.state?.prefillTopic) {
       const topic = location.state.prefillTopic;
       const isTP = (topic.branch || '').toLowerCase().includes('tarabai') || (topic.batch || '').toLowerCase().includes('tarabai');
       const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
       const resolvedBatch = topic.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)');
+      const std = resolvedBatch.includes('12') ? '12th Standard' : '11th Standard';
+      const sess = resolvedBatch.toLowerCase().includes('afternoon') ? 'Afternoon' : 'Morning';
 
       setEditingActivityId(null);
       setNewActivity({
         branch: resolvedBranch,
+        standard: std,
+        session: sess,
         activity: 'Classroom Lecture & Theory',
         subject: topic.subject || 'Physics',
         batch: resolvedBatch,
@@ -557,6 +566,26 @@ export default function DailyActivityReport() {
         status: 'Completed',
         remarks: topic.remarks || ''
       });
+      setIsActivityModalOpen(true);
+    } else if (location.state?.prefillBranch || location.state?.prefillSession) {
+      const b = location.state.prefillBranch || 'Mangalwar Peth';
+      const s = location.state.prefillSession || 'Morning';
+      const std = location.state.prefillStandard || '11th Standard';
+      const is12th = std.includes('12');
+      const sessTag = s === 'Afternoon' ? '(Afternoon)' : '(Morning)';
+      const defBatch = b === 'Tarabai Park'
+        ? (is12th ? '12th pcm tarabai park' : '11th pcm tarabai park')
+        : (is12th ? `12th pcm Mangalvar Peth ${sessTag}` : `11th pcm Mangalvar Peth ${sessTag}`);
+      
+      setSelectedBranchFilter(b);
+      setEditingActivityId(null);
+      setNewActivity(prev => ({
+        ...prev,
+        branch: b,
+        session: s,
+        standard: std,
+        batch: defBatch
+      }));
       setIsActivityModalOpen(true);
     }
   }, [location.state]);
@@ -638,9 +667,14 @@ export default function DailyActivityReport() {
 
       const matchesStatus = selectedStatusFilter === 'All' || item.status === selectedStatusFilter;
 
-      return matchesSearch && matchesActivity && matchesBatch && matchesStatus;
+      const itemBatchOrStd = (item.standard || item.batch || '').toLowerCase();
+      const matchesStandard = selectedStandardFilter === 'All' ||
+        (selectedStandardFilter === '11th Standard' && (itemBatchOrStd.includes('11') || itemBatchOrStd.includes('11th'))) ||
+        (selectedStandardFilter === '12th Standard' && (itemBatchOrStd.includes('12') || itemBatchOrStd.includes('12th')));
+
+      return matchesSearch && matchesActivity && matchesBatch && matchesStatus && matchesStandard;
     });
-  }, [dateActivities, searchTerm, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter]);
+  }, [dateActivities, searchTerm, selectedActivityFilter, selectedBatchFilter, selectedStatusFilter, selectedStandardFilter]);
 
   const handleOpenAddModal = () => {
     setEditingActivityId(null);
@@ -649,10 +683,15 @@ export default function DailyActivityReport() {
       : (userBranch || 'Mangalwar Peth');
     const isTP = activeBranch.toLowerCase().includes('tarabai') || activeBranch.toLowerCase().includes('tp');
     const resolvedBranch = isTP ? 'Tarabai Park' : 'Mangalwar Peth';
-    const defaultBatch = isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)';
+    const is12th = selectedStandardFilter === '12th Standard';
+    const defaultBatch = isTP
+      ? (is12th ? '12th pcm tarabai park' : '11th pcm tarabai park')
+      : (is12th ? '12th pcm Mangalvar Peth (Morning)' : '11th pcm Mangalvar Peth (Morning)');
 
     setNewActivity({
       branch: resolvedBranch,
+      standard: is12th ? '12th Standard' : '11th Standard',
+      session: 'Morning',
       activity: 'Classroom Lecture & Theory',
       subject: (user?.subject || 'Physics'),
       batch: defaultBatch,
@@ -725,6 +764,8 @@ export default function DailyActivityReport() {
 
     const backendPayload = {
       branch: resolvedBranch,
+      standard: newActivity.standard || (newActivity.batch?.includes('12') ? '12th Standard' : '11th Standard'),
+      session: newActivity.session || (newActivity.batch?.toLowerCase().includes('afternoon') ? 'Afternoon' : 'Morning'),
       activity: newActivity.activity || 'Classroom Lecture & Theory',
       subject: stdSubject,
       batch: newActivity.batch || (isTP ? '11th pcm tarabai park' : '11th pcm Mangalvar Peth (Morning)'),
@@ -1244,6 +1285,21 @@ export default function DailyActivityReport() {
               </select>
             </div>
 
+            {/* Standard Filter (11th & 12th) */}
+            <div className="col-6 col-sm-auto">
+              <select
+                className="form-select form-select-sm border shadow-xs w-100 fw-semibold"
+                value={selectedStandardFilter}
+                onChange={(e) => setSelectedStandardFilter(e.target.value)}
+                style={{ height: '36px', fontSize: '12px', borderRadius: '8px', minWidth: '140px', backgroundColor: selectedStandardFilter !== 'All' ? '#FFF5F5' : '#FFFFFF', borderColor: selectedStandardFilter !== 'All' ? '#FCA5A5' : '#E2E8F0', color: selectedStandardFilter !== 'All' ? '#8B1216' : '#334155' }}
+                title="Filter teaching activities by 11th or 12th Standard"
+              >
+                <option value="All">🎓 All Standards</option>
+                <option value="11th Standard">📘 11th Standard Only</option>
+                <option value="12th Standard">📙 12th Standard Only</option>
+              </select>
+            </div>
+
             {/* 2. Activity Filter */}
             <div className="col-6 col-sm-auto">
               <select
@@ -1571,6 +1627,85 @@ export default function DailyActivityReport() {
                 Select the campus where this class lecture occurred.
               </small>
             </div>
+
+            {/* Standard (11th and 12th) */}
+            <div className="col-12 col-md-6">
+              <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                Standard / Class <span className="text-danger">*</span>
+              </label>
+              <div className="input-group input-group-sm">
+                <span className="input-group-text bg-light text-muted border-end-0">
+                  <GraduationCap size={13} className="text-sa-maroon" />
+                </span>
+                <select
+                  className="form-select form-select-sm fw-semibold"
+                  value={newActivity.standard || (newActivity.batch?.includes('12') ? '12th Standard' : '11th Standard')}
+                  onChange={(e) => {
+                    const std = e.target.value;
+                    const is12th = std.includes('12');
+                    const isTP = newActivity.branch === 'Tarabai Park';
+                    const isAfternoon = (newActivity.session || '').toLowerCase().includes('afternoon') || (newActivity.batch || '').toLowerCase().includes('afternoon');
+                    let newBatch = '';
+                    if (isTP) {
+                      newBatch = is12th ? '12th pcm tarabai park' : '11th pcm tarabai park';
+                    } else {
+                      const sessTag = isAfternoon ? '(Afternoon)' : '(Morning)';
+                      newBatch = is12th ? `12th pcm Mangalvar Peth ${sessTag}` : `11th pcm Mangalvar Peth ${sessTag}`;
+                    }
+                    setNewActivity({
+                      ...newActivity,
+                      standard: std,
+                      batch: newBatch
+                    });
+                  }}
+                  required
+                  style={{ height: '34px', fontSize: '12.5px' }}
+                >
+                  <option value="11th Standard">📘 11th Standard (11th Science)</option>
+                  <option value="12th Standard">📙 12th Standard (12th Science)</option>
+                </select>
+              </div>
+              <small className="text-muted" style={{ fontSize: '11px' }}>
+                Select whether this activity was conducted for 11th or 12th standard.
+              </small>
+            </div>
+
+            {/* Session selector for Mangalwar Peth */}
+            {newActivity.branch === 'Mangalwar Peth' && (
+              <div className="col-12 col-md-6">
+                <label className="form-label fw-semibold small text-sa-charcoal mb-1">
+                  Session (Mangalwar Peth) <span className="text-danger">*</span>
+                </label>
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text bg-light text-muted border-end-0">
+                    <Clock size={13} className="text-sa-maroon" />
+                  </span>
+                  <select
+                    className="form-select form-select-sm fw-semibold"
+                    value={newActivity.session || ((newActivity.batch || '').toLowerCase().includes('afternoon') ? 'Afternoon' : 'Morning')}
+                    onChange={(e) => {
+                      const sess = e.target.value;
+                      const is12th = (newActivity.standard || '').includes('12') || (newActivity.batch || '').includes('12');
+                      const sessTag = sess === 'Afternoon' ? '(Afternoon)' : '(Morning)';
+                      const newBatch = is12th ? `12th pcm Mangalvar Peth ${sessTag}` : `11th pcm Mangalvar Peth ${sessTag}`;
+                      setNewActivity({
+                        ...newActivity,
+                        session: sess,
+                        batch: newBatch
+                      });
+                    }}
+                    required
+                    style={{ height: '34px', fontSize: '12.5px' }}
+                  >
+                    <option value="Morning">☀️ Morning Session (MP)</option>
+                    <option value="Afternoon">🌅 Afternoon Session (MP)</option>
+                  </select>
+                </div>
+                <small className="text-muted" style={{ fontSize: '11px' }}>
+                  Choose Morning or Afternoon session for Mangalwar Peth campus.
+                </small>
+              </div>
+            )}
 
             <div className="col-12 col-md-6">
               <label className="form-label fw-semibold small text-sa-charcoal mb-1">Activity Type</label>
