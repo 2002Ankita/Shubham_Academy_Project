@@ -27,6 +27,9 @@ class Student(Document):
     academic_batch: Optional[str] = None
     session: Optional[str] = None
     branch: Optional[str] = "Tarabai Park"
+    center_type: Optional[str] = "Shubham Academy"  # "Shubham Academy", "Shubham Coaching Classes", "Shubham Tutorial"
+    institution_name: Optional[str] = None
+    sub_branch: Optional[str] = None
     academic_year: Optional[str] = "2025-2026"
     previous_school: Optional[str] = None
     rfid_tag: Optional[str] = None

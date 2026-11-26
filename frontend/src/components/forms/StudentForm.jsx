@@ -175,6 +175,9 @@ export default function StudentForm({ initialData, onSubmit, loading, onCancel }
         <div className="col-12">
           <BranchBatchSelector
             branch={formData.branch}
+            showCenterType={true}
+            centerType={formData.center_type || formData.centerType}
+            onCenterTypeChange={(ct) => setFormData(prev => ({ ...prev, center_type: ct, centerType: ct, institution_name: ct }))}
             onBranchChange={(b) => setFormData(prev => ({
               ...prev,
               branch: b,

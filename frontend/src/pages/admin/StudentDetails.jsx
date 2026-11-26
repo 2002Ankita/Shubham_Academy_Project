@@ -395,6 +395,11 @@ export default function StudentDetails() {
             <p className="small text-sa-muted mb-1">
               <strong>Branch:</strong> <span className="fw-bold text-dark">{student.branch || 'Tarabai Park'}</span>
             </p>
+            {(student.center_type || student.institution_name) && (
+              <p className="small text-sa-muted mb-1">
+                <strong>Institute / Unit:</strong> <span className="badge bg-primary-subtle text-primary border border-primary-subtle">{student.center_type || student.institution_name}</span>
+              </p>
+            )}
             <p className="small text-sa-muted mb-1">
               <strong>Academic Batch:</strong> <span className="fw-bold text-dark">{student.academicBatch || student.academic_batch || student.batch || student.standard || '11th PCM'}</span>
             </p>

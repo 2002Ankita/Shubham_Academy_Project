@@ -28,6 +28,11 @@ class StudentBase(BaseModel):
     academicBatch: Optional[str] = None
     session: Optional[str] = None
     branch: Optional[str] = "Tarabai Park"
+    center_type: Optional[str] = None
+    centerType: Optional[str] = None
+    institution_name: Optional[str] = None
+    institutionName: Optional[str] = None
+    sub_branch: Optional[str] = None
     academic_year: Optional[str] = "2025-2026"
     admission_type: Optional[str] = "11th Standard Only"
     admissions: Optional[List[Any]] = []
@@ -80,6 +85,11 @@ class StudentAdminCreate(BaseModel):
     academicBatch: Optional[str] = None
     session: Optional[str] = None
     branch: Optional[str] = "Tarabai Park"
+    center_type: Optional[str] = None
+    centerType: Optional[str] = None
+    institution_name: Optional[str] = None
+    institutionName: Optional[str] = None
+    sub_branch: Optional[str] = None
     standard: Optional[str] = None
     admission_date: Optional[Any] = None
     rfid_tag: Optional[str] = None

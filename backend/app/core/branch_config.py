@@ -199,3 +199,40 @@ def student_matches_filters(
             return False
 
     return True
+
+
+# Institution / Center Types per Branch:
+# Tarabai Park -> "Shubham Academy", "Shubham Coaching Classes"
+# Mangalvar Peth -> "Shubham Tutorial", "Shubham Academy"
+CENTER_TYPES_TARABAI = ["Shubham Academy", "Shubham Coaching Classes"]
+CENTER_TYPES_MANGALWAR = ["Shubham Tutorial", "Shubham Academy"]
+
+
+def get_center_types_for_branch(branch: Optional[str]) -> List[str]:
+    norm = normalize_branch(branch)
+    if norm == BRANCH_MANGALWAR or (branch and "mangal" in str(branch).lower()):
+        return CENTER_TYPES_MANGALWAR
+    return CENTER_TYPES_TARABAI
+
+
+def normalize_center_type(center_type: Optional[str], branch: Optional[str]) -> str:
+    norm_br = normalize_branch(branch)
+    is_mp = norm_br == BRANCH_MANGALWAR or (branch and "mangal" in str(branch).lower())
+    valid_options = CENTER_TYPES_MANGALWAR if is_mp else CENTER_TYPES_TARABAI
+    if not center_type or not str(center_type).strip():
+        return valid_options[0]
+
+    ct_clean = str(center_type).strip().lower()
+    for opt in valid_options:
+        if opt.lower() == ct_clean:
+            return opt
+
+    if is_mp:
+        if "tutorial" in ct_clean:
+            return "Shubham Tutorial"
+        return "Shubham Academy"
+    else:
+        if "coaching" in ct_clean or "classes" in ct_clean:
+            return "Shubham Coaching Classes"
+        return "Shubham Academy"
+

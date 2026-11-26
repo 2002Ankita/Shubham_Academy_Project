@@ -30,6 +30,32 @@ export const ACADEMIC_BATCHES = [
 ];
 
 /**
+ * Center / Institution Units per Branch:
+ * - Tarabai Park -> "Shubham Academy", "Shubham Coaching Classes"
+ * - Mangalvar Peth -> "Shubham Tutorial", "Shubham Academy"
+ */
+export const CENTER_TYPES_TARABAI = [
+  'Shubham Academy',
+  'Shubham Coaching Classes'
+];
+
+export const CENTER_TYPES_MANGALWAR = [
+  'Shubham Tutorial',
+  'Shubham Academy'
+];
+
+export const getCenterTypesForBranch = (branch) => {
+  if (!branch) return CENTER_TYPES_TARABAI;
+  const b = String(branch).toLowerCase();
+  return b.includes('mangal') ? CENTER_TYPES_MANGALWAR : CENTER_TYPES_TARABAI;
+};
+
+export const getDefaultCenterType = (branch) => {
+  const isMP = String(branch || '').toLowerCase().includes('mangal');
+  return isMP ? 'Shubham Tutorial' : 'Shubham Academy';
+};
+
+/**
  * Returns whether session selection (Morning/Afternoon) is required for a branch.
  */
 export const isSessionRequired = (branch) => {
@@ -122,19 +148,21 @@ export const getStudentAssignment = (student) => {
   }
 
   const standard = academicBatch.startsWith('12th') ? '12th Science' : '11th Science';
+  const centerType = student.center_type || student.institution_name || student.centerType || (branch === BRANCH_MANGALWAR ? 'Shubham Tutorial' : 'Shubham Academy');
 
-  return { branch, academicBatch, session, standard };
+  return { branch, academicBatch, session, standard, centerType };
 };
 
 /**
  * Format a human-readable badge/label for a student's batch assignment.
  */
 export const formatStudentBatchDisplay = (student) => {
-  const { branch, academicBatch, session } = getStudentAssignment(student);
+  const { branch, academicBatch, session, centerType } = getStudentAssignment(student);
+  const unitTag = centerType ? `[${centerType}] ` : '';
   if (branch === BRANCH_MANGALWAR && session) {
-    return `${branch} • ${session} • ${academicBatch}`;
+    return `${unitTag}${branch} • ${session} • ${academicBatch}`;
   }
-  return `${branch} • ${academicBatch}`;
+  return `${unitTag}${branch} • ${academicBatch}`;
 };
 
 /**

@@ -31,7 +31,9 @@ import {
   BRANCH_MANGALWAR,
   ACADEMIC_BATCHES,
   isSessionRequired,
-  formatStudentBatchDisplay
+  formatStudentBatchDisplay,
+  getCenterTypesForBranch,
+  getDefaultCenterType
 } from '../../config/branchBatchConfig';
 import { getUserBranch } from '../../utils/branchUtils';
 
@@ -119,6 +121,8 @@ export default function StudentRegistration() {
     rollNumber: '',
     admissionType: '11th Standard Only', // '11th Standard Only', '12th Standard Only', '11th + 12th Standard (Two-Year Admission)'
     branch: initialBranch,
+    centerType: isMangal ? 'Shubham Tutorial' : 'Shubham Academy',
+    institution_name: isMangal ? 'Shubham Tutorial' : 'Shubham Academy',
     session: isMangal ? 'Morning' : '',
     academicBatch: '11th PCM',
     standard: '11th Science',
@@ -237,9 +241,12 @@ export default function StudentRegistration() {
           prev.concessionValue,
           prev.paidFees
         );
+        const targetCenterType = prev.centerType || (isMP ? 'Shubham Tutorial' : 'Shubham Academy');
         return {
           ...prev,
           branch: targetBranch,
+          centerType: targetCenterType,
+          institution_name: targetCenterType,
           session: targetSession,
           academicBatch: currentAcademic,
           standard: std,
@@ -398,11 +405,18 @@ export default function StudentRegistration() {
     const std = is12 ? '12th Science' : '11th Science';
     const fullBatch = `${currentAcademic} ${newBranch}${newSession ? ` (${newSession})` : ''}`;
 
+    const validCenterTypes = getCenterTypesForBranch(newBranch);
+    const newCenterType = validCenterTypes.includes(formData.centerType)
+      ? formData.centerType
+      : (validCenterTypes[0] || getDefaultCenterType(newBranch));
+
     const calc = computeAdmissionFees(formData.admissionType, newBranch, currentAcademic, formData.secondYearAcademicBatch, formData.concessionType, formData.concessionValue, formData.paidFees);
 
     setFormData((prev) => ({
       ...prev,
       branch: newBranch,
+      centerType: newCenterType,
+      institution_name: newCenterType,
       session: newSession,
       academicBatch: currentAcademic,
       batch: fullBatch,
@@ -424,7 +438,16 @@ export default function StudentRegistration() {
         .catch((err) => console.warn('Could not fetch next roll number on branch change:', err));
     }
 
-    setErrors((prev) => ({ ...prev, branch: '', session: '', academicBatch: '' }));
+    setErrors((prev) => ({ ...prev, branch: '', session: '', academicBatch: '', centerType: '' }));
+  };
+
+  const handleCenterTypeChange = (newCenterType) => {
+    setFormData((prev) => ({
+      ...prev,
+      centerType: newCenterType,
+      institution_name: newCenterType
+    }));
+    setErrors((prev) => ({ ...prev, centerType: '' }));
   };
 
   const handleSessionChange = (newSession) => {
@@ -574,6 +597,11 @@ export default function StudentRegistration() {
         parentPhone: cleanParentMobile,
         parent_mobile: cleanParentMobile,
         branch: formData.branch,
+        center_type: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
+        centerType: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
+        institution_name: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
+        institutionName: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
+        sub_branch: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
         session: formData.session || undefined,
         academic_batch: formData.academicBatch,
         academicBatch: formData.academicBatch,
@@ -1061,9 +1089,12 @@ export default function StudentRegistration() {
                   branch={formData.branch}
                   session={formData.session}
                   academicBatch={formData.academicBatch}
+                  centerType={formData.centerType}
                   onBranchChange={handleBranchChange}
                   onSessionChange={handleSessionChange}
                   onBatchChange={handleAcademicBatchChange}
+                  onCenterTypeChange={handleCenterTypeChange}
+                  showCenterType={true}
                   required={true}
                   disabled={loading}
                   fixedBranch={!isSuperAdmin}
@@ -1604,6 +1635,8 @@ export default function StudentRegistration() {
                       mobileNumber: '',
                       parentPhone: '',
                       branch: branchToUse,
+                      centerType: sessionToUse ? 'Shubham Tutorial' : 'Shubham Academy',
+                      institution_name: sessionToUse ? 'Shubham Tutorial' : 'Shubham Academy',
                       session: sessionToUse,
                       academicBatch: '11th PCM',
                       standard: '11th Science',
@@ -1709,6 +1742,13 @@ export default function StudentRegistration() {
                 <span className="text-muted">Branch:</span>
                 <span className="fw-bold text-sa-charcoal">
                   {formData.branch}
+                </span>
+              </div>
+
+              <div className="d-flex justify-content-between border-bottom pb-2">
+                <span className="text-muted">Institute / Unit:</span>
+                <span className="badge py-1 px-2 rounded fw-bold text-nowrap" style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                  {formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy')}
                 </span>
               </div>
 

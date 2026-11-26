@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Building, Clock, Layers } from 'lucide-react';
+import { Building, Clock, Layers, School } from 'lucide-react';
 import {
   BRANCHES,
   BRANCH_TARABAI,
@@ -9,25 +9,30 @@ import {
   isSessionRequired,
   normalizeBranch,
   normalizeAcademicBatch,
-  normalizeSession
+  normalizeSession,
+  getCenterTypesForBranch,
+  getDefaultCenterType
 } from '../../config/branchBatchConfig';
 
 /**
  * Standardized Branch, Session, and Academic Batch Selector.
  * 
  * Flow:
- * - Tarabai Park -> Direct Academic Batch
- * - Mangalwar Peth -> Session (Morning / Afternoon) -> Academic Batch
+ * - Tarabai Park -> Institute Option (Shubham Academy / Shubham Coaching Classes) -> Academic Batch
+ * - Mangalwar Peth -> Institute Option (Shubham Tutorial / Shubham Academy) -> Session (Morning / Afternoon) -> Academic Batch
  */
 export default function BranchBatchSelector({
   branch = '',
   session = '',
   academicBatch = '',
   batch = '',
+  centerType = '',
   onBranchChange,
   onSessionChange,
   onBatchChange,
   onAcademicBatchChange,
+  onCenterTypeChange,
+  showCenterType = false,
   showAllOption = false,
   allOptionLabel = 'All',
   required = false,
@@ -44,13 +49,24 @@ export default function BranchBatchSelector({
   const selectedBatch = normalizeAcademicBatch(academicBatch || batch) || academicBatch || batch || '';
   const currentSession = normalizeSession(session) || session || '';
 
+  const centerTypeOptions = getCenterTypesForBranch(normalizedBranch);
+  const currentCenterType = centerType || (centerTypeOptions.length > 0 ? centerTypeOptions[0] : getDefaultCenterType(normalizedBranch));
+
   // When branch changes, reset incompatible session if moving to Tarabai Park
+  // and ensure centerType matches valid options for the branch
   const handleBranchSelect = (newBranch) => {
     if (onBranchChange) onBranchChange(newBranch);
     if (!isSessionRequired(newBranch)) {
       if (onSessionChange) onSessionChange('');
     } else if (!session && onSessionChange) {
       onSessionChange('Morning');
+    }
+
+    if (onCenterTypeChange) {
+      const validOpts = getCenterTypesForBranch(newBranch);
+      if (!validOpts.includes(centerType)) {
+        onCenterTypeChange(validOpts[0]);
+      }
     }
   };
 
@@ -68,11 +84,17 @@ export default function BranchBatchSelector({
 
   const shouldShowAll = showAllOption && !fixedBranch;
 
+  const colClass = layout === 'stacked'
+    ? 'w-100'
+    : showCenterType
+      ? (needsSession ? 'col-12 col-md-3' : 'col-12 col-md-4')
+      : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6');
+
   return (
     <div className={`branch-batch-selector ${className}`}>
       <div className={layout === 'stacked' ? 'd-flex flex-column gap-3' : 'row g-3 align-items-end'}>
         {/* Step 1: Branch Display / Dropdown */}
-        <div className={layout === 'stacked' ? 'w-100' : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6')}>
+        <div className={colClass}>
           <label className="form-label small fw-semibold text-sa-charcoal d-flex align-items-center justify-content-between mb-1">
             <span className="d-inline-flex align-items-center gap-1.5 text-nowrap">
               <Building size={14} className="text-sa-primary flex-shrink-0" />
@@ -146,9 +168,33 @@ export default function BranchBatchSelector({
           )}
         </div>
 
-        {/* Step 2: Session Dropdown (Shown or required for Mangalwar Peth) */}
+        {/* Step 2: Center Type / Institute Option (Tarabai vs Mangalwar) */}
+        {showCenterType && (
+          <div className={colClass}>
+            <label className={labelClass}>
+              <School size={14} className="text-sa-primary flex-shrink-0" />
+              <span>{labels.centerType || 'Institute / Unit'}</span>
+              {required && <span className="text-danger">*</span>}
+            </label>
+            <select
+              className={`${selectClass} ${!currentCenterType && required ? 'border-warning' : ''}`}
+              value={currentCenterType}
+              onChange={(e) => onCenterTypeChange && onCenterTypeChange(e.target.value)}
+              disabled={disabled || !branch}
+              required={required}
+            >
+              {centerTypeOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Step 3: Session Dropdown (Shown or required for Mangalwar Peth) */}
         {needsSession && (
-          <div className={layout === 'stacked' ? 'w-100' : 'col-12 col-md-4'}>
+          <div className={colClass}>
             <label className={labelClass}>
               <Clock size={14} className="text-sa-primary" />
               <span>{labels.session || 'Session'}</span>
@@ -175,8 +221,8 @@ export default function BranchBatchSelector({
           </div>
         )}
 
-        {/* Step 3: Academic Batch Dropdown */}
-        <div className={layout === 'stacked' ? 'w-100' : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6')}>
+        {/* Step 4: Academic Batch Dropdown */}
+        <div className={colClass}>
           <label className={labelClass}>
             <Layers size={14} className="text-sa-primary" />
             <span>{labels.batch || 'Academic Batch'}</span>

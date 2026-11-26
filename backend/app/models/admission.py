@@ -12,6 +12,8 @@ class AdmissionRecord(BaseModel):
     academic_batch: Optional[str] = None  # e.g. "11th PCM"
     session: Optional[str] = None  # e.g. "Morning"
     branch: Optional[str] = "Tarabai Park"
+    center_type: Optional[str] = None  # e.g. "Shubham Academy", "Shubham Coaching Classes", "Shubham Tutorial"
+    institution_name: Optional[str] = None
     original_fees: float = 0.0
     concession_amount: float = 0.0
     final_fees: float = 0.0
@@ -36,6 +38,8 @@ class Admission(Document):
     academic_batch: Optional[str] = None
     session: Optional[str] = None
     branch: Optional[str] = "Tarabai Park"
+    center_type: Optional[str] = None
+    institution_name: Optional[str] = None
     original_fees: float = 0.0
     concession_amount: float = 0.0
     final_fees: float = 0.0

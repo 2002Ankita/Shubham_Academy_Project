@@ -830,9 +830,19 @@ export default function StudentList() {
                 title: 'Branch / Batch',
                 render: (_, row) => (
                   <div>
-                    <span className="badge bg-light text-dark border d-inline-block fw-semibold mb-1">
-                      {row.branch || 'Tarabai Park'}
-                    </span>
+                    <div className="d-flex align-items-center gap-1 flex-wrap mb-1">
+                      <span className="badge bg-light text-dark border fw-semibold">
+                        {row.branch || 'Tarabai Park'}
+                      </span>
+                      {(row.center_type || row.institution_name) && (
+                        <span
+                          className="badge text-primary border"
+                          style={{ fontSize: '10px', backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                        >
+                          {row.center_type || row.institution_name}
+                        </span>
+                      )}
+                    </div>
                     <span className="d-block small text-sa-charcoal fw-bold">
                       {row.academicBatch || row.academic_batch || row.batch || row.standard || '11th PCM'}
                       {row.session ? ` • ${row.session}` : ''}

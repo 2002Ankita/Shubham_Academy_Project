@@ -21,6 +21,8 @@ from app.core.branch_config import (
     BRANCHES,
     ACADEMIC_BATCHES,
     SESSIONS,
+    normalize_center_type,
+    get_center_types_for_branch,
 )
 
 async def get_fee_for_standard_and_stream(branch: Optional[str], standard: Optional[str], academic_batch: Optional[str]) -> float:
@@ -120,6 +122,9 @@ async def _format_student(student: Student) -> dict:
         "academicBatch": norm_ab,
         "session": norm_se,
         "branch": norm_br,
+        "center_type": getattr(student, "center_type", None) or getattr(student, "institution_name", None) or normalize_center_type(None, norm_br),
+        "institution_name": getattr(student, "institution_name", None) or getattr(student, "center_type", None) or normalize_center_type(None, norm_br),
+        "sub_branch": getattr(student, "sub_branch", None) or getattr(student, "center_type", None) or normalize_center_type(None, norm_br),
         "academic_year": student.academic_year or "2025-2026",
         "previous_school": getattr(student, "previous_school", None) or "",
         "rfid_tag": student.rfid_tag or "",
@@ -364,6 +369,16 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         raw_branch, raw_batch, raw_academic_batch, raw_session
     )
 
+    # Parse and normalize Institution / Center Type per branch:
+    # Tarabai Park -> "Shubham Academy", "Shubham Coaching Classes"
+    # Mangalvar Peth -> "Shubham Tutorial", "Shubham Academy"
+    raw_center_type = (
+        data.get("center_type") or data.get("centerType") or
+        data.get("institution_name") or data.get("institutionName") or
+        data.get("sub_branch") or data.get("subBranch")
+    )
+    norm_center_type = normalize_center_type(raw_center_type, norm_branch)
+
     try:
         validate_branch_batch_selection(norm_branch, norm_batch, norm_session)
     except ValueError as ve:
@@ -448,6 +463,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             academic_batch=norm_batch,
             session=norm_session,
             branch=norm_branch,
+            center_type=norm_center_type,
+            institution_name=norm_center_type,
             original_fees=orig_fees,
             concession_amount=disc_amount,
             final_fees=total_fees,
@@ -484,6 +501,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             academic_batch=norm_batch,
             session=norm_session,
             branch=norm_branch,
+            center_type=norm_center_type,
+            institution_name=norm_center_type,
             original_fees=orig_fees,
             concession_amount=disc_amount,
             final_fees=total_fees,
@@ -600,6 +619,9 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             academic_batch=norm_batch,
             session=norm_session,
             branch=norm_branch,
+            center_type=norm_center_type,
+            institution_name=norm_center_type,
+            sub_branch=norm_center_type,
             academic_year=data.get("academic_year") or "2025-2026",
             admission_date=admission_date,
             rfid_tag=data.get("rfid_tag") or data.get("rfidCard") or None,
@@ -1008,6 +1030,17 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
             student.rfid_tag = rcard or None
             student_in["rfid_tag"] = rcard or None
             student_in.pop("rfidCard", None)
+
+        if "center_type" in student_in or "centerType" in student_in or "institution_name" in student_in or "institutionName" in student_in or "sub_branch" in student_in:
+            raw_ct = student_in.get("center_type") or student_in.get("centerType") or student_in.get("institution_name") or student_in.get("institutionName") or student_in.get("sub_branch")
+            norm_ct = normalize_center_type(raw_ct, student.branch)
+            student.center_type = norm_ct
+            student.institution_name = norm_ct
+            student.sub_branch = norm_ct
+            student_in["center_type"] = norm_ct
+            student_in["institution_name"] = norm_ct
+            student_in.pop("centerType", None)
+            student_in.pop("institutionName", None)
 
         if "dob" in student_in:
             student_in["date_of_birth"] = student_in.pop("dob")
