@@ -84,18 +84,25 @@ export default function BranchBatchSelector({
 
   const shouldShowAll = showAllOption && !fixedBranch;
 
-  const colClass = layout === 'stacked'
-    ? 'w-100'
-    : showCenterType
-      ? (needsSession ? 'col-12 col-md-3' : 'col-12 col-md-4')
-      : (needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6');
+  // Responsive column classes to ensure no text truncation and ample breathing room
+  let colClass = 'col-12 col-md-6';
+  if (layout === 'stacked') {
+    colClass = 'w-100';
+  } else if (showCenterType) {
+    // When Institute / Unit is shown:
+    // Mangalwar Peth: 4 items in a 2x2 grid (Branch & Institute on Row 1, Session & Batch on Row 2)
+    // Tarabai Park: Branch & Institute on Row 1, Batch on Row 2
+    colClass = 'col-12 col-md-6';
+  } else {
+    colClass = needsSession ? 'col-12 col-md-4' : 'col-12 col-md-6';
+  }
 
   return (
     <div className={`branch-batch-selector ${className}`}>
-      <div className={layout === 'stacked' ? 'd-flex flex-column gap-3' : 'row g-3 align-items-end'}>
+      <div className={layout === 'stacked' ? 'd-flex flex-column gap-3' : 'row g-3'}>
         {/* Step 1: Branch Display / Dropdown */}
         <div className={colClass}>
-          <label className="form-label small fw-semibold text-sa-charcoal d-flex align-items-center justify-content-between mb-1">
+          <label className="form-label small fw-semibold text-sa-charcoal d-flex align-items-center gap-2 mb-1">
             <span className="d-inline-flex align-items-center gap-1.5 text-nowrap">
               <Building size={14} className="text-sa-primary flex-shrink-0" />
               <span>{labels.branch || 'Branch / Campus'}</span>
@@ -110,7 +117,7 @@ export default function BranchBatchSelector({
                   backgroundColor: '#ECFDF5',
                   color: '#065F46',
                   border: '1px solid #A7F3D0',
-                  padding: '2px 8px'
+                  padding: '1.5px 7px'
                 }}
               >
                 Fixed
@@ -124,7 +131,7 @@ export default function BranchBatchSelector({
                 readOnly
                 disabled
                 tabIndex={-1}
-                value={branch ? (branch.toLowerCase().includes('mangal') ? '🏛️ Mangalvar Peth' : '🌲 Tarabai Park') : 'Not Selected'}
+                value={branch ? (branch.toLowerCase().includes('mangal') ? '🏛️ Mangalvar Peth Campus' : '🌲 Tarabai Park Campus') : 'Not Selected'}
                 className={`${size === 'sm' ? 'form-control form-control-sm' : 'form-control'} fw-bold pe-4`}
                 style={{
                   backgroundColor: '#F8FAFC',
@@ -132,10 +139,7 @@ export default function BranchBatchSelector({
                   color: '#1E293B',
                   cursor: 'not-allowed',
                   height: size === 'sm' ? '31px' : '38px',
-                  fontSize: size === 'sm' ? '0.8rem' : '0.875rem',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden'
+                  fontSize: size === 'sm' ? '0.8rem' : '0.875rem'
                 }}
               />
               <span
@@ -149,6 +153,10 @@ export default function BranchBatchSelector({
           ) : (
             <select
               className={`${selectClass} ${!branch && required ? 'border-warning' : ''}`}
+              style={{
+                height: size === 'sm' ? '31px' : '38px',
+                fontSize: size === 'sm' ? '0.8rem' : '0.875rem'
+              }}
               value={normalizeBranch(branch) || branch || ''}
               onChange={(e) => handleBranchSelect(e.target.value)}
               disabled={disabled}
@@ -166,6 +174,11 @@ export default function BranchBatchSelector({
               ))}
             </select>
           )}
+          {fixedBranch && (
+            <div className="text-muted small mt-1.5" style={{ fontSize: '10.5px' }}>
+              Campus: Locked to active login access
+            </div>
+          )}
         </div>
 
         {/* Step 2: Center Type / Institute Option (Tarabai vs Mangalwar) */}
@@ -176,19 +189,56 @@ export default function BranchBatchSelector({
               <span>{labels.centerType || 'Institute / Unit'}</span>
               {required && <span className="text-danger">*</span>}
             </label>
-            <select
-              className={`${selectClass} ${!currentCenterType && required ? 'border-warning' : ''}`}
-              value={currentCenterType}
-              onChange={(e) => onCenterTypeChange && onCenterTypeChange(e.target.value)}
-              disabled={disabled || !branch}
-              required={required}
-            >
-              {centerTypeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+            <div className="position-relative">
+              <select
+                className={`${selectClass} ${!currentCenterType && required ? 'border-warning' : ''} fw-semibold`}
+                value={currentCenterType}
+                onChange={(e) => onCenterTypeChange && onCenterTypeChange(e.target.value)}
+                disabled={disabled || !branch}
+                required={required}
+                style={{
+                  height: size === 'sm' ? '31px' : '38px',
+                  fontSize: size === 'sm' ? '0.8rem' : '0.875rem',
+                  backgroundColor: disabled || !branch ? '#F8FAFC' : '#FFFFFF',
+                  borderColor: '#CBD5E1',
+                  color: '#1E293B'
+                }}
+              >
+                {centerTypeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Quick 1-click pill buttons for instant selection */}
+            {centerTypeOptions.length > 0 && !disabled && branch && (
+              <div className="d-flex align-items-center gap-1.5 mt-1.5 flex-wrap">
+                <span className="text-muted" style={{ fontSize: '10.5px' }}>Choice:</span>
+                {centerTypeOptions.map((opt) => {
+                  const isSelected = currentCenterType === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => onCenterTypeChange && onCenterTypeChange(opt)}
+                      className="btn p-0 px-2 rounded-pill transition-all"
+                      style={{
+                        fontSize: '11px',
+                        lineHeight: '19px',
+                        backgroundColor: isSelected ? '#8B1216' : '#F1F5F9',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        border: isSelected ? '1px solid #8B1216' : '1px solid #E2E8F0',
+                        fontWeight: isSelected ? 600 : 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -196,16 +246,23 @@ export default function BranchBatchSelector({
         {needsSession && (
           <div className={colClass}>
             <label className={labelClass}>
-              <Clock size={14} className="text-sa-primary" />
+              <Clock size={14} className="text-sa-primary flex-shrink-0" />
               <span>{labels.session || 'Session'}</span>
               {required && <span className="text-danger">*</span>}
             </label>
             <select
-              className={`${selectClass} ${needsSession && !session && required ? 'border-warning' : ''}`}
+              className={`${selectClass} ${needsSession && !session && required ? 'border-warning' : ''} fw-semibold`}
               value={currentSession}
               onChange={(e) => onSessionChange && onSessionChange(e.target.value)}
               disabled={isSessionDisabled}
               required={required && needsSession}
+              style={{
+                height: size === 'sm' ? '31px' : '38px',
+                fontSize: size === 'sm' ? '0.8rem' : '0.875rem',
+                backgroundColor: isSessionDisabled ? '#F8FAFC' : '#FFFFFF',
+                borderColor: '#CBD5E1',
+                color: '#1E293B'
+              }}
             >
               {showAllOption ? (
                 <option value="">{allOptionLabel} Sessions</option>
@@ -218,18 +275,46 @@ export default function BranchBatchSelector({
                 </option>
               ))}
             </select>
+            {/* Quick 1-click pill buttons for session */}
+            {!disabled && branch && needsSession && (
+              <div className="d-flex align-items-center gap-1.5 mt-1.5 flex-wrap">
+                <span className="text-muted" style={{ fontSize: '10.5px' }}>Shift:</span>
+                {SESSIONS.map((s) => {
+                  const isSelected = currentSession === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onSessionChange && onSessionChange(s)}
+                      className="btn p-0 px-2 rounded-pill transition-all"
+                      style={{
+                        fontSize: '11px',
+                        lineHeight: '19px',
+                        backgroundColor: isSelected ? '#8B1216' : '#F1F5F9',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        border: isSelected ? '1px solid #8B1216' : '1px solid #E2E8F0',
+                        fontWeight: isSelected ? 600 : 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
         {/* Step 4: Academic Batch Dropdown */}
         <div className={colClass}>
           <label className={labelClass}>
-            <Layers size={14} className="text-sa-primary" />
+            <Layers size={14} className="text-sa-primary flex-shrink-0" />
             <span>{labels.batch || 'Academic Batch'}</span>
             {required && <span className="text-danger">*</span>}
           </label>
           <select
-            className={`${selectClass} ${!selectedBatch && required ? 'border-warning' : ''}`}
+            className={`${selectClass} ${!selectedBatch && required ? 'border-warning' : ''} fw-semibold`}
             value={selectedBatch}
             onChange={(e) => {
               const val = e.target.value;
@@ -241,6 +326,13 @@ export default function BranchBatchSelector({
             }}
             disabled={isBatchDisabled}
             required={required}
+            style={{
+              height: size === 'sm' ? '31px' : '38px',
+              fontSize: size === 'sm' ? '0.8rem' : '0.875rem',
+              backgroundColor: isBatchDisabled ? '#F8FAFC' : '#FFFFFF',
+              borderColor: '#CBD5E1',
+              color: '#1E293B'
+            }}
           >
             {showAllOption ? (
               <option value="">{allOptionLabel} Academic Batches</option>
@@ -255,6 +347,40 @@ export default function BranchBatchSelector({
               </option>
             ))}
           </select>
+          {/* Quick 1-click pill buttons for academic batch */}
+          {!disabled && branch && (
+            <div className="d-flex align-items-center gap-1.5 mt-1.5 flex-wrap">
+              <span className="text-muted" style={{ fontSize: '10.5px' }}>Stream:</span>
+              {ACADEMIC_BATCHES.map((b) => {
+                const isSelected = selectedBatch === b;
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => {
+                      if (onBatchChange) onBatchChange(b);
+                      if (onAcademicBatchChange) onAcademicBatchChange(b);
+                      if (needsSession && !session && onSessionChange) {
+                        onSessionChange('Morning');
+                      }
+                    }}
+                    className="btn p-0 px-2 rounded-pill transition-all"
+                    style={{
+                      fontSize: '11px',
+                      lineHeight: '19px',
+                      backgroundColor: isSelected ? '#8B1216' : '#F1F5F9',
+                      color: isSelected ? '#FFFFFF' : '#475569',
+                      border: isSelected ? '1px solid #8B1216' : '1px solid #E2E8F0',
+                      fontWeight: isSelected ? 600 : 500,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {b}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

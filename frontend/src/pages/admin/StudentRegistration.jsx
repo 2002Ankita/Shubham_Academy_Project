@@ -1069,12 +1069,12 @@ export default function StudentRegistration() {
                   <h6 className="fw-bold m-0 text-sa-charcoal">
                     {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
                       ? '3. Academic Batch Allocation (Year 1 & Year 2)'
-                      : '3. Branch & Batch Allocation (Admission Source of Truth)'}
+                      : '3. Branch, Institute & Batch Allocation (Admission Source of Truth)'}
                   </h6>
                   <span className="text-muted small" style={{ fontSize: '0.8rem' }}>
                     {formData.admissionType === '11th + 12th Standard (Two-Year Admission)'
                       ? 'Configure 11th Standard Active batch and linked 12th Standard Upcoming batch'
-                      : 'Select Branch first, followed by Session (if Mangalvar Peth) and Academic Batch'}
+                      : 'Select Campus & Institute Unit, followed by Session (if Mangalvar Peth) and Academic Batch'}
                   </span>
                 </div>
               </div>
@@ -1164,7 +1164,7 @@ export default function StudentRegistration() {
                   <div className="small text-sa-charcoal">
                     <span className="text-muted">Primary Active Placement:</span>{' '}
                     <span className="badge py-1 px-2.5 rounded-pill fw-bold" style={{ backgroundColor: '#8B1216', color: '#FFFFFF' }}>
-                      {formData.branch} • {formData.session ? `${formData.session} • ` : ''}{formData.academicBatch}
+                      {formData.branch} • {formData.centerType ? `${formData.centerType} • ` : ''}{formData.session ? `${formData.session} • ` : ''}{formData.academicBatch}
                     </span>
                   </div>
                 </div>
