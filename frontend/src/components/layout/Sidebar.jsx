@@ -351,6 +351,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       return [
         { label: 'Dashboard', path: '/super-admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/super-admin/dashboard'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
+        { label: 'Passout Students', path: '/admin/passout-students', icon: GraduationCap, matchPrefixes: ['/admin/passout-students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
@@ -394,6 +395,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Overview', path: '/admin/dashboard', icon: OverviewHomeIcon, matchPrefixes: ['/admin/dashboard'] },
         { label: 'Admissions', path: '/admin/students/register', icon: AdmissionsIcon, matchPrefixes: ['/admin/students/register'] },
         { label: 'Students', path: '/admin/students', icon: StudentsIcon, matchPrefixes: ['/admin/students'] },
+        { label: 'Passout Students', path: '/admin/passout-students', icon: GraduationCap, matchPrefixes: ['/admin/passout-students'] },
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },

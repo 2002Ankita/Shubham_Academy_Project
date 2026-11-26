@@ -33,6 +33,7 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import StudentList from '../pages/admin/StudentList';
 import StudentRegistration from '../pages/admin/StudentRegistration';
 import StudentDetails from '../pages/admin/StudentDetails';
+import PassoutStudents from '../pages/admin/PassoutStudents';
 import TeacherList from '../pages/admin/TeacherList';
 import AddTeacher from '../pages/admin/AddTeacher';
 import TeacherSalary from '../pages/admin/TeacherSalary';
@@ -161,6 +162,7 @@ export default function AppRoutes() {
         <Route path="/admin/students" element={<StudentList />} />
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />
+        <Route path="/admin/passout-students" element={<PassoutStudents />} />
         <Route path="/admin/teachers" element={<TeacherList />} />
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<TeacherSalary />} />
