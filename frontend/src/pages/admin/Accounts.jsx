@@ -7,7 +7,7 @@ import {
   Unlock,
   ShieldCheck,
   Building,
-  Calendar,
+  Calendar as CalendarIcon,
   Users,
   CreditCard,
   TrendingUp,
@@ -18,7 +18,11 @@ import {
   RefreshCw,
   Send,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAccountsAuth } from '../../context/AccountsAuthContext';
@@ -26,6 +30,21 @@ import { getUserBranch } from '../../utils/branchUtils';
 import accountsService from '../../services/accountsService';
 import salaryService from '../../services/salaryService';
 import { BRANCH_TARABAI, BRANCH_MANGALWAR, normalizeBranch } from '../../config/branchBatchConfig';
+
+const ACADEMIC_MONTHS = [
+  { full: 'April 2026', short: 'Apr', year: 2026, monthNum: 4 },
+  { full: 'May 2026', short: 'May', year: 2026, monthNum: 5 },
+  { full: 'June 2026', short: 'Jun', year: 2026, monthNum: 6 },
+  { full: 'July 2026', short: 'Jul', year: 2026, monthNum: 7 },
+  { full: 'August 2026', short: 'Aug', year: 2026, monthNum: 8 },
+  { full: 'September 2026', short: 'Sep', year: 2026, monthNum: 9 },
+  { full: 'October 2026', short: 'Oct', year: 2026, monthNum: 10 },
+  { full: 'November 2026', short: 'Nov', year: 2026, monthNum: 11 },
+  { full: 'December 2026', short: 'Dec', year: 2026, monthNum: 12 },
+  { full: 'January 2027', short: 'Jan', year: 2027, monthNum: 1 },
+  { full: 'February 2027', short: 'Feb', year: 2027, monthNum: 2 },
+  { full: 'March 2027', short: 'Mar', year: 2027, monthNum: 3 }
+];
 
 export default function Accounts() {
   const { user } = useAuth();
@@ -39,9 +58,12 @@ export default function Accounts() {
 
   const userBranch = getUserBranch(user) || BRANCH_TARABAI;
   const [activeBranch, setActiveBranch] = useState(unlockedBranch || userBranch);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-  });
+  
+  // Current month default: November 2026
+  const currentMonthName = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
+  const [academicYear, setAcademicYear] = useState('2026-2027');
+  const [viewMode, setViewMode] = useState('dual'); // 'dual' | 'monthly' | 'yearly'
 
   const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
@@ -52,10 +74,11 @@ export default function Accounts() {
   const loadAccountsData = async () => {
     setLoading(true);
     try {
-      const summary = await accountsService.getSummary(activeBranch, selectedMonth);
+      const summary = await accountsService.getSummary(activeBranch, selectedMonth, academicYear);
       setSummaryData(summary);
 
-      const salaries = await salaryService.getAll({ month: selectedMonth });
+      const queryParams = selectedMonth === 'ALL' ? {} : { month: selectedMonth };
+      const salaries = await salaryService.getAll(queryParams);
       setSalaryList(salaries || []);
     } catch (err) {
       console.error('Failed to load accounts summary:', err);
@@ -69,7 +92,7 @@ export default function Accounts() {
     if (isAccountsUnlocked) {
       loadAccountsData();
     }
-  }, [activeBranch, selectedMonth, isAccountsUnlocked]);
+  }, [activeBranch, selectedMonth, academicYear, isAccountsUnlocked]);
 
   const handleDisburseClick = async (salaryId, amount) => {
     try {
@@ -81,15 +104,37 @@ export default function Accounts() {
     }
   };
 
-  const fees = summaryData?.fees_counter || {
-    total_expected: 0,
+  // Helper date selector handler for native <input type="month" />
+  const handleNativeMonthChange = (e) => {
+    const val = e.target.value; // e.g. "2026-11"
+    if (!val) return;
+    const [yStr, mStr] = val.split('-');
+    const dateObj = new Date(parseInt(yStr, 10), parseInt(mStr, 10) - 1, 1);
+    const mName = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    setSelectedMonth(mName);
+  };
+
+  const isAllMonths = selectedMonth === 'ALL';
+
+  // Derived live metrics
+  const monthlyFees = summaryData?.monthly_fees || {
     total_collected: 0,
+    total_expected: 0,
     total_pending: 0,
+    payments_count: 0,
+    collection_rate_percent: 0
+  };
+
+  const yearlyFees = summaryData?.yearly_fees || {
+    total_collected: 0,
+    total_expected: 0,
+    total_pending: 0,
+    total_students: 0,
     overdue_students_count: 0,
     collection_rate_percent: 0
   };
 
-  const salary = summaryData?.salary_counter || {
+  const monthlySalary = summaryData?.monthly_salary || {
     total_liability: 0,
     total_disbursed: 0,
     total_pending: 0,
@@ -98,11 +143,22 @@ export default function Accounts() {
     disbursement_rate_percent: 0
   };
 
+  const yearlySalary = summaryData?.yearly_salary || {
+    total_liability: 0,
+    total_disbursed: 0,
+    total_pending: 0,
+    total_disbursements_count: 0,
+    faculty_count: 0,
+    disbursement_rate_percent: 0
+  };
+
+  const calendarStats = summaryData?.monthly_calendar_stats || [];
+
   return (
     <div className="container-fluid p-3 p-md-4">
-      {/* Top Header Card */}
+      {/* 1. Top Header Card */}
       <div
-        className="rounded-4 p-4 text-white mb-4 shadow-sm position-relative overflow-hidden"
+        className="rounded-4 p-4 text-white mb-3 shadow-sm position-relative overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, #8B1216 0%, #4A080A 100%)',
           border: '1px solid rgba(255,255,255,0.1)'
@@ -123,6 +179,12 @@ export default function Accounts() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.15)', fontSize: '11.5px' }}
               >
                 {activeBranch}
+              </span>
+              <span
+                className="badge py-1 px-2.5 rounded-pill bg-light text-dark fw-semibold"
+                style={{ fontSize: '11px' }}
+              >
+                AY {academicYear}
               </span>
             </div>
             <h3 className="fw-bold m-0 text-white">Accounts & Financials</h3>
@@ -145,6 +207,37 @@ export default function Accounts() {
               </select>
             )}
 
+            {/* View Mode Toggle */}
+            <div className="btn-group btn-group-sm bg-white bg-opacity-10 p-0.5 rounded-3">
+              <button
+                type="button"
+                onClick={() => setViewMode('dual')}
+                className={`btn btn-sm ${viewMode === 'dual' ? 'btn-light fw-bold text-dark' : 'text-white'}`}
+                style={{ fontSize: '11px', height: '32px' }}
+                title="View Both Monthly & Yearly Data Side-by-Side"
+              >
+                Dual View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('monthly')}
+                className={`btn btn-sm ${viewMode === 'monthly' ? 'btn-light fw-bold text-dark' : 'text-white'}`}
+                style={{ fontSize: '11px', height: '32px' }}
+                title="Focus on Selected Month Only"
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('yearly')}
+                className={`btn btn-sm ${viewMode === 'yearly' ? 'btn-light fw-bold text-dark' : 'text-white'}`}
+                style={{ fontSize: '11px', height: '32px' }}
+                title="Focus on Full Academic Year"
+              >
+                Full Year
+              </button>
+            </div>
+
             {/* Refresh Button */}
             <button
               onClick={loadAccountsData}
@@ -165,19 +258,148 @@ export default function Accounts() {
               title="Lock Accounts Session"
             >
               <Lock size={14} />
-              <span>Lock Accounts</span>
+              <span>Lock</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards Row */}
+      {/* 2. Interactive Academic Year Months Calendar Ribbon */}
+      <div className="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+        <div className="card-body p-3">
+          <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            {/* Left: Calendar Title & Overall Year Toggle */}
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center text-white"
+                style={{ width: '34px', height: '34px', backgroundColor: '#8B1216' }}
+              >
+                <CalendarIcon size={17} />
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="fw-bold text-sa-charcoal small">Academic Calendar</span>
+                  <span className="badge bg-light text-muted border" style={{ fontSize: '10.5px' }}>
+                    {academicYear}
+                  </span>
+                </div>
+                <div className="small text-muted" style={{ fontSize: '11px' }}>
+                  {isAllMonths ? 'Showing Full Academic Year' : `Viewing: ${selectedMonth}`}
+                </div>
+              </div>
+
+              {/* Full Academic Year Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedMonth('ALL')}
+                className={`btn btn-sm ms-2 py-1 px-2.5 rounded-pill fw-semibold ${
+                  isAllMonths
+                    ? 'btn-danger text-white shadow-sm'
+                    : 'btn-outline-secondary'
+                }`}
+                style={{
+                  fontSize: '11.5px',
+                  backgroundColor: isAllMonths ? '#8B1216' : undefined,
+                  borderColor: isAllMonths ? '#8B1216' : undefined
+                }}
+              >
+                ⭐ Full Academic Year (All Months)
+              </button>
+            </div>
+
+            {/* Middle: Month Pills Ribbon */}
+            <div className="d-flex align-items-center gap-1.5 overflow-auto py-1 px-0 w-100 justify-content-start justify-content-lg-center">
+              {ACADEMIC_MONTHS.map((m) => {
+                const isSelected = selectedMonth === m.full;
+                const isCurrent = currentMonthName === m.full;
+                const stat = calendarStats.find((s) => s.month_name === m.full);
+                const hasFees = stat && stat.fees_collected > 0;
+                const hasSalary = stat && stat.salary_disbursed > 0;
+
+                return (
+                  <button
+                    key={m.full}
+                    type="button"
+                    onClick={() => setSelectedMonth(m.full)}
+                    className={`btn btn-sm d-flex flex-column align-items-center justify-content-center px-2 py-1 rounded-3 transition-all ${
+                      isSelected
+                        ? 'text-white shadow-sm'
+                        : isCurrent
+                        ? 'btn-light border-danger text-danger fw-bold'
+                        : 'btn-light text-sa-charcoal'
+                    }`}
+                    style={{
+                      minWidth: '60px',
+                      height: '42px',
+                      backgroundColor: isSelected ? '#8B1216' : undefined,
+                      borderColor: isSelected ? '#8B1216' : undefined,
+                      fontSize: '11px'
+                    }}
+                    title={`${m.full}${hasFees ? ` • Fees: ₹${stat.fees_collected.toLocaleString('en-IN')}` : ''}`}
+                  >
+                    <span className="fw-bold">{m.short}</span>
+                    <div className="d-flex align-items-center gap-1 mt-0.5">
+                      <span style={{ fontSize: '9px', opacity: 0.8 }}>'{String(m.year).slice(2)}</span>
+                      {hasFees && (
+                        <span
+                          className="rounded-circle"
+                          style={{
+                            width: '5px',
+                            height: '5px',
+                            backgroundColor: isSelected ? '#4ADE80' : '#16A34A'
+                          }}
+                          title="Fees Collected"
+                        />
+                      )}
+                      {hasSalary && (
+                        <span
+                          className="rounded-circle"
+                          style={{
+                            width: '5px',
+                            height: '5px',
+                            backgroundColor: isSelected ? '#C084FC' : '#7E22CE'
+                          }}
+                          title="Salary Disbursed"
+                        />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Quick Jump Controls */}
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedMonth(currentMonthName)}
+                className="btn btn-sm btn-outline-danger py-1 px-2.5 rounded-3 fw-semibold"
+                style={{ fontSize: '11px' }}
+                title="Jump to Current Month"
+              >
+                Today
+              </button>
+              <input
+                type="month"
+                onChange={handleNativeMonthChange}
+                className="form-control form-control-sm border text-muted"
+                style={{ width: '130px', fontSize: '11px', height: '32px' }}
+                title="Select Specific Month from Calendar"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Monthly and Yearly KPI Cards Row */}
       <div className="row g-3 mb-4">
-        {/* 1. Monthly Fees Collected */}
+        {/* KPI 1: Collected Fees (Monthly & Yearly) */}
         <div className="col-12 col-sm-6 col-xl-3">
-          <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
+          <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white position-relative">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span className="small text-muted fw-semibold">Monthly Fees Counter (Collected)</span>
+              <span className="small text-muted fw-semibold">
+                {isAllMonths ? 'Full Year Collected Fees' : `Monthly Fees (${selectedMonth})`}
+              </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-success"
                 style={{ width: '36px', height: '36px', backgroundColor: '#ECFDF5' }}
@@ -185,23 +407,40 @@ export default function Accounts() {
                 <IndianRupee size={18} />
               </div>
             </div>
+
+            {/* Primary figure */}
             <h4 className="fw-bold mb-1 text-success">
-              ₹{Number(fees.total_collected || 0).toLocaleString('en-IN')}
+              ₹{Number(isAllMonths ? yearlyFees.total_collected : monthlyFees.total_collected || 0).toLocaleString('en-IN')}
             </h4>
-            <div className="d-flex align-items-center justify-content-between small text-muted mt-auto pt-2 border-top">
-              <span>Expected: ₹{Number(fees.total_expected || 0).toLocaleString('en-IN')}</span>
-              <span className="badge bg-success bg-opacity-10 text-success fw-bold">
-                {fees.collection_rate_percent}%
+
+            {/* Monthly Target / Progress */}
+            <div className="small text-muted mb-2">
+              <span>Target: ₹{Number(isAllMonths ? yearlyFees.total_expected : monthlyFees.total_expected || 0).toLocaleString('en-IN')}</span>
+              <span className="badge bg-success bg-opacity-10 text-success fw-bold ms-2">
+                {isAllMonths ? yearlyFees.collection_rate_percent : monthlyFees.collection_rate_percent}%
               </span>
+            </div>
+
+            {/* Dual View: Yearly Cumulative Badge */}
+            <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
+              <span className="text-muted" style={{ fontSize: '11px' }}>
+                Full Year Total:
+              </span>
+              <strong className="text-sa-charcoal" style={{ fontSize: '11.5px' }}>
+                ₹{Number(yearlyFees.total_collected || 0).toLocaleString('en-IN')}
+                <span className="text-muted fw-normal ms-1">({yearlyFees.collection_rate_percent}%)</span>
+              </strong>
             </div>
           </div>
         </div>
 
-        {/* 2. Total Pending Dues (Recovery) */}
+        {/* KPI 2: Pending Dues (Monthly & Yearly Recovery) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span className="small text-muted fw-semibold">Pending Dues (Recovery)</span>
+              <span className="small text-muted fw-semibold">
+                {isAllMonths ? 'Yearly Pending Dues' : `Pending Recovery (${selectedMonth})`}
+              </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-danger"
                 style={{ width: '36px', height: '36px', backgroundColor: '#FEF2F2' }}
@@ -209,11 +448,20 @@ export default function Accounts() {
                 <AlertCircle size={18} />
               </div>
             </div>
+
             <h4 className="fw-bold mb-1 text-danger">
-              ₹{Number(fees.total_pending || 0).toLocaleString('en-IN')}
+              ₹{Number(isAllMonths ? yearlyFees.total_pending : monthlyFees.total_pending || 0).toLocaleString('en-IN')}
             </h4>
-            <div className="d-flex align-items-center justify-content-between small text-muted mt-auto pt-2 border-top">
-              <span>{fees.overdue_students_count} Overdue Accounts</span>
+
+            <div className="small text-muted mb-2">
+              <span>{yearlyFees.overdue_students_count} Overdue Student Accounts</span>
+            </div>
+
+            {/* Dual View: Yearly Dues & Parent Alert */}
+            <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
+              <span className="text-muted" style={{ fontSize: '11px' }}>
+                Yearly Dues: ₹{Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}
+              </span>
               <button
                 type="button"
                 onClick={() => navigate('/admin/fees/pending')}
@@ -226,11 +474,13 @@ export default function Accounts() {
           </div>
         </div>
 
-        {/* 3. Faculty Payroll Liability */}
+        {/* KPI 3: Faculty Salary Liability (Monthly & Yearly) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span className="small text-muted fw-semibold">Faculty Salary Liability</span>
+              <span className="small text-muted fw-semibold">
+                {isAllMonths ? 'Yearly Faculty Liability' : `Faculty Salary Liability (${selectedMonth})`}
+              </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-primary"
                 style={{ width: '36px', height: '36px', backgroundColor: '#EFF6FF' }}
@@ -238,21 +488,34 @@ export default function Accounts() {
                 <Users size={18} />
               </div>
             </div>
+
             <h4 className="fw-bold mb-1 text-sa-charcoal">
-              ₹{Number(salary.total_liability || 0).toLocaleString('en-IN')}
+              ₹{Number(isAllMonths ? yearlySalary.total_liability : monthlySalary.total_liability || 0).toLocaleString('en-IN')}
             </h4>
-            <div className="d-flex align-items-center justify-content-between small text-muted mt-auto pt-2 border-top">
-              <span>{salary.faculty_count} Active Teachers</span>
-              <span className="text-muted" style={{ fontSize: '11px' }}>{selectedMonth}</span>
+
+            <div className="small text-muted mb-2">
+              <span>{isAllMonths ? yearlySalary.faculty_count : monthlySalary.faculty_count} Active Teachers</span>
+            </div>
+
+            {/* Dual View: Yearly Total Liability */}
+            <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
+              <span className="text-muted" style={{ fontSize: '11px' }}>
+                Yearly Total Liability:
+              </span>
+              <strong className="text-primary" style={{ fontSize: '11.5px' }}>
+                ₹{Number(yearlySalary.total_liability || 0).toLocaleString('en-IN')}
+              </strong>
             </div>
           </div>
         </div>
 
-        {/* 4. Salary Disbursed */}
+        {/* KPI 4: Salary Disbursed (Monthly & Yearly Total) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span className="small text-muted fw-semibold">Salary Disbursed</span>
+              <span className="small text-muted fw-semibold">
+                {isAllMonths ? 'Yearly Total Disbursed' : `Salary Disbursed (${selectedMonth})`}
+              </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center"
                 style={{ width: '36px', height: '36px', backgroundColor: '#FAF5FF', color: '#7E22CE' }}
@@ -260,20 +523,36 @@ export default function Accounts() {
                 <CreditCard size={18} />
               </div>
             </div>
+
             <h4 className="fw-bold mb-1" style={{ color: '#7E22CE' }}>
-              ₹{Number(salary.total_disbursed || 0).toLocaleString('en-IN')}
+              ₹{Number(isAllMonths ? yearlySalary.total_disbursed : monthlySalary.total_disbursed || 0).toLocaleString('en-IN')}
             </h4>
-            <div className="d-flex align-items-center justify-content-between small text-muted mt-auto pt-2 border-top">
-              <span>{salary.disbursed_count} of {salary.faculty_count} Disbursed</span>
-              <span className="badge text-white fw-bold" style={{ backgroundColor: '#7E22CE' }}>
-                {salary.disbursement_rate_percent}%
+
+            <div className="small text-muted mb-2 d-flex justify-content-between align-items-center">
+              <span>
+                {isAllMonths
+                  ? `${yearlySalary.total_disbursements_count} Total Disbursements`
+                  : `${monthlySalary.disbursed_count} of ${monthlySalary.faculty_count} Disbursed`}
               </span>
+              <span className="badge text-white fw-bold" style={{ backgroundColor: '#7E22CE', fontSize: '10.5px' }}>
+                {isAllMonths ? yearlySalary.disbursement_rate_percent : monthlySalary.disbursement_rate_percent}%
+              </span>
+            </div>
+
+            {/* Dual View: Full Year Disbursed */}
+            <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
+              <span className="text-muted" style={{ fontSize: '11px' }}>
+                Yearly Disbursed Total:
+              </span>
+              <strong style={{ color: '#7E22CE', fontSize: '11.5px' }}>
+                ₹{Number(yearlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+              </strong>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs Navigation */}
+      {/* 4. Tabs Navigation */}
       <div className="card border-0 shadow-sm rounded-4 mb-4">
         <div className="card-header bg-white border-bottom p-2 d-flex flex-wrap gap-2">
           {[
@@ -281,7 +560,7 @@ export default function Accounts() {
             { id: 'fees', label: '💰 Fees Counter & Collections', icon: IndianRupee },
             { id: 'salary', label: '👨‍🏫 Teacher Salary Register', icon: Users },
             { id: 'security', label: '🔒 Accounts Credentials & Access', icon: ShieldCheck }
-          ].map(tab => {
+          ].map((tab) => {
             const Icon = tab.icon;
             const isTabActive = activeTab === tab.id;
             return (
@@ -290,9 +569,7 @@ export default function Accounts() {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={`btn btn-sm d-inline-flex align-items-center gap-1.5 py-2 px-3 rounded-3 fw-semibold transition-all ${
-                  isTabActive
-                    ? 'text-white'
-                    : 'btn-light text-sa-charcoal'
+                  isTabActive ? 'text-white' : 'btn-light text-sa-charcoal'
                 }`}
                 style={{
                   backgroundColor: isTabActive ? '#8B1216' : undefined,
@@ -307,102 +584,215 @@ export default function Accounts() {
         </div>
 
         <div className="card-body p-4">
-          {/* TAB 1: Financial Overview */}
+          {/* TAB 1: Financial Overview & Actions */}
           {activeTab === 'overview' && (
-            <div className="row g-4">
-              <div className="col-12 col-lg-6">
-                <div className="p-3.5 rounded-3 border bg-light h-100">
-                  <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <div>
+              {/* Executive Dual-Comparison Metrics Matrix */}
+              <div className="mb-4 p-3 rounded-3 border bg-white shadow-sm">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div>
                     <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                      <IndianRupee size={16} className="text-success" />
-                      Fees Collection Actions
+                      <BarChart3 size={17} className="text-danger" />
+                      Monthly vs Yearly Financial Snapshot ({activeBranch})
                     </h6>
-                    <button
-                      onClick={() => navigate('/admin/fees')}
-                      className="btn btn-sm text-white px-2.5 py-1"
-                      style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
-                    >
-                      Open Full Counter →
-                    </button>
+                    <span className="text-muted small" style={{ fontSize: '11.5px' }}>
+                      Comparing {selectedMonth} with Full Academic Year ({academicYear})
+                    </span>
                   </div>
-                  <ul className="list-unstyled mb-0 d-flex flex-column gap-2.5 small">
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Total Fees Collected (Bank / Cash)</span>
-                      <strong className="text-success">₹{Number(fees.total_collected || 0).toLocaleString('en-IN')}</strong>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Pending Fee Dues</span>
-                      <strong className="text-danger">₹{Number(fees.total_pending || 0).toLocaleString('en-IN')}</strong>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Defaulter Recovery Status</span>
-                      <button
-                        onClick={() => navigate('/admin/fees/pending')}
-                        className="btn btn-sm btn-outline-danger py-0.5 px-2"
-                        style={{ fontSize: '11px' }}
-                      >
-                        Send Recovery Alerts
-                      </button>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Fee Receipts & Invoices</span>
-                      <button
-                        onClick={() => navigate('/admin/fees/receipts')}
-                        className="btn btn-sm btn-outline-secondary py-0.5 px-2"
-                        style={{ fontSize: '11px' }}
-                      >
-                        View Receipts
-                      </button>
-                    </li>
-                  </ul>
+                  <span className="badge bg-light text-dark border">Live Data Synced</span>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="table table-bordered align-middle m-0 small">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: '35%' }}>Financial Counter</th>
+                        <th style={{ width: '32%' }}>
+                          Selected Month ({isAllMonths ? 'All Months' : selectedMonth})
+                        </th>
+                        <th style={{ width: '33%' }}>
+                          Full Academic Year ({academicYear})
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="fw-semibold">
+                          <span className="d-flex align-items-center gap-1.5">
+                            <IndianRupee size={14} className="text-success" />
+                            Fees Collected (Bank / Cash)
+                          </span>
+                        </td>
+                        <td className="fw-bold text-success">
+                          ₹{Number(isAllMonths ? yearlyFees.total_collected : monthlyFees.total_collected || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold text-success">
+                          ₹{Number(yearlyFees.total_collected || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold">Total Revenue Expected</td>
+                        <td className="fw-bold text-sa-charcoal">
+                          ₹{Number(isAllMonths ? yearlyFees.total_expected : monthlyFees.total_expected || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold text-sa-charcoal">
+                          ₹{Number(yearlyFees.total_expected || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold">
+                          <span className="d-flex align-items-center gap-1.5">
+                            <AlertCircle size={14} className="text-danger" />
+                            Pending Fee Dues (Recovery)
+                          </span>
+                        </td>
+                        <td className="fw-bold text-danger">
+                          ₹{Number(isAllMonths ? yearlyFees.total_pending : monthlyFees.total_pending || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold text-danger">
+                          ₹{Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold">
+                          <span className="d-flex align-items-center gap-1.5">
+                            <Users size={14} className="text-primary" />
+                            Teacher Salary Liability
+                          </span>
+                        </td>
+                        <td className="fw-bold text-primary">
+                          ₹{Number(isAllMonths ? yearlySalary.total_liability : monthlySalary.total_liability || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold text-primary">
+                          ₹{Number(yearlySalary.total_liability || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold">
+                          <span className="d-flex align-items-center gap-1.5">
+                            <CreditCard size={14} style={{ color: '#7E22CE' }} />
+                            Teacher Salary Disbursed (NEFT)
+                          </span>
+                        </td>
+                        <td className="fw-bold" style={{ color: '#7E22CE' }}>
+                          ₹{Number(isAllMonths ? yearlySalary.total_disbursed : monthlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold" style={{ color: '#7E22CE' }}>
+                          ₹{Number(yearlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold">Remaining Salary Balance</td>
+                        <td className="fw-bold text-warning-emphasis">
+                          ₹{Number(isAllMonths ? yearlySalary.total_pending : monthlySalary.total_pending || 0).toLocaleString('en-IN')}
+                        </td>
+                        <td className="fw-bold text-warning-emphasis">
+                          ₹{Number(yearlySalary.total_pending || 0).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div className="col-12 col-lg-6">
-                <div className="p-3.5 rounded-3 border bg-light h-100">
-                  <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                    <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
-                      <Users size={16} className="text-primary" />
-                      Teacher Salary Payroll Actions
-                    </h6>
-                    <button
-                      onClick={() => navigate('/admin/teachers/salary')}
-                      className="btn btn-sm text-white px-2.5 py-1"
-                      style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
-                    >
-                      Open Payroll Register →
-                    </button>
+              {/* Action Panels */}
+              <div className="row g-4">
+                <div className="col-12 col-lg-6">
+                  <div className="p-3.5 rounded-3 border bg-light h-100">
+                    <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                      <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                        <IndianRupee size={16} className="text-success" />
+                        Fees Collection Actions
+                      </h6>
+                      <button
+                        onClick={() => navigate('/admin/fees')}
+                        className="btn btn-sm text-white px-2.5 py-1"
+                        style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
+                      >
+                        Open Full Counter →
+                      </button>
+                    </div>
+                    <ul className="list-unstyled mb-0 d-flex flex-column gap-2.5 small">
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Total Fees Collected (Yearly)</span>
+                        <strong className="text-success">₹{Number(yearlyFees.total_collected || 0).toLocaleString('en-IN')}</strong>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Pending Fee Dues (Recovery)</span>
+                        <strong className="text-danger">₹{Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}</strong>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Defaulter Recovery Status ({yearlyFees.overdue_students_count} Overdue)</span>
+                        <button
+                          onClick={() => navigate('/admin/fees/pending')}
+                          className="btn btn-sm btn-outline-danger py-0.5 px-2"
+                          style={{ fontSize: '11px' }}
+                        >
+                          Send Recovery Alerts
+                        </button>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Fee Receipts & Invoices</span>
+                        <button
+                          onClick={() => navigate('/admin/fees/receipts')}
+                          className="btn btn-sm btn-outline-secondary py-0.5 px-2"
+                          style={{ fontSize: '11px' }}
+                        >
+                          View Receipts
+                        </button>
+                      </li>
+                    </ul>
                   </div>
-                  <ul className="list-unstyled mb-0 d-flex flex-column gap-2.5 small">
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Month's Faculty Liability</span>
-                      <strong className="text-primary">₹{Number(salary.total_liability || 0).toLocaleString('en-IN')}</strong>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Already Disbursed (NEFT)</span>
-                      <strong className="text-success">₹{Number(salary.total_disbursed || 0).toLocaleString('en-IN')}</strong>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Remaining Salary Balance</span>
-                      <strong className="text-warning-emphasis">₹{Number(salary.total_pending || 0).toLocaleString('en-IN')}</strong>
-                    </li>
-                    <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
-                      <span>Super Admin Notification Rule</span>
-                      <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style={{ fontSize: '10.5px' }}>
-                        Auto-Notifies on Disburse
-                      </span>
-                    </li>
-                  </ul>
+                </div>
+
+                <div className="col-12 col-lg-6">
+                  <div className="p-3.5 rounded-3 border bg-light h-100">
+                    <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                      <h6 className="fw-bold m-0 text-sa-charcoal d-flex align-items-center gap-2">
+                        <Users size={16} className="text-primary" />
+                        Teacher Salary Payroll Actions
+                      </h6>
+                      <button
+                        onClick={() => navigate('/admin/teachers/salary')}
+                        className="btn btn-sm text-white px-2.5 py-1"
+                        style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
+                      >
+                        Open Payroll Register →
+                      </button>
+                    </div>
+                    <ul className="list-unstyled mb-0 d-flex flex-column gap-2.5 small">
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Month's Faculty Liability ({selectedMonth})</span>
+                        <strong className="text-primary">₹{Number(monthlySalary.total_liability || 0).toLocaleString('en-IN')}</strong>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Already Disbursed (NEFT)</span>
+                        <strong className="text-success">₹{Number(monthlySalary.total_disbursed || 0).toLocaleString('en-IN')}</strong>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Remaining Salary Balance</span>
+                        <strong className="text-warning-emphasis">₹{Number(monthlySalary.total_pending || 0).toLocaleString('en-IN')}</strong>
+                      </li>
+                      <li className="d-flex justify-content-between align-items-center p-2 rounded bg-white border">
+                        <span>Super Admin Notification Rule</span>
+                        <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style={{ fontSize: '10.5px' }}>
+                          Auto-Notifies on Disburse
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: Fees Counter */}
+          {/* TAB 2: Fees Counter & Collections Register */}
           {activeTab === 'fees' && (
             <div>
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="fw-bold text-sa-charcoal m-0">Monthly Fees Collection Register</h6>
+                <h6 className="fw-bold text-sa-charcoal m-0">
+                  Fees Collection Register (Monthly & Yearly Comparison)
+                </h6>
                 <div className="d-flex gap-2">
                   <button
                     onClick={() => navigate('/admin/fees')}
@@ -420,29 +810,46 @@ export default function Accounts() {
                 </div>
               </div>
 
-              <div className="table-responsive border rounded-3 bg-white">
+              {/* Summary Table */}
+              <div className="table-responsive border rounded-3 bg-white mb-4">
                 <table className="table table-hover align-middle m-0 small">
                   <thead className="table-light">
                     <tr>
                       <th>Financial Metric</th>
-                      <th>Value</th>
+                      <th>Monthly Value ({selectedMonth})</th>
+                      <th>Full Academic Year Total</th>
                       <th>Operational Note</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="fw-semibold">Total Revenue (Full Academic Year)</td>
-                      <td className="fw-bold text-sa-charcoal">₹{Number(fees.total_expected || 0).toLocaleString('en-IN')}</td>
+                      <td className="fw-semibold">Total Revenue Target</td>
+                      <td className="fw-bold text-sa-charcoal">
+                        ₹{Number(monthlyFees.total_expected || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="fw-bold text-sa-charcoal">
+                        ₹{Number(yearlyFees.total_expected || 0).toLocaleString('en-IN')}
+                      </td>
                       <td className="text-muted">Total fees committed across all registered students</td>
                     </tr>
                     <tr>
                       <td className="fw-semibold">Total Collected Fees (Paid)</td>
-                      <td className="fw-bold text-success">₹{Number(fees.total_collected || 0).toLocaleString('en-IN')}</td>
+                      <td className="fw-bold text-success">
+                        ₹{Number(monthlyFees.total_collected || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="fw-bold text-success">
+                        ₹{Number(yearlyFees.total_collected || 0).toLocaleString('en-IN')}
+                      </td>
                       <td className="text-muted">Direct receipts collected and approved</td>
                     </tr>
                     <tr>
                       <td className="fw-semibold">Total Pending Recovery (Defaulters)</td>
-                      <td className="fw-bold text-danger">₹{Number(fees.total_pending || 0).toLocaleString('en-IN')}</td>
+                      <td className="fw-bold text-danger">
+                        ₹{Number(monthlyFees.total_pending || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="fw-bold text-danger">
+                        ₹{Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}
+                      </td>
                       <td className="text-muted">
                         <button
                           onClick={() => navigate('/admin/fees/pending')}
@@ -454,11 +861,77 @@ export default function Accounts() {
                     </tr>
                     <tr>
                       <td className="fw-semibold">Net Collection Percentage</td>
-                      <td className="fw-bold text-primary">{fees.collection_rate_percent}%</td>
+                      <td className="fw-bold text-primary">{monthlyFees.collection_rate_percent}%</td>
+                      <td className="fw-bold text-primary">{yearlyFees.collection_rate_percent}%</td>
                       <td className="text-muted">Percentage of expected fee recovered to date</td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              {/* Calendar Month-by-Month Fees & Salary Ledger */}
+              <div className="card border rounded-3 bg-light p-3">
+                <h6 className="fw-bold text-sa-charcoal mb-2 d-flex align-items-center gap-2">
+                  <CalendarIcon size={16} className="text-danger" />
+                  Academic Months Financial Ledger ({academicYear})
+                </h6>
+                <div className="table-responsive bg-white rounded border">
+                  <table className="table table-sm table-hover align-middle m-0 small">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Academic Month</th>
+                        <th>Fees Collected</th>
+                        <th>Teacher Salary Disbursed</th>
+                        <th>Faculty Count</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calendarStats.map((item) => (
+                        <tr
+                          key={item.month_name}
+                          className={item.month_name === selectedMonth ? 'table-warning' : ''}
+                        >
+                          <td className="fw-bold text-sa-charcoal">
+                            {item.month_name}
+                            {item.is_current && (
+                              <span className="badge bg-danger ms-2" style={{ fontSize: '9.5px' }}>
+                                Current
+                              </span>
+                            )}
+                          </td>
+                          <td className="fw-bold text-success">
+                            ₹{Number(item.fees_collected || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="fw-bold" style={{ color: '#7E22CE' }}>
+                            ₹{Number(item.salary_disbursed || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td>{item.faculty_count} Faculty</td>
+                          <td>
+                            {item.fees_collected > 0 || item.salary_disbursed > 0 ? (
+                              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                Active Records
+                              </span>
+                            ) : (
+                              <span className="badge bg-light text-muted border">No Activity</span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedMonth(item.month_name)}
+                              className="btn btn-xs btn-outline-secondary py-0.5 px-2"
+                              style={{ fontSize: '11px' }}
+                            >
+                              Filter Month
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -466,6 +939,43 @@ export default function Accounts() {
           {/* TAB 3: Teacher Salary Register */}
           {activeTab === 'salary' && (
             <div>
+              {/* Yearly & Monthly Payroll Total Header */}
+              <div className="row g-3 mb-3">
+                <div className="col-12 col-md-4">
+                  <div className="p-2.5 rounded-3 border bg-light">
+                    <span className="small text-muted">Selected Month ({selectedMonth})</span>
+                    <h6 className="fw-bold mb-0 text-primary">
+                      Liability: ₹{Number(monthlySalary.total_liability || 0).toLocaleString('en-IN')}
+                    </h6>
+                    <span className="small text-success">
+                      Disbursed: ₹{Number(monthlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+                <div className="col-12 col-md-4">
+                  <div className="p-2.5 rounded-3 border bg-light">
+                    <span className="small text-muted">Full Academic Year ({academicYear})</span>
+                    <h6 className="fw-bold mb-0 text-sa-charcoal">
+                      Total Liability: ₹{Number(yearlySalary.total_liability || 0).toLocaleString('en-IN')}
+                    </h6>
+                    <span className="small" style={{ color: '#7E22CE' }}>
+                      Total Disbursed: ₹{Number(yearlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+                <div className="col-12 col-md-4">
+                  <div className="p-2.5 rounded-3 border bg-light">
+                    <span className="small text-muted">Disbursement Progress</span>
+                    <h6 className="fw-bold mb-0 text-success">
+                      {yearlySalary.disbursement_rate_percent}% Year-to-Date
+                    </h6>
+                    <span className="small text-muted">
+                      {yearlySalary.total_disbursements_count} Disbursements Logged
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="fw-bold text-sa-charcoal m-0">
                   Faculty Payroll Register ({selectedMonth})
@@ -501,7 +1011,7 @@ export default function Accounts() {
                         </td>
                       </tr>
                     ) : (
-                      salaryList.slice(0, 10).map((sal) => (
+                      salaryList.slice(0, 15).map((sal) => (
                         <tr key={sal.id}>
                           <td className="fw-bold text-sa-charcoal">{sal.teacher_name || 'Faculty Member'}</td>
                           <td><code>{sal.employee_id || '--'}</code></td>

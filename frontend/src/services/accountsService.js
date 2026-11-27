@@ -11,8 +11,8 @@ export const accountsService = {
     return res.data;
   },
 
-  getSummary: async (branch, month) => {
-    const res = await api.get('/accounts/summary', { params: { branch, month } });
+  getSummary: async (branch, month, academic_year) => {
+    const res = await api.get('/accounts/summary', { params: { branch, month, academic_year } });
     return res.data;
   }
 };
