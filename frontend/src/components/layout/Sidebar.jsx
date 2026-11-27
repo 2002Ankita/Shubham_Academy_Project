@@ -709,12 +709,12 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                           : '1px solid transparent',
                         color: active ? '#FFFFFF' : 'rgba(255, 255, 255, 0.92)',
                         fontWeight: active ? 600 : 500,
-                        fontSize: usesPearlNavigation ? '0.96rem' : '0.95rem',
                         borderRadius: '12px',
-                        padding: usesPearlNavigation ? '11px 16px' : '10px 15px',
+                        padding: usesPearlNavigation ? '10px 14px' : '9px 12px',
                         backdropFilter: usesPearlNavigation ? 'blur(14px)' : 'none',
                         cursor: 'pointer',
-                        userSelect: 'none'
+                        userSelect: 'none',
+                        minHeight: '44px'
                       }}
                       onMouseEnter={(e) => {
                         if (!active) {
@@ -731,15 +731,27 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                         }
                       }}
                     >
-                      <div className="d-flex align-items-center" style={{ gap: usesPearlNavigation ? '16px' : '15px' }}>
-                        <Icon size={21} className={active ? 'text-white' : 'text-white text-opacity-90'} />
-                        <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
+                      <div className="d-flex align-items-center min-w-0 flex-grow-1" style={{ gap: usesPearlNavigation ? '12px' : '10px' }}>
+                        <div className="flex-shrink-0 d-flex align-items-center justify-content-center">
+                          <Icon size={20} className={active ? 'text-white' : 'text-white text-opacity-90'} />
+                        </div>
+                        <span
+                          className="text-truncate"
+                          style={{
+                            letterSpacing: '0.01em',
+                            fontSize: item.label.length > 20 ? '0.87rem' : (usesPearlNavigation ? '0.95rem' : '0.93rem'),
+                            lineHeight: 1.2
+                          }}
+                          title={item.label}
+                        >
+                          {item.label}
+                        </span>
                       </div>
-                      <div className="d-flex align-items-center gap-1.5">
+                      <div className="d-flex align-items-center flex-shrink-0 gap-1.5 ms-1">
                         {item.badge !== undefined && item.badge > 0 && (
                           <span
                             className="badge bg-danger rounded-pill px-1.5 py-0.5"
-                            style={{ fontSize: '10px' }}
+                            style={{ fontSize: '9.5px', lineHeight: 1 }}
                           >
                             {item.badge}
                           </span>
@@ -768,8 +780,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                             </span>
                           )
                         )}
-                        <div className="text-white text-opacity-80 transition-all ps-1">
-                          {isSubmenuOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        <div className="text-white text-opacity-80 transition-all d-flex align-items-center justify-content-center" style={{ width: '16px' }}>
+                          {isSubmenuOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                         </div>
                       </div>
                     </div>
@@ -780,8 +792,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                         className="d-flex flex-column transition-all ps-2 my-1"
                         style={{
                           borderLeft: '2px solid rgba(255, 255, 255, 0.25)',
-                          marginLeft: '22px',
-                          gap: '3px'
+                          marginLeft: '16px',
+                          gap: '2.5px'
                         }}
                       >
                         {item.children.map((child) => {
@@ -798,7 +810,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                                 }
                                 if (onClose) onClose();
                               }}
-                              className="d-flex align-items-center justify-content-between text-decoration-none transition-all py-1.5 px-2.5 rounded-2"
+                              className="d-flex align-items-center justify-content-between text-decoration-none transition-all py-1.5 px-2 rounded-2"
                               style={{
                                 backgroundColor: childActive
                                   ? 'rgba(255, 255, 255, 0.26)'
@@ -808,7 +820,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                                   : '1px solid transparent',
                                 color: childActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.88)',
                                 fontWeight: childActive ? 600 : 500,
-                                fontSize: '0.86rem',
+                                fontSize: '0.84rem',
                                 boxShadow: childActive ? '0 2px 8px rgba(0, 0, 0, 0.20)' : 'none'
                               }}
                               onMouseEnter={(e) => {
@@ -826,15 +838,15 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                                 }
                               }}
                             >
-                              <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{child.label}</span>
-                              <div className="d-flex align-items-center gap-1.5">
+                              <span className="text-truncate me-1" style={{ letterSpacing: '0.01em' }}>{child.label}</span>
+                              <div className="d-flex align-items-center flex-shrink-0 gap-1.5">
                                 {item.isAccountsProtected && !isAccountsUnlocked && (
                                   <Lock size={11} className="text-white text-opacity-50" />
                                 )}
                                 {child.badge !== undefined && child.badge > 0 && (
                                   <span
                                     className="badge bg-danger rounded-pill px-1.5 py-0.5"
-                                    style={{ fontSize: '10px' }}
+                                    style={{ fontSize: '9.5px', lineHeight: 1 }}
                                   >
                                     {child.badge}
                                   </span>
@@ -842,13 +854,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                                 {child.isNew && (
                                   <span
                                     style={{
-                                      fontSize: '0.62rem',
+                                      fontSize: '0.60rem',
                                       background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                                       color: '#FFFFFF',
-                                      padding: '1px 6px',
+                                      padding: '1px 5px',
                                       borderRadius: '999px',
                                       fontWeight: 700,
-                                      letterSpacing: '0.04em'
+                                      letterSpacing: '0.03em',
+                                      lineHeight: 1.2
                                     }}
                                   >
                                     NEW
