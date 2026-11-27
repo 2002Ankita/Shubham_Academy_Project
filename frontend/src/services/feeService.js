@@ -116,12 +116,16 @@ export const feeService = {
   getPending: async (params = {}) => {
     const activeBranch = params?.branch || getUserBranch();
     const standard = params?.standard;
+    const academic_year = params?.academic_year;
+    const month = params?.month;
     try {
       // Backend returns PendingFeeResponse
       const res = await api.get('/fees/pending', {
         params: {
           ...(activeBranch && activeBranch !== 'ALL' ? { branch: activeBranch } : {}),
           ...(standard && standard !== 'ALL' ? { standard } : {}),
+          ...(academic_year && academic_year !== 'ALL' ? { academic_year } : {}),
+          ...(month && month !== 'ALL' ? { month } : {}),
           _t: Date.now()
         }
       });

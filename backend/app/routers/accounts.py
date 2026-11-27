@@ -143,7 +143,9 @@ async def get_accounts_summary_endpoint(
     all_teachers = await Teacher.find_all().to_list() if hasattr(Teacher, 'find_all') else []
     branch_teachers = [
         t for t in all_teachers
-        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or normalize_branch(getattr(t, "branch", None)) == norm_branch
+        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"]
+        or normalize_branch(getattr(t, "branch", None)) == norm_branch
+        or (norm_branch.lower() in (getattr(t, "branch", "") or "").lower())
     ]
     teacher_id_set = {str(t.id) for t in branch_teachers}
     total_faculty_count = len(branch_teachers)
@@ -152,9 +154,14 @@ async def get_accounts_summary_endpoint(
     branch_salaries = []
     for sal in all_salaries:
         t_id = ""
-        if getattr(sal, "teacher", None):
-            ref = getattr(sal.teacher, "ref", None)
-            t_id = str(getattr(ref, "id", None)) if ref else str(getattr(sal.teacher, "id", ""))
+        t_obj = getattr(sal, "teacher", None)
+        if t_obj:
+            if hasattr(t_obj, "ref") and t_obj.ref and hasattr(t_obj.ref, "id"):
+                t_id = str(t_obj.ref.id)
+            elif hasattr(t_obj, "id"):
+                t_id = str(t_obj.id)
+            else:
+                t_id = str(t_obj)
         if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or t_id in teacher_id_set:
             branch_salaries.append(sal)
             m_parts = (getattr(sal, "month_name", "") or "").split()
@@ -334,10 +341,13 @@ async def get_accounts_summary_endpoint(
         monthly_expected_fees = yearly_expected_fees
         monthly_pending_fees = yearly_pending_dues
     else:
-        monthly_expected_fees = round(yearly_expected_fees / 10.0, 2) if yearly_expected_fees > 0 else 0.0
-        if monthly_collected_fees > monthly_expected_fees:
-            monthly_expected_fees = monthly_collected_fees
-        monthly_pending_fees = max(0.0, round(monthly_expected_fees - monthly_collected_fees, 2))
+        cum_payments_up_to_month = [
+            p for p in branch_payments
+            if getattr(p, "payment_date", None) and getattr(p, "payment_date") < month_end_dt
+        ] if month_end_dt else branch_payments
+        cum_collected_up_to_month = sum(float(getattr(p, "amount_paid", 0.0) or 0.0) for p in cum_payments_up_to_month)
+        monthly_expected_fees = yearly_expected_fees
+        monthly_pending_fees = max(0.0, yearly_expected_fees - cum_collected_up_to_month)
 
     # 5. Teacher Salary Calculations for Selected Academic Year & Month
     if not is_all_months and target_month in academic_months:

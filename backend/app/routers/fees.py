@@ -150,14 +150,16 @@ async def list_all_fees(
 async def list_pending_fees(
     branch: Optional[str] = None,
     standard: Optional[str] = None,
+    academic_year: Optional[str] = None,
+    month: Optional[str] = None,
     token: str = Depends(oauth2_scheme)
 ):
     current_user = await get_current_user(token)
     user_role = getattr(current_user, "role", "").upper().replace("-", "_")
     user_branch = getattr(current_user, "branch", None)
-    if user_role == "ADMIN" and user_branch:
+    if user_role == "ADMIN" and user_branch and (not branch or branch == "ALL"):
         branch = user_branch
-    return await get_pending_fees(branch=branch, standard=standard)
+    return await get_pending_fees(branch=branch, standard=standard, academic_year=academic_year, month=month)
 
 @router.get("/{student_id}", response_model=FeeDetailsResponse)
 async def fee_details(

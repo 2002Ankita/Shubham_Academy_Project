@@ -5,9 +5,81 @@ import feeService from '../../services/feeService';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch, isSuperAdminUser } from '../../utils/branchUtils';
 import { BRANCH_MANGALWAR, BRANCH_TARABAI } from '../../config/branchBatchConfig';
-import { AlertCircle, Send, ArrowLeft, RefreshCw, Search, X, Filter, GraduationCap, Users } from 'lucide-react';
+import {
+  AlertCircle,
+  Send,
+  ArrowLeft,
+  RefreshCw,
+  Search,
+  X,
+  Filter,
+  GraduationCap,
+  Users,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Clock
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+
+// Generates the full 100-year 2000s century series (from 2000-2001 all the way through 2099-2100 & 2100-2101)
+const generateAcademicYearsList = () => {
+  const years = ['ALL'];
+  for (let y = 2100; y >= 2000; y--) {
+    years.push(`${y}-${y + 1}`);
+  }
+  return years;
+};
+
+const DEFAULT_ACADEMIC_YEARS = generateAcademicYearsList();
+
+// Helper to dynamically calculate 12 academic months for any year (April through March)
+const getAcademicMonthsForYear = (ayStr) => {
+  if (!ayStr || ayStr === 'ALL') {
+    ayStr = '2026-2027';
+  }
+
+  const match = ayStr.match(/^(\d{4})-(\d{4})$/);
+  if (match) {
+    const y1 = parseInt(match[1], 10);
+    const y2 = parseInt(match[2], 10);
+    return [
+      { full: `April ${y1}`, short: 'Apr', year: y1 },
+      { full: `May ${y1}`, short: 'May', year: y1 },
+      { full: `June ${y1}`, short: 'Jun', year: y1 },
+      { full: `July ${y1}`, short: 'Jul', year: y1 },
+      { full: `August ${y1}`, short: 'Aug', year: y1 },
+      { full: `September ${y1}`, short: 'Sep', year: y1 },
+      { full: `October ${y1}`, short: 'Oct', year: y1 },
+      { full: `November ${y1}`, short: 'Nov', year: y1 },
+      { full: `December ${y1}`, short: 'Dec', year: y1 },
+      { full: `January ${y2}`, short: 'Jan', year: y2 },
+      { full: `February ${y2}`, short: 'Feb', year: y2 },
+      { full: `March ${y2}`, short: 'Mar', year: y2 }
+    ];
+  }
+
+  const singleMatch = ayStr.match(/^(\d{4})$/);
+  if (singleMatch) {
+    const y = parseInt(singleMatch[1], 10);
+    return [
+      { full: `January ${y}`, short: 'Jan', year: y },
+      { full: `February ${y}`, short: 'Feb', year: y },
+      { full: `March ${y}`, short: 'Mar', year: y },
+      { full: `April ${y}`, short: 'Apr', year: y },
+      { full: `May ${y}`, short: 'May', year: y },
+      { full: `June ${y}`, short: 'Jun', year: y },
+      { full: `July ${y}`, short: 'Jul', year: y },
+      { full: `August ${y}`, short: 'Aug', year: y },
+      { full: `September ${y}`, short: 'Sep', year: y },
+      { full: `October ${y}`, short: 'Oct', year: y },
+      { full: `November ${y}`, short: 'Nov', year: y },
+      { full: `December ${y}`, short: 'Dec', year: y }
+    ];
+  }
+  return [];
+};
 
 export default function PendingFees() {
   const navigate = useNavigate();
@@ -17,11 +89,21 @@ export default function PendingFees() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const [selectedCampus, setSelectedCampus] = useState(isMangal ? BRANCH_MANGALWAR : BRANCH_TARABAI);
 
+  // Academic Year & Month Filters (Dynamic variance matching Accounts module)
+  const currentMonthName = useMemo(() => {
+    return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }, []);
+  const [academicYear, setAcademicYear] = useState('2026-2027');
+  const [selectedMonth, setSelectedMonth] = useState('ALL');
+
   // Filters
   const [selectedStandard, setSelectedStandard] = useState('ALL'); // 'ALL', '11th', '12th'
   const [search, setSearch] = useState('');
   const [pendingList, setPendingList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const dynamicMonths = useMemo(() => getAcademicMonthsForYear(academicYear), [academicYear]);
+  const isAllMonths = selectedMonth === 'ALL';
 
   useEffect(() => {
     if (activeBranch && !isSuperAdmin) {
@@ -30,10 +112,14 @@ export default function PendingFees() {
     }
   }, [activeBranch, isSuperAdmin]);
 
-  const fetchPending = async (campus = selectedCampus) => {
+  const fetchPending = async (campus = selectedCampus, ay = academicYear, m = selectedMonth) => {
     setLoading(true);
     try {
-      const data = await feeService.getPending({ branch: campus });
+      const data = await feeService.getPending({
+        branch: campus,
+        academic_year: ay,
+        month: m
+      });
       setPendingList(data || []);
     } catch (err) {
       console.warn('Could not fetch pending fees:', err);
@@ -44,11 +130,11 @@ export default function PendingFees() {
   };
 
   useEffect(() => {
-    fetchPending(selectedCampus);
+    fetchPending(selectedCampus, academicYear, selectedMonth);
 
     // Auto-update pending fees when a fee receipt is generated or fee collected
     const handleFeeUpdate = () => {
-      fetchPending(selectedCampus);
+      fetchPending(selectedCampus, academicYear, selectedMonth);
     };
 
     window.addEventListener('sa_fees_updated', handleFeeUpdate);
@@ -66,7 +152,71 @@ export default function PendingFees() {
       window.removeEventListener('focus', handleFeeUpdate);
       window.removeEventListener('storage', handleFeeUpdate);
     };
-  }, [selectedCampus]);
+  }, [selectedCampus, academicYear, selectedMonth]);
+
+  // Year Change Handler with smart month selection
+  const handleYearChange = (newYear) => {
+    setAcademicYear(newYear);
+    if (newYear === 'ALL') {
+      setSelectedMonth('ALL');
+      return;
+    }
+    const months = getAcademicMonthsForYear(newYear);
+    const containsCurrent = months.some((m) => m.full === currentMonthName);
+    if (containsCurrent) {
+      setSelectedMonth(currentMonthName);
+    } else if (months.length > 0) {
+      setSelectedMonth(months[0].full);
+    }
+  };
+
+  const handlePreviousYear = () => {
+    if (academicYear === 'ALL') {
+      const currY = new Date().getFullYear();
+      handleYearChange(`${currY}-${currY + 1}`);
+      return;
+    }
+    const match = academicYear.match(/^(\d{4})-(\d{4})$/);
+    if (match) {
+      const prevY1 = parseInt(match[1], 10) - 1;
+      const prevY2 = parseInt(match[2], 10) - 1;
+      handleYearChange(`${prevY1}-${prevY2}`);
+    } else {
+      const single = parseInt(academicYear, 10);
+      if (!isNaN(single)) handleYearChange(String(single - 1));
+    }
+  };
+
+  const handleNextYear = () => {
+    if (academicYear === 'ALL') {
+      const currY = new Date().getFullYear();
+      handleYearChange(`${currY}-${currY + 1}`);
+      return;
+    }
+    const match = academicYear.match(/^(\d{4})-(\d{4})$/);
+    if (match) {
+      const nextY1 = parseInt(match[1], 10) + 1;
+      const nextY2 = parseInt(match[2], 10) + 1;
+      handleYearChange(`${nextY1}-${nextY2}`);
+    } else {
+      const single = parseInt(academicYear, 10);
+      if (!isNaN(single)) handleYearChange(String(single + 1));
+    }
+  };
+
+  const handleNativeMonthChange = (e) => {
+    const val = e.target.value; // e.g. "2026-11"
+    if (!val) return;
+    const [yStr, mStr] = val.split('-');
+    const yNum = parseInt(yStr, 10);
+    const mNum = parseInt(mStr, 10);
+    const dateObj = new Date(yNum, mNum - 1, 1);
+    const mName = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    const matchingAY = mNum >= 4 ? `${yNum}-${yNum + 1}` : `${yNum - 1}-${yNum}`;
+    setAcademicYear(matchingAY);
+    setSelectedMonth(mName);
+  };
 
   const handleSendReminder = (studentName) => {
     toast.success(`Payment reminder SMS dispatched to ${studentName}'s parents!`);
@@ -242,6 +392,150 @@ export default function PendingFees() {
                   {filteredList.length} defaulter{filteredList.length !== 1 ? 's' : ''} listed
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Academic Year Months Calendar Ribbon (Dynamic Defaulters Variance) */}
+      <div className="card border-0 shadow-sm rounded-4 bg-white">
+        <div className="card-body p-3">
+          <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            {/* Left: Year Stepper, Selector & Full Year Toggle */}
+            <div className="d-flex flex-wrap align-items-center gap-2 flex-shrink-0">
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center text-white"
+                style={{ width: '34px', height: '34px', backgroundColor: '#8B1216' }}
+              >
+                <CalendarIcon size={17} />
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-1.5">
+                  <span className="fw-bold text-sa-charcoal small">Academic Year:</span>
+
+                  {/* Previous Year Stepper */}
+                  <button
+                    type="button"
+                    onClick={handlePreviousYear}
+                    className="btn btn-xs btn-outline-secondary p-0.5 px-1 rounded"
+                    title="Previous Academic Year"
+                    style={{ fontSize: '10px' }}
+                  >
+                    <ChevronLeft size={12} />
+                  </button>
+
+                  {/* Year Dropdown */}
+                  <select
+                    value={academicYear}
+                    onChange={(e) => handleYearChange(e.target.value)}
+                    className="form-select form-select-sm fw-bold border-danger py-0.5 px-2 text-danger"
+                    style={{ width: 'auto', minWidth: '115px', height: '28px', fontSize: '11.5px' }}
+                  >
+                    {DEFAULT_ACADEMIC_YEARS.map((yr) => (
+                      <option key={yr} value={yr}>
+                        {yr === 'ALL' ? '⭐ All Years (Consolidated)' : `AY ${yr}`}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Next Year Stepper */}
+                  <button
+                    type="button"
+                    onClick={handleNextYear}
+                    className="btn btn-xs btn-outline-secondary p-0.5 px-1 rounded"
+                    title="Next Academic Year"
+                    style={{ fontSize: '10px' }}
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+                <div className="small text-muted" style={{ fontSize: '11px' }}>
+                  {isAllMonths ? 'Showing Full Year Defaulters & Dues' : `Viewing Overdue As Of: ${selectedMonth}`}
+                </div>
+              </div>
+
+              {/* Full Academic Year Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedMonth('ALL')}
+                className={`btn btn-sm ms-1 py-1 px-2.5 rounded-pill fw-semibold ${
+                  isAllMonths
+                    ? 'btn-danger text-white shadow-sm'
+                    : 'btn-outline-secondary'
+                }`}
+                style={{
+                  fontSize: '11.5px',
+                  backgroundColor: isAllMonths ? '#8B1216' : undefined,
+                  borderColor: isAllMonths ? '#8B1216' : undefined
+                }}
+              >
+                ⭐ Full Year (All Months)
+              </button>
+            </div>
+
+            {/* Middle: Month Pills Ribbon for the Selected Year */}
+            <div className="d-flex align-items-center gap-1.5 overflow-auto py-1 px-0 w-100 justify-content-start justify-content-lg-center">
+              {dynamicMonths.map((m) => {
+                const isSelected = selectedMonth === m.full;
+                const isCurrent = currentMonthName === m.full;
+
+                return (
+                  <button
+                    key={m.full}
+                    type="button"
+                    onClick={() => setSelectedMonth(m.full)}
+                    className={`btn btn-sm d-flex flex-column align-items-center justify-content-center px-2 py-1 rounded-3 transition-all ${
+                      isSelected
+                        ? 'text-white shadow-sm'
+                        : isCurrent
+                        ? 'btn-light border-danger text-danger fw-bold'
+                        : 'btn-light text-sa-charcoal'
+                    }`}
+                    style={{
+                      minWidth: '60px',
+                      height: '42px',
+                      backgroundColor: isSelected ? '#8B1216' : undefined,
+                      borderColor: isSelected ? '#8B1216' : undefined,
+                      fontSize: '11px'
+                    }}
+                    title={`Filter fee defaulters as of ${m.full}`}
+                  >
+                    <span className="fw-bold">{m.short}</span>
+                    <div className="d-flex align-items-center gap-1 mt-0.5">
+                      <span style={{ fontSize: '9px', opacity: 0.8 }}>'{String(m.year).slice(2)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Quick Jump Controls */}
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const currY = new Date().getFullYear();
+                  const currM = new Date().getMonth() + 1;
+                  const matchingAY = currM >= 4 ? `${currY}-${currY + 1}` : `${currY - 1}-${currY}`;
+                  setAcademicYear(matchingAY);
+                  setSelectedMonth(currentMonthName);
+                }}
+                className="btn btn-sm btn-outline-danger fw-semibold d-inline-flex align-items-center gap-1"
+                style={{ fontSize: '11px', height: '32px' }}
+                title="Jump to Current Month"
+              >
+                <Clock size={13} />
+                <span>Today</span>
+              </button>
+
+              {/* Native Calendar Month Picker */}
+              <input
+                type="month"
+                onChange={handleNativeMonthChange}
+                className="form-control form-control-sm border text-muted"
+                style={{ height: '32px', fontSize: '11px', width: 'auto', maxWidth: '135px' }}
+                title="Select Any Specific Calendar Month & Year"
+              />
             </div>
           </div>
         </div>

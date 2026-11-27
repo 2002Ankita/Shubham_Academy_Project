@@ -561,6 +561,49 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
 
     await student.save()
 
+    # Automatic Fee Collection Notification dispatched directly to Super Admin
+    try:
+        from app.models.notices import Notice
+        from app.models.user import User
+
+        student_name = "Student"
+        if student.user:
+            if hasattr(student.user, "full_name") and student.user.full_name:
+                student_name = student.user.full_name
+            else:
+                try:
+                    u_id = student.user.ref.id if hasattr(student.user, "ref") and student.user.ref else getattr(student.user, "id", None)
+                    if u_id:
+                        user_obj = await User.get(u_id)
+                        if user_obj:
+                            student_name = user_obj.full_name
+                except Exception:
+                    pass
+        if student_name == "Student":
+            student_name = getattr(student, "full_name", "") or getattr(student, "name", "Student")
+
+        super_users = await User.find(User.role == "super_admin").to_list()
+        if not super_users:
+            super_users = await User.find(User.role == "admin").to_list()
+        creator = super_users[0] if super_users else None
+
+        notice = Notice(
+            title=f"💰 Fee Collected: ₹{payment_in.amount_paid:,.2f} - {student_name}",
+            content=(
+                f"Fee payment of ₹{payment_in.amount_paid:,.2f} successfully collected from {student_name} "
+                f"({payment.standard or 'Science'}). Branch: {payment.branch}. Mode: {payment.payment_method}. "
+                f"Receipt No: {receipt_no}. Remaining Dues: ₹{new_pending:,.2f}."
+            ),
+            target_audiences=["SUPER_ADMIN"],
+            category="Fees & Accounts",
+            priority="High",
+            created_by=creator
+        )
+        await notice.insert()
+        print(f"[Fee Notification] Successfully notified Super Admin of ₹{payment_in.amount_paid} fee collection for {student_name}")
+    except Exception as notify_err:
+        print("Fee collection notice dispatch warning:", notify_err)
+
     res["total_fees"] = total_fees
     res["pending_fees"] = new_pending
     res["cumulative_paid"] = new_total_paid
@@ -724,13 +767,57 @@ async def get_fee_details(
         concession_value=getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0
     )
 
-async def get_pending_fees(branch: Optional[str] = None, standard: Optional[str] = None) -> list[PendingFeeResponse]:
+async def get_pending_fees(
+    branch: Optional[str] = None,
+    standard: Optional[str] = None,
+    academic_year: Optional[str] = None,
+    month: Optional[str] = None
+) -> list[PendingFeeResponse]:
     students = await Student.find_all().to_list()
     structures = await FeeStructure.find_all().to_list()
     payments = await FeePayment.find_all().to_list()
-    
+
+    import re
+    from datetime import datetime
+
+    # Resolve Academic Year date range
+    ay_start_dt = None
+    ay_end_dt = None
+    if academic_year and academic_year.upper() not in ["ALL", "ALL YEARS", "LIFETIME"]:
+        ay_match = re.match(r"^(\d{4})-(\d{4})$", academic_year.strip())
+        if ay_match:
+            y1 = int(ay_match.group(1))
+            y2 = int(ay_match.group(2))
+            ay_start_dt = datetime(y1, 4, 1)
+            ay_end_dt = datetime(y2, 4, 1)
+        else:
+            single_match = re.match(r"^(\d{4})$", academic_year.strip())
+            if single_match:
+                sy = int(single_match.group(1))
+                ay_start_dt = datetime(sy, 1, 1)
+                ay_end_dt = datetime(sy + 1, 1, 1)
+
+    # Resolve Month date range
+    month_start_dt = None
+    month_end_dt = None
+    if month and month.upper() not in ["ALL", "FULL YEAR", "YEARLY"]:
+        try:
+            m_dt = datetime.strptime(month.strip(), "%B %Y")
+            month_start_dt = datetime(m_dt.year, m_dt.month, 1)
+            month_end_dt = datetime(m_dt.year + 1, 1, 1) if m_dt.month == 12 else datetime(m_dt.year, m_dt.month + 1, 1)
+        except Exception:
+            month_start_dt = None
+            month_end_dt = None
+
     paid_map = {}
     for p in payments:
+        p_dt = getattr(p, "payment_date", None)
+        # If filtering for a specific month, only consider payments recorded on or before that month
+        if month_end_dt and p_dt and p_dt >= month_end_dt:
+            continue
+        if ay_end_dt and p_dt and p_dt >= ay_end_dt and not month_end_dt:
+            continue
+
         s_id = None
         try:
             if hasattr(p, "student") and p.student:
@@ -744,12 +831,31 @@ async def get_pending_fees(branch: Optional[str] = None, standard: Optional[str]
             pass
         if s_id:
             paid_map[s_id] = paid_map.get(s_id, 0.0) + float(p.amount_paid or 0.0)
-            
+
     pending_list = []
     for student in students:
         if branch and str(branch).upper() != "ALL":
             from app.services.student_service import student_matches_branch
             if not student_matches_branch(student, branch):
+                continue
+
+        # Academic Year filtering (Synchronized with Accounts module)
+        if academic_year and academic_year.upper() not in ["ALL", "ALL YEARS", "LIFETIME"]:
+            s_ay = getattr(student, "academic_year", None)
+            adm = getattr(student, "admission_date", None)
+            curr_ay = academic_year.strip()
+            if s_ay == curr_ay:
+                pass
+            elif curr_ay in ["2026-2027", "2025-2026"]:
+                if not s_ay or (adm and datetime(2026, 4, 1) <= adm < datetime(2027, 4, 1)):
+                    pass
+                else:
+                    continue
+            elif ay_start_dt and ay_end_dt and adm and ay_start_dt <= adm < ay_end_dt:
+                pass
+            elif not s_ay and not adm:
+                pass
+            else:
                 continue
 
         if standard and str(standard).upper() != "ALL":
@@ -765,14 +871,14 @@ async def get_pending_fees(branch: Optional[str] = None, standard: Optional[str]
                 continue
 
         total_fees = await _lookup_student_fee(student, structures)
-        # Determine actual amount paid from both payment records and student document
+        # Determine actual amount paid up to the filtered period
         calc_paid = paid_map.get(str(student.id), 0.0)
         doc_paid = float(getattr(student, "paid_fees", 0.0) or 0.0)
-        amount_paid = max(calc_paid, doc_paid)
-        
+        amount_paid = calc_paid if (month_end_dt or ay_end_dt) else max(calc_paid, doc_paid)
+
         # Check if student's remaining fees are explicitly cleared
         doc_remaining = getattr(student, "remaining_fees", None)
-        if doc_remaining is not None and float(doc_remaining) <= 0 and amount_paid > 0:
+        if not month_end_dt and not ay_end_dt and doc_remaining is not None and float(doc_remaining) <= 0 and amount_paid > 0:
             pending_fees = 0.0
         else:
             pending_fees = max(0.0, total_fees - amount_paid)
