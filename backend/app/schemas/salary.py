@@ -17,6 +17,10 @@ class SalaryPaymentResponse(BaseModel):
     workingHours: float
     allowances: float
     deductions: float
+    recovery: float = 0.0
+    yearlySalary: float = 0.0
+    accountType: str = "Academy"
+    paymentMode: str = "NEFT"
     netPayable: float
     amountPaid: float
     amountPending: float
@@ -30,6 +34,13 @@ class SalaryUpdateRequest(BaseModel):
     allowances: float
     deductions: float
     netPayable: float
+    recovery: Optional[float] = None
+    yearlySalary: Optional[float] = None
+    accountType: Optional[str] = None
+    paymentMode: Optional[str] = None
+    workingHours: Optional[float] = None
 
 class SalaryDisburseRequest(BaseModel):
     amount: Optional[float] = None
+    paymentMode: Optional[str] = "NEFT"
+    accountType: Optional[str] = None

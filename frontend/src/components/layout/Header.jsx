@@ -225,6 +225,11 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
       return;
     }
 
+    if (notif.type === 'salary_payment') {
+      navigate('/admin/teachers/salary');
+      return;
+    }
+
     if (notif.type === 'timetable_request' || notif.type === 'timetable_pending') {
       navigate('/admin/activity-timetable?tab=weekly');
       return;
@@ -901,6 +906,72 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
                           <div className="d-flex align-items-center justify-content-between text-muted mt-0.5 pt-1 border-top" style={{ fontSize: '0.70rem', borderColor: '#DCFCE7' }}>
                             <span>Collected by: <strong className="text-dark">{item.collectedBy || item.author || 'Admin'}</strong></span>
+                            <span className="badge bg-light text-secondary border" style={{ fontSize: '0.65rem' }}>{item.branch || 'Central Campus'}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Salary Payment notification for Super Admin
+                    if (item.type === 'salary_payment') {
+                      return (
+                        <div
+                          key={item.id}
+                          className="w-100 p-2.5 rounded-3 border d-flex flex-column gap-1.5"
+                          style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            backgroundColor: '#EFF6FF',
+                            borderColor: '#BFDBFE',
+                            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                          }}
+                          onClick={() => handleNotificationClick(item)}
+                        >
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <div className="d-flex align-items-center gap-1.5 flex-grow-1 min-w-0">
+                              <span
+                                className="badge rounded-pill fw-bold d-inline-flex align-items-center gap-1"
+                                style={{
+                                  backgroundColor: '#DBEAFE',
+                                  color: '#1D4ED8',
+                                  fontSize: '0.68rem',
+                                  padding: '0.25em 0.55em'
+                                }}
+                              >
+                                💸 Salary Paid
+                              </span>
+                              <span className="fw-bold text-dark text-truncate" style={{ fontSize: '0.82rem' }}>
+                                ₹{Number(item.amount || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <span
+                              className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                color: '#64748B',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.68rem',
+                                padding: '0.25em 0.5em',
+                                flexShrink: 0
+                              }}
+                            >
+                              {item.paymentMode || 'NEFT'} • {item.accountType || 'Academy'}
+                            </span>
+                          </div>
+
+                          <div className="d-flex flex-column gap-0.5" style={{ fontSize: '0.75rem', lineHeight: '1.35', color: '#334155' }}>
+                            <div>
+                              Faculty: <strong className="text-dark">{item.teacherName}</strong>
+                              {item.month ? <span className="text-muted"> ({item.month})</span> : null}
+                            </div>
+                            <div className="text-muted" style={{ fontSize: '0.71rem' }}>
+                              Hours: <strong>{item.workingHours || 0}</strong> • Recovery: <strong>₹{Number(item.recovery || 0).toLocaleString()}</strong>
+                            </div>
+                          </div>
+
+                          <div className="d-flex align-items-center justify-content-between text-muted mt-0.5 pt-1 border-top" style={{ fontSize: '0.70rem', borderColor: '#DBEAFE' }}>
+                            <span>Paid by: <strong className="text-dark">{item.paidBy || item.author || 'Admin'}</strong></span>
                             <span className="badge bg-light text-secondary border" style={{ fontSize: '0.65rem' }}>{item.branch || 'Central Campus'}</span>
                           </div>
                         </div>

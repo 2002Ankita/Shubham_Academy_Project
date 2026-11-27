@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import FeeForm from '../../components/forms/FeeForm';
 import Table from '../../components/common/Table';
 import Button from '../../components/common/Button';
@@ -16,7 +16,8 @@ import {
   TrendingUp,
   ChevronRight,
   QrCode,
-  FileCheck
+  FileCheck,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserBranch } from '../../utils/branchUtils';
@@ -51,11 +52,16 @@ export default function FeeCollection() {
     collectionRate: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [allReceipts, setAllReceipts] = useState([]);
+  const [selectedCollectionMonth, setSelectedCollectionMonth] = useState('ALL');
 
   const fetchStats = async (branchToFetch = selectedCampus) => {
     try {
       setLoadingStats(true);
-      const stats = await feeService.getFeeStats(branchToFetch);
+      const [stats, receiptsRes] = await Promise.all([
+        feeService.getFeeStats(branchToFetch),
+        feeService.getAll({ branch: branchToFetch }).catch(() => [])
+      ]);
       if (stats) {
         setFeeStats({
           totalTarget: Number(stats.totalTarget) || 0,
@@ -64,12 +70,48 @@ export default function FeeCollection() {
           collectionRate: stats.collectionRate || 0
         });
       }
+      setAllReceipts(Array.isArray(receiptsRes) ? receiptsRes : []);
     } catch (err) {
       console.error('Failed to load fee stats:', err);
     } finally {
       setLoadingStats(false);
     }
   };
+
+  const monthlyCollections = useMemo(() => {
+    const map = {};
+    (allReceipts || []).forEach((r) => {
+      const rawDate = r.date || r.paymentDate || r.created_at || r.createdAt;
+      const d = rawDate ? new Date(rawDate) : new Date();
+      const validDate = isNaN(d.getTime()) ? new Date() : d;
+      const monthKey = validDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const sortKey = validDate.getFullYear() * 100 + validDate.getMonth();
+
+      if (!map[monthKey]) {
+        map[monthKey] = {
+          month: monthKey,
+          sortKey,
+          receiptsCount: 0,
+          totalAmount: 0,
+          cashAmount: 0,
+          upiAmount: 0,
+          otherAmount: 0
+        };
+      }
+      const amt = Number(r.amount || r.amountPaid || r.amount_paid || 0);
+      const mode = String(r.paymentMode || r.paymentMethod || r.payment_mode || 'Cash').toLowerCase();
+      map[monthKey].receiptsCount += 1;
+      map[monthKey].totalAmount += amt;
+      if (mode.includes('cash')) {
+        map[monthKey].cashAmount += amt;
+      } else if (mode.includes('upi') || mode.includes('online') || mode.includes('qr')) {
+        map[monthKey].upiAmount += amt;
+      } else {
+        map[monthKey].otherAmount += amt;
+      }
+    });
+    return Object.values(map).sort((a, b) => b.sortKey - a.sortKey);
+  }, [allReceipts]);
 
   useEffect(() => {
     fetchStats(selectedCampus);
@@ -352,6 +394,57 @@ export default function FeeCollection() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Monthly Collection View */}
+      <div className="sa-card p-3.5 p-md-4 border shadow-xs">
+        <div className="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3">
+          <div className="d-flex align-items-center gap-2">
+            <Calendar size={18} className="text-danger" />
+            <div>
+              <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+                Monthly Amount Collection View ({selectedCampus})
+              </h5>
+              <span className="text-muted" style={{ fontSize: '0.76rem' }}>
+                Month-by-month breakdown of realized fee collections by payment mode
+              </span>
+            </div>
+          </div>
+          <select
+            className="form-select form-select-sm fw-semibold"
+            style={{ width: 'auto', minWidth: '175px' }}
+            value={selectedCollectionMonth}
+            onChange={(e) => setSelectedCollectionMonth(e.target.value)}
+          >
+            <option value="ALL">All Months ({monthlyCollections.length})</option>
+            {monthlyCollections.map((m) => (
+              <option key={m.month} value={m.month}>{m.month}</option>
+            ))}
+          </select>
+        </div>
+
+        <Table
+          loading={loadingStats}
+          emptyMessage="No monthly fee collections recorded yet."
+          data={
+            selectedCollectionMonth === 'ALL'
+              ? monthlyCollections
+              : monthlyCollections.filter((m) => m.month === selectedCollectionMonth)
+          }
+          columns={[
+            { key: 'month', title: 'Month', render: (v) => <span className="fw-bold text-sa-charcoal">{v}</span> },
+            { key: 'receiptsCount', title: 'Receipts', render: (v) => <span className="badge bg-light text-dark border">{v} receipts</span> },
+            { key: 'cashAmount', title: 'Cash (₹)', render: (v) => <span>₹ {Number(v || 0).toLocaleString('en-IN')}</span> },
+            { key: 'upiAmount', title: 'UPI / Online (₹)', render: (v) => <span>₹ {Number(v || 0).toLocaleString('en-IN')}</span> },
+            { key: 'otherAmount', title: 'NEFT / Cheque (₹)', render: (v) => <span>₹ {Number(v || 0).toLocaleString('en-IN')}</span> },
+            {
+              key: 'totalAmount',
+              title: 'Total Collected',
+              align: 'end',
+              render: (v) => <span className="fw-extrabold text-success">₹ {Number(v || 0).toLocaleString('en-IN')}</span>
+            }
+          ]}
+        />
       </div>
 
       {/* Fee Collection Form with Branch + Standard Filter and Student Selection */}

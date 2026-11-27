@@ -8,6 +8,7 @@ class Installment(BaseModel):
     amount: float
     date: datetime
     transaction_ref: str
+    payment_mode: Optional[str] = "NEFT"
 
 class SalaryPayment(Document):
     teacher: Link[Teacher]
@@ -15,6 +16,10 @@ class SalaryPayment(Document):
     base_salary: float
     allowances: float = 0.0
     deductions: float = 0.0
+    recovery: float = 0.0
+    yearly_salary: Optional[float] = None
+    account_type: str = "Academy"  # "Tutorial" or "Academy"
+    payment_mode: str = "NEFT"     # "NEFT" or "Cash"
     net_payable: float = 0.0
     amount_paid: float = 0.0
     amount_pending: float = 0.0

@@ -220,11 +220,10 @@ export default function Notifications() {
         <button
           type="button"
           onClick={() => handleTabChange('history')}
-          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${
-            activeTab === 'history'
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${activeTab === 'history'
               ? 'btn-dark text-white shadow-sm'
               : 'btn-light text-sa-charcoal bg-transparent border-0'
-          }`}
+            }`}
           style={{ fontSize: '13px' }}
         >
           <Smartphone size={16} />
@@ -237,11 +236,10 @@ export default function Notifications() {
         <button
           type="button"
           onClick={() => handleTabChange('inbox')}
-          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${
-            activeTab === 'inbox'
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${activeTab === 'inbox'
               ? 'btn-dark text-white shadow-sm'
               : 'btn-light text-sa-charcoal bg-transparent border-0'
-          }`}
+            }`}
           style={{ fontSize: '13px' }}
         >
           <Bell size={16} />
@@ -671,11 +669,11 @@ export default function Notifications() {
                 const isDiscountApproval = n.type === 'discount_approval';
                 const isFeeCollection = n.type === 'daily_fee_collected';
                 const isFeesCompleted = n.type === 'fees_completed';
+                const isSalaryPayment = n.type === 'salary_payment';
                 return (
                   <div
                     key={n.id || i}
-                    className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${
-                      isDiscountApproval
+                    className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${isDiscountApproval
                         ? 'bg-warning-subtle border-warning'
                         : isFeesCompleted
                           ? 'bg-success-subtle bg-opacity-30 border-success'
@@ -684,17 +682,16 @@ export default function Notifications() {
                             : n.read
                               ? 'bg-light bg-opacity-50'
                               : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
-                    }`}
+                      }`}
                   >
                     <div className="d-flex align-items-start gap-3 flex-grow-1">
                       <div
-                        className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${
-                          isDiscountApproval
+                        className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${isDiscountApproval
                             ? 'bg-warning text-dark'
                             : (isFeeCollection || isFeesCompleted)
                               ? 'bg-success bg-opacity-10 text-success'
                               : 'bg-sa-primary bg-opacity-10 text-sa-primary'
-                        }`}
+                          }`}
                       >
                         {isDiscountApproval ? <ShieldCheck size={18} /> : (isFeeCollection || isFeesCompleted) ? <CreditCard size={18} /> : <Bell size={18} />}
                       </div>
@@ -714,6 +711,11 @@ export default function Notifications() {
                           {isFeesCompleted && (
                             <span className="badge bg-success text-white small fw-bold">
                               ✓ 100% Fees Settled • Parents Notified
+                            </span>
+                          )}
+                          {isSalaryPayment && (
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
+                              💸 Salary Payment ({n.paymentMode || 'NEFT'} • {n.accountType || 'Academy'})
                             </span>
                           )}
                         </div>
@@ -803,11 +805,10 @@ export default function Notifications() {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
               <div
-                className={`modal-header text-white px-4 py-3 ${
-                  (selectedMessage.channel || '').toLowerCase().includes('whatsapp')
+                className={`modal-header text-white px-4 py-3 ${(selectedMessage.channel || '').toLowerCase().includes('whatsapp')
                     ? 'bg-success'
                     : 'bg-dark'
-                }`}
+                  }`}
               >
                 <div className="d-flex align-items-center gap-2">
                   {(selectedMessage.channel || '').toLowerCase().includes('whatsapp') ? (

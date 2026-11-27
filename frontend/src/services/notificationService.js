@@ -1200,6 +1200,83 @@ export const notificationService = {
     });
   },
 
+  // Notify Super Admin when a faculty salary payment is disbursed
+  notifySalaryDisbursedToSuperAdmin: ({
+    teacherName = 'Faculty Member',
+    amount = 0,
+    recovery = 0,
+    yearlySalary = 0,
+    accountType = 'Academy',
+    workingHours = 0,
+    paymentMode = 'NEFT',
+    month = '',
+    paidBy = 'Academy Admin',
+    branch = '',
+    transactionRef = ''
+  } = {}) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedAmount = Number(amount || 0).toLocaleString();
+    const branchVal = branch || getUserBranch() || 'Central Campus';
+
+    const notif = {
+      id: `NTF-SAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `💸 Salary Paid: ₹${formattedAmount} (${teacherName})`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'salary_payment',
+      category: 'Faculty Payroll & Accounts',
+      priority: 'High',
+      author: paidBy,
+      details: `Salary payment of ₹${formattedAmount} disbursed to ${teacherName}${month ? ` for ${month}` : ''}. Account: ${accountType} | Mode: ${paymentMode} | Hours: ${workingHours} hrs | Recovery: ₹${Number(recovery || 0).toLocaleString()} | Yearly Salary: ₹${Number(yearlySalary || 0).toLocaleString()}. Processed by: ${paidBy}.${transactionRef ? ` Ref: ${transactionRef}.` : ''}`,
+      read: false,
+      forSuperAdminOnly: true,
+      branch: branchVal,
+      teacherName,
+      amount: Number(amount || 0),
+      recovery: Number(recovery || 0),
+      yearlySalary: Number(yearlySalary || 0),
+      accountType,
+      workingHours: Number(workingHours || 0),
+      paymentMode,
+      month,
+      paidBy,
+      transactionRef
+    };
+
+    notificationService.addNotification(notif);
+
+    try {
+      const history = getLocalDispatchHistory();
+      const log = {
+        id: `LOG-SAL-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        notification_type: 'salary_payment',
+        title: `Salary Payment (${paymentMode} - ${accountType}): ₹${formattedAmount}`,
+        student_name: teacherName,
+        roll_number: transactionRef || 'PAYROLL',
+        recipient_label: 'Super Admin Oversight',
+        parent_mobile: 'Super Admin Portal',
+        branch: branchVal,
+        message: notif.details,
+        delivery_status: 'Delivered',
+        channel: 'System Alert',
+        idempotency_key: `sal_pay_${teacherName}_${month}_${amount}_${Date.now()}`,
+        created_at: `${dateStr}, ${timeStr}`,
+        sent_at: `${dateStr}, ${timeStr}`
+      };
+      saveLocalDispatchHistory([log, ...history]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    } catch (err) {
+      console.warn('Could not log salary notification audit:', err);
+    }
+
+    return notif;
+  },
+
   // Academy Admin: Re-dispatch / resend notification
   resendNotification: async (logId) => {
     try {
