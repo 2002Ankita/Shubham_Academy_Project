@@ -89,7 +89,7 @@ async def get_accounts_summary_endpoint(
     from app.models.fees import FeePayment
     from app.models.salary import SalaryPayment
     from app.models.teacher import Teacher
-    from app.services.salary_service import ensure_current_month_salaries
+    from app.services.salary_service import ensure_current_month_salaries, _format_salary
 
     curr_cal_year = now.year
     # Dynamically generate the full 100-year 2000s series (from 2000-2001 through 2100-2101)
@@ -99,14 +99,17 @@ async def get_accounts_summary_endpoint(
     if academic_year and academic_year.strip().upper() not in ["ALL", "ALL YEARS", "LIFETIME"]:
         detected_years_set.add(academic_year.strip())
 
-    # Query all students for this branch
-    student_query = {}
-    if norm_branch and norm_branch.lower() not in ["all", "super", "both", "all campuses"]:
-        student_query["branch"] = norm_branch
-    students = await Student.find(student_query).to_list() if hasattr(Student, 'find') else []
-    student_id_branch_map = {str(s.id): getattr(s, "branch", norm_branch) for s in students}
+    # Load ALL students across DB to accurately resolve student DBRefs
+    all_students = await Student.find_all().to_list() if hasattr(Student, 'find_all') else []
+    student_id_branch_map = {str(s.id): normalize_branch(getattr(s, "branch", None)) for s in all_students}
 
-    for s in students:
+    # Filter students for active branch
+    branch_students = [
+        s for s in all_students
+        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or normalize_branch(getattr(s, "branch", None)) == norm_branch
+    ]
+
+    for s in branch_students:
         s_ay = getattr(s, "academic_year", None)
         if s_ay and isinstance(s_ay, str) and "-" in s_ay:
             detected_years_set.add(s_ay.strip())
@@ -115,11 +118,12 @@ async def get_accounts_summary_endpoint(
     all_payments = await FeePayment.find_all().to_list() if hasattr(FeePayment, 'find_all') else []
     branch_payments = []
     for p in all_payments:
-        p_br = getattr(p, "branch", None)
+        p_br = normalize_branch(getattr(p, "branch", None))
         if not p_br and getattr(p, "student", None):
-            s_id = str(getattr(p.student, "id", "") or getattr(getattr(p.student, "ref", None), "id", ""))
+            ref = getattr(p.student, "ref", None)
+            s_id = str(getattr(ref, "id", None)) if ref else str(getattr(p.student, "id", ""))
             p_br = student_id_branch_map.get(s_id)
-        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or (p_br and normalize_branch(p_br) == norm_branch):
+        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or p_br == norm_branch:
             branch_payments.append(p)
             pay_ay = getattr(p, "academic_year", None)
             if pay_ay and isinstance(pay_ay, str) and "-" in pay_ay:
@@ -131,17 +135,21 @@ async def get_accounts_summary_endpoint(
                 detected_years_set.add(cal_ay)
 
     # Query teachers and salaries
-    teacher_query = {}
-    if norm_branch and norm_branch.lower() not in ["all", "super", "both", "all campuses"]:
-        teacher_query["branch"] = norm_branch
-    teachers = await Teacher.find(teacher_query).to_list() if hasattr(Teacher, 'find') else []
-    teacher_id_set = {str(t.id) for t in teachers}
-    total_faculty_count = len(teachers)
+    all_teachers = await Teacher.find_all().to_list() if hasattr(Teacher, 'find_all') else []
+    branch_teachers = [
+        t for t in all_teachers
+        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or normalize_branch(getattr(t, "branch", None)) == norm_branch
+    ]
+    teacher_id_set = {str(t.id) for t in branch_teachers}
+    total_faculty_count = len(branch_teachers)
 
     all_salaries = await SalaryPayment.find_all().to_list() if hasattr(SalaryPayment, 'find_all') else []
     branch_salaries = []
     for sal in all_salaries:
-        t_id = str(getattr(sal.teacher, "id", "") or getattr(getattr(sal.teacher, "ref", None), "id", ""))
+        t_id = ""
+        if getattr(sal, "teacher", None):
+            ref = getattr(sal.teacher, "ref", None)
+            t_id = str(getattr(ref, "id", None)) if ref else str(getattr(sal.teacher, "id", ""))
         if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or t_id in teacher_id_set:
             branch_salaries.append(sal)
             m_parts = (getattr(sal, "month_name", "") or "").split()
@@ -156,7 +164,6 @@ async def get_accounts_summary_endpoint(
     # 2. Resolve Active Academic Year & Generate Months
     curr_academic_year = (academic_year or "").strip()
     if not curr_academic_year or curr_academic_year.upper() in ["DEFAULT", "CURRENT"]:
-        # default to current academic year based on today
         curr_y = now.year
         curr_academic_year = f"{curr_y}-{curr_y+1}" if now.month >= 4 else f"{curr_y-1}-{curr_y}"
         if curr_academic_year not in available_academic_years:
@@ -193,7 +200,6 @@ async def get_accounts_summary_endpoint(
                     f"September {sy}", f"October {sy}", f"November {sy}", f"December {sy}"
                 ]
     else:
-        # ALL academic years: collect all distinct months with data
         all_month_names = set()
         for sal in branch_salaries:
             if sal.month_name: all_month_names.add(sal.month_name)
@@ -214,12 +220,21 @@ async def get_accounts_summary_endpoint(
 
     is_all_months = target_month.upper() in ["ALL", "FULL YEAR", "YEARLY"]
 
-    # 3. Filter Students for the selected Academic Year
+    # 3. Filter Students strictly for the selected Academic Year (Data varies cleanly by year)
     if is_all_academic_years:
-        selected_students = students
+        selected_students = branch_students
     else:
-        matched = [s for s in students if getattr(s, "academic_year", "") == curr_academic_year]
-        selected_students = matched if matched else students
+        matched = []
+        for s in branch_students:
+            s_ay = getattr(s, "academic_year", None)
+            adm = getattr(s, "admission_date", None)
+            if s_ay == curr_academic_year:
+                matched.append(s)
+            elif curr_academic_year == "2026-2027" and adm and datetime(2026, 4, 1) <= adm < datetime(2027, 4, 1):
+                matched.append(s)
+            elif ay_start_dt and ay_end_dt and adm and ay_start_dt <= adm < ay_end_dt and not s_ay:
+                matched.append(s)
+        selected_students = matched
 
     yearly_expected_fees = 0.0
     yearly_collected_fees = 0.0
@@ -249,7 +264,7 @@ async def get_accounts_summary_endpoint(
             elif p_date and ay_start_dt and ay_end_dt and ay_start_dt <= p_date < ay_end_dt:
                 year_payments.append(p)
 
-    # 4. Monthly Fee Calculations
+    # 4. Monthly Fee Calculations (Data varies cleanly by month)
     month_start_dt = None
     month_end_dt = None
     if not is_all_months:
@@ -310,6 +325,7 @@ async def get_accounts_summary_endpoint(
             yearly_disbursements_count += 1
 
     # Monthly salary calculations
+    formatted_month_salaries = []
     if is_all_months:
         month_salaries = year_salaries
         monthly_salary_liability = yearly_salary_liability
@@ -318,7 +334,17 @@ async def get_accounts_summary_endpoint(
         monthly_disbursed_count = yearly_disbursements_count
         monthly_faculty_count = total_faculty_count
     else:
-        month_salaries = [s for s in branch_salaries if s.month_name == target_month]
+        # Re-fetch exact month salaries so newly generated or updated records are live
+        raw_month_salaries = await SalaryPayment.find(SalaryPayment.month_name == target_month).to_list()
+        month_salaries = []
+        for sal in raw_month_salaries:
+            t_id = ""
+            if getattr(sal, "teacher", None):
+                ref = getattr(sal.teacher, "ref", None)
+                t_id = str(getattr(ref, "id", None)) if ref else str(getattr(sal.teacher, "id", ""))
+            if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or t_id in teacher_id_set:
+                month_salaries.append(sal)
+
         monthly_salary_liability = 0.0
         monthly_salary_disbursed = 0.0
         monthly_salary_pending = 0.0
@@ -334,6 +360,10 @@ async def get_accounts_summary_endpoint(
             monthly_salary_pending += pend
             if getattr(sal, 'status', '') == 'Disbursed' or (paid > 0 and pend == 0):
                 monthly_disbursed_count += 1
+            try:
+                formatted_month_salaries.append(await _format_salary(sal))
+            except Exception:
+                pass
 
     # 6. Generate Calendar Month Breakdown for UI calendar ribbon
     monthly_calendar_stats = []
@@ -441,6 +471,7 @@ async def get_accounts_summary_endpoint(
             "disbursement_rate_percent": round((yearly_salary_disbursed / max(1.0, yearly_salary_liability)) * 100, 1) if yearly_salary_liability > 0 else 0.0
         },
         
+        "selected_month_salaries": formatted_month_salaries,
         "fees_counter": fees_counter,
         "salary_counter": salary_counter,
         "accounts_credentials_info": get_accounts_credentials_info(norm_branch)

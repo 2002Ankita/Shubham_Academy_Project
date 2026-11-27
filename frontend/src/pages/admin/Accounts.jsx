@@ -576,12 +576,14 @@ export default function Accounts() {
 
       {/* 3. Monthly and Yearly KPI Cards Row */}
       <div className="row g-3 mb-4">
-        {/* KPI 1: Collected Fees (Monthly & Yearly) */}
+        {/* KPI 1: Collected Fees (Dynamically varies by month & year) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white position-relative">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span className="small text-muted fw-semibold">
-                {isAllMonths ? 'Full Year Collected Fees' : `Monthly Fees (${selectedMonth})`}
+                {viewMode === 'yearly' || isAllMonths
+                  ? `Full Year Fees (${academicYear})`
+                  : `Monthly Fees (${selectedMonth})`}
               </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-success"
@@ -593,36 +595,56 @@ export default function Accounts() {
 
             {/* Primary figure */}
             <h4 className="fw-bold mb-1 text-success">
-              ₹{Number(isAllMonths ? yearlyFees.total_collected : monthlyFees.total_collected || 0).toLocaleString('en-IN')}
+              ₹{Number(
+                viewMode === 'yearly' || isAllMonths
+                  ? yearlyFees.total_collected
+                  : monthlyFees.total_collected || 0
+              ).toLocaleString('en-IN')}
             </h4>
 
-            {/* Monthly Target / Progress */}
+            {/* Target / Progress */}
             <div className="small text-muted mb-2">
-              <span>Target: ₹{Number(isAllMonths ? yearlyFees.total_expected : monthlyFees.total_expected || 0).toLocaleString('en-IN')}</span>
+              <span>
+                Target: ₹{Number(
+                  viewMode === 'yearly' || isAllMonths
+                    ? yearlyFees.total_expected
+                    : monthlyFees.total_expected || 0
+                ).toLocaleString('en-IN')}
+              </span>
               <span className="badge bg-success bg-opacity-10 text-success fw-bold ms-2">
-                {isAllMonths ? yearlyFees.collection_rate_percent : monthlyFees.collection_rate_percent}%
+                {viewMode === 'yearly' || isAllMonths
+                  ? yearlyFees.collection_rate_percent
+                  : monthlyFees.collection_rate_percent}%
               </span>
             </div>
 
-            {/* Dual View: Yearly Cumulative Badge */}
+            {/* Sub-Metric comparison */}
             <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
               <span className="text-muted" style={{ fontSize: '11px' }}>
-                Full Year Total:
+                {viewMode === 'yearly' ? `Month (${selectedMonth}):` : 'Full Year Total:'}
               </span>
               <strong className="text-sa-charcoal" style={{ fontSize: '11.5px' }}>
-                ₹{Number(yearlyFees.total_collected || 0).toLocaleString('en-IN')}
-                <span className="text-muted fw-normal ms-1">({yearlyFees.collection_rate_percent}%)</span>
+                ₹{Number(
+                  viewMode === 'yearly'
+                    ? monthlyFees.total_collected || 0
+                    : yearlyFees.total_collected || 0
+                ).toLocaleString('en-IN')}
+                <span className="text-muted fw-normal ms-1">
+                  ({viewMode === 'yearly' ? `${monthlyFees.payments_count} receipts` : `${yearlyFees.collection_rate_percent}%`})
+                </span>
               </strong>
             </div>
           </div>
         </div>
 
-        {/* KPI 2: Pending Dues (Monthly & Yearly Recovery) */}
+        {/* KPI 2: Pending Dues (Dynamically varies by month & year) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span className="small text-muted fw-semibold">
-                {isAllMonths ? 'Yearly Pending Dues' : `Pending Recovery (${selectedMonth})`}
+                {viewMode === 'yearly' || isAllMonths
+                  ? `Yearly Pending Dues (${academicYear})`
+                  : `Pending Recovery (${selectedMonth})`}
               </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-danger"
@@ -633,17 +655,27 @@ export default function Accounts() {
             </div>
 
             <h4 className="fw-bold mb-1 text-danger">
-              ₹{Number(isAllMonths ? yearlyFees.total_pending : monthlyFees.total_pending || 0).toLocaleString('en-IN')}
+              ₹{Number(
+                viewMode === 'yearly' || isAllMonths
+                  ? yearlyFees.total_pending
+                  : monthlyFees.total_pending || 0
+              ).toLocaleString('en-IN')}
             </h4>
 
             <div className="small text-muted mb-2">
-              <span>{yearlyFees.overdue_students_count} Overdue Student Accounts</span>
+              <span>
+                {viewMode === 'yearly' || isAllMonths
+                  ? `${yearlyFees.overdue_students_count} Overdue Student Accounts`
+                  : `${monthlyFees.payments_count} Receipts Logged This Month`}
+              </span>
             </div>
 
-            {/* Dual View: Yearly Dues & Parent Alert */}
+            {/* Sub-Metric comparison */}
             <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
               <span className="text-muted" style={{ fontSize: '11px' }}>
-                Yearly Dues: ₹{Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}
+                {viewMode === 'yearly'
+                  ? `Month Dues: ₹${Number(monthlyFees.total_pending || 0).toLocaleString('en-IN')}`
+                  : `Yearly Dues: ₹${Number(yearlyFees.total_pending || 0).toLocaleString('en-IN')}`}
               </span>
               <button
                 type="button"
@@ -657,12 +689,14 @@ export default function Accounts() {
           </div>
         </div>
 
-        {/* KPI 3: Faculty Salary Liability (Monthly & Yearly) */}
+        {/* KPI 3: Faculty Salary Liability (Dynamically varies by month & year) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span className="small text-muted fw-semibold">
-                {isAllMonths ? 'Yearly Faculty Liability' : `Faculty Salary Liability (${selectedMonth})`}
+                {viewMode === 'yearly' || isAllMonths
+                  ? `Yearly Faculty Liability (${academicYear})`
+                  : `Faculty Liability (${selectedMonth})`}
               </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center text-primary"
@@ -673,31 +707,45 @@ export default function Accounts() {
             </div>
 
             <h4 className="fw-bold mb-1 text-sa-charcoal">
-              ₹{Number(isAllMonths ? yearlySalary.total_liability : monthlySalary.total_liability || 0).toLocaleString('en-IN')}
+              ₹{Number(
+                viewMode === 'yearly' || isAllMonths
+                  ? yearlySalary.total_liability
+                  : monthlySalary.total_liability || 0
+              ).toLocaleString('en-IN')}
             </h4>
 
             <div className="small text-muted mb-2">
-              <span>{isAllMonths ? yearlySalary.faculty_count : monthlySalary.faculty_count} Active Teachers</span>
+              <span>
+                {viewMode === 'yearly' || isAllMonths
+                  ? `${yearlySalary.faculty_count} Active Teachers in AY`
+                  : `${monthlySalary.faculty_count} Active Teachers (${selectedMonth})`}
+              </span>
             </div>
 
-            {/* Dual View: Yearly Total Liability */}
+            {/* Sub-Metric comparison */}
             <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
               <span className="text-muted" style={{ fontSize: '11px' }}>
-                Yearly Total Liability:
+                {viewMode === 'yearly' ? 'Month Liability:' : 'Yearly Total Liability:'}
               </span>
               <strong className="text-primary" style={{ fontSize: '11.5px' }}>
-                ₹{Number(yearlySalary.total_liability || 0).toLocaleString('en-IN')}
+                ₹{Number(
+                  viewMode === 'yearly'
+                    ? monthlySalary.total_liability || 0
+                    : yearlySalary.total_liability || 0
+                ).toLocaleString('en-IN')}
               </strong>
             </div>
           </div>
         </div>
 
-        {/* KPI 4: Salary Disbursed (Monthly & Yearly Total) */}
+        {/* KPI 4: Salary Disbursed (Dynamically varies by month & year) */}
         <div className="col-12 col-sm-6 col-xl-3">
           <div className="card h-100 border-0 shadow-sm rounded-3 p-3 bg-white">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span className="small text-muted fw-semibold">
-                {isAllMonths ? 'Yearly Total Disbursed' : `Salary Disbursed (${selectedMonth})`}
+                {viewMode === 'yearly' || isAllMonths
+                  ? `Yearly Disbursed (${academicYear})`
+                  : `Salary Disbursed (${selectedMonth})`}
               </span>
               <div
                 className="rounded-circle d-flex align-items-center justify-content-center"
@@ -708,27 +756,37 @@ export default function Accounts() {
             </div>
 
             <h4 className="fw-bold mb-1" style={{ color: '#7E22CE' }}>
-              ₹{Number(isAllMonths ? yearlySalary.total_disbursed : monthlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+              ₹{Number(
+                viewMode === 'yearly' || isAllMonths
+                  ? yearlySalary.total_disbursed
+                  : monthlySalary.total_disbursed || 0
+              ).toLocaleString('en-IN')}
             </h4>
 
             <div className="small text-muted mb-2 d-flex justify-content-between align-items-center">
               <span>
-                {isAllMonths
-                  ? `${yearlySalary.total_disbursements_count} Total Disbursements`
+                {viewMode === 'yearly' || isAllMonths
+                  ? `${yearlySalary.total_disbursements_count} Disbursements Logged`
                   : `${monthlySalary.disbursed_count} of ${monthlySalary.faculty_count} Disbursed`}
               </span>
               <span className="badge text-white fw-bold" style={{ backgroundColor: '#7E22CE', fontSize: '10.5px' }}>
-                {isAllMonths ? yearlySalary.disbursement_rate_percent : monthlySalary.disbursement_rate_percent}%
+                {viewMode === 'yearly' || isAllMonths
+                  ? yearlySalary.disbursement_rate_percent
+                  : monthlySalary.disbursement_rate_percent}%
               </span>
             </div>
 
-            {/* Dual View: Full Year Disbursed */}
+            {/* Sub-Metric comparison */}
             <div className="pt-2 border-top mt-auto d-flex justify-content-between align-items-center small">
               <span className="text-muted" style={{ fontSize: '11px' }}>
-                Yearly Disbursed Total:
+                {viewMode === 'yearly' ? 'Month Disbursed:' : 'Yearly Disbursed Total:'}
               </span>
               <strong style={{ color: '#7E22CE', fontSize: '11.5px' }}>
-                ₹{Number(yearlySalary.total_disbursed || 0).toLocaleString('en-IN')}
+                ₹{Number(
+                  viewMode === 'yearly'
+                    ? monthlySalary.total_disbursed || 0
+                    : yearlySalary.total_disbursed || 0
+                ).toLocaleString('en-IN')}
               </strong>
             </div>
           </div>
@@ -1187,21 +1245,29 @@ export default function Accounts() {
                     </tr>
                   </thead>
                   <tbody>
-                    {salaryList.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" className="text-center py-4 text-muted">
-                          No salary records found for {selectedMonth}.
-                        </td>
-                      </tr>
-                    ) : (
-                      salaryList.slice(0, 15).map((sal) => (
+                    {(() => {
+                      const displayedSalaries = (summaryData?.selected_month_salaries && summaryData.selected_month_salaries.length > 0)
+                        ? summaryData.selected_month_salaries
+                        : salaryList;
+
+                      if (!displayedSalaries || displayedSalaries.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan="8" className="text-center py-4 text-muted">
+                              No salary records found for {selectedMonth}.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return displayedSalaries.slice(0, 20).map((sal) => (
                         <tr key={sal.id}>
-                          <td className="fw-bold text-sa-charcoal">{sal.teacher_name || 'Faculty Member'}</td>
-                          <td><code>{sal.employee_id || '--'}</code></td>
-                          <td>{sal.working_hours || 0} hrs</td>
-                          <td className="fw-bold">₹{Number(sal.netPayable || sal.baseSalary || 0).toLocaleString('en-IN')}</td>
-                          <td className="text-success">₹{Number(sal.amount_paid || 0).toLocaleString('en-IN')}</td>
-                          <td className="text-danger fw-semibold">₹{Number(sal.amount_pending || 0).toLocaleString('en-IN')}</td>
+                          <td className="fw-bold text-sa-charcoal">{sal.teacherName || sal.teacher_name || 'Faculty Member'}</td>
+                          <td><code>{sal.employeeId || sal.employee_id || '--'}</code></td>
+                          <td>{sal.workingHours || sal.working_hours || 0} hrs</td>
+                          <td className="fw-bold">₹{Number(sal.netPayable || sal.net_payable || sal.baseSalary || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-success">₹{Number(sal.amountPaid || sal.amount_paid || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-danger fw-semibold">₹{Number(sal.amountPending || sal.amount_pending || 0).toLocaleString('en-IN')}</td>
                           <td>
                             <span
                               className={`badge ${
@@ -1219,7 +1285,7 @@ export default function Accounts() {
                             {sal.status !== 'Disbursed' && (
                               <button
                                 type="button"
-                                onClick={() => handleDisburseClick(sal.id, sal.amount_pending)}
+                                onClick={() => handleDisburseClick(sal.id, sal.amountPending || sal.amount_pending)}
                                 className="btn btn-xs text-white py-1 px-2.5 rounded fw-semibold"
                                 style={{ backgroundColor: '#8B1216', fontSize: '11px' }}
                               >
@@ -1228,8 +1294,8 @@ export default function Accounts() {
                             )}
                           </td>
                         </tr>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
