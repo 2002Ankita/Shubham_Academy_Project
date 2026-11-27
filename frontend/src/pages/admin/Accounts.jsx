@@ -31,17 +31,19 @@ import accountsService from '../../services/accountsService';
 import salaryService from '../../services/salaryService';
 import { BRANCH_TARABAI, BRANCH_MANGALWAR, normalizeBranch } from '../../config/branchBatchConfig';
 
-const DEFAULT_ACADEMIC_YEARS = [
-  'ALL',
-  '2029-2030',
-  '2028-2029',
-  '2027-2028',
-  '2026-2027',
-  '2025-2026',
-  '2024-2025',
-  '2023-2024',
-  '2022-2023'
-];
+// Generates full range of academic years: past years (from 2020) and 30+ upcoming years into the future (up to 2055+)
+const generateAcademicYearsList = () => {
+  const currentY = new Date().getFullYear();
+  const startY = 2020;
+  const endY = currentY + 30; // 30 years into the future (e.g. 2056)
+  const years = ['ALL'];
+  for (let y = endY; y >= startY; y--) {
+    years.push(`${y}-${y + 1}`);
+  }
+  return years;
+};
+
+const DEFAULT_ACADEMIC_YEARS = generateAcademicYearsList();
 
 export default function Accounts() {
   const { user } = useAuth();
@@ -67,10 +69,15 @@ export default function Accounts() {
   const [salaryList, setSalaryList] = useState([]);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'fees' | 'salary' | 'security'
 
-  // Combine backend years and defaults for full multi-year coverage
+  // Combine backend years, active year, and upcoming defaults for full boundless multi-year coverage
   const backendYears = summaryData?.available_academic_years || [];
   const allYearOptions = Array.from(
-    new Set(['ALL', ...backendYears, ...DEFAULT_ACADEMIC_YEARS.filter((y) => y !== 'ALL')])
+    new Set([
+      'ALL',
+      ...(academicYear && academicYear !== 'ALL' ? [academicYear] : []),
+      ...backendYears,
+      ...DEFAULT_ACADEMIC_YEARS.filter((y) => y !== 'ALL')
+    ])
   );
 
   // Helper to dynamically calculate 12 academic months for any year (e.g. 2024-2025, 2025-2026, 2026-2027, etc.)
@@ -146,20 +153,38 @@ export default function Accounts() {
     }
   };
 
-  // Year Navigation Steppers
+  // Boundless Year Navigation Steppers (increments/decrements infinitely into upcoming or past years)
   const handlePreviousYear = () => {
-    const list = allYearOptions.filter((y) => y !== 'ALL');
-    const idx = list.indexOf(academicYear);
-    if (idx !== -1 && idx < list.length - 1) {
-      handleYearChange(list[idx + 1]); // list is descending (2027, 2026, 2025...)
+    if (academicYear === 'ALL') {
+      const currY = new Date().getFullYear();
+      handleYearChange(`${currY}-${currY + 1}`);
+      return;
+    }
+    const match = academicYear.match(/^(\d{4})-(\d{4})$/);
+    if (match) {
+      const prevY1 = parseInt(match[1], 10) - 1;
+      const prevY2 = parseInt(match[2], 10) - 1;
+      handleYearChange(`${prevY1}-${prevY2}`);
+    } else {
+      const single = parseInt(academicYear, 10);
+      if (!isNaN(single)) handleYearChange(String(single - 1));
     }
   };
 
   const handleNextYear = () => {
-    const list = allYearOptions.filter((y) => y !== 'ALL');
-    const idx = list.indexOf(academicYear);
-    if (idx > 0) {
-      handleYearChange(list[idx - 1]);
+    if (academicYear === 'ALL') {
+      const currY = new Date().getFullYear();
+      handleYearChange(`${currY}-${currY + 1}`);
+      return;
+    }
+    const match = academicYear.match(/^(\d{4})-(\d{4})$/);
+    if (match) {
+      const nextY1 = parseInt(match[1], 10) + 1;
+      const nextY2 = parseInt(match[2], 10) + 1;
+      handleYearChange(`${nextY1}-${nextY2}`);
+    } else {
+      const single = parseInt(academicYear, 10);
+      if (!isNaN(single)) handleYearChange(String(single + 1));
     }
   };
 

@@ -84,18 +84,22 @@ async def get_accounts_summary_endpoint(
     now = datetime.utcnow()
     current_month_name = now.strftime("%B %Y")
     
-    # 1. Determine and Detect All Available Academic Years
+    # 1. Determine and Detect All Available Academic Years (past & unlimited upcoming)
     from app.models.student import Student
     from app.models.fees import FeePayment
     from app.models.salary import SalaryPayment
     from app.models.teacher import Teacher
     from app.services.salary_service import ensure_current_month_salaries
 
-    standard_years = [
-        "2022-2023", "2023-2024", "2024-2025", "2025-2026",
-        "2026-2027", "2027-2028", "2028-2029", "2029-2030"
-    ]
+    curr_cal_year = now.year
+    # Dynamically generate 30+ upcoming years into the future (e.g., up to 2055+)
+    start_gen_year = min(2020, curr_cal_year - 5)
+    end_gen_year = max(curr_cal_year + 30, 2055)
+    standard_years = [f"{y}-{y+1}" for y in range(start_gen_year, end_gen_year + 1)]
     detected_years_set = set(standard_years)
+
+    if academic_year and academic_year.strip().upper() not in ["ALL", "ALL YEARS", "LIFETIME"]:
+        detected_years_set.add(academic_year.strip())
 
     # Query all students for this branch
     student_query = {}
