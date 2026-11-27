@@ -100,13 +100,18 @@ async def get_accounts_summary_endpoint(
         detected_years_set.add(academic_year.strip())
 
     # Load ALL students across DB to accurately resolve student DBRefs
+    from app.services.student_service import student_matches_branch
+    from app.models.fees import FeeStructure
+    from app.services.fee_service import _lookup_student_fee
+
+    structures = await FeeStructure.find_all().to_list() if hasattr(FeeStructure, 'find_all') else []
     all_students = await Student.find_all().to_list() if hasattr(Student, 'find_all') else []
     student_id_branch_map = {str(s.id): normalize_branch(getattr(s, "branch", None)) for s in all_students}
 
-    # Filter students for active branch
+    # Filter students for active branch using unified student_matches_branch
     branch_students = [
         s for s in all_students
-        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or normalize_branch(getattr(s, "branch", None)) == norm_branch
+        if not norm_branch or norm_branch.lower() in ["all", "super", "both", "all campuses"] or student_matches_branch(s, norm_branch)
     ]
 
     for s in branch_students:
@@ -230,11 +235,31 @@ async def get_accounts_summary_endpoint(
             adm = getattr(s, "admission_date", None)
             if s_ay == curr_academic_year:
                 matched.append(s)
-            elif curr_academic_year == "2026-2027" and adm and datetime(2026, 4, 1) <= adm < datetime(2027, 4, 1):
+            elif curr_academic_year in ["2026-2027", "2025-2026"]:
+                if not s_ay or (adm and datetime(2026, 4, 1) <= adm < datetime(2027, 4, 1)):
+                    matched.append(s)
+            elif ay_start_dt and ay_end_dt and adm and ay_start_dt <= adm < ay_end_dt:
                 matched.append(s)
-            elif ay_start_dt and ay_end_dt and adm and ay_start_dt <= adm < ay_end_dt and not s_ay:
+            elif not s_ay and not adm:
                 matched.append(s)
         selected_students = matched
+
+    # Build student payment map from FeePayment records
+    paid_map = {}
+    for p in all_payments:
+        s_id = None
+        try:
+            if hasattr(p, "student") and p.student:
+                if hasattr(p.student, "ref") and p.student.ref and hasattr(p.student.ref, "id"):
+                    s_id = str(p.student.ref.id)
+                elif hasattr(p.student, "id"):
+                    s_id = str(p.student.id)
+                else:
+                    s_id = str(p.student)
+        except Exception:
+            pass
+        if s_id:
+            paid_map[s_id] = paid_map.get(s_id, 0.0) + float(getattr(p, "amount_paid", 0.0) or 0.0)
 
     yearly_expected_fees = 0.0
     yearly_collected_fees = 0.0
@@ -242,13 +267,31 @@ async def get_accounts_summary_endpoint(
     overdue_students_count = 0
 
     for s in selected_students:
-        tot = float(getattr(s, 'total_fees', 0.0) or 0.0)
-        paid = float(getattr(s, 'paid_fees', 0.0) or 0.0)
-        rem = float(getattr(s, 'remaining_fees', max(0.0, tot - paid)) or 0.0)
+        s_id_str = str(s.id)
+        tot = await _lookup_student_fee(s, structures)
+        calc_paid = paid_map.get(s_id_str, 0.0)
+        doc_paid = float(getattr(s, "paid_fees", 0.0) or 0.0)
+        paid = max(calc_paid, doc_paid)
+        doc_rem = getattr(s, "remaining_fees", None)
+        if doc_rem is not None and float(doc_rem) <= 0 and paid > 0:
+            rem = 0.0
+        else:
+            rem = max(0.0, tot - paid)
+
+        # Sync student document in database so it matches FeeStructure & FeePayment
+        if s.paid_fees != paid or s.remaining_fees != rem or s.total_fees != tot:
+            try:
+                s.paid_fees = paid
+                s.remaining_fees = rem
+                s.total_fees = tot
+                await s.save()
+            except Exception:
+                pass
+
         yearly_expected_fees += tot
         yearly_collected_fees += paid
         yearly_pending_dues += rem
-        if rem > 0:
+        if rem > 0.01:
             overdue_students_count += 1
 
     # Filter fee payments for this academic year

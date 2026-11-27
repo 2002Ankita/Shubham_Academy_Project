@@ -90,7 +90,7 @@ export default function PendingFees() {
     let totalAll = 0;
 
     pendingList.forEach((item) => {
-      const amt = Number(item.pendingAmount) || 0;
+      const amt = Number(item.pendingAmount ?? item.pending_fees) || 0;
       totalAll += amt;
       const cat = getItemStandardCategory(item);
       if (cat === '11th') {
@@ -136,7 +136,7 @@ export default function PendingFees() {
 
   // Dynamically varying total outstanding based strictly on current filter/search
   const dynamicTotalOutstanding = useMemo(() => {
-    return filteredList.reduce((acc, curr) => acc + (Number(curr.pendingAmount) || 0), 0);
+    return filteredList.reduce((acc, curr) => acc + (Number(curr.pendingAmount ?? curr.pending_fees) || 0), 0);
   }, [filteredList]);
 
   // Dynamic card title
@@ -489,23 +489,23 @@ export default function PendingFees() {
             {
               key: 'totalFees',
               title: 'Total Fees',
-              render: (val) => `₹ ${Number(val || 0).toLocaleString('en-IN')}`
+              render: (val, row) => `₹ ${Number(val ?? row.total_fees ?? 0).toLocaleString('en-IN')}`
             },
             {
               key: 'amountPaid',
               title: 'Paid Till Date',
-              render: (val) => (
+              render: (val, row) => (
                 <span className="text-success fw-semibold">
-                  ₹ {Number(val || 0).toLocaleString('en-IN')}
+                  ₹ {Number(val ?? row.amount_paid ?? 0).toLocaleString('en-IN')}
                 </span>
               )
             },
             {
               key: 'pendingAmount',
               title: 'Overdue Amount',
-              render: (val) => (
+              render: (val, row) => (
                 <span className="fw-extrabold text-danger fs-6">
-                  ₹ {Number(val || 0).toLocaleString('en-IN')}
+                  ₹ {Number(val ?? row.pending_fees ?? 0).toLocaleString('en-IN')}
                 </span>
               )
             },
