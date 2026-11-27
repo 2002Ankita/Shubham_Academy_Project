@@ -290,15 +290,23 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
   const isFeePath = location.pathname.startsWith('/admin/fees');
   const [openSubmenus, setOpenSubmenus] = React.useState(() => ({
     'Fees Collection': true,
-    'Fee Collection': true
+    'Fee Collection': true,
+    'Fee Collection & Recovery': true,
+    'Accounts & Finance': true
   }));
 
   React.useEffect(() => {
-    if (location.pathname.startsWith('/admin/fees')) {
+    if (
+      location.pathname.startsWith('/admin/fees') ||
+      location.pathname.startsWith('/admin/accounts') ||
+      location.pathname.startsWith('/admin/teachers/salary')
+    ) {
       setOpenSubmenus(prev => ({
         ...prev,
         'Fees Collection': true,
-        'Fee Collection': true
+        'Fee Collection': true,
+        'Fee Collection & Recovery': true,
+        'Accounts & Finance': true
       }));
     }
   }, [location.pathname]);
@@ -326,12 +334,49 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
     if (child.path === '/admin/fees/reminder-history') {
       return location.pathname.startsWith('/admin/fees/reminder-history') || location.pathname.startsWith('/admin/fees/reminders/history');
     }
+    if (child.path === '/admin/fees/offline-requests') {
+      return location.pathname.startsWith('/admin/fees/offline-requests');
+    }
+    if (child.path === '/admin/fees/upi-scanner') {
+      return location.pathname.startsWith('/admin/fees/upi-scanner');
+    }
+    if (child.path === '/admin/fees/structure') {
+      return location.pathname.startsWith('/admin/fees/structure');
+    }
     return location.pathname.startsWith(child.path);
   };
 
   const getNavLinks = () => {
     const role = (user?.role || 'admin').toLowerCase().replace('-', '_');
 
+    // UNLOCKED: Fee recovery and collection operations accessible to faculty & admin without password
+    const feesRecoverySubmenuItem = {
+      label: 'Fee Collection & Recovery',
+      icon: CreditCard,
+      isSubmenu: true,
+      menuKey: 'Fee Collection & Recovery',
+      path: '/admin/fees/pending',
+      badge: pendingOfflineCount > 0 ? pendingOfflineCount : undefined,
+      matchPrefixes: [
+        '/admin/fees/pending',
+        '/admin/fees/offline-requests',
+        '/admin/fees/upi-scanner',
+        '/admin/fees/receipt',
+        '/admin/fees/reminder-settings',
+        '/admin/fees/reminder-history',
+        '/admin/fees/reminders'
+      ],
+      children: [
+        { label: 'Fee Defaulters & Recovery', path: '/admin/fees/pending' },
+        { label: 'Cash & Cheque Requests', path: '/admin/fees/offline-requests', badge: pendingOfflineCount, isNew: true },
+        { label: 'Branch UPI Scanner & QR', path: '/admin/fees/upi-scanner', isNew: true },
+        { label: 'Fee Receipts', path: '/admin/fees/receipts' },
+        { label: 'Fee Reminder Settings', path: '/admin/fees/reminder-settings', isNew: true },
+        { label: 'Reminder History', path: '/admin/fees/reminder-history', isNew: true }
+      ]
+    };
+
+    // LOCKED: Confidential Financial section strictly protected by Accounts ID & Password
     const accountsSubmenuItem = {
       label: 'Accounts & Finance',
       icon: FeeRupeeIcon,
@@ -339,17 +384,13 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
       menuKey: 'Accounts & Finance',
       path: '/admin/accounts',
       isAccountsProtected: true,
-      matchPrefixes: ['/admin/accounts', '/admin/fees', '/admin/teachers/salary'],
+      matchPrefixes: ['/admin/accounts', '/admin/teachers/salary', '/admin/fees/structure', '/admin/fees/structures'],
+      exactMatches: ['/admin/fees', '/admin/fees/'],
       children: [
         { label: 'Accounts Dashboard', path: '/admin/accounts', exact: true },
         { label: 'Monthly Fees Counter', path: '/admin/fees', exact: true },
         { label: 'Teacher Salary & Payroll', path: '/admin/teachers/salary', exact: true },
-        { label: 'Cash & Cheque Requests', path: '/admin/fees/offline-requests', badge: pendingOfflineCount, isNew: true },
-        { label: 'Branch UPI Scanner & QR', path: '/admin/fees/upi-scanner', isNew: true },
-        { label: 'Fee Receipts', path: '/admin/fees/receipts' },
-        { label: 'Fee Structure', path: '/admin/fees/structure' },
-        { label: 'Fee Reminder Settings', path: '/admin/fees/reminder-settings', isNew: true },
-        { label: 'Reminder History', path: '/admin/fees/reminder-history', isNew: true }
+        { label: 'Fee Structure', path: '/admin/fees/structure', exact: true }
       ]
     };
 
@@ -361,7 +402,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Fee Defaulters & Recovery', path: '/admin/fees/pending', icon: AlertCircle, matchPrefixes: ['/admin/fees/pending'] },
+        feesRecoverySubmenuItem,
         accountsSubmenuItem,
         { label: 'Discount Approvals', path: '/super-admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/super-admin/discounts', '/super-admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
@@ -405,7 +446,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Batch Management', path: '/admin/batches', icon: BookOpen, matchPrefixes: ['/admin/batches'] },
         { label: 'Daily Logs & Timetable', path: '/admin/activity-timetable', icon: CalendarCheck, matchPrefixes: ['/admin/activity-timetable', '/admin/daily-activities'] },
         { label: 'Attendance', path: '/admin/attendance', icon: AttendanceNavIcon, matchPrefixes: ['/admin/attendance'] },
-        { label: 'Fee Defaulters & Recovery', path: '/admin/fees/pending', icon: AlertCircle, matchPrefixes: ['/admin/fees/pending'] },
+        feesRecoverySubmenuItem,
         accountsSubmenuItem,
         { label: 'Discount Approvals', path: '/admin/discounts', icon: ShieldCheck, badge: pendingDiscountsCount, matchPrefixes: ['/admin/discounts', '/admin/discount-approvals'] },
         { label: 'Books Stock', path: '/admin/books/stock', icon: NotesStockIcon, matchPrefixes: ['/admin/books/stock', '/admin/books-stock', '/admin/notes/stock', '/admin/notes-stock'] },
@@ -641,7 +682,9 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
 
               if (item.isSubmenu) {
                 const isSubmenuOpen = !!openSubmenus[item.menuKey];
-                const active = item.matchPrefixes ? item.matchPrefixes.some(p => location.pathname.startsWith(p)) : location.pathname.startsWith(item.path);
+                const active = (item.matchPrefixes && item.matchPrefixes.some(p => location.pathname.startsWith(p))) ||
+                               (item.exactMatches && item.exactMatches.includes(location.pathname)) ||
+                               (!item.matchPrefixes && !item.exactMatches && location.pathname.startsWith(item.path));
 
                 const handleSubmenuToggle = () => {
                   if (item.isAccountsProtected && !isAccountsUnlocked) {
@@ -693,6 +736,14 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                         <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{item.label}</span>
                       </div>
                       <div className="d-flex align-items-center gap-1.5">
+                        {item.badge !== undefined && item.badge > 0 && (
+                          <span
+                            className="badge bg-danger rounded-pill px-1.5 py-0.5"
+                            style={{ fontSize: '10px' }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
                         {item.isAccountsProtected && (
                           isAccountsUnlocked ? (
                             <span
@@ -776,21 +827,34 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                               }}
                             >
                               <span style={{ letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{child.label}</span>
-                              {child.isNew && (
-                                <span
-                                  style={{
-                                    fontSize: '0.62rem',
-                                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                    color: '#FFFFFF',
-                                    padding: '1px 6px',
-                                    borderRadius: '999px',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.04em'
-                                  }}
-                                >
-                                  NEW
-                                </span>
-                              )}
+                              <div className="d-flex align-items-center gap-1.5">
+                                {item.isAccountsProtected && !isAccountsUnlocked && (
+                                  <Lock size={11} className="text-white text-opacity-50" />
+                                )}
+                                {child.badge !== undefined && child.badge > 0 && (
+                                  <span
+                                    className="badge bg-danger rounded-pill px-1.5 py-0.5"
+                                    style={{ fontSize: '10px' }}
+                                  >
+                                    {child.badge}
+                                  </span>
+                                )}
+                                {child.isNew && (
+                                  <span
+                                    style={{
+                                      fontSize: '0.62rem',
+                                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                      color: '#FFFFFF',
+                                      padding: '1px 6px',
+                                      borderRadius: '999px',
+                                      fontWeight: 700,
+                                      letterSpacing: '0.04em'
+                                    }}
+                                  >
+                                    NEW
+                                  </span>
+                                )}
+                              </div>
                             </NavLink>
                           );
                         })}
