@@ -30,13 +30,14 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
 
   const getRoleEmail = (roleId, campus = selectedCampus) => {
+    if (roleId === 'superadmin') {
+      // SuperAdmin ID is identical across both branches (Mangalvar Peth & Tarabai Park)
+      return 'superadmin@shubham.edu';
+    }
     if (roleId === 'student') return campus === 'Tarabai Park' ? 'aarav.tarabai@shubham.edu' : 'aarav.d@shubham.edu';
     if (roleId === 'teacher') return campus === 'Tarabai Park' ? 'priya.tarabai@shubham.edu' : 'priya.k@shubham.edu';
     if (roleId === 'admin') {
       return campus === 'Tarabai Park' ? 'admin.tarabai@shubham.edu' : 'admin@shubham.edu';
-    }
-    if (roleId === 'superadmin') {
-      return campus === 'Tarabai Park' ? 'superadmin.tarabai@shubham.edu' : 'superadmin@shubham.edu';
     }
     return 'admin@shubham.edu';
   };

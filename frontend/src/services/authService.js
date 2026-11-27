@@ -23,16 +23,18 @@ export const authService = {
     const isSuper = targetRole === 'super-admin' || targetRole === 'superadmin' || emailLower.startsWith('superadmin');
 
     // Attempt direct login, and fallback to authenticating via base credentials so backend generates valid JWT
-    const candidateEmails = isTarabai
-      ? [
-          credentials.email,
-          targetRole === 'teacher' ? 'priya.tarabai@shubham.edu' : (targetRole === 'student' ? 'aarav.tarabai@shubham.edu' : (isSuper ? 'superadmin.tarabai@shubham.edu' : 'admin.tarabai@shubham.edu')),
-          isSuper ? 'superadmin@shubham.edu' : (targetRole === 'teacher' ? 'priya.k@shubham.edu' : (targetRole === 'student' ? 'aarav.d@shubham.edu' : 'admin@shubham.edu'))
-        ]
-      : [
-          credentials.email,
-          isSuper ? 'superadmin@shubham.edu' : (targetRole === 'teacher' ? 'priya.k@shubham.edu' : (targetRole === 'student' ? 'aarav.d@shubham.edu' : 'admin@shubham.edu'))
-        ];
+    const candidateEmails = isSuper
+      ? ['superadmin@shubham.edu', credentials.email]
+      : (isTarabai
+        ? [
+            credentials.email,
+            targetRole === 'teacher' ? 'priya.tarabai@shubham.edu' : (targetRole === 'student' ? 'aarav.tarabai@shubham.edu' : 'admin.tarabai@shubham.edu'),
+            targetRole === 'teacher' ? 'priya.k@shubham.edu' : (targetRole === 'student' ? 'aarav.d@shubham.edu' : 'admin@shubham.edu')
+          ]
+        : [
+            credentials.email,
+            targetRole === 'teacher' ? 'priya.k@shubham.edu' : (targetRole === 'student' ? 'aarav.d@shubham.edu' : 'admin@shubham.edu')
+          ]);
 
     let lastError = null;
 
@@ -47,13 +49,17 @@ export const authService = {
         if (token) {
           localStorage.setItem('accessToken', token);
 
-          let branch = credentials.campus || credentials.branch || (isTarabai ? 'Tarabai Park' : 'Mangalvar Peth');
-          let userName = isTarabai
-            ? (isSuper ? 'Sanjay Shinde' : (targetRole === 'teacher' ? 'Prof. Sunita Patil' : (targetRole === 'student' ? 'Aarav Deshmukh' : 'Vikram Desai')))
-            : (isSuper ? 'Shubham Sharma' : (targetRole === 'teacher' ? 'Dr. Priya Kulkarni' : (targetRole === 'student' ? 'Aarav Deshmukh' : 'Rajesh Patil')));
-          let userId = isTarabai
-            ? (isSuper ? 'USR-SA-TP-01' : (targetRole === 'teacher' ? 'TCH-TP-01' : (targetRole === 'student' ? 'STU-TP-01' : 'USR-ADM-TP-01')))
-            : (isSuper ? 'USR-SA-MP-01' : (targetRole === 'teacher' ? 'TCH-001' : (targetRole === 'student' ? 'STU-001' : 'USR-ADM-MP-01')));
+          let branch = isSuper ? 'All Campuses' : (credentials.campus || credentials.branch || (isTarabai ? 'Tarabai Park' : 'Mangalvar Peth'));
+          let userName = isSuper
+            ? 'Shubham Sharma'
+            : (isTarabai
+              ? (targetRole === 'teacher' ? 'Prof. Sunita Patil' : (targetRole === 'student' ? 'Aarav Deshmukh' : 'Vikram Desai'))
+              : (targetRole === 'teacher' ? 'Dr. Priya Kulkarni' : (targetRole === 'student' ? 'Aarav Deshmukh' : 'Rajesh Patil')));
+          let userId = isSuper
+            ? 'USR-SA-01'
+            : (isTarabai
+              ? (targetRole === 'teacher' ? 'TCH-TP-01' : (targetRole === 'student' ? 'STU-TP-01' : 'USR-ADM-TP-01'))
+              : (targetRole === 'teacher' ? 'TCH-001' : (targetRole === 'student' ? 'STU-001' : 'USR-ADM-MP-01')));
 
           let userBatch = null;
           let userAcadBatch = null;
@@ -183,13 +189,13 @@ export const authService = {
 
     if (isAdminCreds) {
       const mockUser = {
-        id: isTarabai ? (isSuper ? 'USR-SA-TP-01' : 'USR-ADM-TP-01') : (isSuper ? 'USR-SA-MP-01' : 'USR-ADM-MP-01'),
-        name: isTarabai
-          ? (isSuper ? 'Sanjay Shinde' : 'Vikram Desai')
-          : (isSuper ? 'Shubham Sharma' : 'Rajesh Patil'),
-        email: emailLower || (isSuper ? 'superadmin@shubham.edu' : 'admin@shubham.edu'),
+        id: isSuper ? 'USR-SA-01' : (isTarabai ? 'USR-ADM-TP-01' : 'USR-ADM-MP-01'),
+        name: isSuper
+          ? 'Shubham Sharma'
+          : (isTarabai ? 'Vikram Desai' : 'Rajesh Patil'),
+        email: isSuper ? 'superadmin@shubham.edu' : (emailLower || (isTarabai ? 'admin.tarabai@shubham.edu' : 'admin@shubham.edu')),
         role: isSuper ? 'super-admin' : 'admin',
-        branch: credentials.branch || credentials.campus || selectedCampus,
+        branch: isSuper ? 'All Campuses' : (credentials.branch || credentials.campus || selectedCampus),
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
         title: isSuper ? 'SUPER_ADMIN' : 'ADMIN'
       };

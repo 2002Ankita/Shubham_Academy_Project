@@ -147,14 +147,14 @@ async def authenticate(user_in: UserLogin) -> str:
                     is_active=True
                 )
                 await user.insert()
-        elif "superadmin.tarabai" in email_clean_lower:
-            user = await User.find_one(User.email == "superadmin.tarabai@shubham.edu")
+        elif "superadmin" in email_clean_lower:
+            user = await User.find_one(User.email == "superadmin@shubham.edu")
             if not user:
                 user = User(
-                    email="superadmin.tarabai@shubham.edu",
-                    full_name="Sanjay Shinde",
+                    email="superadmin@shubham.edu",
+                    full_name="Shubham Sharma",
                     role="super_admin",
-                    branch="Tarabai Park",
+                    branch="All Campuses",
                     hashed_password=get_password_hash("password123"),
                     is_active=True
                 )
@@ -350,13 +350,6 @@ async def ensure_default_users():
             "password": "9876500001"
         },
         # Tarabai Park Campus
-        {
-            "email": "superadmin.tarabai@shubham.edu",
-            "full_name": "Sanjay Shinde",
-            "role": "super_admin",
-            "branch": "Tarabai Park",
-            "password": "password123"
-        },
         {
             "email": "admin.tarabai@shubham.edu",
             "full_name": "Vikram Desai",
