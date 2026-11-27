@@ -777,7 +777,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                     return (
                       <div
                         key={item.id}
-                        className="w-100 p-2.5 rounded-3 border d-flex align-items-center justify-content-between gap-2"
+                        className="w-100 p-2.5 rounded-3 border d-flex flex-column gap-1"
                         style={{
                           width: '100%',
                           boxSizing: 'border-box',
@@ -810,45 +810,76 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                         }}
                         onClick={() => handleNotificationClick(item)}
                       >
-                        <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-2">
-                          <span
-                            className="rounded-circle bg-danger flex-shrink-0"
-                            style={{
-                              width: '6.5px',
-                              height: '6.5px',
-                              boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.15)'
-                            }}
-                          />
-                          <span
-                            className="fw-semibold text-sa-charcoal text-truncate d-block"
-                            style={{ fontSize: '0.81rem' }}
-                            title={item.title}
-                          >
-                            {item.title}
-                          </span>
+                        <div className="d-flex align-items-center justify-content-between gap-2">
+                          <div className="d-flex align-items-center gap-2 flex-grow-1 min-w-0 pe-2">
+                            <span
+                              className="rounded-circle bg-danger flex-shrink-0"
+                              style={{
+                                width: '6.5px',
+                                height: '6.5px',
+                                boxShadow: '0 0 0 2px rgba(220, 38, 38, 0.15)'
+                              }}
+                            />
+                            <span
+                              className="fw-semibold text-sa-charcoal text-truncate d-block"
+                              style={{ fontSize: '0.81rem' }}
+                              title={item.title}
+                            >
+                              {item.title}
+                            </span>
+                          </div>
+
+                          <div className="d-flex align-items-center gap-1.5 flex-shrink-0 ms-auto">
+                            <span
+                              className="badge rounded-pill fw-medium d-inline-flex align-items-center"
+                              style={{
+                                backgroundColor: '#F8FAFC',
+                                color: '#64748B',
+                                border: '1px solid #E2E8F0',
+                                fontSize: '0.68rem',
+                                padding: '0.25em 0.5em',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <Clock size={10} className="me-1 align-text-top flex-shrink-0" />
+                              <span>{item.time}</span>
+                            </span>
+                            <div
+                              className="notification-arrow d-flex align-items-center justify-content-center text-muted"
+                              style={{ width: '14px', height: '14px', transition: 'all 0.18s ease' }}
+                            >
+                              <ChevronRight size={14} />
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-auto">
-                          <span
-                            className="badge rounded-pill fw-medium d-inline-flex align-items-center"
-                            style={{
-                              backgroundColor: '#F8FAFC',
-                              color: '#64748B',
-                              border: '1px solid #E2E8F0',
-                              fontSize: '0.70rem',
-                              padding: '0.3em 0.6em',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            <Clock size={11} className="me-1 align-text-top flex-shrink-0" />
-                            <span>{item.time}</span>
-                          </span>
-                          <div
-                            className="notification-arrow d-flex align-items-center justify-content-center text-muted"
-                            style={{ width: '14px', height: '14px', transition: 'all 0.18s ease' }}
-                          >
-                            <ChevronRight size={14} />
-                          </div>
+                        {/* Branch badge & details */}
+                        <div className="d-flex align-items-center gap-1.5 flex-wrap ps-2.5">
+                          {item.branch && (
+                            <span
+                              className="badge rounded-pill px-1.5 py-0.5 fw-bold"
+                              style={{
+                                fontSize: '0.65rem',
+                                backgroundColor: item.branch.toLowerCase().includes('tarabai') ? '#FDF0F0' : '#F0FDFA',
+                                color: item.branch.toLowerCase().includes('tarabai') ? '#8B1216' : '#0D9488'
+                              }}
+                            >
+                              {item.branch.toLowerCase().includes('tarabai') ? '🌲 Tarabai Park' : '🏛️ Mangalvar Peth'}
+                            </span>
+                          )}
+                          {item.batch && (
+                            <span
+                              className="badge rounded-1 px-1.5 py-0.5 fw-bold"
+                              style={{ fontSize: '0.65rem', backgroundColor: '#EEF2FF', color: '#4338CA' }}
+                            >
+                              {item.batch}
+                            </span>
+                          )}
+                          {item.details && (
+                            <span className="text-sa-muted text-truncate" style={{ fontSize: '0.70rem', maxWidth: '240px' }}>
+                              {item.details}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -942,8 +973,9 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
                   {user?.name || (isStudent ? 'Aarav Deshmukh' : isAdmin ? 'Rajesh Patil' : isTeacher ? 'More A.D' : 'Shubham Sharma')}
                 </span>
                 <span className="text-sa-muted" style={{ fontSize: '0.70rem', fontWeight: 500 }}>
-                  {getUserBranch(user) ? `${getUserBranch(user)} • ` : ''}
-                  {isSuperAdmin ? 'Super Admin' : isTeacher ? 'Senior Faculty' : isStudent ? 'Student' : 'Administrator'}
+                  {isSuperAdmin
+                    ? 'Both Campuses (MP & TP) • Super Admin'
+                    : `${getUserBranch(user) ? `${getUserBranch(user)} • ` : ''}${isTeacher ? 'Senior Faculty' : isStudent ? 'Student' : 'Administrator'}`}
                 </span>
               </div>
             </div>

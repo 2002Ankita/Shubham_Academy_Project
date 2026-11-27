@@ -61,19 +61,20 @@ export const getUserBranch = (user) => {
 
   if (!user) return null;
 
-  // Explicit branch attribute
-  if (user.branch) {
+  // Superadmin has universal oversight across both Mangalvar Peth and Tarabai Park campuses
+  const email = (user.email || '').toLowerCase();
+  const role = (user.role || '').toLowerCase();
+  if (role.includes('super') || email.includes('superadmin')) {
+    return null;
+  }
+
+  // Explicit branch attribute for branch admins, faculty, and students
+  if (user.branch && user.branch !== 'All Campuses' && user.branch !== 'ALL') {
     const norm = normalizeBranch(user.branch);
     if (norm) return norm;
   }
 
   // Derive from email if not explicitly set
-  const email = (user.email || '').toLowerCase();
-  const role = (user.role || '').toLowerCase();
-  if (role.includes('super') || email.includes('superadmin')) {
-    // Superadmin has universal oversight across both Mangalvar Peth and Tarabai Park
-    return user.branch && user.branch !== 'All Campuses' && user.branch !== 'ALL' ? normalizeBranch(user.branch) : null;
-  }
   if (email.includes('tarabai')) {
     return CAMPUS.TARABAI_PARK;
   }

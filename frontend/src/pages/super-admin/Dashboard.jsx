@@ -54,6 +54,9 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userBranch = getUserBranch(user);
+  const [selectedCampusFilter, setSelectedCampusFilter] = useState('ALL'); // 'ALL' | 'Mangalvar Peth' | 'Tarabai Park'
+  const [crossCampusNotifications, setCrossCampusNotifications] = useState([]);
+  const [notifCategoryFilter, setNotifCategoryFilter] = useState('ALL'); // 'ALL' | 'fees' | 'payroll' | 'discount'
   const [timeRange, setTimeRange] = useState('Last 12 Months');
   const [separateGraphMode, setSeparateGraphMode] = useState('separate'); // 'separate' | 'grouped' | 'stacked'
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Suspended'
@@ -63,6 +66,22 @@ export default function SuperAdminDashboard() {
   const [studentsWithDiscounts, setStudentsWithDiscounts] = useState([]);
   const [discountLoading, setDiscountLoading] = useState(false);
   const [discountTab, setDiscountTab] = useState('all'); // 'all' | 'pending' | 'approved'
+
+  const loadCrossCampusNotifs = () => {
+    try {
+      const items = notificationService.getNotifications(true);
+      setCrossCampusNotifications(items || []);
+    } catch (e) {
+      console.warn('Error loading cross campus notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadCrossCampusNotifs();
+    const handleUpdate = () => loadCrossCampusNotifs();
+    window.addEventListener('sa_notifications_updated', handleUpdate);
+    return () => window.removeEventListener('sa_notifications_updated', handleUpdate);
+  }, []);
 
   const fetchDiscounts = async () => {
     try {
@@ -377,7 +396,7 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
 
-            {/* Executive Status Indicator */}
+            {/* Executive Status Indicator & Dual Branch Authority */}
             <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-1">
               <span
                 className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs text-nowrap"
@@ -401,8 +420,48 @@ export default function SuperAdminDashboard() {
                 }}
               >
                 <Building2 size={12} style={{ color: '#8B1216' }} />
-                <span>{userBranch ? `${userBranch} Campus` : 'Central Authority'}</span>
+                <span>🌐 Both Branches: Mangalvar Peth & Tarabai Park</span>
               </span>
+            </div>
+
+            {/* Cross-Campus Filter Switcher */}
+            <div className="d-inline-flex align-items-center p-1 rounded-pill mt-2.5 bg-white border shadow-xs" style={{ gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedCampusFilter('ALL')}
+                className={`btn btn-sm rounded-pill px-2.5 py-1 fw-bold transition-all ${
+                  selectedCampusFilter === 'ALL'
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary border-0'
+                }`}
+                style={{ fontSize: '0.72rem', backgroundColor: selectedCampusFilter === 'ALL' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+              >
+                🌐 Both Campuses (Consolidated)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCampusFilter('Mangalvar Peth')}
+                className={`btn btn-sm rounded-pill px-2.5 py-1 fw-bold transition-all ${
+                  selectedCampusFilter === 'Mangalvar Peth'
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary border-0'
+                }`}
+                style={{ fontSize: '0.72rem', backgroundColor: selectedCampusFilter === 'Mangalvar Peth' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+              >
+                🏛️ Mangalvar Peth
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCampusFilter('Tarabai Park')}
+                className={`btn btn-sm rounded-pill px-2.5 py-1 fw-bold transition-all ${
+                  selectedCampusFilter === 'Tarabai Park'
+                    ? 'btn-danger text-white shadow-xs'
+                    : 'btn-light text-secondary border-0'
+                }`}
+                style={{ fontSize: '0.72rem', backgroundColor: selectedCampusFilter === 'Tarabai Park' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+              >
+                🌲 Tarabai Park
+              </button>
             </div>
           </div>
 
@@ -1257,6 +1316,268 @@ export default function SuperAdminDashboard() {
                 <ChevronRight size={14} className="flex-shrink-0" />
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Live Cross-Campus Audit & Notifications Register (Mangalvar Peth & Tarabai Park) */}
+      <div className="row g-3 g-xl-4 align-items-start mt-1">
+        <div className="col-12">
+          <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border">
+            {/* Header & Filter Controls */}
+            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 pb-3 border-bottom mb-3">
+              <div>
+                <div className="d-flex align-items-center gap-2">
+                  <div className="p-1.5 rounded-2" style={{ backgroundColor: '#FDF0F0', color: '#8B1216' }}>
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '1.08rem' }}>
+                      Live Cross-Campus Audit &amp; Notifications Register
+                    </h2>
+                    <span className="text-sa-muted d-block mt-0.5" style={{ fontSize: '0.78rem' }}>
+                      Oversee real-time fee payments, teacher salary disbursements, and concession requests across <strong>Mangalvar Peth</strong> &amp; <strong>Tarabai Park</strong>.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Campus & Category Filter Chips */}
+              <div className="d-flex flex-wrap align-items-center gap-2">
+                <div className="d-inline-flex align-items-center p-1 rounded-pill bg-light border" style={{ gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCampusFilter('ALL')}
+                    className={`btn btn-sm rounded-pill px-2.5 py-0.5 fw-bold transition-all ${
+                      selectedCampusFilter === 'ALL'
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem', backgroundColor: selectedCampusFilter === 'ALL' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+                  >
+                    🌐 All ({crossCampusNotifications.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCampusFilter('Mangalvar Peth')}
+                    className={`btn btn-sm rounded-pill px-2.5 py-0.5 fw-bold transition-all ${
+                      selectedCampusFilter === 'Mangalvar Peth'
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem', backgroundColor: selectedCampusFilter === 'Mangalvar Peth' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+                  >
+                    🏛️ Mangalvar Peth
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCampusFilter('Tarabai Park')}
+                    className={`btn btn-sm rounded-pill px-2.5 py-0.5 fw-bold transition-all ${
+                      selectedCampusFilter === 'Tarabai Park'
+                        ? 'btn-danger text-white shadow-xs'
+                        : 'btn-light text-secondary border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem', backgroundColor: selectedCampusFilter === 'Tarabai Park' ? '#8B1216' : 'transparent', borderColor: '#8B1216' }}
+                  >
+                    🌲 Tarabai Park
+                  </button>
+                </div>
+
+                <div className="d-inline-flex align-items-center p-1 rounded-pill bg-light border" style={{ gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNotifCategoryFilter('ALL')}
+                    className={`btn btn-sm rounded-pill px-2 py-0.5 fw-semibold ${
+                      notifCategoryFilter === 'ALL' ? 'btn-dark text-white' : 'btn-light text-muted border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem' }}
+                  >
+                    All Types
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifCategoryFilter('fees')}
+                    className={`btn btn-sm rounded-pill px-2 py-0.5 fw-semibold ${
+                      notifCategoryFilter === 'fees' ? 'btn-dark text-white' : 'btn-light text-muted border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem' }}
+                  >
+                    💰 Fees
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifCategoryFilter('payroll')}
+                    className={`btn btn-sm rounded-pill px-2 py-0.5 fw-semibold ${
+                      notifCategoryFilter === 'payroll' ? 'btn-dark text-white' : 'btn-light text-muted border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem' }}
+                  >
+                    💼 Salaries
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifCategoryFilter('discount')}
+                    className={`btn btn-sm rounded-pill px-2 py-0.5 fw-semibold ${
+                      notifCategoryFilter === 'discount' ? 'btn-dark text-white' : 'btn-light text-muted border-0 bg-transparent'
+                    }`}
+                    style={{ fontSize: '0.70rem' }}
+                  >
+                    🏷️ Concessions
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Notifications Feed List */}
+            {(() => {
+              const filteredList = crossCampusNotifications.filter((n) => {
+                if (selectedCampusFilter !== 'ALL') {
+                  const bNorm = (n.branch || '').toLowerCase();
+                  const sNorm = (n.studentName || n.title || n.details || '').toLowerCase();
+                  if (selectedCampusFilter === 'Tarabai Park') {
+                    const isTP = bNorm.includes('tarabai') || sNorm.includes('tarabai') || sNorm.includes('aarav') || sNorm.includes('ananya') || sNorm.includes('tanvi') || sNorm.includes('aryan');
+                    if (!isTP) return false;
+                  } else if (selectedCampusFilter === 'Mangalvar Peth') {
+                    const isMP = bNorm.includes('mangalvar') || bNorm.includes('mangalwar') || sNorm.includes('mangalvar') || sNorm.includes('mangalwar') || sNorm.includes('diya') || sNorm.includes('rohan') || sNorm.includes('sneha') || sNorm.includes('aditya');
+                    if (!isMP) return false;
+                  }
+                }
+                if (notifCategoryFilter !== 'ALL') {
+                  const text = `${n.type || ''} ${n.category || ''} ${n.title || ''} ${n.details || ''}`.toLowerCase();
+                  if (notifCategoryFilter === 'fees') {
+                    return text.includes('fee') || text.includes('receipt') || text.includes('collection') || text.includes('paid');
+                  }
+                  if (notifCategoryFilter === 'payroll') {
+                    return text.includes('salary') || text.includes('payroll') || text.includes('disburs') || text.includes('teacher');
+                  }
+                  if (notifCategoryFilter === 'discount') {
+                    return text.includes('discount') || text.includes('concession') || text.includes('approval');
+                  }
+                }
+                return true;
+              });
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="text-center py-4 text-muted" style={{ fontSize: '0.85rem' }}>
+                    <CheckCircle size={32} className="text-success mb-2 d-block mx-auto" />
+                    <span>No notifications matching selected filters. Both campuses are operating cleanly.</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="d-flex flex-column gap-2.5">
+                  {filteredList.slice(0, 8).map((notif) => {
+                    const bNorm = (notif.branch || '').toLowerCase();
+                    const sNorm = (notif.studentName || notif.title || notif.details || '').toLowerCase();
+                    const isTP = bNorm.includes('tarabai') || sNorm.includes('tarabai') || sNorm.includes('aarav') || sNorm.includes('ananya') || sNorm.includes('tanvi') || sNorm.includes('aryan');
+
+                    return (
+                      <div
+                        key={notif.id}
+                        className="p-3 rounded-3 border d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 transition-all"
+                        style={{
+                          backgroundColor: notif.read ? '#FAFAFA' : '#FFFDFD',
+                          borderColor: notif.read ? '#E2E8F0' : '#FECACA',
+                          boxShadow: notif.read ? 'none' : '0 1px 3px rgba(139, 18, 22, 0.04)'
+                        }}
+                      >
+                        <div className="d-flex align-items-start gap-3">
+                          <div
+                            className="p-2 rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center"
+                            style={{
+                              backgroundColor: isTP ? '#ECFDF5' : '#FDF0F0',
+                              color: isTP ? '#065F46' : '#8B1216'
+                            }}
+                          >
+                            {isTP ? <Building2 size={16} /> : <Shield size={16} />}
+                          </div>
+
+                          <div>
+                            <div className="d-flex align-items-center flex-wrap gap-2 mb-1">
+                              {/* Campus Pill */}
+                              {isTP ? (
+                                <span
+                                  className="badge rounded-pill fw-bold px-2 py-0.5"
+                                  style={{ backgroundColor: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', fontSize: '0.68rem' }}
+                                >
+                                  🌲 Tarabai Park Campus
+                                </span>
+                              ) : (
+                                <span
+                                  className="badge rounded-pill fw-bold px-2 py-0.5"
+                                  style={{ backgroundColor: '#FDF0F0', color: '#8B1216', border: '1px solid #FECACA', fontSize: '0.68rem' }}
+                                >
+                                  🏛️ Mangalvar Peth Campus
+                                </span>
+                              )}
+
+                              {/* Category / Batch Pill */}
+                              <span
+                                className="badge rounded-pill fw-semibold px-2 py-0.5 bg-light text-secondary border"
+                                style={{ fontSize: '0.68rem' }}
+                              >
+                                {notif.category || notif.type || 'Alert'}
+                              </span>
+
+                              {!notif.read && (
+                                <span className="badge rounded-pill bg-danger text-white px-1.5 py-0.5" style={{ fontSize: '0.62rem' }}>
+                                  NEW
+                                </span>
+                              )}
+
+                              <span className="text-sa-muted" style={{ fontSize: '0.72rem' }}>
+                                {notif.formattedDateTime || `${notif.date || ''} ${notif.time || ''}`}
+                              </span>
+                            </div>
+
+                            <h4 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '0.88rem' }}>
+                              {notif.title}
+                            </h4>
+
+                            {notif.details && (
+                              <p className="m-0 text-secondary mt-1" style={{ fontSize: '0.78rem', lineHeight: '1.4' }}>
+                                {notif.details}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="d-flex align-items-center gap-2 flex-shrink-0 align-self-md-center">
+                          {notif.type === 'discount_approval' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const section = document.getElementById('superadmin-fee-approvals');
+                                if (section) section.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className="btn btn-sm btn-outline-danger px-2.5 py-1 rounded-2 fw-semibold"
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              Review Concession
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              notificationService.markAsRead(notif.id);
+                              loadCrossCampusNotifs();
+                            }}
+                            className="btn btn-sm btn-light border px-2 py-1 rounded-2 text-muted"
+                            style={{ fontSize: '0.72rem' }}
+                            title="Mark as Read"
+                          >
+                            {notif.read ? 'Read' : 'Mark Read'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

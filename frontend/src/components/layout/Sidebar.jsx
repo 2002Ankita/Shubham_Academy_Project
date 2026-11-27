@@ -586,7 +586,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
                 }}
               >
                 <Crown size={14} style={{ color: '#FDE047' }} />
-                <span>SUPER ADMIN {userBranch ? `• ${userBranch.toUpperCase()}` : ''}</span>
+                <span>SUPER ADMIN • BOTH BRANCHES (MP & TP)</span>
               </div>
             )}
 
