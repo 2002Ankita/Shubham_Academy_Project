@@ -1,5 +1,6 @@
 import api from './api';
 import { getUserBranch, filterAttendanceByBranch } from '../utils/branchUtils';
+import { buildAdmissionConfirmationMessage, getAdmissionConfirmUrl } from '../utils/admissionTerms';
 
 export const getDefaultNotifications = () => [];
 
@@ -97,6 +98,10 @@ export const notificationService = {
       read: false,
       forSuperAdminOnly: notif.forSuperAdminOnly || false,
       branch: notif.branch || activeBranch || undefined,
+      batch: notif.batch,
+      subject: notif.subject,
+      cancellationReason: notif.cancellationReason,
+      slotTime: notif.slotTime,
       studentId: notif.studentId,
       studentName: notif.studentName,
       discountAmount: notif.discountAmount,
@@ -241,6 +246,449 @@ export const notificationService = {
       console.error('Error in notifyDiscountDecision:', err);
       return null;
     }
+  },
+
+  notifyDailyFeeCollected: ({
+    amount,
+    studentName,
+    rollNumber,
+    studentId,
+    branch,
+    standard,
+    batch,
+    collectedBy,
+    paymentMethod = 'Cash',
+    receiptNumber,
+    transactionReference,
+    date,
+    time
+  } = {}) => {
+    const now = new Date();
+    const timeStr = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedAmount = Number(amount || 0).toLocaleString();
+    const collector = collectedBy || 'Academy Admin (Accounts Desk)';
+    const student = studentName || 'Student';
+    const roll = rollNumber || studentId || 'N/A';
+    const branchVal = branch || getUserBranch() || 'Mangalvar Peth';
+    const receipt = receiptNumber ? `Receipt #${receiptNumber}` : '';
+
+    const notif = {
+      id: `NTF-FEE-COLLECT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `💰 Daily Fee Collected: ₹${formattedAmount}`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'daily_fee_collected',
+      category: 'Fee Collection & Accounts',
+      priority: 'High',
+      author: collector,
+      details: `Daily fee collection recorded: ₹${formattedAmount} collected for student ${student} (Roll: ${roll}${standard ? ` • ${standard}` : ''}${branchVal ? ` • ${branchVal}` : ''}). Collected by: ${collector}. Payment Mode: ${paymentMethod}.${receipt ? ` ${receipt}.` : ''}`,
+      read: false,
+      forSuperAdminOnly: true,
+      branch: branchVal,
+      batch: batch || '',
+      studentId: studentId,
+      studentName: student,
+      rollNumber: roll,
+      amount: Number(amount || 0),
+      collectedBy: collector,
+      paymentMethod: paymentMethod,
+      receiptNumber: receiptNumber,
+      transactionReference: transactionReference
+    };
+
+    notificationService.addNotification(notif);
+
+    // Also record in local dispatch history for audit log
+    try {
+      const history = getLocalDispatchHistory();
+      const execLog = {
+        id: `LOG-FEE-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        notification_type: 'daily_fee_collected',
+        title: `Daily Fee Collection: ₹${formattedAmount}`,
+        student_name: student,
+        roll_number: roll,
+        recipient_label: 'Super Admin Oversight',
+        parent_mobile: 'Superadmin Executive',
+        batch: batch || 'Fee Counter',
+        branch: branchVal,
+        subject: `Fee Collection: ₹${formattedAmount}`,
+        message: `₹${formattedAmount} collected for ${student} (${roll}) by ${collector}. Mode: ${paymentMethod}.${receipt ? ` ${receipt}.` : ''}`,
+        delivery_status: 'Delivered',
+        channel: 'Executive Alert',
+        created_at: `${dateStr}, ${timeStr}`,
+        sent_at: `${dateStr}, ${timeStr}`,
+        collected_by: collector,
+        amount: Number(amount || 0)
+      };
+      saveLocalDispatchHistory([execLog, ...history]);
+    } catch (e) {
+      console.warn('Could not record executive fee log:', e);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: notif }));
+      window.dispatchEvent(new CustomEvent('sa_fee_collected', { detail: notif }));
+    }
+    return notif;
+  },
+
+  notifyFeeCompletedToParents: ({
+    studentId,
+    studentName,
+    rollNumber,
+    branch,
+    standard,
+    batch,
+    totalFees,
+    amountPaid,
+    receiptNumber,
+    fatherMobile,
+    motherMobile,
+    parentMobile,
+    date,
+    time
+  } = {}) => {
+    const now = new Date();
+    const timeStr = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const student = studentName || 'Student';
+    const roll = rollNumber || studentId || 'N/A';
+    const branchVal = branch || getUserBranch() || 'Mangalvar Peth';
+    const totalFormatted = Number(totalFees || amountPaid || 0).toLocaleString();
+    const paidFormatted = Number(amountPaid || totalFees || 0).toLocaleString();
+
+    // Resolve parent mobile numbers
+    let fPhone = fatherMobile || parentMobile;
+    let mPhone = motherMobile;
+
+    if (!fPhone && !mPhone && (studentId || rollNumber)) {
+      try {
+        const stored = localStorage.getItem('sa_students_cache') || localStorage.getItem('students');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const matched = parsed.find(s =>
+              String(s.id) === String(studentId) ||
+              String(s.student_id) === String(studentId) ||
+              String(s.rollNumber || s.roll_number) === String(roll)
+            );
+            if (matched) {
+              fPhone = matched.father_mobile || matched.fatherMobile || matched.parent_mobile || matched.parentMobile || matched.phone;
+              mPhone = matched.mother_mobile || matched.motherMobile;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not read cached students for fee completed notification:', err);
+      }
+    }
+
+    if (!fPhone) fPhone = '+91 98220 12345';
+
+    const targets = [];
+    if (fPhone) targets.push({ phone: fPhone, label: 'Father' });
+    if (mPhone && mPhone !== fPhone) targets.push({ phone: mPhone, label: 'Mother' });
+    if (targets.length === 0) targets.push({ phone: '+91 98220 12345', label: 'Parent' });
+
+    // 1. Add System Notification to Inbox
+    const notif = {
+      id: `NTF-FEE-COMPLETED-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `🎉 Course Fees Completed: ${student}`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'fees_completed',
+      category: 'Accounts & Fees',
+      priority: 'High',
+      author: `${branchVal} Accounts Wing`,
+      details: `All course fees (Total: ₹${totalFormatted}) for ${student} (Roll: ${roll}${standard ? ` • ${standard}` : ''}) have been FULLY PAID (Remaining Balance: ₹0.00). Clearance receipt #${receiptNumber || 'CLEARED'} generated and "Fees Completed" confirmation dispatched to parents.`,
+      read: false,
+      forSuperAdminOnly: false,
+      branch: branchVal,
+      batch: batch || '',
+      studentId: studentId,
+      studentName: student,
+      rollNumber: roll,
+      totalFees: Number(totalFees || 0),
+      amountPaid: Number(amountPaid || 0),
+      receiptNumber: receiptNumber,
+      fatherMobile: fPhone,
+      motherMobile: mPhone
+    };
+
+    notificationService.addNotification(notif);
+
+    // 2. Dispatch SMS & WhatsApp records to both parents in dispatch history
+    const history = getLocalDispatchHistory();
+    const newLogs = [];
+
+    targets.forEach(target => {
+      ['SMS', 'WhatsApp'].forEach(channel => {
+        const isWA = channel === 'WhatsApp';
+        const idempotencyKey = `fee_completed_${roll}_${(receiptNumber || Date.now())}_${channel.toLowerCase()}_${target.label.toLowerCase()}`;
+
+        // Check duplicate
+        const existing = history.find(h => h.idempotency_key === idempotencyKey);
+        if (existing) return;
+
+        const messageContent = isWA
+          ? `*Shubham Academy • Course Fees Fully Paid Confirmation* 🎓✅\n\nDear Parent (${target.label}),\n\nWe are pleased to inform you that all academic course fees for your ward *${student}* (Roll: *${roll}*, *${standard || 'Course'}* • *${branchVal}*) have been *FULLY SETTLED*.\n\n📊 *Total Course Fees:* ₹${totalFormatted}\n💵 *Total Paid:* ₹${paidFormatted}\n💳 *Outstanding Balance:* ₹0.00 (Fees Completed)\n🧾 *Clearance Receipt:* #${receiptNumber || 'CLEARED'}\n\nThank you for choosing Shubham Academy for your ward's educational journey!\n\n_Shubham Academy Accounts & Finance Wing_`
+          : `Dear Parent (${target.label}), all academic course fees for your ward ${student} (${roll}, ${standard || 'Course'} - ${branchVal}) have been FULLY PAID (Total: ₹${totalFormatted}, Remaining: ₹0). Clearance Receipt #${receiptNumber || 'CLEARED'}. Thank you! - Shubham Academy`;
+
+        const newLog = {
+          id: `LOG-FC-${channel.substring(0, 2).toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          notification_type: 'fees_completed_alert',
+          title: `Fees Completed Alert (${channel} - ${target.label}): ${student}`,
+          student_name: student,
+          roll_number: roll,
+          recipient_label: target.label,
+          parent_mobile: target.phone,
+          father_mobile: fPhone,
+          mother_mobile: mPhone,
+          batch: batch || 'All Batches',
+          branch: branchVal,
+          subject: 'Course Fees Fully Paid',
+          message: messageContent,
+          delivery_status: 'Delivered',
+          channel: channel,
+          idempotency_key: idempotencyKey,
+          created_at: `${dateStr}, ${timeStr}`,
+          sent_at: `${dateStr}, ${timeStr}`,
+          amount: Number(amountPaid || totalFees || 0)
+        };
+        newLogs.push(newLog);
+      });
+    });
+
+    if (newLogs.length > 0) {
+      saveLocalDispatchHistory([...newLogs, ...history]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_fee_completed', { detail: notif }));
+    }
+
+    return {
+      notification: notif,
+      dispatchedLogs: newLogs
+    };
+  },
+
+  notifyLectureCancelled: ({
+    subject,
+    branch,
+    batch,
+    date,
+    time,
+    teacherName,
+    reason,
+    students = []
+  } = {}) => {
+    const activeBranch = branch || getUserBranch();
+    const now = new Date();
+    const timeStr = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = date || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const reasonText = reason ? reason.trim() : 'Faculty Emergency / Unavoidable Circumstances';
+
+    const notif = {
+      id: `NTF-CANCEL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `⚠️ Lecture Cancelled: ${subject || 'Class'}`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'lecture_cancelled',
+      category: 'Lecture Cancellation & Timetable',
+      priority: 'High',
+      author: teacherName ? `${teacherName} (Faculty)` : 'Academic Administration',
+      details: `The scheduled ${subject || 'Class'} lecture for ${batch || 'your batch'} on ${dateStr} (${timeStr}) has been cancelled. Reason: ${reasonText}.`,
+      read: false,
+      forSuperAdminOnly: false,
+      branch: activeBranch,
+      batch: batch || 'All Batches',
+      subject: subject || 'Class',
+      cancellationReason: reasonText,
+      slotTime: timeStr
+    };
+
+    notificationService.addNotification(notif);
+
+    // Record SMS & WhatsApp dispatches to BOTH Father and Mother numbers
+    try {
+      notificationService.recordLectureCancellationDispatch({
+        subject: subject || 'Class',
+        branch: activeBranch,
+        batch: batch || 'All Batches',
+        date: dateStr,
+        time: timeStr,
+        reason: reasonText,
+        students: students,
+        channels: ['SMS', 'WhatsApp']
+      });
+    } catch (err) {
+      console.warn('Could not record lecture cancellation dispatch:', err);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_lecture_cancelled', { detail: notif }));
+    }
+    return notif;
+  },
+
+  recordLectureCancellationDispatch: ({
+    subject,
+    branch,
+    batch,
+    date,
+    time,
+    reason,
+    students = [],
+    channels = ['SMS', 'WhatsApp']
+  } = {}) => {
+    const activeBranch = branch || getUserBranch();
+    const branchVal = activeBranch || 'Mangalvar Peth';
+    const history = getLocalDispatchHistory();
+    const now = new Date();
+    const dateStr = date || now.toISOString().split('T')[0];
+    const timeFormatted = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const reasonText = reason ? reason.trim() : 'Administrative Rescheduling / Faculty Emergency';
+
+    const activeChannels = Array.isArray(channels) && channels.length > 0
+      ? channels
+      : (channels === 'both' ? ['SMS', 'WhatsApp'] : [channels || 'SMS']);
+
+    const newLogs = [];
+    let duplicatesFound = 0;
+
+    let targetStudents = Array.isArray(students) && students.length > 0 ? students : [];
+    if (targetStudents.length === 0) {
+      try {
+        const stored = localStorage.getItem('sa_students_cache') || localStorage.getItem('students');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            targetStudents = parsed.filter(s => {
+              if (batch && batch !== 'All Batches') {
+                const sBatch = (s.batch || s.standard || '').toLowerCase();
+                const bLower = batch.toLowerCase();
+                if (!sBatch.includes(bLower) && !bLower.includes(sBatch)) return false;
+              }
+              if (branchVal) {
+                const sBranch = (s.branch || '').toLowerCase();
+                const bNorm = branchVal.toLowerCase();
+                const isTP = bNorm.includes('tarabai');
+                return isTP ? sBranch.includes('tarabai') : (sBranch.includes('mangalvar') || sBranch.includes('mangalwar'));
+              }
+              return true;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Could not read cached students for cancellation dispatch:', err);
+      }
+    }
+
+    if (targetStudents.length === 0) {
+      targetStudents = [
+        {
+          name: 'Batch Students',
+          rollNumber: 'BATCH-ALL',
+          father_mobile: '+91 98220 12345',
+          mother_mobile: '+91 98220 54321'
+        }
+      ];
+    }
+
+    targetStudents.forEach(st => {
+      const sName = st.name || st.student_name || 'Student';
+      const sRoll = st.rollNumber || st.roll_number || st.student_id || 'N/A';
+      const fPhone = st.father_mobile || st.fatherMobile || st.parent_mobile || st.parentMobile || st.phone;
+      const mPhone = st.mother_mobile || st.motherMobile;
+
+      const targets = [];
+      if (fPhone) targets.push({ phone: fPhone, label: 'Father' });
+      if (mPhone && mPhone !== fPhone) targets.push({ phone: mPhone, label: 'Mother' });
+      if (targets.length === 0) targets.push({ phone: '+91 98220 12345', label: 'Parent' });
+
+      targets.forEach(target => {
+        activeChannels.forEach(ch => {
+          const isWA = ch.toLowerCase().includes('whatsapp');
+          const channelName = isWA ? 'WhatsApp' : 'SMS';
+          const idempotencyKey = `cancel_${sRoll}_${dateStr}_${(timeFormatted).replace(/[: ]/g, '')}_${channelName.toLowerCase()}_${target.label.toLowerCase()}`;
+
+          const existing = history.find(h => h.idempotency_key === idempotencyKey);
+          if (existing) {
+            duplicatesFound++;
+            return;
+          }
+
+          const messageContent = isWA
+            ? `*Shubham Academy • Urgent Lecture Cancellation Notice* ⚠️\n\nDear Parent (${target.label}),\n\nThe following lecture has been *CANCELLED* for your ward *${sName}* (Roll: *${sRoll}*):\n\n📚 *Subject:* ${subject || 'Lecture'}\n👥 *Batch:* ${batch || 'All'}\n📅 *Date:* ${dateStr}\n⏰ *Scheduled Time:* ${timeFormatted}\n📝 *Reason:* ${reasonText}\n\nPlease check the student app dashboard for schedule adjustments.\n\n_Shubham Academy Academic Administration_`
+            : `Dear Parent (${target.label}), the scheduled ${subject || 'Class'} lecture for ${sName} (${sRoll}) on ${dateStr} (${timeFormatted}) is CANCELLED. Reason: ${reasonText}. - Shubham Academy`;
+
+          const newLog = {
+            id: `LOG-CNC-${channelName.substring(0, 2).toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            notification_type: 'lecture_cancellation',
+            title: `Lecture Cancelled (${channelName} - ${target.label}): ${subject || 'Class'}`,
+            student_name: sName,
+            roll_number: sRoll,
+            recipient_label: target.label,
+            parent_mobile: target.phone,
+            father_mobile: fPhone,
+            mother_mobile: mPhone,
+            batch: batch || 'All Batches',
+            branch: branchVal,
+            subject: subject || 'Class',
+            lecture_date: dateStr,
+            message: messageContent,
+            delivery_status: 'Delivered',
+            channel: channelName,
+            idempotency_key: idempotencyKey,
+            created_at: `${dateFormatted}, ${timeFormatted}`,
+            sent_at: `${dateFormatted}, ${timeFormatted}`
+          };
+          newLogs.push(newLog);
+        });
+      });
+    });
+
+    if (newLogs.length > 0) {
+      saveLocalDispatchHistory([...newLogs, ...history]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    }
+
+    return {
+      success: newLogs.length > 0,
+      logs: newLogs,
+      dispatchedCount: newLogs.length,
+      duplicatesPrevented: duplicatesFound
+    };
+  },
+
+  getCancelledLectures: (branch, batch) => {
+    const notifs = notificationService.getAllList(false);
+    return notifs.filter(n => {
+      if (n.type !== 'lecture_cancelled') return false;
+      if (branch && n.branch) {
+        const isTP = branch.toLowerCase().includes('tarabai');
+        const bNorm = n.branch.toLowerCase();
+        const matchBranch = isTP ? bNorm.includes('tarabai') : (bNorm.includes('mangalvar') || bNorm.includes('mangalwar'));
+        if (!matchBranch) return false;
+      }
+      if (batch && n.batch && n.batch !== 'All Batches') {
+        const bLower = batch.toLowerCase();
+        const nLower = n.batch.toLowerCase();
+        if (!bLower.includes(nLower) && !nLower.includes(bLower)) return false;
+      }
+      return true;
+    });
   },
 
   getAllList: (isSuperAdmin = false) => {
@@ -556,6 +1004,8 @@ export const notificationService = {
     rollNumber,
     studentName,
     parentMobile,
+    fatherMobile,
+    motherMobile,
     batch,
     branch,
     subject,
@@ -580,46 +1030,59 @@ export const notificationService = {
     const timeFormatted = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const dateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+    const fPhone = fatherMobile || parentMobile || '+91 98220 12345';
+    const mPhone = motherMobile;
+
+    const targets = [];
+    if (fPhone) targets.push({ phone: fPhone, label: 'Father' });
+    if (mPhone && mPhone !== fPhone) targets.push({ phone: mPhone, label: 'Mother' });
+    if (targets.length === 0) targets.push({ phone: '+91 98220 12345', label: 'Parent' });
+
     const newLogs = [];
     let duplicatesFound = 0;
 
-    activeChannels.forEach(ch => {
-      const isWA = ch.toLowerCase().includes('whatsapp');
-      const channelName = isWA ? 'WhatsApp' : 'SMS';
-      const idempotencyKey = `absence_${studentId || rollNumber}_${dateStr}_lec${lectureNum}_${channelName.toLowerCase()}`;
+    targets.forEach(target => {
+      activeChannels.forEach(ch => {
+        const isWA = ch.toLowerCase().includes('whatsapp');
+        const channelName = isWA ? 'WhatsApp' : 'SMS';
+        const idempotencyKey = `absence_${studentId || rollNumber}_${dateStr}_lec${lectureNum}_${channelName.toLowerCase()}_${target.label.toLowerCase()}`;
 
-      // Check duplicate
-      const existing = history.find(h => h.idempotency_key === idempotencyKey);
-      if (existing) {
-        duplicatesFound++;
-        return;
-      }
+        // Check duplicate
+        const existing = history.find(h => h.idempotency_key === idempotencyKey);
+        if (existing) {
+          duplicatesFound++;
+          return;
+        }
 
-      const messageContent = isWA
-        ? `*Shubham Academy • Urgent Absence Notice* ⚠️\n\nDear Parent, your ward *${studentName}* (Roll: *${rollNumber}*) was marked *ABSENT* for:\n\n📌 *Session:* ${lectureSlotName}\n📚 *Subject:* ${subject || 'Lecture'}\n📅 *Date:* ${dateStr}\n⏰ *Recorded Time:* ${timeFormatted}\n👥 *Batch:* ${batch}\n\nPlease verify this absence or contact academy administration for inquiries.\n\n_Shubham Academy Administrative Wing_`
-        : `Dear Parent, your ward ${studentName} (${rollNumber}) was marked ABSENT for ${lectureSlotName} [${subject || 'Lecture'}] on ${dateStr} at ${timeFormatted}. Please contact Shubham Academy administration for inquiries.`;
+        const messageContent = isWA
+          ? `*Shubham Academy • Urgent Absence Notice* ⚠️\n\nDear Parent (${target.label}), your ward *${studentName}* (Roll: *${rollNumber}*) was marked *ABSENT* for:\n\n📌 *Session:* ${lectureSlotName}\n📚 *Subject:* ${subject || 'Lecture'}\n📅 *Date:* ${dateStr}\n⏰ *Recorded Time:* ${timeFormatted}\n👥 *Batch:* ${batch}\n\nPlease verify this absence or contact academy administration for inquiries.\n\n_Shubham Academy Administrative Wing_`
+          : `Dear Parent (${target.label}), your ward ${studentName} (${rollNumber}) was marked ABSENT for ${lectureSlotName} [${subject || 'Lecture'}] on ${dateStr} at ${timeFormatted}. Please contact Shubham Academy administration.`;
 
-      const newLog = {
-        id: `LOG-ABS-${channelName.substring(0, 2).toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        notification_type: 'absence_alert',
-        title: `Absence Alert (${channelName}): ${studentName}`,
-        student_name: studentName,
-        roll_number: rollNumber,
-        parent_mobile: parentMobile || '+91 98220 12345',
-        batch: batch,
-        branch: branchVal,
-        subject: subject || (lectureNum === 1 ? 'Physics' : 'Mathematics'),
-        lecture_number: lectureNum,
-        lecture_date: dateStr,
-        lecture_slot: lectureSlotName,
-        message: messageContent,
-        delivery_status: 'Delivered',
-        channel: channelName,
-        idempotency_key: idempotencyKey,
-        created_at: `${dateFormatted}, ${timeFormatted}`,
-        sent_at: `${dateFormatted}, ${timeFormatted}`
-      };
-      newLogs.push(newLog);
+        const newLog = {
+          id: `LOG-ABS-${channelName.substring(0, 2).toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          notification_type: 'absence_alert',
+          title: `Absence Alert (${channelName} - ${target.label}): ${studentName}`,
+          student_name: studentName,
+          roll_number: rollNumber,
+          recipient_label: target.label,
+          parent_mobile: target.phone,
+          father_mobile: fPhone,
+          mother_mobile: mPhone,
+          batch: batch,
+          branch: branchVal,
+          subject: subject || (lectureNum === 1 ? 'Physics' : 'Mathematics'),
+          lecture_number: lectureNum,
+          lecture_date: dateStr,
+          lecture_slot: lectureSlotName,
+          message: messageContent,
+          delivery_status: 'Delivered',
+          channel: channelName,
+          idempotency_key: idempotencyKey,
+          created_at: `${dateFormatted}, ${timeFormatted}`,
+          sent_at: `${dateFormatted}, ${timeFormatted}`
+        };
+        newLogs.push(newLog);
+      });
     });
 
     if (newLogs.length > 0) {
@@ -783,6 +1246,217 @@ export const notificationService = {
       total: createdLogs.length,
       items: createdLogs
     };
+  },
+
+  // Helper to generate WhatsApp links for both parents
+  sendWhatsAppToBothParents: (fatherMobile, motherMobile, message) => {
+    const enc = encodeURIComponent(message || 'Shubham Academy Alert');
+    const cleanF = (fatherMobile || '').replace(/[^0-9]/g, '');
+    const cleanM = (motherMobile || '').replace(/[^0-9]/g, '');
+    const fWithCountry = cleanF.length === 10 ? `91${cleanF}` : cleanF;
+    const mWithCountry = cleanM.length === 10 ? `91${cleanM}` : cleanM;
+
+    return {
+      fatherUrl: cleanF ? `https://wa.me/${fWithCountry}?text=${enc}` : null,
+      motherUrl: cleanM ? `https://wa.me/${mWithCountry}?text=${enc}` : null
+    };
+  },
+
+  // Send Admission Confirmation (full inquiry details + Terms & Conditions) to BOTH Father & Mother
+  notifyAdmissionConfirmationToParents: (studentData = {}) => {
+    const history = getLocalDispatchHistory();
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const name = studentData.full_name || studentData.fullName || studentData.name || 'Student';
+    const roll = studentData.student_id || studentData.rollNumber || 'Pending';
+    const branchVal = studentData.branch || getUserBranch() || 'Tarabai Park';
+    const batch = studentData.academic_batch || studentData.academicBatch || studentData.batch || '-';
+    const token = studentData.admission_confirmation_token || roll || studentData.id || '';
+    const confirmUrl = getAdmissionConfirmUrl(token);
+
+    const fPhone = studentData.father_mobile || studentData.fatherPhone || studentData.parent_mobile || studentData.parentPhone || '';
+    const mPhone = studentData.mother_mobile || studentData.motherPhone || '';
+
+    const parentTargets = [];
+    if (fPhone) parentTargets.push({ label: 'Father', phone: fPhone });
+    if (mPhone && mPhone !== fPhone) parentTargets.push({ label: 'Mother', phone: mPhone });
+    if (parentTargets.length === 0) {
+      parentTargets.push({ label: 'Parent', phone: studentData.mobile_number || '+91 98220 00000' });
+    }
+
+    const createdLogs = [];
+    parentTargets.forEach((target) => {
+      ['WhatsApp', 'SMS'].forEach((channelName) => {
+        const isWA = channelName === 'WhatsApp';
+        const idempotencyKey = `adm_confirm_${roll}_${token}_${channelName.toLowerCase()}_${target.label.toLowerCase()}`;
+        if (history.some((h) => h.idempotency_key === idempotencyKey)) return;
+
+        const messageContent = buildAdmissionConfirmationMessage(studentData, target.label, isWA);
+        createdLogs.push({
+          id: `LOG-ADM-${channelName.substring(0, 2).toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          notification_type: 'admission_confirmation',
+          title: `Admission Confirmation (${channelName} - ${target.label}): ${name}`,
+          student_name: name,
+          roll_number: roll,
+          recipient_label: target.label,
+          parent_mobile: target.phone,
+          father_mobile: fPhone,
+          mother_mobile: mPhone,
+          batch,
+          branch: branchVal,
+          confirm_url: confirmUrl,
+          message: messageContent,
+          delivery_status: 'Delivered',
+          channel: channelName,
+          idempotency_key: idempotencyKey,
+          created_at: `${dateFormatted}, ${timeFormatted}`,
+          sent_at: `${dateFormatted}, ${timeFormatted}`
+        });
+      });
+    });
+
+    if (createdLogs.length > 0) {
+      saveLocalDispatchHistory([...createdLogs, ...history]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    }
+
+    // Add inbox notification
+    notificationService.addNotification({
+      id: `NTF-ADM-SENT-${roll}-${Date.now()}`,
+      type: 'admission_confirmation_sent',
+      category: 'Admissions',
+      priority: 'High',
+      title: `📩 Admission Confirmation Sent: ${name}`,
+      details: `Inquiry details & Terms & Conditions sent to parents (${parentTargets.map((t) => t.label).join(' & ')}). Admission remains PENDING until parent accepts.`,
+      time: timeFormatted,
+      date: dateFormatted,
+      formattedDateTime: `${dateFormatted}, ${timeFormatted}`,
+      read: false,
+      branch: branchVal,
+      studentName: name,
+      rollNumber: roll,
+      confirmUrl
+    });
+
+    const waFatherMsg = buildAdmissionConfirmationMessage(studentData, 'Father', true);
+    const waMotherMsg = buildAdmissionConfirmationMessage(studentData, 'Mother', true);
+    const cleanF = (fPhone || '').replace(/[^0-9]/g, '');
+    const cleanM = (mPhone || '').replace(/[^0-9]/g, '');
+
+    return {
+      logsCreated: createdLogs.length,
+      confirmUrl,
+      fatherUrl: cleanF ? `https://wa.me/${cleanF.length === 10 ? `91${cleanF}` : cleanF}?text=${encodeURIComponent(waFatherMsg)}` : null,
+      motherUrl: cleanM ? `https://wa.me/${cleanM.length === 10 ? `91${cleanM}` : cleanM}?text=${encodeURIComponent(waMotherMsg)}` : null
+    };
+  },
+
+  // Notify Admin & Superadmin when Parent accepts Terms & Conditions and confirms admission
+  notifyAdmissionConfirmedByParent: (studentData = {}) => {
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeFormatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const name = studentData.full_name || studentData.fullName || 'Student';
+    const roll = studentData.student_id || studentData.rollNumber || '';
+    const branchVal = studentData.branch || getUserBranch() || 'Tarabai Park';
+    const confirmedBy = studentData.parent_confirmed_by || 'Parent';
+
+    notificationService.addNotification({
+      id: `NTF-ADM-CONF-${roll || Date.now()}`,
+      type: 'admission_confirmed',
+      category: 'Admissions',
+      priority: 'High',
+      title: `✅ Admission Confirmed by ${confirmedBy}: ${name}`,
+      details: `${confirmedBy} accepted the Terms & Conditions and confirmed admission for ${name} (${roll}, ${studentData.standard || ''} - ${studentData.academic_batch || ''}).`,
+      time: timeFormatted,
+      date: dateFormatted,
+      formattedDateTime: `${dateFormatted}, ${timeFormatted}`,
+      read: false,
+      branch: branchVal,
+      studentName: name,
+      rollNumber: roll
+    });
+  },
+
+  // Notify Super Admin when a faculty salary payment is disbursed
+  notifySalaryDisbursedToSuperAdmin: ({
+    teacherName = 'Faculty Member',
+    amount = 0,
+    recovery = 0,
+    yearlySalary = 0,
+    accountType = 'Academy',
+    workingHours = 0,
+    paymentMode = 'NEFT',
+    month = '',
+    paidBy = 'Academy Admin',
+    branch = '',
+    transactionRef = ''
+  } = {}) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedAmount = Number(amount || 0).toLocaleString();
+    const branchVal = branch || getUserBranch() || 'Central Campus';
+
+    const notif = {
+      id: `NTF-SAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `💸 Salary Paid: ₹${formattedAmount} (${teacherName})`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'salary_payment',
+      category: 'Faculty Payroll & Accounts',
+      priority: 'High',
+      author: paidBy,
+      details: `Salary payment of ₹${formattedAmount} disbursed to ${teacherName}${month ? ` for ${month}` : ''}. Account: ${accountType} | Mode: ${paymentMode} | Hours: ${workingHours} hrs | Recovery: ₹${Number(recovery || 0).toLocaleString()} | Yearly Salary: ₹${Number(yearlySalary || 0).toLocaleString()}. Processed by: ${paidBy}.${transactionRef ? ` Ref: ${transactionRef}.` : ''}`,
+      read: false,
+      forSuperAdminOnly: true,
+      branch: branchVal,
+      teacherName,
+      amount: Number(amount || 0),
+      recovery: Number(recovery || 0),
+      yearlySalary: Number(yearlySalary || 0),
+      accountType,
+      workingHours: Number(workingHours || 0),
+      paymentMode,
+      month,
+      paidBy,
+      transactionRef
+    };
+
+    notificationService.addNotification(notif);
+
+    try {
+      const history = getLocalDispatchHistory();
+      const log = {
+        id: `LOG-SAL-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        notification_type: 'salary_payment',
+        title: `Salary Payment (${paymentMode} - ${accountType}): ₹${formattedAmount}`,
+        student_name: teacherName,
+        roll_number: transactionRef || 'PAYROLL',
+        recipient_label: 'Super Admin Oversight',
+        parent_mobile: 'Super Admin Portal',
+        branch: branchVal,
+        message: notif.details,
+        delivery_status: 'Delivered',
+        channel: 'System Alert',
+        idempotency_key: `sal_pay_${teacherName}_${month}_${amount}_${Date.now()}`,
+        created_at: `${dateStr}, ${timeStr}`,
+        sent_at: `${dateStr}, ${timeStr}`
+      };
+      saveLocalDispatchHistory([log, ...history]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+      }
+    } catch (err) {
+      console.warn('Could not log salary notification audit:', err);
+    }
+
+    return notif;
   },
 
   // Academy Admin: Re-dispatch / resend notification

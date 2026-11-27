@@ -16,6 +16,7 @@ import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 import ResetPassword from '../pages/auth/ResetPassword';
 import Unauthorized from '../pages/auth/Unauthorized';
+import AdmissionConfirmation from '../pages/public/AdmissionConfirmation';
 
 // Super Admin Pages
 import SuperAdminDashboard from '../pages/super-admin/Dashboard';
@@ -32,6 +33,7 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import StudentList from '../pages/admin/StudentList';
 import StudentRegistration from '../pages/admin/StudentRegistration';
 import StudentDetails from '../pages/admin/StudentDetails';
+import PassoutStudents from '../pages/admin/PassoutStudents';
 import TeacherList from '../pages/admin/TeacherList';
 import AddTeacher from '../pages/admin/AddTeacher';
 import TeacherSalary from '../pages/admin/TeacherSalary';
@@ -120,6 +122,7 @@ export default function AppRoutes() {
       </Route>
 
       <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/confirm-admission/:token" element={<AdmissionConfirmation />} />
 
       {/* Super Admin Protected Routes */}
       <Route
@@ -162,6 +165,7 @@ export default function AppRoutes() {
         <Route path="/admin/students/register" element={<StudentRegistration />} />
         <Route path="/admin/students/:id" element={<StudentDetails />} />
         <Route path="/admin/accounts" element={<AccountsProtectedRoute><Accounts /></AccountsProtectedRoute>} />
+        <Route path="/admin/passout-students" element={<PassoutStudents />} />
         <Route path="/admin/teachers" element={<TeacherList />} />
         <Route path="/admin/teachers/add" element={<AddTeacher />} />
         <Route path="/admin/teachers/salary" element={<AccountsProtectedRoute><TeacherSalary /></AccountsProtectedRoute>} />

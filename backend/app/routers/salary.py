@@ -20,13 +20,26 @@ async def list_my_salaries(token: str = Depends(oauth2_scheme)):
 @router.put("/{id}", response_model=SalaryPaymentResponse)
 async def update_salary_endpoint(id: str, req: SalaryUpdateRequest, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
-    return await update_salary(id, req.baseSalary, req.allowances, req.deductions, req.netPayable)
+    return await update_salary(
+        id,
+        req.baseSalary,
+        req.allowances,
+        req.deductions,
+        req.netPayable,
+        recovery=req.recovery,
+        yearly_salary=req.yearlySalary,
+        account_type=req.accountType,
+        payment_mode=req.paymentMode,
+        working_hours=req.workingHours
+    )
 
 @router.post("/disburse/{id}", response_model=SalaryPaymentResponse)
 async def disburse_salary_endpoint(id: str, req: SalaryDisburseRequest = None, token: str = Depends(oauth2_scheme)):
     await get_current_user(token)
     amount = req.amount if req else None
-    return await disburse_salary(id, amount)
+    payment_mode = req.paymentMode if req and req.paymentMode else "NEFT"
+    account_type = req.accountType if req else None
+    return await disburse_salary(id, amount, payment_mode=payment_mode, account_type=account_type)
 
 @router.post("/generate/{month}")
 async def generate_salaries_endpoint(month: str, token: str = Depends(oauth2_scheme)):

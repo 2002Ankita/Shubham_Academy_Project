@@ -397,29 +397,35 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Executive Status Indicator & Dual Branch Authority */}
-            <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-1">
+            <div className="d-flex flex-wrap align-items-center gap-2 mt-3 pt-1 w-100" style={{ maxWidth: '100%' }}>
               <span
-                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs text-nowrap"
+                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
                 style={{
                   backgroundColor: '#FFFFFF',
                   color: '#8B1216',
                   border: '1px solid rgba(139, 18, 22, 0.22)',
-                  fontSize: '0.78rem'
+                  fontSize: 'clamp(0.72rem, 2.5vw, 0.78rem)',
+                  maxWidth: '100%',
+                  whiteSpace: 'normal',
+                  lineHeight: 1.3
                 }}
               >
-                <ShieldCheck size={14} style={{ color: '#8B1216' }} />
+                <ShieldCheck size={14} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                 <span>Super Admin Executive Portal</span>
               </span>
               <span
-                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs text-nowrap"
+                className="badge rounded-pill px-2.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
                 style={{
                   backgroundColor: '#FFFFFF',
                   color: '#8B1216',
                   border: '1px solid rgba(139, 18, 22, 0.22)',
-                  fontSize: '0.78rem'
+                  fontSize: 'clamp(0.72rem, 2.5vw, 0.78rem)',
+                  maxWidth: '100%',
+                  whiteSpace: 'normal',
+                  lineHeight: 1.3
                 }}
               >
-                <Building2 size={12} style={{ color: '#8B1216' }} />
+                <Building2 size={12} className="flex-shrink-0" style={{ color: '#8B1216' }} />
                 <span>🌐 Both Branches: Mangalvar Peth & Tarabai Park</span>
               </span>
             </div>

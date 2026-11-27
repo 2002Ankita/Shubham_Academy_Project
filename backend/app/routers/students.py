@@ -110,3 +110,23 @@ async def reject_discount_endpoint(id: str, payload: dict = None, token: str = D
     reason = (payload or {}).get("reason", "Rejected by Superadmin")
     from app.services.student_service import reject_student_discount
     return await reject_student_discount(id, reason, current_user)
+
+
+@router.get("/admission-confirmation/{token_or_id}")
+async def get_admission_confirmation_endpoint(token_or_id: str):
+    """Public endpoint for parents to view full inquiry/admission details and Terms & Conditions."""
+    from app.services.student_service import get_admission_confirmation_details
+    return await get_admission_confirmation_details(token_or_id)
+
+
+@router.post("/admission-confirmation/{token_or_id}/accept")
+async def accept_admission_confirmation_endpoint(token_or_id: str, payload: dict = None):
+    """Public endpoint for parents to accept Terms & Conditions and confirm admission."""
+    body = payload or {}
+    from app.services.student_service import accept_admission_confirmation
+    return await accept_admission_confirmation(
+        token_or_id=token_or_id,
+        terms_accepted=bool(body.get("terms_accepted", False)),
+        accepted_by=body.get("accepted_by") or "Parent",
+        remarks=body.get("remarks"),
+    )

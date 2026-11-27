@@ -74,7 +74,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 from app.routers import (
     auth, students, teachers, attendance, marks, exams, fees, salary, notices,
     reports, materials, leave_requests, inventory, batches, reminders,
-    daily_activities, topic_durations, accounts
+    daily_activities, topic_durations, accounts, passout_students
 )
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(students.router, prefix=settings.API_V1_STR)
@@ -94,6 +94,7 @@ app.include_router(batches.router, prefix=settings.API_V1_STR)
 app.include_router(reminders.router, prefix=settings.API_V1_STR)
 app.include_router(daily_activities.router, prefix=settings.API_V1_STR)
 app.include_router(topic_durations.router, prefix=settings.API_V1_STR)
+app.include_router(passout_students.router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": "Welcome to Shubham Academy Management System API"}

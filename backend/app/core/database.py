@@ -26,11 +26,12 @@ async def init_db():
     
     from app.models.admission import Admission
     from app.models.branch_account import BranchAccount
+    from app.models.passout_student import PassoutStudent
     
     # We will add our models to the document_models list later as we create them
     await init_beanie(
         database=database, 
         document_models=[
-            User, Student, Admission, Teacher, Attendance, FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration, BranchAccount
+            User, Student, Admission, PassoutStudent, Teacher, Attendance, FeeStructure, FeePayment, BranchUpiScanner, OfflineFeeRequest, Exam, Mark, Notice, SalaryPayment, Material, LeaveRequest, InventoryItem, InventoryDelivery, Batch, ReminderSettings, ReminderHistory, DiscountApproval, NotificationAuditLog, DailyActivity, TopicDuration, BranchAccount
         ]
     )

@@ -162,13 +162,17 @@ export const salaryService = {
     }
   },
 
-  updateSalary: async (salaryId, baseSalary, allowances, deductions, netPayable) => {
-    const res = await api.put(`/salary/${salaryId}`, { baseSalary, allowances, deductions, netPayable });
+  updateSalary: async (salaryId, baseOrPayload, allowances, deductions, netPayable) => {
+    const payload =
+      typeof baseOrPayload === 'object' && baseOrPayload !== null
+        ? baseOrPayload
+        : { baseSalary: baseOrPayload, allowances, deductions, netPayable };
+    const res = await api.put(`/salary/${salaryId}`, payload);
     return res.data;
   },
 
-  disburseSalary: async (salaryId, amount = null) => {
-    const res = await api.post(`/salary/disburse/${salaryId}`, { amount });
+  disburseSalary: async (salaryId, amount = null, paymentMode = 'NEFT', accountType = null) => {
+    const res = await api.post(`/salary/disburse/${salaryId}`, { amount, paymentMode, accountType });
     return res.data;
   },
 

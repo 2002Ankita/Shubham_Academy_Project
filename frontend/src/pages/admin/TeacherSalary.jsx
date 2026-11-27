@@ -4,6 +4,8 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import salaryService from '../../services/salaryService';
+import notificationService from '../../services/notificationService';
+import { useAuth } from '../../hooks/useAuth';
 import {
   CreditCard,
   CheckCircle,
@@ -17,8 +19,10 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 
 // Helper to check if month matches
@@ -31,18 +35,30 @@ const matchesMonth = (m1, m2) => {
 };
 
 export default function TeacherSalary() {
+  const { user } = useAuth();
   const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [editForm, setEditForm] = useState({ baseSalary: 0, allowances: 0, deductions: 0, netPayable: 0 });
+  const [editForm, setEditForm] = useState({
+    baseSalary: 0,
+    allowances: 0,
+    deductions: 0,
+    recovery: 0,
+    yearlySalary: 0,
+    accountType: 'Academy',
+    paymentMode: 'NEFT',
+    workingHours: 160,
+    netPayable: 0
+  });
   const [generating, setGenerating] = useState(false);
   const [disburseModalOpen, setDisburseModalOpen] = useState(false);
-  const [disburseForm, setDisburseForm] = useState({ id: null, name: '', amount: '' });
+  const [disburseForm, setDisburseForm] = useState({ id: null, name: '', amount: '', paymentMode: 'NEFT', accountType: 'Academy' });
 
   // Filter & Search states
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('detailed'); // 'detailed' | 'monthly'
 
   // Determine current calendar month (e.g., 'November 2026')
   const currentMonthName = useMemo(() => {
@@ -147,11 +163,57 @@ export default function TeacherSalary() {
     };
   }, [salaries, filteredSalaries, selectedMonth, currentMonthName]);
 
+  // Monthly Summary View aggregation
+  const monthlySummaries = useMemo(() => {
+    const map = {};
+    salaries.forEach((s) => {
+      const m = s.month || currentMonthName;
+      if (!map[m]) {
+        map[m] = {
+          month: m,
+          facultyCount: 0,
+          totalNet: 0,
+          totalPaid: 0,
+          totalRecovery: 0,
+          totalPending: 0,
+          totalHours: 0,
+          academyCount: 0,
+          tutorialCount: 0,
+          neftAmount: 0,
+          cashAmount: 0
+        };
+      }
+      const isPaid = s.status === 'Disbursed' || s.status === 'Fully Paid';
+      const net = Number(s.netPayable || 0);
+      const paid = isPaid ? (Number(s.amountPaid) || net) : (Number(s.amountPaid) || 0);
+      const pend = isPaid ? 0 : (s.amountPending != null ? Number(s.amountPending) : Math.max(0, net - paid));
+      const rec = Number(s.recovery ?? s.deductions ?? 0);
+      const hrs = Number(s.workingHours ?? 0);
+      const acc = (s.accountType || 'Academy').toLowerCase();
+      const mode = (s.paymentMode || (String(s.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT')).toLowerCase();
+
+      map[m].facultyCount += 1;
+      map[m].totalNet += net;
+      map[m].totalPaid += paid;
+      map[m].totalRecovery += rec;
+      map[m].totalPending += pend;
+      map[m].totalHours += hrs;
+      if (acc === 'tutorial') map[m].tutorialCount += 1;
+      else map[m].academyCount += 1;
+      if (mode === 'cash') map[m].cashAmount += paid;
+      else map[m].neftAmount += paid;
+    });
+    return Object.values(map);
+  }, [salaries, currentMonthName]);
+
   const handleDisburseClick = (row) => {
+    const inferredMode = row.paymentMode || (String(row.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT');
     setDisburseForm({
       id: row.id,
       name: row.teacherName || 'Faculty Member',
-      amount: ''
+      amount: '',
+      paymentMode: inferredMode,
+      accountType: row.accountType || 'Academy'
     });
     setDisburseModalOpen(true);
   };
@@ -159,8 +221,31 @@ export default function TeacherSalary() {
   const submitDisburse = async (e) => {
     e.preventDefault();
     try {
-      await salaryService.disburseSalary(disburseForm.id, Number(disburseForm.amount));
-      toast.success(`Payment of ₹${Number(disburseForm.amount).toLocaleString()} disbursed to ${disburseForm.name}!`);
+      const updated = await salaryService.disburseSalary(
+        disburseForm.id,
+        Number(disburseForm.amount),
+        disburseForm.paymentMode,
+        disburseForm.accountType
+      );
+      const targetRow = salaries.find((s) => s.id === disburseForm.id) || {};
+      try {
+        notificationService.notifySalaryDisbursedToSuperAdmin({
+          teacherName: updated?.teacherName || disburseForm.name,
+          amount: Number(disburseForm.amount),
+          recovery: updated?.recovery ?? targetRow.recovery ?? targetRow.deductions ?? 0,
+          yearlySalary: updated?.yearlySalary ?? targetRow.yearlySalary ?? Math.round(Number(updated?.netPayable || targetRow.netPayable || 0) * 12),
+          accountType: disburseForm.accountType || updated?.accountType || 'Academy',
+          workingHours: updated?.workingHours ?? targetRow.workingHours ?? 0,
+          paymentMode: disburseForm.paymentMode || updated?.paymentMode || 'NEFT',
+          month: updated?.month || targetRow.month || '',
+          paidBy: user?.full_name || user?.name || 'Academy Admin',
+          branch: user?.branch || 'Central Campus',
+          transactionRef: updated?.transactionRef || ''
+        });
+      } catch (notifErr) {
+        console.warn('Could not send Super Admin salary notification:', notifErr);
+      }
+      toast.success(`Payment of ₹${Number(disburseForm.amount).toLocaleString()} (${disburseForm.paymentMode}) disbursed to ${disburseForm.name}! Super Admin notified.`);
       setDisburseModalOpen(false);
       fetchSalaries();
     } catch (err) {
@@ -184,20 +269,31 @@ export default function TeacherSalary() {
 
   const handleEditClick = (row) => {
     setSelectedRow(row);
+    const inferredMode = row.paymentMode || (String(row.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT');
+    const netVal = Number(row.netPayable ?? row.baseSalary ?? 0);
     setEditForm({
       baseSalary: row.baseSalary,
       allowances: row.allowances,
       deductions: row.deductions,
+      recovery: row.recovery ?? row.deductions ?? 0,
+      yearlySalary: row.yearlySalary ?? Math.round(netVal * 12),
+      accountType: row.accountType || 'Academy',
+      paymentMode: inferredMode,
+      workingHours: row.workingHours ?? 160,
       netPayable: row.netPayable
     });
     setEditModalOpen(true);
   };
 
-  // Auto calculate net payable when base, allowances or deductions change
+  // Auto calculate net payable & yearly salary when base, allowances or deductions change
   useEffect(() => {
     if (editModalOpen) {
       const net = Number(editForm.baseSalary) + Number(editForm.allowances) - Number(editForm.deductions);
-      setEditForm((prev) => ({ ...prev, netPayable: net }));
+      setEditForm((prev) => ({
+        ...prev,
+        netPayable: net,
+        yearlySalary: Math.round(net * 12)
+      }));
     }
   }, [editForm.baseSalary, editForm.allowances, editForm.deductions, editModalOpen]);
 
@@ -205,19 +301,75 @@ export default function TeacherSalary() {
     e.preventDefault();
     if (!selectedRow) return;
     try {
-      await salaryService.updateSalary(
-        selectedRow.id,
-        Number(editForm.baseSalary),
-        Number(editForm.allowances),
-        Number(editForm.deductions),
-        Number(editForm.netPayable)
-      );
+      await salaryService.updateSalary(selectedRow.id, {
+        baseSalary: Number(editForm.baseSalary),
+        allowances: Number(editForm.allowances),
+        deductions: Number(editForm.deductions),
+        recovery: Number(editForm.recovery),
+        yearlySalary: Number(editForm.yearlySalary),
+        accountType: editForm.accountType,
+        paymentMode: editForm.paymentMode,
+        workingHours: Number(editForm.workingHours),
+        netPayable: Number(editForm.netPayable)
+      });
       toast.success('Salary updated successfully');
       setEditModalOpen(false);
       fetchSalaries();
     } catch (err) {
       toast.error('Failed to update salary');
     }
+  };
+
+  const handleExportExcel = () => {
+    const dataset = filteredSalaries.length > 0 ? filteredSalaries : salaries;
+    if (!dataset || dataset.length === 0) {
+      toast.warning('No salary records available to export.');
+      return;
+    }
+
+    const rows = dataset.map((row) => {
+      const netAmount = Number(row.netPayable ?? row.baseSalary ?? 0);
+      const recoveryVal = Number(row.recovery ?? row.deductions ?? 0);
+      const yearlyVal = Number(row.yearlySalary ?? Math.round(netAmount * 12));
+      const accType = row.accountType || 'Academy';
+      const hoursVal = Number(row.workingHours ?? 0);
+      const payMode = row.paymentMode || (String(row.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT');
+
+      return {
+        Name: row.teacherName || 'Academy Faculty',
+        Amount: netAmount,
+        Recovery: recoveryVal,
+        'Yearly Salary': yearlyVal,
+        'Account Type': accType,
+        Hours: hoursVal,
+        'NEFT or Cash': payMode,
+        Month: row.month || '',
+        'Amount Paid': Number(row.amountPaid || 0),
+        Pending: Number(row.amountPending || 0),
+        Status: row.status || 'Processing'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 24 }, // Name
+      { wch: 14 }, // Amount
+      { wch: 14 }, // Recovery
+      { wch: 16 }, // Yearly Salary
+      { wch: 16 }, // Account Type
+      { wch: 10 }, // Hours
+      { wch: 14 }, // NEFT or Cash
+      { wch: 18 }, // Month
+      { wch: 14 }, // Amount Paid
+      { wch: 14 }, // Pending
+      { wch: 14 }  // Status
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Faculty Salary');
+    const monthTag = (selectedMonth === 'ALL' ? currentMonthName : selectedMonth).replace(/\s+/g, '_');
+    XLSX.writeFile(workbook, `Faculty_Salary_${monthTag}.xlsx`);
+    toast.success(`Exported ${rows.length} salary records to Excel!`);
   };
 
   return (
@@ -249,6 +401,30 @@ export default function TeacherSalary() {
         </div>
 
         <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="btn-group btn-group-sm" role="group" aria-label="Salary View Mode">
+            <button
+              type="button"
+              className={`btn fw-semibold ${viewMode === 'detailed' ? 'btn-dark' : 'btn-outline-secondary'}`}
+              onClick={() => setViewMode('detailed')}
+            >
+              Detailed Register
+            </button>
+            <button
+              type="button"
+              className={`btn fw-semibold ${viewMode === 'monthly' ? 'btn-dark' : 'btn-outline-secondary'}`}
+              onClick={() => setViewMode('monthly')}
+            >
+              Monthly Collection & Payout View
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            icon={Download}
+            onClick={handleExportExcel}
+            className="d-inline-flex align-items-center gap-1.5 shadow-xs"
+          >
+            Export Excel
+          </Button>
           <Button
             variant="primary"
             onClick={handleGenerate}
@@ -465,7 +641,70 @@ export default function TeacherSalary() {
         </div>
       </div>
 
-      {/* 4. Faculty Salary Register Table */}
+      {/* 4. Monthly Collection & Payout View OR Faculty Salary Register Table */}
+      {viewMode === 'monthly' ? (
+        <div className="sa-card p-3 p-md-4">
+          <div className="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <h5 className="brand-font fw-bold text-sa-charcoal m-0 fs-6">
+                Monthly Teacher Salary & Staff Payout View
+              </h5>
+              <span className="small text-sa-muted">
+                Month-wise summary of payable, paid (NEFT vs Cash), recovery, hours, and account type split
+              </span>
+            </div>
+          </div>
+          <Table
+            loading={loading}
+            data={monthlySummaries}
+            emptyMessage="No monthly salary records available."
+            columns={[
+              { key: 'month', title: 'Month', render: (v) => <span className="fw-bold text-sa-charcoal">{v}</span> },
+              { key: 'facultyCount', title: 'Staff Count', render: (v) => <span className="badge bg-light text-dark border">{v} staff</span> },
+              { key: 'totalNet', title: 'Total Payable (₹)', render: (v) => <span className="fw-semibold">₹ {Number(v || 0).toLocaleString()}</span> },
+              { key: 'totalPaid', title: 'Paid (₹)', render: (v) => <span className="fw-bold text-success">₹ {Number(v || 0).toLocaleString()}</span> },
+              { key: 'totalRecovery', title: 'Recovery (₹)', render: (v) => <span className="text-danger">₹ {Number(v || 0).toLocaleString()}</span> },
+              { key: 'totalPending', title: 'Pending (₹)', render: (v) => <span className="fw-semibold text-warning-emphasis">₹ {Number(v || 0).toLocaleString()}</span> },
+              {
+                key: 'neftAmount',
+                title: 'NEFT / Cash',
+                render: (_, r) => (
+                  <div className="small">
+                    <div>NEFT: <strong>₹{Number(r.neftAmount || 0).toLocaleString()}</strong></div>
+                    <div className="text-muted">Cash: <strong>₹{Number(r.cashAmount || 0).toLocaleString()}</strong></div>
+                  </div>
+                )
+              },
+              {
+                key: 'academyCount',
+                title: 'Account Split',
+                render: (_, r) => (
+                  <div className="small text-muted">
+                    Academy: <strong>{r.academyCount}</strong> • Tutorial: <strong>{r.tutorialCount}</strong>
+                  </div>
+                )
+              },
+              {
+                key: 'action',
+                title: 'Inspect',
+                align: 'end',
+                render: (_, r) => (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedMonth(r.month);
+                      setViewMode('detailed');
+                    }}
+                  >
+                    View Month
+                  </Button>
+                )
+              }
+            ]}
+          />
+        </div>
+      ) : (
       <div className="sa-card p-4">
         <Table
           columns={[
@@ -529,12 +768,29 @@ export default function TeacherSalary() {
             },
             {
               key: 'deductions',
-              title: 'Deductions',
-              render: (val) => (
+              title: 'Recovery / Ded.',
+              render: (val, row) => (
                 <span className="text-danger small fw-medium">
-                  -₹ {Number(val || 0).toLocaleString()}
+                  -₹ {Number(row.recovery ?? val ?? 0).toLocaleString()}
                 </span>
               )
+            },
+            {
+              key: 'accountType',
+              title: 'Account & Mode',
+              render: (val, row) => {
+                const mode = row.paymentMode || (String(row.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT');
+                return (
+                  <div className="d-flex flex-column gap-1">
+                    <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px', width: 'fit-content' }}>
+                      {val || 'Academy'}
+                    </span>
+                    <span className="text-muted" style={{ fontSize: '11px' }}>
+                      {Number(row.workingHours || 0)} hrs • <strong>{mode}</strong>
+                    </span>
+                  </div>
+                );
+              }
             },
             {
               key: 'netPayable',
@@ -618,6 +874,7 @@ export default function TeacherSalary() {
           loading={loading}
         />
       </div>
+      )}
 
       {/* Edit Salary Modal */}
       <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title={`Edit Salary: ${selectedRow?.teacherName || 'Faculty'}`}>
@@ -660,6 +917,57 @@ export default function TeacherSalary() {
               />
             </div>
           </div>
+          <div className="row g-3 mt-1">
+            <div className="col-6 col-md-4">
+              <Input
+                label="Recovery (₹)"
+                type="number"
+                value={editForm.recovery}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, recovery: e.target.value }))}
+              />
+            </div>
+            <div className="col-6 col-md-4">
+              <Input
+                label="Working Hours"
+                type="number"
+                step="0.5"
+                value={editForm.workingHours}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, workingHours: e.target.value }))}
+              />
+            </div>
+            <div className="col-12 col-md-4">
+              <Input
+                label="Yearly Salary (₹)"
+                type="number"
+                value={editForm.yearlySalary}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, yearlySalary: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="row g-3 mt-1">
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">Account Type</label>
+              <select
+                className="form-select"
+                value={editForm.accountType}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, accountType: e.target.value }))}
+              >
+                <option value="Academy">Academy</option>
+                <option value="Tutorial">Tutorial</option>
+              </select>
+            </div>
+            <div className="col-12 col-md-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">Payment Mode (NEFT / Cash)</label>
+              <select
+                className="form-select"
+                value={editForm.paymentMode}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, paymentMode: e.target.value }))}
+              >
+                <option value="NEFT">NEFT</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
+          </div>
           <div className="mb-3 mt-3">
             <Input
               label="Net Payable (₹) *"
@@ -696,6 +1004,30 @@ export default function TeacherSalary() {
               min={1}
               required
             />
+          </div>
+          <div className="row g-3 mb-3">
+            <div className="col-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">Account Type</label>
+              <select
+                className="form-select"
+                value={disburseForm.accountType}
+                onChange={(e) => setDisburseForm((prev) => ({ ...prev, accountType: e.target.value }))}
+              >
+                <option value="Academy">Academy</option>
+                <option value="Tutorial">Tutorial</option>
+              </select>
+            </div>
+            <div className="col-6">
+              <label className="form-label small fw-semibold text-sa-charcoal mb-1">Payment Mode</label>
+              <select
+                className="form-select"
+                value={disburseForm.paymentMode}
+                onChange={(e) => setDisburseForm((prev) => ({ ...prev, paymentMode: e.target.value }))}
+              >
+                <option value="NEFT">NEFT</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
           </div>
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <Button variant="light" type="button" onClick={() => setDisburseModalOpen(false)}>

@@ -26,6 +26,7 @@ import feeService from '../../services/feeService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 import BranchBatchSelector from '../../components/common/BranchBatchSelector';
+import { ADMISSION_TERMS_AND_CONDITIONS } from '../../utils/admissionTerms';
 import {
   BRANCH_TARABAI,
   BRANCH_MANGALWAR,
@@ -48,18 +49,18 @@ export const STANDARD_BATCHES = [
 
 export const getMatchingCourseFee = (structures, branch, academicBatch, standard, fallbackFee = 55000) => {
   if (!structures || structures.length === 0) return fallbackFee;
-  
+
   const bLower = (branch || '').toLowerCase();
   const isMangal = bLower.includes('mangal');
   const std = standard || (academicBatch?.startsWith('12th') ? '12th Science' : '11th Science');
   const batchStr = (academicBatch || '').toLowerCase();
-  
+
   // Extract stream: 'pcmb', 'pcb', 'pcm'
   let stream = '';
   if (batchStr.includes('pcmb')) stream = 'pcmb';
   else if (batchStr.includes('pcb')) stream = 'pcb';
   else if (batchStr.includes('pcm')) stream = 'pcm';
-  
+
   // 1. Exact match: branch + standard + specific stream
   if (stream) {
     const streamMatch = structures.find(s => {
@@ -69,7 +70,7 @@ export const getMatchingCourseFee = (structures, branch, academicBatch, standard
       const branchMatches = isMangal ? sBranch.includes('mangal') : (sBranch.includes('tarabai') || !sBranch.includes('mangal'));
       const stdMatches = sStd.includes(std.startsWith('12') ? '12' : '11');
       if (!branchMatches || !stdMatches) return false;
-      
+
       if (stream === 'pcmb') return sBatch.includes('pcmb');
       if (stream === 'pcm') return sBatch.includes('pcm') && !sBatch.includes('pcmb');
       if (stream === 'pcb') return sBatch.includes('pcb') && !sBatch.includes('pcmb');
@@ -77,7 +78,7 @@ export const getMatchingCourseFee = (structures, branch, academicBatch, standard
     });
     if (streamMatch && streamMatch.total_fee > 0) return streamMatch.total_fee;
   }
-  
+
   // 2. Branch + batch name includes academic batch
   const batchMatch = structures.find(s => {
     const sBranch = (s.branch || '').toLowerCase();
@@ -107,6 +108,7 @@ export default function StudentRegistration() {
   const isMangal = Boolean(activeBranch && activeBranch.toLowerCase().includes('mangal'));
   const initialBranch = isMangal ? BRANCH_MANGALWAR : (activeBranch || BRANCH_TARABAI);
   const [loading, setLoading] = useState(false);
+  const [confirmationDispatch, setConfirmationDispatch] = useState(null);
   const [batches, setBatches] = useState([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [feeStructures, setFeeStructures] = useState([]);
@@ -117,6 +119,8 @@ export default function StudentRegistration() {
     fullName: '',
     email: '',
     mobileNumber: '',
+    fatherPhone: '',
+    motherPhone: '',
     parentPhone: '',
     rollNumber: '',
     admissionType: '11th Standard Only', // '11th Standard Only', '12th Standard Only', '11th + 12th Standard (Two-Year Admission)'
@@ -524,13 +528,22 @@ export default function StudentRegistration() {
       errs.mobileNumber = 'This Mobile Number is already registered for another student';
     }
 
-    const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
-    if (!cleanParentMobile) {
-      errs.parentPhone = 'Parent Mobile Number is required for alerts';
-    } else if (cleanParentMobile.length !== 10) {
-      errs.parentPhone = 'Must be a valid 10-digit mobile number';
-    } else if (cleanMobile && cleanMobile === cleanParentMobile) {
-      errs.parentPhone = 'Parent mobile must be different from student mobile';
+    const cleanFatherMobile = (formData.fatherPhone || formData.parentPhone || '').replace(/\D/g, '');
+    if (!cleanFatherMobile) {
+      errs.fatherPhone = 'Father Mobile Number is required for alerts';
+    } else if (cleanFatherMobile.length !== 10) {
+      errs.fatherPhone = 'Must be a valid 10-digit mobile number';
+    } else if (cleanMobile && cleanMobile === cleanFatherMobile) {
+      errs.fatherPhone = 'Father mobile must be different from student mobile';
+    }
+
+    const cleanMotherMobile = (formData.motherPhone || '').replace(/\D/g, '');
+    if (!cleanMotherMobile) {
+      errs.motherPhone = 'Mother Mobile Number is required';
+    } else if (cleanMotherMobile.length !== 10) {
+      errs.motherPhone = 'Must be a valid 10-digit mobile number';
+    } else if (cleanMobile && cleanMobile === cleanMotherMobile) {
+      errs.motherPhone = 'Mother mobile must be different from student mobile';
     }
 
     if (!formData.branch) {
@@ -579,7 +592,9 @@ export default function StudentRegistration() {
     setLoading(true);
     try {
       const cleanMobile = formData.mobileNumber.replace(/\D/g, '');
-      const cleanParentMobile = formData.parentPhone.replace(/\D/g, '');
+      const cleanFatherMobile = (formData.fatherPhone || formData.parentPhone || '').replace(/\D/g, '');
+      const cleanMotherMobile = (formData.motherPhone || '').replace(/\D/g, '');
+      const cleanParentMobile = cleanFatherMobile || cleanMotherMobile;
       const discAmount = Number(formData.discountAmount) || 0;
       const origFees = Number(formData.originalFees) || 0;
       const paidFees = Number(formData.paidFees) || 0;
@@ -596,6 +611,10 @@ export default function StudentRegistration() {
         mobile_number: cleanMobile,
         parentPhone: cleanParentMobile,
         parent_mobile: cleanParentMobile,
+        fatherPhone: cleanFatherMobile,
+        father_mobile: cleanFatherMobile,
+        motherPhone: cleanMotherMobile,
+        mother_mobile: cleanMotherMobile,
         branch: formData.branch,
         center_type: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
         centerType: formData.centerType || (formData.branch?.toLowerCase().includes('mangal') ? 'Shubham Tutorial' : 'Shubham Academy'),
@@ -667,12 +686,24 @@ export default function StudentRegistration() {
         }
       }
 
+      // Send Admission Confirmation (all inquiry details + Terms & Conditions) to BOTH Father & Mother
+      let dispatchInfo = null;
+      try {
+        dispatchInfo = notificationService.notifyAdmissionConfirmationToParents(result || payload);
+      } catch (admNotifErr) {
+        console.warn('Could not dispatch parent admission confirmation:', admNotifErr);
+      }
+
       toast.success(
         discAmount > 0
-          ? `Student ${formData.fullName} successfully registered! Concession of ₹${discAmount.toLocaleString()} submitted to Superadmin for approval.`
-          : `Student ${formData.fullName} successfully registered to ${formData.batch || 'Batch'}! ID: ${result?.student_id || result?.rollNumber || 'Created'}`
+          ? `Student ${formData.fullName} registered! Admission confirmation & Terms sent to parents (Pending Parent Acceptance).`
+          : `Student ${formData.fullName} registered! Admission confirmation & Terms sent to parents (Pending Parent Acceptance).`
       );
-      navigate('/admin/students');
+      if (dispatchInfo) {
+        setConfirmationDispatch({ student: result || payload, ...dispatchInfo });
+      } else {
+        navigate('/admin/students');
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       const detail = error.response?.data?.detail;
@@ -938,11 +969,11 @@ export default function StudentRegistration() {
                   </span>
                 </div>
 
-                {/* Parent Mobile Number */}
+                {/* Father Mobile Number */}
                 <div className="col-12 col-md-6">
                   <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
                     <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
-                      Parent Mobile Number <span className="text-danger">*</span>
+                      Father Mobile Number <span className="text-danger">*</span>
                     </label>
                   </div>
                   <div className="input-group">
@@ -951,19 +982,48 @@ export default function StudentRegistration() {
                     </span>
                     <input
                       type="tel"
-                      name="parentPhone"
-                      value={formData.parentPhone}
+                      name="fatherPhone"
+                      value={formData.fatherPhone}
                       onChange={handleInputChange}
                       maxLength={10}
-                      placeholder="Parent 10-digit mobile"
-                      className={`form-control ${errors.parentPhone ? 'is-invalid' : ''}`}
+                      placeholder="Father 10-digit mobile"
+                      className={`form-control ${errors.fatherPhone ? 'is-invalid' : ''}`}
                       style={{ height: '38px' }}
                       disabled={loading}
                     />
-                    {errors.parentPhone && <div className="invalid-feedback">{errors.parentPhone}</div>}
+                    {errors.fatherPhone && <div className="invalid-feedback">{errors.fatherPhone}</div>}
                   </div>
                   <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
-                    Used for gate entry notifications and fee reminder SMS.
+                    Primary alert contact for gate entry & fee receipts.
+                  </span>
+                </div>
+
+                {/* Mother Mobile Number */}
+                <div className="col-12 col-md-6">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5" style={{ minHeight: '24px' }}>
+                    <label className="form-label small fw-semibold text-sa-charcoal m-0 text-nowrap">
+                      Mother Mobile Number <span className="text-danger">*</span>
+                    </label>
+                  </div>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light text-muted" style={{ height: '38px' }}>
+                      <Phone size={16} />
+                    </span>
+                    <input
+                      type="tel"
+                      name="motherPhone"
+                      value={formData.motherPhone}
+                      onChange={handleInputChange}
+                      maxLength={10}
+                      placeholder="Mother 10-digit mobile"
+                      className={`form-control ${errors.motherPhone ? 'is-invalid' : ''}`}
+                      style={{ height: '38px' }}
+                      disabled={loading}
+                    />
+                    {errors.motherPhone && <div className="invalid-feedback">{errors.motherPhone}</div>}
+                  </div>
+                  <span className="text-muted small d-block mt-1" style={{ fontSize: '0.75rem', minHeight: '18px' }}>
+                    Secondary parent contact for emergency & academic notices.
                   </span>
                 </div>
               </div>
@@ -1037,7 +1097,7 @@ export default function StudentRegistration() {
                             type="radio"
                             name="admissionType"
                             checked={isSelected}
-                            onChange={() => {}}
+                            onChange={() => { }}
                             className="form-check-input"
                             style={{ accentColor: '#8B1216' }}
                           />
@@ -1422,21 +1482,21 @@ export default function StudentRegistration() {
                     </span>
                     {(formData.concessionType === 'percentage'
                       ? [
-                          { label: '5%', val: 5 },
-                          { label: '10%', val: 10 },
-                          { label: '15%', val: 15 },
-                          { label: '20%', val: 20 },
-                          { label: '25%', val: 25 },
-                          { label: '0%', val: 0 }
-                        ]
+                        { label: '5%', val: 5 },
+                        { label: '10%', val: 10 },
+                        { label: '15%', val: 15 },
+                        { label: '20%', val: 20 },
+                        { label: '25%', val: 25 },
+                        { label: '0%', val: 0 }
+                      ]
                       : [
-                          { label: '₹2,000', val: 2000 },
-                          { label: '₹5,000', val: 5000 },
-                          { label: '₹10,000', val: 10000 },
-                          { label: '₹15,000', val: 15000 },
-                          { label: '₹20,000', val: 20000 },
-                          { label: 'Clear (₹0)', val: 0 }
-                        ]
+                        { label: '₹2,000', val: 2000 },
+                        { label: '₹5,000', val: 5000 },
+                        { label: '₹10,000', val: 10000 },
+                        { label: '₹15,000', val: 15000 },
+                        { label: '₹20,000', val: 20000 },
+                        { label: 'Clear (₹0)', val: 0 }
+                      ]
                     ).map((p) => (
                       <button
                         key={p.label}
@@ -1537,11 +1597,10 @@ export default function StudentRegistration() {
                     className="progress-bar transition-all"
                     role="progressbar"
                     style={{
-                      width: `${
-                        formData.totalFees > 0
+                      width: `${formData.totalFees > 0
                           ? Math.min(100, ((formData.paidFees || 0) / formData.totalFees) * 100)
                           : 0
-                      }%`,
+                        }%`,
                       backgroundColor: '#8B1216',
                       borderRadius: '4px'
                     }}
@@ -1822,11 +1881,34 @@ export default function StudentRegistration() {
                 </span>
               </div>
 
-              <div className="d-flex justify-content-between">
+              <div className="d-flex justify-content-between border-bottom pb-2">
                 <span className="text-muted">Profile Status:</span>
                 <span className="badge bg-warning text-dark fw-semibold">
                   Pending Student Entry
                 </span>
+              </div>
+
+              <div className="d-flex justify-content-between">
+                <span className="text-muted">Admission Status:</span>
+                <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold">
+                  Pending Parent Acceptance
+                </span>
+              </div>
+            </div>
+
+            {/* Terms & Conditions Summary */}
+            <div className="mt-3 p-3 rounded-3 bg-light border">
+              <div className="fw-bold small text-sa-charcoal mb-1.5 d-flex align-items-center gap-1.5">
+                <ShieldCheck size={14} style={{ color: '#8B1216' }} />
+                <span>Terms & Conditions (Sent to Parents)</span>
+              </div>
+              <ul className="list-unstyled m-0 d-flex flex-column gap-1 text-muted" style={{ fontSize: '0.73rem' }}>
+                {ADMISSION_TERMS_AND_CONDITIONS.slice(0, 4).map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+              <div className="text-danger fw-semibold mt-1.5" style={{ fontSize: '0.72rem' }}>
+                * Admission will confirm only after the parent reviews these details & accepts Terms & Conditions.
               </div>
             </div>
 
@@ -1848,6 +1930,79 @@ export default function StudentRegistration() {
         </div>
       </div>
 
+      {/* Parent Admission Confirmation Dispatch Modal */}
+      {confirmationDispatch && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header text-white border-0" style={{ background: 'linear-gradient(135deg, #8B1216 0%, #5F0A0D 100%)' }}>
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2 fs-6">
+                  <ShieldCheck size={18} />
+                  <span>Admission Confirmation Sent to Parents</span>
+                </h5>
+              </div>
+              <div className="modal-body p-4 d-flex flex-column gap-3">
+                <div className="alert alert-warning py-2 px-3 small m-0">
+                  <strong>Status: Pending Parent Acceptance</strong> — Admission for{' '}
+                  <strong>{confirmationDispatch.student?.full_name || formData.fullName}</strong> will be confirmed once the parent opens the link below, reviews all inquiry details, and accepts the Terms & Conditions.
+                </div>
+
+                <div>
+                  <label className="form-label small fw-semibold text-muted mb-1">Parent Confirmation & Terms Link</label>
+                  <div className="input-group input-group-sm">
+                    <input type="text" className="form-control bg-light" readOnly value={confirmationDispatch.confirmUrl || ''} />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary fw-semibold"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(confirmationDispatch.confirmUrl || '');
+                        toast.success('Confirmation link copied!');
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+
+                <div className="d-flex flex-wrap gap-2">
+                  {confirmationDispatch.fatherUrl && (
+                    <a
+                      href={confirmationDispatch.fatherUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success btn-sm flex-grow-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5"
+                    >
+                      💬 Send WhatsApp (Father)
+                    </a>
+                  )}
+                  {confirmationDispatch.motherUrl && (
+                    <a
+                      href={confirmationDispatch.motherUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success btn-sm flex-grow-1 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5"
+                    >
+                      💬 Send WhatsApp (Mother)
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer border-top bg-light">
+                <button
+                  type="button"
+                  className="btn btn-dark btn-sm px-4 fw-semibold"
+                  onClick={() => {
+                    setConfirmationDispatch(null);
+                    navigate('/admin/students');
+                  }}
+                >
+                  Done & Go to Student Directory
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

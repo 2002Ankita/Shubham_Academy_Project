@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   MessageSquare,
   ExternalLink,
+  CreditCard,
   X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -220,11 +221,10 @@ export default function Notifications() {
         <button
           type="button"
           onClick={() => handleTabChange('history')}
-          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${
-            activeTab === 'history'
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${activeTab === 'history'
               ? 'btn-dark text-white shadow-sm'
               : 'btn-light text-sa-charcoal bg-transparent border-0'
-          }`}
+            }`}
           style={{ fontSize: '13px' }}
         >
           <Smartphone size={16} />
@@ -237,11 +237,10 @@ export default function Notifications() {
         <button
           type="button"
           onClick={() => handleTabChange('inbox')}
-          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${
-            activeTab === 'inbox'
+          className={`btn btn-sm d-inline-flex align-items-center gap-2 px-3.5 py-2 fw-semibold rounded-3 transition-all ${activeTab === 'inbox'
               ? 'btn-dark text-white shadow-sm'
               : 'btn-light text-sa-charcoal bg-transparent border-0'
-          }`}
+            }`}
           style={{ fontSize: '13px' }}
         >
           <Bell size={16} />
@@ -722,28 +721,30 @@ export default function Notifications() {
                 })
                 .map((n, i) => {
                 const isDiscountApproval = n.type === 'discount_approval';
-                const isFee = (n.category || '').includes('Fee') || (n.type || '').includes('fee');
-                const isSalary = (n.category || '').includes('Salary') || (n.type || '').includes('salary');
+                const isFeeCollection = n.type === 'daily_fee_collected';
+                const isFeesCompleted = n.type === 'fees_completed';
+                const isFee = isFeeCollection || isFeesCompleted || (n.category || '').includes('Fee') || (n.type || '').includes('fee');
+                const isSalary = n.type === 'salary_payment' || (n.category || '').includes('Salary') || (n.type || '').includes('salary');
 
                 return (
                   <div
                     key={n.id || i}
-                    className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${
-                      isDiscountApproval
+                    className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${isDiscountApproval
                         ? 'bg-warning-subtle border-warning'
-                        : isFee
-                        ? 'bg-white shadow-2xs border-start border-4 border-success'
-                        : isSalary
-                        ? 'bg-white shadow-2xs border-start border-4 border-primary'
-                        : n.read
-                          ? 'bg-light bg-opacity-50'
-                          : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
+                        : isFeesCompleted
+                          ? 'bg-success-subtle bg-opacity-30 border-success'
+                          : isFee
+                          ? 'bg-white shadow-2xs border-start border-4 border-success'
+                          : isSalary
+                          ? 'bg-white shadow-2xs border-start border-4 border-primary'
+                          : n.read
+                            ? 'bg-light bg-opacity-50'
+                            : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
                     }`}
                   >
                     <div className="d-flex align-items-start gap-3 flex-grow-1">
                       <div
-                        className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${
-                          isDiscountApproval
+                        className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${isDiscountApproval
                             ? 'bg-warning text-dark'
                             : isFee
                             ? 'bg-success-subtle text-success'
@@ -752,7 +753,7 @@ export default function Notifications() {
                             : 'bg-sa-primary bg-opacity-10 text-sa-primary'
                         }`}
                       >
-                        {isDiscountApproval ? <ShieldCheck size={18} /> : isFee ? '💰' : isSalary ? '💸' : <Bell size={18} />}
+                        {isDiscountApproval ? <ShieldCheck size={18} /> : isFee ? <CreditCard size={18} /> : isSalary ? '💸' : <Bell size={18} />}
                       </div>
                       <div className="flex-grow-1">
                         <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
@@ -772,10 +773,58 @@ export default function Notifications() {
                               Superadmin Approval Required
                             </span>
                           )}
+                          {isFeeCollection && (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle small fw-semibold">
+                              Daily Fee Collection
+                            </span>
+                          )}
+                          {isFeesCompleted && (
+                            <span className="badge bg-success text-white small fw-bold">
+                              ✓ 100% Fees Settled • Parents Notified
+                            </span>
+                          )}
+                          {isSalaryPayment && (
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
+                              💸 Salary Payment ({n.paymentMode || 'NEFT'} • {n.accountType || 'Academy'})
+                            </span>
+                          )}
                         </div>
                         <p className="text-sa-muted small mb-1" style={{ lineHeight: 1.45 }}>
                           {n.details || n.message}
                         </p>
+                        {isFeeCollection && n.collectedBy && (
+                          <div className="small text-secondary mt-1 d-flex align-items-center gap-3 flex-wrap" style={{ fontSize: '0.78rem' }}>
+                            <span>👤 Collected by: <strong className="text-dark">{n.collectedBy}</strong></span>
+                            {n.branch && <span>🏷️ Campus: <strong className="text-dark">{n.branch}</strong></span>}
+                            {n.paymentMethod && <span>💳 Mode: <strong className="text-dark">{n.paymentMethod}</strong></span>}
+                          </div>
+                        )}
+                        {isFeesCompleted && (
+                          <div className="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 py-1 px-2.5 small rounded-2"
+                              onClick={() => {
+                                const text = `*Shubham Academy • Course Fees Fully Paid Confirmation* 🎓✅\n\nDear Parent,\nAll academic course fees for your ward *${n.studentName}* (${n.rollNumber}) have been *FULLY SETTLED*.\nClearance Receipt: #${n.receiptNumber || 'CLEARED'}.\nThank you!\n\n_Shubham Academy_`;
+                                notificationService.sendWhatsAppWeb(n.fatherMobile || n.parentMobile || '+91 98220 12345', text);
+                              }}
+                            >
+                              <span>💬 WA Father: Fees Completed</span>
+                            </button>
+                            {n.motherMobile && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5 py-1 px-2.5 small rounded-2"
+                                onClick={() => {
+                                  const text = `*Shubham Academy • Course Fees Fully Paid Confirmation* 🎓✅\n\nDear Parent,\nAll academic course fees for your ward *${n.studentName}* (${n.rollNumber}) have been *FULLY SETTLED*.\nClearance Receipt: #${n.receiptNumber || 'CLEARED'}.\nThank you!\n\n_Shubham Academy_`;
+                                  notificationService.sendWhatsAppWeb(n.motherMobile, text);
+                                }}
+                              >
+                                <span>💬 WA Mother: Fees Completed</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {isDiscountApproval && isSuperAdmin && (
                           <div className="mt-2">
                             <button
@@ -789,7 +838,7 @@ export default function Notifications() {
                           </div>
                         )}
                         {isFee && (
-                          <div className="mt-1.5">
+                          <div className="mt-1.5 d-flex align-items-center gap-2 flex-wrap">
                             <button
                               type="button"
                               className="btn btn-xs btn-outline-success py-0.5 px-2 rounded-1 fw-semibold"
@@ -798,6 +847,16 @@ export default function Notifications() {
                             >
                               Open Fee Register &rarr;
                             </button>
+                            {isSuperAdmin && (
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded-1"
+                                style={{ fontSize: '10.5px' }}
+                                onClick={() => navigate('/super-admin/reports')}
+                              >
+                                View Reports &rarr;
+                              </button>
+                            )}
                           </div>
                         )}
                         {isSalary && (
@@ -838,11 +897,10 @@ export default function Notifications() {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
               <div
-                className={`modal-header text-white px-4 py-3 ${
-                  (selectedMessage.channel || '').toLowerCase().includes('whatsapp')
+                className={`modal-header text-white px-4 py-3 ${(selectedMessage.channel || '').toLowerCase().includes('whatsapp')
                     ? 'bg-success'
                     : 'bg-dark'
-                }`}
+                  }`}
               >
                 <div className="d-flex align-items-center gap-2">
                   {(selectedMessage.channel || '').toLowerCase().includes('whatsapp') ? (

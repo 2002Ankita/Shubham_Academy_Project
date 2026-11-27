@@ -679,32 +679,15 @@ export default function TeacherAttendanceTracker() {
   return (
     <div className="d-flex flex-column gap-4 w-100">
       {/* 1. Header & View Mode Switcher */}
-      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1">
-        <div className="d-flex align-items-start gap-2.5 gap-sm-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/teachers')}
-            className="btn btn-light d-inline-flex align-items-center justify-content-center border shadow-sm flex-shrink-0 mt-0.5"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              borderColor: '#E2E8F0',
-              backgroundColor: '#FFFFFF',
-              color: '#0F172A',
-              padding: 0,
-              cursor: 'pointer'
-            }}
-            aria-label="Back to Faculty"
-            title="Back to Faculty"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="min-w-0 flex-grow-1">
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: '22px', lineHeight: 1.25 }}>
-                Teacher Check-In & Check-Out Tracking
-              </h1>
+      <div className="d-flex flex-column flex-lg-row align-items-start align-items-lg-center justify-content-between gap-3 pt-1 w-100">
+        <div className="min-w-0 flex-grow-1 w-100">
+          <div className="w-100 mb-1.5">
+            <BackButton to="/admin/teachers" label="Back to Faculty" />
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <h1 className="fw-bold brand-font text-sa-charcoal m-0" style={{ fontSize: 'clamp(1.15rem, 3.5vw, 1.375rem)', lineHeight: 1.25, wordBreak: 'break-word' }}>
+              Teacher Check-In & Check-Out Tracking
+            </h1>
               {isSuperAdmin ? (
                 <div className="d-flex align-items-center gap-1.5 ms-sm-2 flex-wrap">
                   <span className="small fw-semibold text-sa-muted d-flex align-items-center gap-1 text-nowrap">
@@ -741,7 +724,6 @@ export default function TeacherAttendanceTracker() {
               Real-time faculty punch records, monthly on-duty hours & automated salary compensation ledger for {effectiveBranch === 'ALL' ? 'all campuses' : `${effectiveBranch} Campus`}
             </p>
           </div>
-        </div>
 
         {/* View Mode Segmented Controls */}
         <div className="d-flex align-items-center bg-light p-1 rounded-3 border flex-shrink-0 w-100 w-lg-auto justify-content-center justify-content-lg-start">

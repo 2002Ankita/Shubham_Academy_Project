@@ -703,8 +703,42 @@ export default function AdminDashboard() {
           author: `${reqToVerify.branch} Accounts Counter`,
           details: `Your offline ${reqToVerify.payment_mode} fee payment of ₹${Number(reqToVerify.amount).toLocaleString()} has been verified & approved by ${verifierName}. Collected by Faculty: ${reqToVerify.collected_by_faculty || 'Counter Desk'}. Official fee receipt #${updated.receipt_no} has been credited to your student ledger.`
         });
+
+        // Dispatch executive alert to Super Admin with amount, student & who collected
+        notificationService.notifyDailyFeeCollected({
+          amount: reqToVerify.amount,
+          studentName: reqToVerify.student_name,
+          rollNumber: reqToVerify.roll_number,
+          studentId: reqToVerify.student_id,
+          branch: reqToVerify.branch,
+          standard: reqToVerify.standard,
+          batch: reqToVerify.batch,
+          collectedBy: reqToVerify.collected_by_faculty || verifierName,
+          paymentMethod: reqToVerify.payment_mode,
+          receiptNumber: updated.receipt_no
+        });
+        // Check if student's course fees are now fully completed
+        try {
+          const feeDetails = await feeService.getFeeDetails(reqToVerify.student_id, {
+            branch: reqToVerify.branch,
+            standard: reqToVerify.standard
+          });
+          if (feeDetails && (Number(feeDetails.pendingAmount ?? feeDetails.pending_fees) <= 0)) {
+            notificationService.notifyFeeCompletedToParents({
+              studentId: reqToVerify.student_id,
+              studentName: reqToVerify.student_name,
+              rollNumber: reqToVerify.roll_number,
+              branch: reqToVerify.branch,
+              standard: reqToVerify.standard,
+              batch: reqToVerify.batch,
+              totalFees: feeDetails.totalFees || feeDetails.total_fees,
+              amountPaid: reqToVerify.amount,
+              receiptNumber: updated.receipt_no
+            });
+          }
+        } catch (_) {}
       } catch (notifErr) {
-        console.warn('Student notification dispatch error:', notifErr);
+        console.warn('Fee notification dispatch error:', notifErr);
       }
 
       toast.success(

@@ -68,6 +68,17 @@ async def _format_salary(s: SalaryPayment) -> dict:
         amount_pending = max(0.0, float(s.net_payable))
         final_status = raw_status
 
+    recovery_val = getattr(s, 'recovery', None)
+    if recovery_val is None:
+        recovery_val = float(s.deductions or 0.0)
+    yearly_val = getattr(s, 'yearly_salary', None)
+    if yearly_val is None:
+        yearly_val = round(float(s.net_payable or s.base_salary or 0.0) * 12.0, 2)
+    account_type_val = getattr(s, 'account_type', None) or "Academy"
+    payment_mode_val = getattr(s, 'payment_mode', None)
+    if not payment_mode_val:
+        payment_mode_val = "Cash" if str(s.transaction_ref or "").upper().startswith("CASH") else "NEFT"
+
     return {
         "id": str(s.id),
         "teacherId": str(teacher_obj.id) if teacher_obj else "",
@@ -77,6 +88,10 @@ async def _format_salary(s: SalaryPayment) -> dict:
         "baseSalary": s.base_salary,
         "allowances": s.allowances,
         "deductions": s.deductions,
+        "recovery": recovery_val,
+        "yearlySalary": yearly_val,
+        "accountType": account_type_val,
+        "paymentMode": payment_mode_val,
         "netPayable": s.net_payable,
         "workingHours": getattr(s, 'working_hours', 160.0),
         "amountPaid": current_paid,
@@ -225,7 +240,18 @@ async def get_my_salaries(user_id: ObjectId) -> list[dict]:
     formatted.sort(key=lambda x: _month_sort_key(x.get("month", "")), reverse=True)
     return formatted
 
-async def update_salary(id: str, base_salary: float, allowances: float, deductions: float, net_payable: float) -> dict:
+async def update_salary(
+    id: str,
+    base_salary: float,
+    allowances: float,
+    deductions: float,
+    net_payable: float,
+    recovery: float = None,
+    yearly_salary: float = None,
+    account_type: str = None,
+    payment_mode: str = None,
+    working_hours: float = None
+) -> dict:
     try:
         s = await SalaryPayment.get(ObjectId(id))
         if not s:
@@ -234,6 +260,20 @@ async def update_salary(id: str, base_salary: float, allowances: float, deductio
         s.allowances = allowances
         s.deductions = deductions
         s.net_payable = net_payable
+        if recovery is not None:
+            s.recovery = float(recovery)
+        else:
+            s.recovery = float(deductions or 0.0)
+        if yearly_salary is not None:
+            s.yearly_salary = float(yearly_salary)
+        else:
+            s.yearly_salary = round(float(net_payable or base_salary or 0.0) * 12.0, 2)
+        if account_type:
+            s.account_type = account_type
+        if payment_mode:
+            s.payment_mode = payment_mode
+        if working_hours is not None:
+            s.working_hours = float(working_hours)
         current_paid = float(getattr(s, 'amount_paid', 0.0) or 0.0)
         if s.status in ["Disbursed", "Fully Paid"]:
             s.amount_paid = net_payable
@@ -247,7 +287,7 @@ async def update_salary(id: str, base_salary: float, allowances: float, deductio
     except:
         raise HTTPException(status_code=404, detail="Salary not found")
 
-async def disburse_salary(id: str, amount: float = None) -> dict:
+async def disburse_salary(id: str, amount: float = None, payment_mode: str = "NEFT", account_type: str = None) -> dict:
     try:
         s = await SalaryPayment.get(ObjectId(id))
         if not s:
@@ -273,8 +313,13 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
         else:
             s.status = "Partially Paid"
             
+        mode_clean = "Cash" if str(payment_mode or "").strip().lower() == "cash" else "NEFT"
+        s.payment_mode = mode_clean
+        if account_type:
+            s.account_type = account_type
         s.disbursed_date = datetime.utcnow()
-        txn_ref = f"NEFT-{random.randint(1000000, 9999999)}"
+        prefix = "CASH" if mode_clean == "Cash" else "NEFT"
+        txn_ref = f"{prefix}-{random.randint(1000000, 9999999)}"
         if s.transaction_ref == "--" or not s.transaction_ref:
             s.transaction_ref = txn_ref
             
@@ -284,7 +329,8 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
         s.installments.append(Installment(
             amount=payment_amount,
             date=datetime.utcnow(),
-            transaction_ref=txn_ref
+            transaction_ref=txn_ref,
+            payment_mode=mode_clean
         ))
         await s.save()
 

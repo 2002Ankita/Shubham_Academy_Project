@@ -105,7 +105,13 @@ async def _format_student(student: Student) -> dict:
         "full_name": student_name,
         "email": student_email,
         "mobile_number": getattr(student, "mobile_number", "") or "",
-        "parent_mobile": getattr(student, "parent_mobile", "") or "",
+        "phone": getattr(student, "mobile_number", "") or "",
+        "parent_mobile": getattr(student, "parent_mobile", "") or getattr(student, "father_mobile", "") or getattr(student, "mother_mobile", "") or "",
+        "parentPhone": getattr(student, "parent_mobile", "") or getattr(student, "father_mobile", "") or getattr(student, "mother_mobile", "") or "",
+        "father_mobile": getattr(student, "father_mobile", "") or getattr(student, "parent_mobile", "") or "",
+        "fatherPhone": getattr(student, "father_mobile", "") or getattr(student, "parent_mobile", "") or "",
+        "mother_mobile": getattr(student, "mother_mobile", "") or "",
+        "motherPhone": getattr(student, "mother_mobile", "") or "",
         "date_of_birth": student.date_of_birth,
         "gender": student.gender or "",
         "address": student.address or "",
@@ -172,6 +178,14 @@ async def _format_student(student: Student) -> dict:
         "concession_value": getattr(student, "concession_value", getattr(student, "discount_amount", 0.0)) or 0.0,
         "concession_approved_by": getattr(student, "concession_approved_by", getattr(student, "discount_approved_by", None)),
         "concession_approved_at": getattr(student, "concession_approved_at", getattr(student, "discount_approved_at", None)),
+        "admission_confirmation_status": getattr(student, "admission_confirmation_status", None) or ("CONFIRMED" if not getattr(student, "admission_confirmation_token", None) else "PENDING"),
+        "admission_confirmation_token": getattr(student, "admission_confirmation_token", None),
+        "admission_confirmation_sent_at": getattr(student, "admission_confirmation_sent_at", None),
+        "parent_confirmed_at": getattr(student, "parent_confirmed_at", None),
+        "parent_confirmed_by": getattr(student, "parent_confirmed_by", None),
+        "terms_accepted": bool(getattr(student, "terms_accepted", False)),
+        "terms_accepted_at": getattr(student, "terms_accepted_at", None),
+        "inquiry_details": getattr(student, "inquiry_details", None),
     }
 
 def is_superadmin_user(user: User) -> bool:
@@ -309,14 +323,24 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
         raise HTTPException(status_code=400, detail="Student full name is required")
 
     clean_mobile = re.sub(r'\D', '', raw_mobile)
-    clean_parent_mobile = re.sub(r'\D', '', raw_parent_mobile)
+    raw_father_mobile = str(data.get("father_mobile") or data.get("fatherMobile") or data.get("fatherPhone") or data.get("parent_mobile") or data.get("parentPhone") or data.get("parentMobile") or "").strip()
+    raw_mother_mobile = str(data.get("mother_mobile") or data.get("motherMobile") or data.get("motherPhone") or "").strip()
+
+    clean_father_mobile = re.sub(r'\D', '', raw_father_mobile) if raw_father_mobile else ""
+    clean_mother_mobile = re.sub(r'\D', '', raw_mother_mobile) if raw_mother_mobile else ""
+    clean_parent_mobile = clean_father_mobile or clean_mother_mobile or re.sub(r'\D', '', raw_parent_mobile)
 
     if len(clean_mobile) < 10:
         raise HTTPException(status_code=400, detail="Student mobile number must be at least 10 digits")
-    if len(clean_parent_mobile) < 10:
-        raise HTTPException(status_code=400, detail="Parent mobile number must be at least 10 digits")
-    if clean_mobile == clean_parent_mobile:
-        raise HTTPException(status_code=400, detail="Student and parent mobile numbers must be different")
+    if not clean_parent_mobile or len(clean_parent_mobile) < 10:
+        raise HTTPException(status_code=400, detail="Father or Parent mobile number must be at least 10 digits")
+    if clean_mobile == clean_parent_mobile or (clean_father_mobile and clean_mobile == clean_father_mobile):
+        raise HTTPException(status_code=400, detail="Student and father/parent mobile numbers must be different")
+    if clean_mother_mobile:
+        if len(clean_mother_mobile) < 10:
+            raise HTTPException(status_code=400, detail="Mother mobile number must be at least 10 digits")
+        if clean_mobile == clean_mother_mobile:
+            raise HTTPException(status_code=400, detail="Student and mother mobile numbers must be different")
 
     raw_roll = str(data.get("rollNumber") or data.get("student_id") or data.get("roll_number") or "").strip()
     if raw_roll and not (raw_roll.startswith("STU-") and len(raw_roll) == 10 and re.match(r"^STU-[0-9A-Fa-f]{6}$", raw_roll)):
@@ -470,7 +494,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             final_fees=total_fees,
             paid_fees=paid_fees,
             remaining_fees=remaining_fees,
-            status="Active",
+            status="Pending Parent Confirmation",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
         )
@@ -508,7 +532,7 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             final_fees=total_fees,
             paid_fees=paid_fees,
             remaining_fees=remaining_fees,
-            status="Active",
+            status="Pending Parent Confirmation",
             admission_date=datetime.utcnow(),
             created_at=datetime.utcnow()
         )
@@ -608,6 +632,8 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             full_name=full_name,
             mobile_number=clean_mobile,
             parent_mobile=clean_parent_mobile,
+            father_mobile=clean_father_mobile or clean_parent_mobile or None,
+            mother_mobile=clean_mother_mobile or None,
             email=email,
             admission_type=admission_type,
             admissions=admissions_list,
@@ -638,7 +664,34 @@ async def create_student(student_in: Any, current_user: Optional[User] = None) -
             concession_type=conc_type,
             concession_value=conc_val,
             concession_approved_by=disc_approved_by,
-            concession_approved_at=disc_approved_at
+            concession_approved_at=disc_approved_at,
+            admission_confirmation_status="PENDING",
+            admission_confirmation_token=f"CONF-{uuid.uuid4().hex[:10].upper()}",
+            admission_confirmation_sent_at=datetime.utcnow(),
+            terms_accepted=False,
+            inquiry_details={
+                "full_name": full_name,
+                "student_id": student_id,
+                "email": email,
+                "mobile_number": clean_mobile,
+                "father_mobile": clean_father_mobile or clean_parent_mobile or "",
+                "mother_mobile": clean_mother_mobile or "",
+                "branch": norm_branch,
+                "admission_type": admission_type,
+                "standard": norm_std,
+                "academic_batch": norm_batch,
+                "session": norm_session,
+                "academic_year": data.get("academic_year") or "2025-2026",
+                "original_fees": orig_fees,
+                "discount_amount": disc_amount,
+                "discount_reason": disc_reason,
+                "total_fees": total_fees,
+                "paid_fees": paid_fees,
+                "remaining_fees": remaining_fees,
+                "previous_school": data.get("previous_school") or "",
+                "address": data.get("address") or "",
+                "parent_name": data.get("parent_name") or "",
+            }
         )
         if data.get("date_of_birth"):
             student.date_of_birth = data["date_of_birth"]
@@ -902,39 +955,47 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    is_student_role = current_user and getattr(current_user, "role", "").upper() == "STUDENT"
+    user_role = (getattr(current_user, "role", "") or "").upper().replace("-", "_") if current_user else ""
+    is_student_role = user_role == "STUDENT"
 
-    # Role-Based Access Control for STUDENT role:
     if is_student_role:
         # 1. Authorize: Student can only edit their own profile
         linked_user_id = str(student.user.id if isinstance(student.user, User) else student.user.ref.id)
-        if linked_user_id != str(current_user.id):
+        if current_user and linked_user_id != str(current_user.id):
             raise HTTPException(status_code=403, detail="Forbidden: You can only update your own student profile.")
 
-        # 2. Enforce READ-ONLY for Admin-entered fields:
+        # 2. Enforce READ-ONLY for all Admin-entered fields:
+        # Whatever Academy Admin / Batch Manager fills during admission cannot be edited by student
         admin_locked_fields = [
-            "full_name",
-            "name",
-            "mobile_number",
-            "phone",
-            "parent_mobile",
-            "parentPhone",
-            "total_fees",
-            "totalFees",
-            "paid_fees",
-            "paidFees",
-            "remaining_fees",
-            "remainingFees",
-            "rfid_tag",
-            "rfidCard",
-            "student_id",
-            "rollNumber"
+            "full_name", "name", "fullName",
+            "mobile_number", "phone", "mobileNumber",
+            "father_mobile", "fatherMobile", "fatherPhone",
+            "mother_mobile", "motherMobile", "motherPhone",
+            "parent_mobile", "parentMobile", "parentPhone",
+            "student_id", "rollNumber", "roll_number",
+            "branch",
+            "session",
+            "academic_batch", "academicBatch",
+            "standard",
+            "batch",
+            "academic_year",
+            "total_fees", "totalFees",
+            "paid_fees", "paidFees",
+            "remaining_fees", "remainingFees",
+            "rfid_tag", "rfidCard",
+            "original_fees", "originalFees",
+            "discount_amount", "discountAmount",
+            "discount_requested_amount", "discountRequestedAmount",
+            "discount_reason", "discountReason",
+            "discount_status",
+            "discount_offered_by",
+            "discount_recommended_by",
+            "discount_approved_by",
+            "concession_type",
+            "concession_value",
+            "admission_type", "admissionType",
+            "admissions"
         ]
-        if getattr(student, "batch", None):
-            admin_locked_fields.append("batch")
-        if getattr(student, "standard", None):
-            admin_locked_fields.append("standard")
-
         for field in admin_locked_fields:
             student_in.pop(field, None)
 
@@ -951,20 +1012,18 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                 await student.user.save()
             del student_in["email"]
 
-        # 4. Check profile completeness based on filled data
+        # 4. Check profile completeness based on remaining personal fields filled by student
         check_dob = student_in.get("date_of_birth") or student.date_of_birth
         check_gender = student_in.get("gender") or student.gender
         check_address = student_in.get("address") or student.address
         check_parent_name = student_in.get("parent_name") or student.parent_name
-        check_standard = student_in.get("standard") or student.standard
-        check_batch = student_in.get("batch") or student.batch
 
         student_in["profile_completed"] = bool(
-            check_dob and check_gender and check_address and check_parent_name and check_standard and check_batch
+            check_dob and check_gender and check_address and check_parent_name
         )
 
     else:
-        # Admin / Super Admin role: can update all fields including name and fees
+        # Admin / Super Admin / Batch Manager role: can update all fields including name and fees
         if "full_name" in student_in or "name" in student_in or "fullName" in student_in:
             new_name = (student_in.get("full_name") or student_in.get("name") or student_in.get("fullName") or "").strip()
             if new_name:
@@ -1017,6 +1076,24 @@ async def update_student(id: str, student_in: dict, current_user: Optional[User]
                 student_in["parent_mobile"] = clean_p
             student_in.pop("parentPhone", None)
             student_in.pop("parentMobile", None)
+
+        if "father_mobile" in student_in or "fatherPhone" in student_in or "fatherMobile" in student_in:
+            clean_f = re.sub(r"\D", "", str(student_in.get("father_mobile") or student_in.get("fatherPhone") or student_in.get("fatherMobile") or ""))
+            if clean_f:
+                student.father_mobile = clean_f
+                student_in["father_mobile"] = clean_f
+                if not student.parent_mobile:
+                    student.parent_mobile = clean_f
+            student_in.pop("fatherPhone", None)
+            student_in.pop("fatherMobile", None)
+
+        if "mother_mobile" in student_in or "motherPhone" in student_in or "motherMobile" in student_in:
+            clean_m = re.sub(r"\D", "", str(student_in.get("mother_mobile") or student_in.get("motherPhone") or student_in.get("motherMobile") or ""))
+            if clean_m:
+                student.mother_mobile = clean_m
+                student_in["mother_mobile"] = clean_m
+            student_in.pop("motherPhone", None)
+            student_in.pop("motherMobile", None)
 
         if "parent_name" in student_in or "parentName" in student_in:
             pname = (student_in.get("parent_name") or student_in.get("parentName") or "").strip()
@@ -1682,3 +1759,73 @@ async def get_discount_approvals(status: str = None, branch: str = None) -> list
             "rejection_reason": a.rejection_reason
         })
     return res
+
+
+ADMISSION_TERMS_AND_CONDITIONS = [
+    "1. Admission is provisional until the parent/guardian verifies all inquiry/registration details and accepts these Terms & Conditions.",
+    "2. Course fees paid are non-refundable and non-transferable under any circumstances once the batch commences.",
+    "3. Minimum 85% attendance in lectures and weekly/monthly tests is mandatory for academic progression and performance reporting.",
+    "4. All core academic & contact records (Name, Batch, Campus, Parent Mobile Numbers, Fee Structure) are strictly read-only on the student portal and can only be modified by Academy Management.",
+    "5. Any fee concession/discount is subject to final Superadmin approval and timely payment of remaining installments as per the agreed schedule.",
+    "6. Parents consent to receive official SMS, WhatsApp, and in-app notifications regarding attendance, lecture schedules, cancellations, exam results, and fee updates on both Father and Mother mobile numbers.",
+    "7. Students must adhere to Shubham Academy's code of conduct, RFID gate discipline, and campus rules at all times."
+]
+
+
+async def _find_student_by_confirmation_token_or_id(token_or_id: str) -> Optional[Student]:
+    if not token_or_id:
+        return None
+    clean = token_or_id.strip()
+    student = await Student.find_one({"admission_confirmation_token": clean})
+    if student:
+        return student
+    return await resolve_student(clean)
+
+
+async def get_admission_confirmation_details(token_or_id: str) -> dict:
+    student = await _find_student_by_confirmation_token_or_id(token_or_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Admission confirmation record not found or invalid link.")
+    formatted = await _format_student(student)
+    formatted["terms_and_conditions"] = ADMISSION_TERMS_AND_CONDITIONS
+    return formatted
+
+
+async def accept_admission_confirmation(
+    token_or_id: str,
+    terms_accepted: bool = False,
+    accepted_by: str = "Parent",
+    remarks: Optional[str] = None
+) -> dict:
+    if not terms_accepted:
+        raise HTTPException(
+            status_code=400,
+            detail="Parent must accept the Terms & Conditions to confirm admission."
+        )
+    student = await _find_student_by_confirmation_token_or_id(token_or_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Admission confirmation record not found or invalid link.")
+
+    now = datetime.utcnow()
+    student.admission_confirmation_status = "CONFIRMED"
+    student.terms_accepted = True
+    student.terms_accepted_at = now
+    student.parent_confirmed_at = now
+    student.parent_confirmed_by = (accepted_by or "Parent").strip()
+    if remarks and getattr(student, "inquiry_details", None) is not None:
+        details = dict(student.inquiry_details or {})
+        details["parent_remarks"] = remarks.strip()
+        student.inquiry_details = details
+
+    if getattr(student, "admissions", None):
+        updated_adms = []
+        for idx, adm in enumerate(student.admissions):
+            if getattr(adm, "status", "") == "Pending Parent Confirmation":
+                adm.status = "Active" if idx == 0 else "Upcoming"
+            updated_adms.append(adm)
+        student.admissions = updated_adms
+
+    await student.save()
+    formatted = await _format_student(student)
+    formatted["terms_and_conditions"] = ADMISSION_TERMS_AND_CONDITIONS
+    return formatted

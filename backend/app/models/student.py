@@ -11,6 +11,8 @@ class Student(Document):
     full_name: Optional[str] = None
     mobile_number: Annotated[str, Indexed(unique=True)]
     parent_mobile: Optional[str] = None
+    father_mobile: Optional[str] = None
+    mother_mobile: Optional[str] = None
     email: Optional[str] = None
     date_of_birth: Optional[datetime] = None
     gender: Optional[str] = None
@@ -44,6 +46,16 @@ class Student(Document):
     # Student Admission Details
     admission_type: Optional[str] = "11th Standard Only"  # "11th Standard Only", "12th Standard Only", "11th + 12th Standard (Two-Year Admission)"
     admissions: List[AdmissionRecord] = []
+
+    # Admission Parent Confirmation & Terms Acceptance
+    admission_confirmation_status: str = "PENDING"  # "PENDING", "CONFIRMED", "DECLINED"
+    admission_confirmation_token: Optional[str] = None
+    admission_confirmation_sent_at: Optional[datetime] = None
+    parent_confirmed_at: Optional[datetime] = None
+    parent_confirmed_by: Optional[str] = None
+    terms_accepted: bool = False
+    terms_accepted_at: Optional[datetime] = None
+    inquiry_details: Optional[dict] = None
 
     # Student Discount & Concession Details
     original_fees: float = 0.0

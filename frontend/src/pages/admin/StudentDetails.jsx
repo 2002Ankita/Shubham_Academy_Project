@@ -11,6 +11,7 @@ import Input from '../../components/common/Input';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 import { formatStudentBatchDisplay } from '../../config/branchBatchConfig';
+import { getAdmissionConfirmUrl, buildAdmissionConfirmationMessage } from '../../utils/admissionTerms';
 import {
   ArrowLeft,
   GraduationCap,
@@ -380,10 +381,13 @@ export default function StudentDetails() {
 
             <h6 className="fw-bold text-sa-charcoal mb-2 fs-6">Parent Details (SMS Alert)</h6>
             <p className="small text-sa-muted mb-1">
-              <strong>Parent Name:</strong> {student.parent_name || student.parentName || 'Pending student entry'}
+              <strong>Parent Name:</strong> {student.parent_name || student.parentName || 'Pending entry'}
+            </p>
+            <p className="small text-sa-muted mb-1">
+              <strong>Father Mobile (Alerts):</strong> {student.father_mobile || student.fatherPhone || student.parent_mobile || student.parentPhone || '+91 98220 00000'}
             </p>
             <p className="small text-sa-muted mb-0">
-              <strong>Emergency / Alert Phone:</strong> {student.parent_mobile || student.parentPhone || '+91 98220 00000'}
+              <strong>Mother Mobile:</strong> {student.mother_mobile || student.motherPhone || 'Not registered'}
             </p>
 
             <hr className="my-3 opacity-25" />
@@ -416,6 +420,74 @@ export default function StudentDetails() {
             <p className="small text-sa-muted mb-0">
               <strong>Placement Summary:</strong> <span className="badge bg-dark text-white ms-1">{formatStudentBatchDisplay(student)}</span>
             </p>
+
+            <hr className="my-3 opacity-25" />
+
+            <h6 className="fw-bold text-sa-charcoal mb-2 fs-6 d-flex align-items-center gap-1.5">
+              <ShieldCheck size={16} style={{ color: '#8B1216' }} />
+              <span>Parent Admission Confirmation</span>
+            </h6>
+            {(student.admission_confirmation_status || 'CONFIRMED') === 'CONFIRMED' ? (
+              <div className="p-2.5 rounded-3 bg-success-subtle border border-success-subtle text-success small">
+                <div className="fw-bold d-flex align-items-center gap-1">
+                  <CheckCircle2 size={14} />
+                  <span>Admission Confirmed (Terms Accepted)</span>
+                </div>
+                {student.parent_confirmed_by && (
+                  <div className="mt-1" style={{ fontSize: '0.75rem' }}>
+                    Confirmed by <strong>{student.parent_confirmed_by}</strong>
+                    {student.parent_confirmed_at ? ` on ${new Date(student.parent_confirmed_at).toLocaleString()}` : ''}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-3 bg-warning-subtle border border-warning-subtle text-warning-emphasis small d-flex flex-column gap-2">
+                <div className="fw-bold d-flex align-items-center gap-1">
+                  <Clock size={14} />
+                  <span>Pending Parent Acceptance</span>
+                </div>
+                <div style={{ fontSize: '0.75rem' }}>
+                  Admission is provisional until parent reviews inquiry details & accepts Terms & Conditions.
+                </div>
+                <div className="d-flex flex-wrap gap-1.5 mt-1">
+                  <button
+                    type="button"
+                    className="btn btn-outline-dark btn-sm py-1 px-2 fw-semibold"
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => {
+                      const url = getAdmissionConfirmUrl(student.admission_confirmation_token || student.student_id || student.id);
+                      navigator.clipboard?.writeText(url);
+                      toast.success('Parent confirmation link copied!');
+                    }}
+                  >
+                    Copy Confirm Link
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-success btn-sm py-1 px-2 fw-semibold"
+                    style={{ fontSize: '0.72rem' }}
+                    onClick={() => {
+                      const res = notificationService.notifyAdmissionConfirmationToParents(student);
+                      if (res.fatherUrl) window.open(res.fatherUrl, '_blank', 'noopener,noreferrer');
+                      toast.info('Admission confirmation dispatched to parents.');
+                    }}
+                  >
+                    💬 WA Father
+                  </button>
+                  {(student.mother_mobile || student.motherPhone) && (
+                    <a
+                      href={`https://wa.me/${((student.mother_mobile || student.motherPhone).replace(/\D/g, '').length === 10 ? '91' : '') + (student.mother_mobile || student.motherPhone).replace(/\D/g, '')}?text=${encodeURIComponent(buildAdmissionConfirmationMessage(student, 'Mother', true))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-success btn-sm py-1 px-2 fw-semibold"
+                      style={{ fontSize: '0.72rem' }}
+                    >
+                      💬 WA Mother
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
