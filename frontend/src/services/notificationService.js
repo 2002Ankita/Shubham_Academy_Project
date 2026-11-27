@@ -52,11 +52,13 @@ function getCombinedNotifications(isSuperAdmin = false) {
     ? customItems
     : customItems.filter(n => !n.forSuperAdminOnly);
 
-  if (activeBranch) {
+  // Superadmin receives all notifications from both branches (Mangalvar Peth & Tarabai Park)
+  if (activeBranch && !isSuperAdmin) {
     const isTP = activeBranch === 'Tarabai Park';
     filteredCustom = filteredCustom.filter(n => {
       if (n.branch) {
         const bNorm = n.branch.toLowerCase();
+        if (bNorm === 'all' || bNorm === 'all campuses') return true;
         return isTP ? bNorm.includes('tarabai') : (bNorm.includes('mangalvar') || bNorm.includes('mangalwar'));
       }
       const sName = (n.studentName || n.title || n.details || '').toLowerCase();
@@ -324,17 +326,50 @@ export const notificationService = {
     }
   },
 
-  // Backwards compatibility for other potential consumers
-  getAll: async (isSuperAdmin = false) => {
+  // Unified multi-branch and batch-wise notifications from database notices & client events
+  getAll: async (isSuperAdmin = false, params = {}) => {
+    let backendItems = [];
     try {
-      const res = await api.get('/notifications');
-      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data;
+      const res = await api.get('/notices', { params });
+      if (res?.data && Array.isArray(res.data)) {
+        backendItems = res.data.map(n => ({
+          id: n.id,
+          title: n.title,
+          time: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedDateTime: new Date(n.created_at).toLocaleString(),
+          type: n.category === 'Salary & Accounts' ? 'salary_disbursed' : (n.category === 'Fees & Accounts' ? 'fee_payment' : 'alert'),
+          category: n.category || 'General',
+          priority: n.priority || 'Normal',
+          author: n.created_by_name || 'System',
+          details: n.content,
+          branch: n.branch,
+          batch: n.batch,
+          standard: n.standard,
+          read: getReadIds().includes(n.id),
+          forSuperAdminOnly: (n.target_audiences || []).includes('SUPER_ADMIN') && !(n.target_audiences || []).includes('ALL')
+        }));
       }
-    } catch {
-      // fallback to mock
+    } catch (err) {
+      // Backend notices fallback
     }
-    return notificationService.getNotifications(isSuperAdmin);
+
+    const localItems = notificationService.getNotifications(isSuperAdmin);
+    const seenIds = new Set(backendItems.map(b => b.id));
+    const merged = [...backendItems, ...localItems.filter(l => !seenIds.has(l.id))];
+
+    // Branch filtering (for non-superadmin users)
+    const activeBranch = getUserBranch();
+    if (!isSuperAdmin && activeBranch && activeBranch !== 'ALL') {
+      const isTP = activeBranch.toLowerCase().includes('tarabai');
+      return merged.filter(item => {
+        if (!item.branch || item.branch === 'ALL' || item.branch === 'All Campuses') return true;
+        const b = item.branch.toLowerCase();
+        return isTP ? b.includes('tarabai') : (b.includes('mangalvar') || b.includes('mangalwar'));
+      });
+    }
+
+    return merged;
   },
 
   // Academy Admin: Fetch Notification Dispatch History (Absence, Test Schedules, Reminders)

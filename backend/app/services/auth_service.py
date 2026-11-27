@@ -97,12 +97,12 @@ async def authenticate(user_in: UserLogin) -> str:
                 is_active=True
             )
             await user.insert()
-        elif lower_id in ["superadmin@shubham.edu"]:
+        elif lower_id in ["superadmin@shubham.edu", "superadmin"]:
             user = User(
                 email="superadmin@shubham.edu",
                 full_name="Shubham Sharma",
                 role="super_admin",
-                branch="Mangalvar Peth",
+                branch="All Campuses",
                 hashed_password=get_password_hash("password123"),
                 is_active=True
             )
@@ -319,14 +319,15 @@ async def ensure_default_users():
     import re
     
     users = [
-        # Mangalvar Peth Campus
+        # Unified Super Admin across both branches
         {
             "email": "superadmin@shubham.edu",
             "full_name": "Shubham Sharma",
             "role": "super_admin",
-            "branch": "Mangalvar Peth",
+            "branch": "All Campuses",
             "password": "password123"
         },
+        # Mangalvar Peth Campus
         {
             "email": "admin@shubham.edu",
             "full_name": "Rajesh Patil",

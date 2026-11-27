@@ -44,6 +44,7 @@ export default function Notifications() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterLecture, setFilterLecture] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterInboxBatch, setFilterInboxBatch] = useState('all');
 
   // Data states
   const [inboxNotifications, setInboxNotifications] = useState([]);
@@ -659,6 +660,50 @@ export default function Notifications() {
       {/* TAB 2: SYSTEM & APPROVALS INBOX (Existing Notifications View) */}
       {activeTab === 'inbox' && (
         <div className="sa-card p-4 bg-white border shadow-2xs">
+          {/* Batch Filter Ribbon for Inbox */}
+          <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-1.5 overflow-auto w-100 w-md-auto pb-1 pb-md-0">
+              <span className="small fw-bold text-sa-muted me-1 d-flex align-items-center gap-1" style={{ fontSize: '11.5px' }}>
+                <Filter size={13} /> Batch:
+              </span>
+              {[
+                { label: 'All Batches', val: 'all' },
+                { label: '11th PCM', val: '11th pcm' },
+                { label: '11th PCB', val: '11th pcb' },
+                { label: '11th PCMB', val: '11th pcmb' },
+                { label: '12th PCM', val: '12th pcm' },
+                { label: '12th PCB', val: '12th pcb' },
+                { label: '12th PCMB', val: '12th pcmb' }
+              ].map(b => (
+                <button
+                  key={b.val}
+                  type="button"
+                  onClick={() => setFilterInboxBatch(b.val)}
+                  className={`btn btn-xs rounded-pill py-1 px-2.5 fw-semibold text-nowrap transition-all ${
+                    filterInboxBatch === b.val ? 'btn-danger text-white shadow-2xs' : 'btn-outline-secondary bg-white text-sa-charcoal'
+                  }`}
+                  style={{
+                    fontSize: '11px',
+                    backgroundColor: filterInboxBatch === b.val ? '#8B1216' : undefined,
+                    borderColor: filterInboxBatch === b.val ? '#8B1216' : '#E2E8F0'
+                  }}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+            <span className="small text-muted" style={{ fontSize: '11px' }}>
+              Showing {inboxNotifications.filter(n => {
+                if (filterInboxBatch === 'all') return true;
+                const q = filterInboxBatch.toLowerCase().replace(/\s+/g, '');
+                const b = (n.batch || '').toLowerCase().replace(/\s+/g, '');
+                const t = (n.title || '').toLowerCase().replace(/\s+/g, '');
+                const d = (n.details || '').toLowerCase().replace(/\s+/g, '');
+                return b.includes(q) || t.includes(q) || d.includes(q);
+              }).length} of {inboxNotifications.length} alerts
+            </span>
+          </div>
+
           {inboxNotifications.length === 0 ? (
             <div className="text-center py-5 text-muted small">
               <Bell size={32} className="text-muted mb-2 d-block mx-auto opacity-50" />
@@ -666,14 +711,30 @@ export default function Notifications() {
             </div>
           ) : (
             <div className="d-flex flex-column gap-3">
-              {inboxNotifications.map((n, i) => {
+              {inboxNotifications
+                .filter(n => {
+                  if (filterInboxBatch === 'all') return true;
+                  const q = filterInboxBatch.toLowerCase().replace(/\s+/g, '');
+                  const b = (n.batch || '').toLowerCase().replace(/\s+/g, '');
+                  const t = (n.title || '').toLowerCase().replace(/\s+/g, '');
+                  const d = (n.details || '').toLowerCase().replace(/\s+/g, '');
+                  return b.includes(q) || t.includes(q) || d.includes(q);
+                })
+                .map((n, i) => {
                 const isDiscountApproval = n.type === 'discount_approval';
+                const isFee = (n.category || '').includes('Fee') || (n.type || '').includes('fee');
+                const isSalary = (n.category || '').includes('Salary') || (n.type || '').includes('salary');
+
                 return (
                   <div
                     key={n.id || i}
                     className={`p-3.5 rounded-3 border d-flex align-items-start justify-content-between gap-3 ${
                       isDiscountApproval
                         ? 'bg-warning-subtle border-warning'
+                        : isFee
+                        ? 'bg-white shadow-2xs border-start border-4 border-success'
+                        : isSalary
+                        ? 'bg-white shadow-2xs border-start border-4 border-primary'
                         : n.read
                           ? 'bg-light bg-opacity-50'
                           : 'bg-white shadow-2xs border-start border-4 border-sa-primary'
@@ -684,14 +745,28 @@ export default function Notifications() {
                         className={`p-2.5 rounded-circle mt-1 flex-shrink-0 ${
                           isDiscountApproval
                             ? 'bg-warning text-dark'
+                            : isFee
+                            ? 'bg-success-subtle text-success'
+                            : isSalary
+                            ? 'bg-primary-subtle text-primary'
                             : 'bg-sa-primary bg-opacity-10 text-sa-primary'
                         }`}
                       >
-                        {isDiscountApproval ? <ShieldCheck size={18} /> : <Bell size={18} />}
+                        {isDiscountApproval ? <ShieldCheck size={18} /> : isFee ? '💰' : isSalary ? '💸' : <Bell size={18} />}
                       </div>
                       <div className="flex-grow-1">
-                        <div className="d-flex align-items-center gap-2 mb-1">
+                        <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
                           <h6 className="fw-bold text-sa-charcoal mb-0 fs-6">{n.title}</h6>
+                          {n.batch && (
+                            <span className="badge bg-indigo-subtle text-primary border border-primary-subtle small fw-semibold" style={{ fontSize: '10px' }}>
+                              {n.batch}
+                            </span>
+                          )}
+                          {n.branch && (
+                            <span className="badge bg-light text-muted border small" style={{ fontSize: '10px' }}>
+                              {n.branch}
+                            </span>
+                          )}
                           {isDiscountApproval && (
                             <span className="badge bg-warning text-dark small fw-semibold">
                               Superadmin Approval Required
@@ -710,6 +785,30 @@ export default function Notifications() {
                             >
                               <span>Open Concession Queue</span>
                               <ChevronRight size={13} />
+                            </button>
+                          </div>
+                        )}
+                        {isFee && (
+                          <div className="mt-1.5">
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-success py-0.5 px-2 rounded-1 fw-semibold"
+                              style={{ fontSize: '10.5px' }}
+                              onClick={() => navigate('/admin/fees')}
+                            >
+                              Open Fee Register &rarr;
+                            </button>
+                          </div>
+                        )}
+                        {isSalary && (
+                          <div className="mt-1.5">
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-primary py-0.5 px-2 rounded-1 fw-semibold"
+                              style={{ fontSize: '10.5px' }}
+                              onClick={() => navigate('/admin/salary')}
+                            >
+                              Open Payroll Register &rarr;
                             </button>
                           </div>
                         )}

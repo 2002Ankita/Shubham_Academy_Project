@@ -582,25 +582,29 @@ async def add_fee_payment(payment_in: FeePaymentCreate) -> dict:
         if student_name == "Student":
             student_name = getattr(student, "full_name", "") or getattr(student, "name", "Student")
 
+        student_batch = getattr(student, "batch", None) or getattr(student, "academic_batch", None) or payment.standard or "Science"
         super_users = await User.find(User.role == "super_admin").to_list()
         if not super_users:
             super_users = await User.find(User.role == "admin").to_list()
         creator = super_users[0] if super_users else None
 
         notice = Notice(
-            title=f"💰 Fee Collected: ₹{payment_in.amount_paid:,.2f} - {student_name}",
+            title=f"💰 Fee Collected: ₹{payment_in.amount_paid:,.2f} - {student_name} ({student_batch})",
             content=(
                 f"Fee payment of ₹{payment_in.amount_paid:,.2f} successfully collected from {student_name} "
-                f"({payment.standard or 'Science'}). Branch: {payment.branch}. Mode: {payment.payment_method}. "
+                f"({student_batch}). Branch: {payment.branch}. Mode: {payment.payment_method}. "
                 f"Receipt No: {receipt_no}. Remaining Dues: ₹{new_pending:,.2f}."
             ),
-            target_audiences=["SUPER_ADMIN"],
+            target_audiences=["SUPER_ADMIN", "ADMIN"],
             category="Fees & Accounts",
             priority="High",
+            branch=payment.branch,
+            batch=student_batch,
+            standard=payment.standard,
             created_by=creator
         )
         await notice.insert()
-        print(f"[Fee Notification] Successfully notified Super Admin of ₹{payment_in.amount_paid} fee collection for {student_name}")
+        print(f"[Fee Notification] Successfully notified Super Admin of ₹{payment_in.amount_paid} fee collection for {student_name} ({payment.branch})")
     except Exception as notify_err:
         print("Fee collection notice dispatch warning:", notify_err)
 

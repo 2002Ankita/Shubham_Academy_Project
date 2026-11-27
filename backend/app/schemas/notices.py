@@ -9,8 +9,14 @@ class NoticeCreate(BaseModel):
     target_batches: Optional[List[str]] = []
     category: Optional[str] = "General"
     priority: Optional[str] = "Normal"
+    branch: Optional[str] = None
+    batch: Optional[str] = None
+    standard: Optional[str] = None
 
 class NoticeResponse(NoticeCreate):
     id: str
     created_at: datetime
     created_by_name: str
+    branch: Optional[str] = None
+    batch: Optional[str] = None
+    standard: Optional[str] = None

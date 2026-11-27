@@ -57,7 +57,12 @@ import {
   AlertCircle,
   Lock,
   Unlock,
-  KeyRound
+  KeyRound,
+  Bell,
+  Filter,
+  ArrowRight,
+  DollarSign,
+  Wallet
 } from 'lucide-react';
 import { useAccountsAuth } from '../../context/AccountsAuthContext';
 export default function AdminDashboard() {
@@ -151,6 +156,31 @@ export default function AdminDashboard() {
   const [verifyModalReq, setVerifyModalReq] = useState(null);
   const [verifyRemarks, setVerifyRemarks] = useState('');
   const [isVerifyingOffline, setIsVerifyingOffline] = useState(false);
+
+  // Batch-Wise Live Notifications & Activity Alerts
+  const BATCH_OPTIONS = useMemo(() => [
+    { label: '🌟 All Batches', value: 'ALL' },
+    { label: '11th PCM', value: '11th pcm' },
+    { label: '11th PCB', value: '11th pcb' },
+    { label: '11th PCMB', value: '11th pcmb' },
+    { label: '12th PCM', value: '12th pcm' },
+    { label: '12th PCB', value: '12th pcb' },
+    { label: '12th PCMB', value: '12th pcmb' }
+  ], []);
+
+  const [dashboardNotifications, setDashboardNotifications] = useState([]);
+  const [selectedBatchFilter, setSelectedBatchFilter] = useState('ALL');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [notifBranchFilter, setNotifBranchFilter] = useState(isSuperAdmin ? 'ALL' : (selectedCampus || 'ALL'));
+
+  const fetchDashboardNotifications = async () => {
+    try {
+      const data = await notificationService.getAll(isSuperAdmin);
+      setDashboardNotifications(data || []);
+    } catch (e) {
+      console.warn('Dashboard notifications fetch error:', e);
+    }
+  };
 
   const fetchDashboardData = async (targetCampus = selectedCampus) => {
     try {
@@ -438,6 +468,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDashboardData(selectedCampus);
     fetchFeeStats(selectedCampus);
+    fetchDashboardNotifications();
 
     const handleActivitiesUpdate = async () => {
       try {
@@ -462,24 +493,74 @@ export default function AdminDashboard() {
 
     const handleFeesUpdate = () => {
       fetchFeeStats(selectedCampus);
+      fetchDashboardNotifications();
     };
 
     window.addEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
     window.addEventListener('sa_timetable_updated', handleTimetableUpdate);
     window.addEventListener('sa_fees_updated', handleFeesUpdate);
+    window.addEventListener('sa_notifications_updated', fetchDashboardNotifications);
+    window.addEventListener('sa_fee_collected', fetchDashboardNotifications);
+    window.addEventListener('sa_salary_disbursed', fetchDashboardNotifications);
+    window.addEventListener('sa_offline_fee_requests_updated', fetchDashboardNotifications);
     window.addEventListener('focus', handleFeesUpdate);
     window.addEventListener('focus', handleActivitiesUpdate);
+    window.addEventListener('focus', fetchDashboardNotifications);
     window.addEventListener('storage', handleActivitiesUpdate);
 
     return () => {
       window.removeEventListener('sa_daily_activities_updated', handleActivitiesUpdate);
       window.removeEventListener('sa_timetable_updated', handleTimetableUpdate);
       window.removeEventListener('sa_fees_updated', handleFeesUpdate);
+      window.removeEventListener('sa_notifications_updated', fetchDashboardNotifications);
+      window.removeEventListener('sa_fee_collected', fetchDashboardNotifications);
+      window.removeEventListener('sa_salary_disbursed', fetchDashboardNotifications);
+      window.removeEventListener('sa_offline_fee_requests_updated', fetchDashboardNotifications);
       window.removeEventListener('focus', handleFeesUpdate);
       window.removeEventListener('focus', handleActivitiesUpdate);
+      window.removeEventListener('focus', fetchDashboardNotifications);
       window.removeEventListener('storage', handleActivitiesUpdate);
     };
   }, [selectedCampus]);
+
+  // Batch-Wise Live Notifications Filter Memo
+  const filteredDashboardNotifications = useMemo(() => {
+    return dashboardNotifications.filter((n) => {
+      // 1. Branch filter
+      if (notifBranchFilter && notifBranchFilter !== 'ALL') {
+        const isTargetTP = notifBranchFilter.toLowerCase().includes('tarabai');
+        const nBranch = (n.branch || '').toLowerCase();
+        if (nBranch && nBranch !== 'all' && nBranch !== 'all campuses') {
+          const isItemTP = nBranch.includes('tarabai');
+          if (isTargetTP !== isItemTP) return false;
+        }
+      }
+
+      // 2. Batch filter
+      if (selectedBatchFilter !== 'ALL') {
+        const q = selectedBatchFilter.toLowerCase().replace(/\s+/g, '');
+        const nBatch = (n.batch || '').toLowerCase().replace(/\s+/g, '');
+        const nTitle = (n.title || '').toLowerCase().replace(/\s+/g, '');
+        const nDetails = (n.details || '').toLowerCase().replace(/\s+/g, '');
+        const nStandard = (n.standard || '').toLowerCase().replace(/\s+/g, '');
+
+        const matches = nBatch.includes(q) || nTitle.includes(q) || nDetails.includes(q) || nStandard.includes(q);
+        if (!matches) return false;
+      }
+
+      // 3. Category filter
+      if (selectedCategoryFilter !== 'ALL') {
+        const cat = (n.category || '').toLowerCase();
+        const type = (n.type || '').toLowerCase();
+        if (selectedCategoryFilter === 'FEES' && !cat.includes('fee') && !type.includes('fee')) return false;
+        if (selectedCategoryFilter === 'SALARY' && !cat.includes('salary') && !type.includes('salary')) return false;
+        if (selectedCategoryFilter === 'CONCESSION' && !cat.includes('discount') && !type.includes('discount')) return false;
+        if (selectedCategoryFilter === 'CIRCULARS' && (cat.includes('fee') || cat.includes('salary') || type.includes('fee') || type.includes('salary'))) return false;
+      }
+
+      return true;
+    });
+  }, [dashboardNotifications, notifBranchFilter, selectedBatchFilter, selectedCategoryFilter]);
 
   // Filtered teacher activities for live admin view - dynamically synced to selected branch
   const filteredTeacherActivities = useMemo(() => {
@@ -2005,6 +2086,253 @@ export default function AdminDashboard() {
               Open Daily Log Activity Panel &rarr;
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Row: Live Batch-Wise Notifications & Financial Activity Alerts Register */}
+      <div className="sa-card bg-white p-3.5 p-xl-4 rounded-3 border mb-3 shadow-xs">
+        {/* Header */}
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2.5 pb-3 border-bottom">
+          <div className="d-flex align-items-center gap-2.5">
+            <div
+              className="rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+              style={{ width: '38px', height: '38px', backgroundColor: '#8B1216' }}
+            >
+              <Bell size={18} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <h2 className="m-0 fw-bold text-sa-charcoal" style={{ fontSize: '1.02rem' }}>
+                  Live Batch-Wise Alerts & Notifications
+                </h2>
+                <span className="badge rounded-pill bg-danger-subtle text-danger fw-bold px-2 py-0.5" style={{ fontSize: '0.70rem' }}>
+                  {filteredDashboardNotifications.length} Active Alert{filteredDashboardNotifications.length !== 1 ? 's' : ''}
+                </span>
+                {isSuperAdmin && (
+                  <span className="badge rounded-pill bg-light text-muted border px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
+                    Super Admin Master Stream
+                  </span>
+                )}
+              </div>
+              <span className="text-sa-muted" style={{ fontSize: '0.76rem' }}>
+                Batch-segregated feed for fee collections, teacher payroll disbursements, concessions, and student alerts
+              </span>
+            </div>
+          </div>
+
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            {/* Campus filter for Super Admin */}
+            {isSuperAdmin && (
+              <div className="btn-group btn-group-sm shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setNotifBranchFilter('ALL')}
+                  className={`btn py-1 px-2.5 fw-semibold ${notifBranchFilter === 'ALL' ? 'btn-dark text-white' : 'btn-outline-secondary bg-white'}`}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  🌐 Both Branches
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifBranchFilter(BRANCH_MANGALWAR)}
+                  className={`btn py-1 px-2.5 fw-semibold ${notifBranchFilter === BRANCH_MANGALWAR ? 'btn-teal text-white' : 'btn-outline-secondary bg-white'}`}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  🏛️ Mangalvar Peth
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifBranchFilter(BRANCH_TARABAI)}
+                  className={`btn py-1 px-2.5 fw-semibold ${notifBranchFilter === BRANCH_TARABAI ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'}`}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  🌲 Tarabai Park
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate('/admin/notifications')}
+              className="btn btn-sm btn-link text-decoration-none fw-bold p-0 d-inline-flex align-items-center gap-1"
+              style={{ fontSize: '0.78rem', color: '#8B1216' }}
+            >
+              <span>Full Inbox</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Batch Filter Ribbon & Category Pills */}
+        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2.5 py-2.5">
+          {/* Batch Selector Pills */}
+          <div className="d-flex align-items-center gap-1.5 overflow-auto pb-1 pb-lg-0 w-100">
+            <span className="text-sa-muted fw-bold small text-nowrap d-flex align-items-center gap-1 me-1" style={{ fontSize: '0.73rem' }}>
+              <Filter size={13} /> Batch:
+            </span>
+            {BATCH_OPTIONS.map((b) => {
+              const active = selectedBatchFilter === b.value;
+              return (
+                <button
+                  key={b.value}
+                  type="button"
+                  onClick={() => setSelectedBatchFilter(b.value)}
+                  className={`btn btn-xs rounded-pill py-1 px-2.5 text-nowrap fw-semibold transition-all ${
+                    active
+                      ? 'btn-danger text-white shadow-xs'
+                      : 'btn-outline-secondary bg-white text-sa-charcoal'
+                  }`}
+                  style={{
+                    fontSize: '0.72rem',
+                    backgroundColor: active ? '#8B1216' : undefined,
+                    borderColor: active ? '#8B1216' : '#E2E8F0'
+                  }}
+                >
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="d-flex align-items-center gap-1 flex-shrink-0">
+            {[
+              { id: 'ALL', label: 'All' },
+              { id: 'FEES', label: '💰 Fees' },
+              { id: 'SALARY', label: '💸 Salary' },
+              { id: 'CONCESSION', label: '🔔 Discounts' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategoryFilter(cat.id)}
+                className={`btn btn-xs py-0.5 px-2 rounded-1 fw-semibold ${
+                  selectedCategoryFilter === cat.id ? 'bg-light text-dark border fw-bold' : 'text-sa-muted border-0'
+                }`}
+                style={{ fontSize: '0.70rem' }}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Notification Feed Items */}
+        <div className="d-flex flex-column gap-2 overflow-auto pt-1" style={{ maxHeight: '310px' }}>
+          {filteredDashboardNotifications.length > 0 ? (
+            filteredDashboardNotifications.slice(0, 8).map((item, idx) => {
+              const isFee = (item.category || '').includes('Fee') || (item.type || '').includes('fee');
+              const isSalary = (item.category || '').includes('Salary') || (item.type || '').includes('salary');
+              const isDiscount = (item.type || '').includes('discount');
+              const isMangalItem = (item.branch || '').toLowerCase().includes('mangal');
+              const isTarabaiItem = (item.branch || '').toLowerCase().includes('tarabai');
+
+              return (
+                <div
+                  key={item.id || idx}
+                  className="p-2.5 rounded-2 border d-flex align-items-start justify-content-between gap-3 transition-all hover-shadow-sm"
+                  style={{
+                    backgroundColor: item.read ? '#FCFDFE' : '#FFFFFF',
+                    borderLeft: isFee
+                      ? '3.5px solid #16A34A'
+                      : isSalary
+                      ? '3.5px solid #7E22CE'
+                      : isDiscount
+                      ? '3.5px solid #D97706'
+                      : '3.5px solid #2563EB'
+                  }}
+                >
+                  <div className="d-flex align-items-start gap-2.5">
+                    <div
+                      className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-0.5"
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        backgroundColor: isFee ? '#DCFCE7' : isSalary ? '#F3E8FF' : isDiscount ? '#FEF3C7' : '#DBEAFE',
+                        color: isFee ? '#16A34A' : isSalary ? '#7E22CE' : isDiscount ? '#D97706' : '#2563EB'
+                      }}
+                    >
+                      {isFee ? '💰' : isSalary ? '💸' : isDiscount ? '🔔' : '📢'}
+                    </div>
+
+                    <div>
+                      <div className="d-flex align-items-center gap-1.5 flex-wrap mb-0.5">
+                        <span className="fw-bold text-sa-charcoal" style={{ fontSize: '0.82rem' }}>
+                          {item.title}
+                        </span>
+
+                        {/* Batch Tag */}
+                        {item.batch && (
+                          <span
+                            className="badge rounded-1 px-1.5 py-0.5 fw-bold"
+                            style={{ backgroundColor: '#EEF2FF', color: '#4338CA', fontSize: '0.67rem' }}
+                          >
+                            {item.batch}
+                          </span>
+                        )}
+
+                        {/* Campus Tag */}
+                        <span
+                          className="badge rounded-pill px-1.5 py-0.5 fw-semibold"
+                          style={{
+                            backgroundColor: isMangalItem ? '#F0FDFA' : isTarabaiItem ? '#FDF0F0' : '#F1F5F9',
+                            color: isMangalItem ? '#0D9488' : isTarabaiItem ? '#8B1216' : '#475569',
+                            fontSize: '0.67rem'
+                          }}
+                        >
+                          {isMangalItem ? '🏛️ Mangalvar' : isTarabaiItem ? '🌲 Tarabai' : '🌐 All Campuses'}
+                        </span>
+                      </div>
+
+                      <p className="m-0 text-sa-muted" style={{ fontSize: '0.74rem', lineHeight: 1.35 }}>
+                        {item.details}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-end flex-shrink-0">
+                    <span className="text-muted d-block" style={{ fontSize: '0.68rem' }}>
+                      {item.formattedDateTime || `${item.date || ''} ${item.time || ''}`}
+                    </span>
+                    {isFee && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/fees')}
+                        className="btn btn-link p-0 text-success text-decoration-none fw-bold small mt-1"
+                        style={{ fontSize: '0.70rem' }}
+                      >
+                        Receipts &rarr;
+                      </button>
+                    )}
+                    {isSalary && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/salary')}
+                        className="btn btn-link p-0 text-purple text-decoration-none fw-bold small mt-1"
+                        style={{ fontSize: '0.70rem', color: '#7E22CE' }}
+                      >
+                        Payroll &rarr;
+                      </button>
+                    )}
+                    {isDiscount && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/super-admin/discounts?status=PENDING')}
+                        className="btn btn-link p-0 text-warning text-decoration-none fw-bold small mt-1"
+                        style={{ fontSize: '0.70rem', color: '#D97706' }}
+                      >
+                        Review &rarr;
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-4 text-sa-muted small">
+              No notifications matching the selected batch and filters.
+            </div>
+          )}
         </div>
       </div>
 

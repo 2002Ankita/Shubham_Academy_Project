@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from typing import List
+from fastapi import APIRouter, Depends, Query
+from typing import List, Optional
 from app.schemas.notices import NoticeCreate, NoticeResponse
 from app.services.notice_service import create_notice, get_notices, delete_notice
 from app.services.auth_service import get_current_user
@@ -19,14 +19,22 @@ async def add_notice(notice_in: NoticeCreate, token: str = Depends(oauth2_scheme
         target_batches=notice.target_batches,
         category=notice.category,
         priority=notice.priority,
+        branch=notice.branch,
+        batch=notice.batch,
+        standard=notice.standard,
         created_at=notice.created_at,
         created_by_name=user.full_name
     )
 
 @router.get("", response_model=List[NoticeResponse])
-async def list_notices(token: str = Depends(oauth2_scheme)):
-    await get_current_user(token)
-    notices = await get_notices()
+async def list_notices(
+    branch: Optional[str] = Query(None),
+    batch: Optional[str] = Query(None),
+    audience: Optional[str] = Query(None),
+    token: str = Depends(oauth2_scheme)
+):
+    current_user = await get_current_user(token)
+    notices = await get_notices(branch=branch, batch=batch, audience=audience, current_user=current_user)
     return [
         NoticeResponse(
             id=str(n.get("id")),
@@ -36,6 +44,9 @@ async def list_notices(token: str = Depends(oauth2_scheme)):
             target_batches=n.get("target_batches", []),
             category=n.get("category", "General"),
             priority=n.get("priority", "Normal"),
+            branch=n.get("branch"),
+            batch=n.get("batch"),
+            standard=n.get("standard"),
             created_at=n.get("created_at"),
             created_by_name=n.get("created_by", {}).get("full_name") if n.get("created_by") else "Admin"
         ) for n in notices

@@ -69,10 +69,15 @@ export const getUserBranch = (user) => {
 
   // Derive from email if not explicitly set
   const email = (user.email || '').toLowerCase();
+  const role = (user.role || '').toLowerCase();
+  if (role.includes('super') || email.includes('superadmin')) {
+    // Superadmin has universal oversight across both Mangalvar Peth and Tarabai Park
+    return user.branch && user.branch !== 'All Campuses' && user.branch !== 'ALL' ? normalizeBranch(user.branch) : null;
+  }
   if (email.includes('tarabai')) {
     return CAMPUS.TARABAI_PARK;
   }
-  if (email === 'admin@shubham.edu' || email === 'superadmin@shubham.edu' || email.includes('mangalvar') || email.includes('mangalwar')) {
+  if (email === 'admin@shubham.edu' || email.includes('mangalvar') || email.includes('mangalwar')) {
     return CAMPUS.MANGALVAR_PETH;
   }
 

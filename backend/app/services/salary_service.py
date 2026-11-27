@@ -306,6 +306,9 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
                     if teacher_name == "Teacher":
                         teacher_name = getattr(t_obj, 'employee_id', 'Faculty')
 
+            teacher_subj = getattr(t_obj, 'subject', None) or getattr(t_obj, 'department', '') if t_obj else ''
+            teacher_batch = getattr(t_obj, 'batch', None) or getattr(t_obj, 'assigned_batch', '') or teacher_subj if t_obj else ''
+
             super_user = await User.find_one(User.role == "super_admin") or await User.find_one(User.role == "admin")
             if super_user:
                 notice = Notice(
@@ -315,13 +318,15 @@ async def disburse_salary(id: str, amount: float = None) -> dict:
                         f"({s.month_name}). Campus: {teacher_branch}. NEFT Ref: {txn_ref}. "
                         f"Status: {s.status} (Pending Balance: ₹{s.amount_pending:,.2f})."
                     ),
-                    target_audiences=["SUPER_ADMIN"],
+                    target_audiences=["SUPER_ADMIN", "ADMIN"],
                     category="Salary & Accounts",
                     priority="High",
+                    branch=teacher_branch,
+                    batch=teacher_batch,
                     created_by=super_user
                 )
                 await notice.insert()
-                print(f"[Salary Notification] Successfully notified Super Admin of ₹{payment_amount} disbursement for {teacher_name}")
+                print(f"[Salary Notification] Successfully notified Super Admin of ₹{payment_amount} disbursement for {teacher_name} ({teacher_branch})")
         except Exception as notify_err:
             print("Salary disbursement notice dispatch warning:", notify_err)
 
