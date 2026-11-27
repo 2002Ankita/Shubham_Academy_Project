@@ -92,10 +92,8 @@ async def get_accounts_summary_endpoint(
     from app.services.salary_service import ensure_current_month_salaries
 
     curr_cal_year = now.year
-    # Dynamically generate 30+ upcoming years into the future (e.g., up to 2055+)
-    start_gen_year = min(2020, curr_cal_year - 5)
-    end_gen_year = max(curr_cal_year + 30, 2055)
-    standard_years = [f"{y}-{y+1}" for y in range(start_gen_year, end_gen_year + 1)]
+    # Dynamically generate the full 100-year 2000s series (from 2000-2001 through 2100-2101)
+    standard_years = [f"{y}-{y+1}" for y in range(2000, 2101)]
     detected_years_set = set(standard_years)
 
     if academic_year and academic_year.strip().upper() not in ["ALL", "ALL YEARS", "LIFETIME"]:

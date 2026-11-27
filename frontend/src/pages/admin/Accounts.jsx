@@ -31,13 +31,10 @@ import accountsService from '../../services/accountsService';
 import salaryService from '../../services/salaryService';
 import { BRANCH_TARABAI, BRANCH_MANGALWAR, normalizeBranch } from '../../config/branchBatchConfig';
 
-// Generates full range of academic years: past years (from 2020) and 30+ upcoming years into the future (up to 2055+)
+// Generates the full 100-year 2000s century series (from 2000-2001 all the way through 2099-2100 & 2100-2101)
 const generateAcademicYearsList = () => {
-  const currentY = new Date().getFullYear();
-  const startY = 2020;
-  const endY = currentY + 30; // 30 years into the future (e.g. 2056)
   const years = ['ALL'];
-  for (let y = endY; y >= startY; y--) {
+  for (let y = 2100; y >= 2000; y--) {
     years.push(`${y}-${y + 1}`);
   }
   return years;
