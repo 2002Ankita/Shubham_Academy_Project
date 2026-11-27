@@ -554,7 +554,8 @@ export default function Accounts() {
                   </h6>
                   <ul className="list-unstyled mb-0 small text-sa-charcoal d-flex flex-column gap-1.5">
                     <li><strong>Accounts ID:</strong> <code>accounts.tarabai</code></li>
-                    <li><strong>Default Password:</strong> <code>accounts@tarabai</code></li>
+                    <li><strong>Database Password:</strong> <code className="text-danger fw-bold">Tarabai@123</code></li>
+                    <li><strong>Stored In:</strong> MongoDB collection <code>branch_accounts</code></li>
                     <li><strong>Scope:</strong> Tarabai Park fees collection & faculty salary</li>
                   </ul>
                 </div>
@@ -568,7 +569,8 @@ export default function Accounts() {
                   </h6>
                   <ul className="list-unstyled mb-0 small text-sa-charcoal d-flex flex-column gap-1.5">
                     <li><strong>Accounts ID:</strong> <code>accounts.mangalvar</code></li>
-                    <li><strong>Default Password:</strong> <code>accounts@mangalvar</code></li>
+                    <li><strong>Database Password:</strong> <code className="text-danger fw-bold">Mangalvar@123</code></li>
+                    <li><strong>Stored In:</strong> MongoDB collection <code>branch_accounts</code></li>
                     <li><strong>Scope:</strong> Mangalvar Peth fees collection & faculty salary</li>
                   </ul>
                 </div>

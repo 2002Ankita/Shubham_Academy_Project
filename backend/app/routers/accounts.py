@@ -155,3 +155,69 @@ async def get_accounts_summary_endpoint(
         },
         "accounts_credentials_info": get_accounts_credentials_info(norm_branch)
     }
+
+class UpdatePasswordRequest(BaseModel):
+    branch: str
+    password: str
+
+@router.get("/database-credentials")
+async def get_database_credentials_endpoint(
+    token: str = Depends(oauth2_scheme)
+):
+    """
+    Returns the branch accounts credentials stored in the MongoDB 'branch_accounts' collection.
+    """
+    await get_current_user(token)
+    from app.core.accounts_config import ensure_branch_accounts_in_db
+    await ensure_branch_accounts_in_db()
+    
+    from app.models.branch_account import BranchAccount
+    accounts = await BranchAccount.find_all().to_list()
+    return [
+        {
+            "id": str(a.id),
+            "branch": a.branch,
+            "accounts_id": a.accounts_id,
+            "password": a.password,
+            "role": a.role,
+            "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+            "database_collection": "branch_accounts",
+            "database_name": "academy_management"
+        }
+        for a in accounts
+    ]
+
+@router.put("/database-credentials")
+async def update_database_credentials_endpoint(
+    req: UpdatePasswordRequest,
+    token: str = Depends(oauth2_scheme)
+):
+    """
+    Updates the password for a branch in the MongoDB 'branch_accounts' collection.
+    """
+    current_user = await get_current_user(token)
+    if (current_user.role or "").lower() not in ["super_admin", "admin"]:
+        raise HTTPException(status_code=403, detail="Only Super Admin and Admin can update accounts passwords.")
+
+    from app.core.accounts_config import ensure_branch_accounts_in_db
+    await ensure_branch_accounts_in_db()
+
+    from app.models.branch_account import BranchAccount
+    from app.core.branch_config import normalize_branch
+    from datetime import datetime
+
+    norm_b = normalize_branch(req.branch)
+    account = await BranchAccount.find_one(BranchAccount.branch == norm_b)
+    if not account:
+        raise HTTPException(status_code=404, detail=f"No account record found for {req.branch}")
+
+    account.password = req.password.strip()
+    account.updated_at = datetime.utcnow()
+    await account.save()
+
+    return {
+        "success": True,
+        "message": f"Password updated to '{account.password}' for {account.branch} in MongoDB collection 'branch_accounts'.",
+        "branch": account.branch,
+        "password": account.password
+    }

@@ -252,26 +252,26 @@ export default function AccountsUnlockModal() {
                     onClick={() => {
                       setSelectedBranch(BRANCH_TARABAI);
                       setAccountsId('accounts.tarabai');
-                      setPassword('accounts@tarabai');
+                      setPassword('Tarabai@123');
                       setErrorMsg('');
                     }}
                     className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded-pill"
                     style={{ fontSize: '10.5px' }}
                   >
-                    Tarabai Park
+                    Tarabai Park (Tarabai@123)
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedBranch(BRANCH_MANGALWAR);
                       setAccountsId('accounts.mangalvar');
-                      setPassword('accounts@mangalvar');
+                      setPassword('Mangalvar@123');
                       setErrorMsg('');
                     }}
                     className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded-pill"
                     style={{ fontSize: '10.5px' }}
                   >
-                    Mangalvar Peth
+                    Mangalvar Peth (Mangalvar@123)
                   </button>
                   <button
                     type="button"
