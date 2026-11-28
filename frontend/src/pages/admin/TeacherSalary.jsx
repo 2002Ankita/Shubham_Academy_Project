@@ -20,7 +20,8 @@ import {
   Sparkles,
   RefreshCw,
   Users,
-  Download
+  Download,
+  Bell
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
@@ -312,7 +313,24 @@ export default function TeacherSalary() {
         workingHours: Number(editForm.workingHours),
         netPayable: Number(editForm.netPayable)
       });
-      toast.success('Salary updated successfully');
+      toast.success('Salary updated & notification sent!');
+      try {
+        notificationService.notifyTeacherSalaryUpdate({
+          teacherName: selectedRow.teacherName,
+          month: selectedRow.month,
+          baseSalary: Number(editForm.baseSalary),
+          netPayable: Number(editForm.netPayable),
+          amountPaid: Number(selectedRow.amountPaid || 0),
+          amountPending: Math.max(0, Number(editForm.netPayable) - Number(selectedRow.amountPaid || 0)),
+          workingHours: Number(editForm.workingHours),
+          accountType: editForm.accountType,
+          paymentMode: editForm.paymentMode,
+          updatedBy: user?.full_name || user?.name || 'Academy Admin',
+          branch: user?.branch || 'Central Campus'
+        });
+      } catch (e) {
+        console.warn('Salary update notification failed:', e);
+      }
       setEditModalOpen(false);
       fetchSalaries();
     } catch (err) {
@@ -767,11 +785,12 @@ export default function TeacherSalary() {
               )
             },
             {
-              key: 'deductions',
-              title: 'Recovery / Ded.',
-              render: (val, row) => (
-                <span className="text-danger small fw-medium">
-                  -₹ {Number(row.recovery ?? val ?? 0).toLocaleString()}
+              key: 'workingHours',
+              title: 'Hours',
+              render: (val) => (
+                <span className="badge bg-light text-dark border d-inline-flex align-items-center gap-1 fw-semibold" style={{ fontSize: '11px' }}>
+                  <Clock size={11} className="text-primary" />
+                  <span>{Number(val || 0)} hrs</span>
                 </span>
               )
             },
@@ -786,7 +805,7 @@ export default function TeacherSalary() {
                       {val || 'Academy'}
                     </span>
                     <span className="text-muted" style={{ fontSize: '11px' }}>
-                      {Number(row.workingHours || 0)} hrs • <strong>{mode}</strong>
+                      <strong>{mode}</strong>
                     </span>
                   </div>
                 );
@@ -853,21 +872,49 @@ export default function TeacherSalary() {
               key: 'id',
               title: 'Action',
               align: 'end',
-              render: (val, row) =>
-                ['Processing', 'Partially Paid'].includes(row.status) ? (
-                  <div className="d-flex gap-2 justify-content-end">
-                    <Button size="sm" variant="outline" icon={Edit2} onClick={() => handleEditClick(row)}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="primary" onClick={() => handleDisburseClick(row)}>
-                      Pay Installment
-                    </Button>
-                  </div>
-                ) : (
-                  <span className="small text-success fw-bold d-flex align-items-center justify-content-end gap-1">
-                    <CheckCircle size={14} /> Fully Paid
-                  </span>
-                )
+              render: (val, row) => (
+                <div className="d-flex gap-1.5 justify-content-end flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    icon={Bell}
+                    title="Send salary notification"
+                    onClick={() => {
+                      const mode = row.paymentMode || (String(row.transactionRef || '').toUpperCase().startsWith('CASH') ? 'Cash' : 'NEFT');
+                      notificationService.notifyTeacherSalaryUpdate({
+                        teacherName: row.teacherName,
+                        month: row.month,
+                        baseSalary: row.baseSalary,
+                        netPayable: row.netPayable,
+                        amountPaid: row.amountPaid,
+                        amountPending: row.amountPending,
+                        workingHours: row.workingHours,
+                        accountType: row.accountType || 'Academy',
+                        paymentMode: mode,
+                        updatedBy: user?.full_name || user?.name || 'Academy Admin',
+                        branch: user?.branch || 'Central Campus'
+                      });
+                      toast.success(`Salary notification sent for ${row.teacherName}!`);
+                    }}
+                  >
+                    Notify
+                  </Button>
+                  {['Processing', 'Partially Paid'].includes(row.status) ? (
+                    <>
+                      <Button size="sm" variant="outline" icon={Edit2} onClick={() => handleEditClick(row)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="primary" onClick={() => handleDisburseClick(row)}>
+                        Pay Installment
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="small text-success fw-bold d-flex align-items-center gap-1 ms-1">
+                      <CheckCircle size={14} /> Fully Paid
+                    </span>
+                  )}
+                </div>
+              )
             }
           ]}
           data={filteredSalaries}

@@ -439,7 +439,7 @@ export default function TeacherNotes() {
             onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
           >
             <Plus size={16} />
-            <span>Add Note</span>
+            <span>Add Homework / Note</span>
           </button>
         </div>
       </div>

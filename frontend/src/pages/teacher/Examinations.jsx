@@ -567,27 +567,6 @@ export default function TeacherExaminations() {
         <div className="d-flex align-items-center gap-2.5">
           <button
             type="button"
-            onClick={openCreateModal}
-            className="btn d-inline-flex align-items-center justify-content-center gap-2 text-white border-0 fw-semibold shadow-xs"
-            style={{
-              backgroundColor: '#8B1216',
-              fontSize: '13.5px',
-              height: '40px',
-              padding: '0 18px',
-              borderRadius: '10px',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              lineHeight: 1
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.92)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.filter = 'brightness(1)'; }}
-          >
-            <Plus size={16} strokeWidth={2.4} />
-            <span>Create Exam</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => navigate('/teacher/marks')}
             className="btn d-inline-flex align-items-center justify-content-center gap-2 border fw-semibold shadow-xs"
             style={{
@@ -974,98 +953,6 @@ export default function TeacherExaminations() {
                         >
                           <Eye size={15} />
                         </button>
-
-                        <button
-                          type="button"
-                          className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            backgroundColor: '#EFF6FF',
-                            border: '1px solid #BFDBFE',
-                            color: '#2563EB',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onClick={() => handleEdit(row)}
-                          title="Edit Exam"
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; e.currentTarget.style.color = '#FFFFFF'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#EFF6FF'; e.currentTarget.style.color = '#2563EB'; }}
-                        >
-                          <Edit2 size={14} />
-                        </button>
-
-                        {/* 3-dots Menu for Cancel and Delete */}
-                        <div className="position-relative exam-actions-menu">
-                          <button
-                            type="button"
-                            className="btn btn-sm d-inline-flex align-items-center justify-content-center p-0"
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              backgroundColor: activeMenuId === row.id ? '#E2E8F0' : '#F8FAFC',
-                              border: '1px solid #E2E8F0',
-                              color: '#475569',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === row.id ? null : row.id);
-                            }}
-                            title="More Actions"
-                            onMouseEnter={(e) => { if (activeMenuId !== row.id) e.currentTarget.style.backgroundColor = '#EEF2F6'; }}
-                            onMouseLeave={(e) => { if (activeMenuId !== row.id) e.currentTarget.style.backgroundColor = '#F8FAFC'; }}
-                          >
-                            <MoreVertical size={15} />
-                          </button>
-
-                          {activeMenuId === row.id && (
-                            <div
-                              className="position-absolute rounded-3 py-1 bg-white border"
-                              style={{
-                                right: 0,
-                                ...(isNearBottom ? { bottom: '36px' } : { top: '36px' }),
-                                minWidth: '155px',
-                                zIndex: 1050,
-                                borderColor: '#E2E8F0',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)'
-                              }}
-                            >
-                              <button
-                                type="button"
-                                className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 w-100 border-0 bg-transparent text-start"
-                                style={{ fontSize: '13px', color: '#D97706', cursor: 'pointer' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  handleCancelExam(row);
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FEF3C7'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                              >
-                                <Ban size={14} />
-                                <span>Cancel Exam</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 w-100 border-0 bg-transparent text-start"
-                                style={{ fontSize: '13px', color: '#DC2626', cursor: 'pointer' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  handleDeleteExam(row);
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                              >
-                                <Trash2 size={14} />
-                                <span>Delete Exam</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     );
                   }

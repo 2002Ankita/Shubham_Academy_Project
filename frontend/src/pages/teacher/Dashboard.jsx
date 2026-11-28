@@ -8,6 +8,8 @@ import { attendanceService } from '../../services/attendanceService';
 import salaryService from '../../services/salaryService';
 import curriculumService from '../../services/curriculumService';
 import teacherService from '../../services/teacherService';
+import notesService from '../../services/notesService';
+import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 import {
@@ -69,7 +71,8 @@ import {
   Tv,
   Check,
   UserPlus,
-  Building2
+  Building2,
+  Bell
 } from 'lucide-react';
 
 export default function TeacherDashboard() {
@@ -110,6 +113,28 @@ export default function TeacherDashboard() {
     subject: 'Physics',
     monthlySalary: 65000,
     password: ''
+  });
+
+  // Homework & Class Announcement states
+  const [batchesList, setBatchesList] = useState([]);
+  const [showHomeworkModal, setShowHomeworkModal] = useState(false);
+  const [homeworkLoading, setHomeworkLoading] = useState(false);
+  const [homeworkForm, setHomeworkForm] = useState({
+    title: '',
+    subject: 'Physics',
+    targetClass: '',
+    dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    content: ''
+  });
+
+  const [showAnnounceClassModal, setShowAnnounceClassModal] = useState(false);
+  const [announceLoading, setAnnounceLoading] = useState(false);
+  const [announceForm, setAnnounceForm] = useState({
+    title: '',
+    targetAudience: '',
+    scheduleTime: '',
+    priority: 'Normal',
+    content: ''
   });
 
   const loadAttendanceStatus = async () => {
@@ -340,6 +365,36 @@ export default function TeacherDashboard() {
           }));
 
           setScheduleRows([...formattedRows, ...scheduledExams]);
+          setBatchesList(bList);
+
+          // Notify teacher when lectures are scheduled & pending (e.g. 6 scheduled & 3 pending)
+          const allCombined = [...formattedRows, ...scheduledExams];
+          const scheduledCount = allCombined.length;
+          const pendingCount = allCombined.filter(r => r.status !== 'Completed').length;
+          if (scheduledCount > 0 && pendingCount > 0) {
+            const todayKey = new Date().toISOString().split('T')[0];
+            const notifId = `NTF-TCH-LECTURE-${todayKey}-${scheduledCount}-${pendingCount}`;
+            try {
+              const existing = notificationService.getNotifications?.() || [];
+              if (!existing.some(n => n.id === notifId)) {
+                notificationService.addNotification({
+                  id: notifId,
+                  title: `📅 ${scheduledCount} Lectures Scheduled • ${pendingCount} Pending`,
+                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                  formattedDateTime: new Date().toLocaleString(),
+                  type: 'teacher_lecture_alert',
+                  category: 'Lecture Schedule',
+                  priority: scheduledCount >= 6 && pendingCount >= 3 ? 'High' : 'Normal',
+                  author: 'Academic Timetable',
+                  details: `You have ${scheduledCount} lectures scheduled and ${pendingCount} pending lectures remaining. Please check your schedule and log attendance/activities.`,
+                  read: false,
+                  forSuperAdminOnly: false,
+                  branch: userBranch || 'Tarabai Park'
+                });
+              }
+            } catch (_) {}
+          }
         }
       } catch (err) {
         console.error('Error fetching teacher dashboard data:', err);
@@ -537,6 +592,28 @@ export default function TeacherDashboard() {
                 <BookOpen size={14} style={{ color: '#8B1216' }} />
                 <span>Log Topic & Activity</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setShowHomeworkModal(true)}
+                className="btn btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs text-white border-0"
+                style={{ fontSize: '0.82rem', padding: '5px 13px', borderRadius: '8px', backgroundColor: '#16A34A' }}
+                title="Create & assign homework for students"
+              >
+                <FileText size={14} />
+                <span>+ Create Homework</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAnnounceClassModal(true)}
+                className="btn btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs text-white border-0"
+                style={{ fontSize: '0.82rem', padding: '5px 13px', borderRadius: '8px', backgroundColor: '#8B1216' }}
+                title="Announce a class & notify Admin"
+              >
+                <Bell size={14} />
+                <span>Announce Class</span>
+              </button>
             </div>
           </div>
           <div className="col-12 col-md-5 d-flex justify-content-end align-items-end pe-0 pe-md-3 pe-xl-4 overflow-hidden">
@@ -554,6 +631,45 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* 1.5 LECTURE SCHEDULE & PENDING NOTIFICATION ALERT */}
+      {(() => {
+        const scheduledCnt = scheduleRows.length;
+        const pendingCnt = scheduleRows.filter(r => r.status !== 'Completed').length;
+        if (scheduledCnt === 0 || pendingCnt === 0) return null;
+        const isHighLoad = scheduledCnt >= 6 && pendingCnt >= 3;
+        return (
+          <div
+            className="rounded-4 p-3 px-4 border d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 shadow-2xs"
+            style={{
+              backgroundColor: isHighLoad ? '#FEF2F2' : '#FFFBEB',
+              borderColor: isHighLoad ? '#FECACA' : '#FDE68A',
+              borderLeft: `5px solid ${isHighLoad ? '#DC2626' : '#D97706'}`
+            }}
+          >
+            <div className="d-flex align-items-center gap-2.5">
+              <Bell size={18} className={isHighLoad ? 'text-danger flex-shrink-0' : 'text-warning flex-shrink-0'} />
+              <div className="small">
+                <strong className={isHighLoad ? 'text-danger' : 'text-warning-emphasis'}>
+                  Lecture Notification: {scheduledCnt} Lectures Scheduled • {pendingCnt} Pending
+                </strong>
+                <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                  {isHighLoad
+                    ? 'You have 6 or more lectures scheduled with 3+ pending sessions. Please review your class timetable.'
+                    : 'Please complete attendance and daily topic logs for your pending scheduled lectures.'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-dark fw-semibold text-nowrap flex-shrink-0"
+              onClick={() => navigate('/teacher/classes')}
+            >
+              View Schedule →
+            </button>
+          </div>
+        );
+      })()}
 
       {/* 2. FOUR KPI STAT CARDS (NORMAL COMFORTABLE SPACING & MATCHING ADMIN PANEL) */}
       <div className="row g-3 g-xl-4">
@@ -1579,6 +1695,219 @@ export default function TeacherDashboard() {
                   style={{ backgroundColor: '#8B1216' }}
                 >
                   {addFacultyLoading ? 'Adding...' : 'Onboard Faculty'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Create Homework Modal */}
+      {showHomeworkModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', zIndex: 1060 }}
+          onClick={() => setShowHomeworkModal(false)}
+        >
+          <div className="bg-white rounded-4 shadow-lg border p-4 w-100" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <h5 className="fw-bold text-sa-charcoal mb-3">Create Homework Assignment</h5>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setHomeworkLoading(true);
+                try {
+                  const batchName = homeworkForm.targetClass || batchesList[0]?.name || 'All Students';
+                  await notesService.create({
+                    title: `[Homework] ${homeworkForm.title}`,
+                    content: `Subject: ${homeworkForm.subject}\nDue Date: ${homeworkForm.dueDate}\n\n${homeworkForm.content}`,
+                    recipientType: 'Class',
+                    targetClass: batchName,
+                    author: user?.full_name || user?.name || 'Faculty'
+                  });
+                  toast.success('Homework created & assigned to students!');
+                  setShowHomeworkModal(false);
+                  setHomeworkForm({
+                    title: '',
+                    subject: 'Physics',
+                    targetClass: '',
+                    dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                    content: ''
+                  });
+                } catch (err) {
+                  toast.error('Failed to create homework');
+                } finally {
+                  setHomeworkLoading(false);
+                }
+              }}
+              className="d-flex flex-column gap-2.5"
+            >
+              <div>
+                <label className="form-label small fw-semibold mb-1">Homework Title *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control form-control-sm"
+                  placeholder="e.g. Wave Optics Numericals Sheet 2"
+                  value={homeworkForm.title}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, title: e.target.value })}
+                />
+              </div>
+              <div className="row g-2">
+                <div className="col-6">
+                  <label className="form-label small fw-semibold mb-1">Subject</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    value={homeworkForm.subject}
+                    onChange={(e) => setHomeworkForm({ ...homeworkForm, subject: e.target.value })}
+                  />
+                </div>
+                <div className="col-6">
+                  <label className="form-label small fw-semibold mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    className="form-control form-control-sm"
+                    value={homeworkForm.dueDate}
+                    onChange={(e) => setHomeworkForm({ ...homeworkForm, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label small fw-semibold mb-1">Target Class / Batch</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={homeworkForm.targetClass}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, targetClass: e.target.value })}
+                >
+                  <option value="">All Assigned Batches</option>
+                  {batchesList.map((b) => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label small fw-semibold mb-1">Homework Instructions *</label>
+                <textarea
+                  rows={3}
+                  required
+                  className="form-control form-control-sm"
+                  placeholder="Questions / chapters to solve..."
+                  value={homeworkForm.content}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, content: e.target.value })}
+                />
+              </div>
+              <div className="d-flex justify-content-end gap-2 pt-2 border-top">
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowHomeworkModal(false)}>Cancel</button>
+                <button type="submit" disabled={homeworkLoading} className="btn btn-sm btn-success fw-semibold px-3">
+                  {homeworkLoading ? 'Saving...' : 'Assign Homework'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Announce Class Modal (Also Added to Admin) */}
+      {showAnnounceClassModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', zIndex: 1060 }}
+          onClick={() => setShowAnnounceClassModal(false)}
+        >
+          <div className="bg-white rounded-4 shadow-lg border p-4 w-100" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <h5 className="fw-bold text-sa-charcoal mb-3">Announce a Class (Shared with Admin)</h5>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setAnnounceLoading(true);
+                try {
+                  const authorName = user?.full_name || user?.name || 'Faculty';
+                  const audience = announceForm.targetAudience || batchesList[0]?.name || 'All Students & Teachers';
+                  const fullContent = `${announceForm.scheduleTime ? `Scheduled Time: ${announceForm.scheduleTime}\n` : ''}${announceForm.content}`;
+                  await noticeService.create({
+                    title: announceForm.title,
+                    category: 'Academic',
+                    priority: announceForm.priority,
+                    targetAudience: audience,
+                    content: fullContent,
+                    author: `${authorName} (${userBranch || 'Campus'})`
+                  });
+                  notificationService.addNotification({
+                    id: `NTF-TCH-CLASS-${Date.now()}`,
+                    title: `📢 Class Announced by ${authorName}: ${announceForm.title}`,
+                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    formattedDateTime: new Date().toLocaleString(),
+                    type: 'teacher_class_announcement',
+                    category: 'Class Announcements & Notices',
+                    priority: announceForm.priority,
+                    author: `${authorName} (Faculty)`,
+                    details: `${authorName} announced class "${announceForm.title}" for ${audience}. ${fullContent}`,
+                    read: false,
+                    forSuperAdminOnly: false,
+                    branch: userBranch || 'Tarabai Park'
+                  });
+                  toast.success('Class announced and added to Admin!');
+                  setShowAnnounceClassModal(false);
+                  setAnnounceForm({ title: '', targetAudience: '', scheduleTime: '', priority: 'Normal', content: '' });
+                } catch (err) {
+                  toast.error('Failed to announce class');
+                } finally {
+                  setAnnounceLoading(false);
+                }
+              }}
+              className="d-flex flex-column gap-2.5"
+            >
+              <div>
+                <label className="form-label small fw-semibold mb-1">Class / Topic Title *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control form-control-sm"
+                  placeholder="e.g. Extra Revision Class: Electrostatics"
+                  value={announceForm.title}
+                  onChange={(e) => setAnnounceForm({ ...announceForm, title: e.target.value })}
+                />
+              </div>
+              <div className="row g-2">
+                <div className="col-6">
+                  <label className="form-label small fw-semibold mb-1">Target Batch</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={announceForm.targetAudience}
+                    onChange={(e) => setAnnounceForm({ ...announceForm, targetAudience: e.target.value })}
+                  >
+                    <option value="All Students & Teachers">All Students & Teachers</option>
+                    {batchesList.map((b) => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-6">
+                  <label className="form-label small fw-semibold mb-1">Schedule / Time</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="e.g. Tomorrow 4:00 PM"
+                    value={announceForm.scheduleTime}
+                    onChange={(e) => setAnnounceForm({ ...announceForm, scheduleTime: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label small fw-semibold mb-1">Details *</label>
+                <textarea
+                  rows={3}
+                  required
+                  className="form-control form-control-sm"
+                  placeholder="Room, instructions, or syllabus..."
+                  value={announceForm.content}
+                  onChange={(e) => setAnnounceForm({ ...announceForm, content: e.target.value })}
+                />
+              </div>
+              <div className="d-flex justify-content-end gap-2 pt-2 border-top">
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowAnnounceClassModal(false)}>Cancel</button>
+                <button type="submit" disabled={announceLoading} className="btn btn-sm text-white fw-semibold px-3" style={{ backgroundColor: '#8B1216' }}>
+                  {announceLoading ? 'Publishing...' : 'Announce & Notify Admin'}
                 </button>
               </div>
             </form>

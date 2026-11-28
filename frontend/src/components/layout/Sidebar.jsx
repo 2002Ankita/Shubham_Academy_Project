@@ -410,8 +410,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
-        { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
-        { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
+        { label: 'Staff Attendance & Leave', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
+        { label: 'Leave Requests & Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Teacher Daily Activities', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/teacher-daily-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
@@ -432,7 +432,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Enter Marks', path: '/teacher/marks', icon: ClipboardList },
         { label: 'Working Time', path: '/teacher/working-time', icon: Clock },
         { label: 'Study Materials', path: '/teacher/study-materials', icon: BookMarked },
-        { label: 'Notes', path: '/teacher/notes', icon: StickyNote },
+        { label: 'Homework & Notes', path: '/teacher/notes', icon: StickyNote },
         { label: 'Announcements', path: '/teacher/announcements', icon: Bell },
         { label: 'My Salary', path: '/teacher/salary', icon: CreditCard },
       ];
@@ -455,8 +455,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
         { label: 'Books Delivery', path: '/admin/books/delivery', icon: Truck, matchPrefixes: ['/admin/books/delivery', '/admin/books-delivery', '/admin/notes/delivery', '/admin/notes-delivery'] },
         { label: 'Examinations', path: '/admin/exams', icon: ExaminationsDocIcon, matchPrefixes: ['/admin/exams', '/admin/marks', '/admin/results'] },
         { label: 'Teachers', path: '/admin/teachers', icon: TeachersWritingIcon, matchPrefixes: ['/admin/teachers'] },
-        { label: 'Teacher Attendance', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
-        { label: 'Leave Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
+        { label: 'Staff Attendance & Leave', path: '/admin/teachers/attendance', icon: Clock, matchPrefixes: ['/admin/teachers/attendance'] },
+        { label: 'Leave Requests & Approvals', path: '/admin/teachers/leave-approvals', icon: Calendar, matchPrefixes: ['/admin/teachers/leave-approvals'] },
         { label: 'Teacher Daily Activities', path: '/admin/teacher-activities', icon: FileText, matchPrefixes: ['/admin/teacher-activities', '/admin/teacher-daily-activities', '/admin/daily-activities'] },
         { label: 'Notifications', path: '/admin/notifications', icon: NotificationsBellIcon, matchPrefixes: ['/admin/notifications', '/admin/notices'] },
         { label: 'Topic Duration Matrix', path: '/admin/topic-duration', icon: BookOpen, matchPrefixes: ['/admin/topic-duration'] },
@@ -685,8 +685,8 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               if (item.isSubmenu) {
                 const isSubmenuOpen = !!openSubmenus[item.menuKey];
                 const active = (item.matchPrefixes && item.matchPrefixes.some(p => location.pathname.startsWith(p))) ||
-                               (item.exactMatches && item.exactMatches.includes(location.pathname)) ||
-                               (!item.matchPrefixes && !item.exactMatches && location.pathname.startsWith(item.path));
+                  (item.exactMatches && item.exactMatches.includes(location.pathname)) ||
+                  (!item.matchPrefixes && !item.exactMatches && location.pathname.startsWith(item.path));
 
                 const handleSubmenuToggle = () => {
                   if (item.isAccountsProtected && !isAccountsUnlocked) {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from app.schemas.marks import ExamCreate, ExamResponse
 from app.services.mark_service import create_exam, get_all_exams
@@ -10,6 +10,12 @@ router = APIRouter(prefix="/exams", tags=["Exams"])
 @router.post("", response_model=ExamResponse)
 async def add_exam(exam_in: ExamCreate, token: str = Depends(oauth2_scheme)):
     user = await get_current_user(token)
+    user_role = (getattr(user, "role", "") or "").upper().replace("-", "_")
+    if user_role not in ["ADMIN", "SUPER_ADMIN"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Teachers cannot create exams. Only Academy Admin or Super Admin can schedule exams."
+        )
     return await create_exam(exam_in, user)
 
 @router.get("", response_model=List[ExamResponse])
