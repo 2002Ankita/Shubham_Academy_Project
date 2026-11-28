@@ -340,7 +340,7 @@ export default function Header({ onToggleSidebar, globalDateFilter, setGlobalDat
 
         <img
           src="/assets/shubham-logo.png"
-          alt="Shubham Classes • Kolhapur"
+          alt="Shubham Academy"
           className="d-md-none"
           style={{ maxHeight: '30px', width: 'auto' }}
         />

@@ -155,17 +155,17 @@ export default function FeeReceipt() {
           <div className="d-flex align-items-center gap-3">
             <img
               src="/assets/shubham-logo.png"
-              alt="Shubham Classes • Kolhapur"
-              style={{ maxHeight: '60px', width: 'auto' }}
+              alt="Shubham Academy"
+              style={{ maxHeight: '65px', width: 'auto', objectFit: 'contain' }}
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
             />
             <div>
               <h5 className="brand-font fw-extrabold m-0 text-sa-primary" style={{ letterSpacing: '0.02em' }}>
-                SHUBHAM CLASSES
+                SHUBHAM ACADEMY
               </h5>
-              <span className="small text-muted d-block">Kolhapur Campuses (Mangalvar Peth & Tarabai Park) • Higher Secondary Coaching</span>
+              <span className="small text-muted d-block">Kolhapur Campuses (Mangalvar Peth &amp; Tarabai Park) • The Path to Success</span>
               <span className="text-xs text-muted" style={{ fontSize: '0.72rem' }}>
                 Affiliation No: SA-EDU-2026 • GSTIN: 27AABCS1429M1ZQ
               </span>

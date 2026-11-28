@@ -222,19 +222,24 @@ export default function AdminReports() {
       >
         <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 position-relative" style={{ zIndex: 1 }}>
           <div className="d-flex align-items-center gap-3">
-            <img
-              src="/assets/shubham-logo.png"
-              alt="Shubham Classes - Kolhapur"
-              style={{
-                maxHeight: '62px',
-                width: 'auto',
-                filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))'
-              }}
-            />
+            <div
+              className="d-flex align-items-center justify-content-center p-2 rounded-3 shadow-sm bg-white flex-shrink-0"
+              style={{ maxHeight: '68px' }}
+            >
+              <img
+                src="/assets/shubham-logo.png"
+                alt="Shubham Academy"
+                style={{
+                  maxHeight: '52px',
+                  width: 'auto',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
             <div>
               <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
                 <span className="badge rounded-pill bg-white text-danger fw-bold px-2.5 py-0.5" style={{ fontSize: '0.72rem' }}>
-                  🎓 SHUBHAM CLASSES • KOLHAPUR
+                  🎓 SHUBHAM ACADEMY
                 </span>
                 <span className="badge rounded-pill bg-warning text-dark fw-bold px-2.5 py-0.5" style={{ fontSize: '0.72rem' }}>
                   {isSuper ? '👑 SUPER ADMIN AUDIT' : '🏛️ CAMPUS ADMIN ACCESS'}

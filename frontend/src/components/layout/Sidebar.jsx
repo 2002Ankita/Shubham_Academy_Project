@@ -555,23 +555,30 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
               borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
             } : {}}
           >
-            <img
-              src="/assets/shubham-logo.png"
-              alt="Shubham Classes • Kolhapur"
+            <div
+              className="d-flex align-items-center justify-content-center p-2 rounded-3 shadow-sm bg-white"
               style={{
                 width: '100%',
                 maxWidth: usesPearlNavigation ? '175px' : '160px',
-                height: 'auto',
-                maxHeight: usesPearlNavigation ? '74px' : '76px',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.30))'
+                boxShadow: '0 4px 14px rgba(0,0,0,0.22)'
               }}
-            />
+            >
+              <img
+                src="/assets/shubham-logo.png"
+                alt="Shubham Academy"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: '62px',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
             <div
               className="text-white text-opacity-90 mt-1.5"
-              style={{ fontSize: '0.75rem', letterSpacing: '0.03em', fontWeight: 400 }}
+              style={{ fontSize: '0.75rem', letterSpacing: '0.03em', fontWeight: 500 }}
             >
-              Education Builds Brighter Future
+              The Path to Success
             </div>
             {/* Role Badge for Super Admin */}
             {isSuperAdmin && (
@@ -654,11 +661,16 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
             className="d-flex align-items-center justify-content-center px-3 py-2 border-bottom border-white border-opacity-10"
             style={{ height: 'var(--sa-header-height)' }}
           >
-            <img
-              src="/assets/shubham-logo.png"
-              alt="Shubham Classes • Kolhapur"
-              style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }}
-            />
+            <div
+              className="d-flex align-items-center justify-content-center px-2 py-1 rounded-2 bg-white shadow-xs"
+              style={{ maxHeight: '42px' }}
+            >
+              <img
+                src="/assets/shubham-logo.png"
+                alt="Shubham Academy"
+                style={{ maxHeight: '34px', maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </div>
           </div>
         )}
 
