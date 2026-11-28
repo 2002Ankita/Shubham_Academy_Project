@@ -30,7 +30,8 @@ import {
   Clock,
   Layers,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Crown
 } from 'lucide-react';
 
 export default function StudentDetails() {
@@ -67,6 +68,50 @@ export default function StudentDetails() {
 
   const roleStr = (user?.role || '').toLowerCase().replace('-', '_');
   const isSuperAdmin = roleStr === 'super_admin' || roleStr.includes('super');
+  const [approvingAdmission, setApprovingAdmission] = useState(false);
+
+  const handleSuperAdminAdmissionApproval = async (isApproved = true) => {
+    if (!isSuperAdmin) {
+      toast.error('Unauthorized: Admission approval is restricted exclusively to Super Admin.');
+      return;
+    }
+    setApprovingAdmission(true);
+    try {
+      const approverName = user?.full_name || user?.name || 'Shubham Sharma (Superadmin)';
+      const timestamp = new Date().toISOString();
+      const updatedStatus = isApproved ? 'APPROVED' : 'REJECTED';
+
+      await studentService.update(student.id || student.student_id, {
+        admission_approval_status: updatedStatus,
+        admission_approved_by: approverName,
+        admission_approved_at: timestamp
+      });
+
+      setStudent(prev => ({
+        ...prev,
+        admission_approval_status: updatedStatus,
+        admission_approved_by: approverName,
+        admission_approved_at: timestamp
+      }));
+
+      notificationService.notifySuperAdminAdmissionDecision({
+        studentId: student.id || student.student_id,
+        studentName: student.name || student.full_name,
+        rollNumber: student.rollNumber || student.student_id,
+        branch: student.branch,
+        standard: student.standard,
+        isApproved,
+        approverName
+      });
+
+      toast.success(isApproved ? 'Admission officially approved by Super Admin!' : 'Admission marked rejected by Super Admin.');
+    } catch (err) {
+      console.error('Admission approval error:', err);
+      toast.error('Failed to update admission approval status: ' + (err.message || ''));
+    } finally {
+      setApprovingAdmission(false);
+    }
+  };
 
   const getCatalogFee = (branch, batch, standard) => {
     const isMangal = (branch || '').toLowerCase().includes('mangal');
@@ -422,6 +467,60 @@ export default function StudentDetails() {
             </p>
 
             <hr className="my-3 opacity-25" />
+
+            {/* Requirement 34: Super Admin Admission Approval Exclusive Authority */}
+            <div className="mb-3 p-3 rounded-3" style={{ backgroundColor: '#FFFDF9', border: '1px solid #F1E5D1' }}>
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <span className="fw-bold text-sa-charcoal d-flex align-items-center gap-1.5" style={{ fontSize: '0.84rem' }}>
+                  <Crown size={15} style={{ color: '#D97706' }} />
+                  <span>Super Admin Admission Authority</span>
+                </span>
+                <span className="badge" style={{
+                  backgroundColor: student.admission_approval_status === 'APPROVED' ? '#DCFCE7' : '#FEF3C7',
+                  color: student.admission_approval_status === 'APPROVED' ? '#15803D' : '#B45309',
+                  border: `1px solid ${student.admission_approval_status === 'APPROVED' ? '#86EFAC' : '#FDE68A'}`,
+                  fontSize: '0.70rem'
+                }}>
+                  {student.admission_approval_status === 'APPROVED' ? '✓ Super Admin Approved' : 'Pending Super Admin Sign-off'}
+                </span>
+              </div>
+
+              {student.admission_approval_status === 'APPROVED' ? (
+                <div className="p-2 rounded-2 bg-success-subtle border border-success-subtle text-success small">
+                  <div className="fw-bold d-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
+                    <CheckCircle2 size={13} />
+                    <span>Admission Officially Ratified</span>
+                  </div>
+                  <div className="text-muted mt-0.5" style={{ fontSize: '0.72rem' }}>
+                    Approved by <strong>{student.admission_approved_by || 'Super Admin'}</strong>
+                    {student.admission_approved_at ? ` on ${new Date(student.admission_approved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                  </div>
+                </div>
+              ) : isSuperAdmin ? (
+                <div className="d-flex flex-column gap-2">
+                  <p className="text-muted mb-0" style={{ fontSize: '0.74rem', lineHeight: '1.3' }}>
+                    As Super Admin, you hold executive authority to ratify and activate this student's official academy enrollment.
+                  </p>
+                  <div className="d-flex gap-2">
+                    <button
+                      type="button"
+                      disabled={approvingAdmission}
+                      className="btn btn-sm text-white fw-bold d-inline-flex align-items-center gap-1.5"
+                      style={{ backgroundColor: '#8B1216', fontSize: '0.76rem', borderRadius: '6px' }}
+                      onClick={() => handleSuperAdminAdmissionApproval(true)}
+                    >
+                      <Crown size={13} />
+                      {approvingAdmission ? 'Approving...' : 'Approve Admission (Super Admin)'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 rounded-2 bg-light border text-muted small" style={{ fontSize: '0.74rem' }}>
+                  <ShieldCheck size={13} className="me-1 text-secondary" />
+                  Reserved Authority: Admission approval can only be authorized by <strong>Super Admin</strong>.
+                </div>
+              )}
+            </div>
 
             <h6 className="fw-bold text-sa-charcoal mb-2 fs-6 d-flex align-items-center gap-1.5">
               <ShieldCheck size={16} style={{ color: '#8B1216' }} />

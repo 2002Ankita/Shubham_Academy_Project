@@ -32,6 +32,10 @@ import studentService from '../../services/studentService';
 import notificationService from '../../services/notificationService';
 import { useAuth } from '../../hooks/useAuth';
 import { useConfirm } from '../../context/ConfirmContext';
+import { exportDiscountsToExcel } from '../../utils/excelExporter';
+import { FileSpreadsheet } from 'lucide-react';
+
+export const ADMIN_PERMITTED_DISCOUNT_LIMIT = 10000; // ₹10,000 max limit for Admin direct approval
 
 export default function DiscountApprovals() {
   const { user } = useAuth();
@@ -211,6 +215,73 @@ export default function DiscountApprovals() {
         console.warn('Notification sync error:', notifErr);
       }
       toast.success(`Discount for "${student.name}" approved successfully! Admin notified.`);
+      await fetchStudents();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || err.message || 'Failed to approve discount');
+      await fetchStudents();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Requirement 32: Handle Admin Approval within Permitted Limit (<= ₹10,000)
+  const handleAdminApprove = async (student) => {
+    const origReq = Number(student.discountRequestedAmount || student.discountAmount || 0);
+    const origFee = Number(student.originalFees || student.totalFees || 0);
+    const pct = origFee > 0 ? ((origReq / origFee) * 100).toFixed(1) + '%' : 'N/A';
+
+    if (origReq > ADMIN_PERMITTED_DISCOUNT_LIMIT) {
+      toast.warning(`Concession of ₹${origReq.toLocaleString()} exceeds your Admin permitted limit of ₹${ADMIN_PERMITTED_DISCOUNT_LIMIT.toLocaleString()}. Super Admin approval is required.`);
+      return;
+    }
+
+    const isConfirmed = await confirm({
+      title: 'Approve Discount Concession (Admin Authority)',
+      message: `Are you sure you want to approve this discount concession of ₹${origReq.toLocaleString()} (${pct}) for ${student.name}?`,
+      subtitle: `As Campus Admin, this is within your permitted limit of ₹${ADMIN_PERMITTED_DISCOUNT_LIMIT.toLocaleString()}. Super Admin will be automatically notified with approval details.`,
+      confirmText: 'Approve & Notify Super Admin',
+      cancelText: 'Cancel',
+      type: 'success'
+    });
+
+    if (!isConfirmed) return;
+
+    setActionLoading(true);
+    const now = new Date();
+    const adminFullName = user?.full_name || user?.name || 'Campus Admin';
+
+    // Optimistic state update
+    setStudents(prev => prev.map(s => s.id === student.id ? {
+      ...s,
+      discountStatus: 'APPROVED',
+      discountAmount: origReq,
+      totalFees: Math.max(0, origFee - origReq),
+      discountApprovedBy: `${adminFullName} (Admin - Permitted Authority)`,
+      discountApprovedAt: now.toISOString()
+    } : s));
+
+    try {
+      await studentService.approveDiscount(student.id, {
+        approved_amount: origReq,
+        discount_amount: origReq,
+        approved_by: `${adminFullName} (Admin)`
+      });
+
+      // Dispatch formal notification to Super Admin (Requirement 32)
+      notificationService.notifyAdminDiscountApprovedToSuperAdmin({
+        studentId: student.id,
+        studentName: student.name,
+        rollNumber: student.rollNumber || student.student_id || 'N/A',
+        discountAmount: origReq,
+        discountPercentage: pct,
+        adminName: adminFullName,
+        branch: student.branch || user?.branch || 'Kolhapur',
+        approvalDate: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        approvalTime: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      });
+
+      toast.success(`Discount of ₹${origReq.toLocaleString()} approved by Admin! Super Admin notified.`);
       await fetchStudents();
     } catch (err) {
       console.error(err);
@@ -522,6 +593,39 @@ export default function DiscountApprovals() {
               <span>View Full Approval Registry</span>
               <ChevronRight size={13} />
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                exportDiscountsToExcel(filteredStudents, 'Kolhapur Campuses');
+                toast.success(`Exported ${filteredStudents.length} discount records to Excel (.xlsx)!`);
+              }}
+              className="btn btn-sm btn-outline-success px-3 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 rounded-2 w-100 w-sm-auto text-nowrap shadow-xs"
+              style={{ fontSize: '0.78rem' }}
+              title="Download Excel report for concessions"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Export Excel</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Authority Guidelines Alert Banner (Requirements 32 & 33) */}
+        <div className="px-3 px-sm-4 py-2.5 bg-light border-bottom d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 text-muted" style={{ fontSize: '0.78rem' }}>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <span className="badge rounded-pill bg-success-subtle text-success border border-success-subtle fw-bold px-2 py-0.5">
+              Admin Permitted Limit: ≤ ₹10,000
+            </span>
+            <span>
+              Campus Admins can approve concessions up to <strong>₹10,000</strong> directly. Super Admin is automatically notified.
+            </span>
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <span className="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold px-2 py-0.5">
+              Super Admin Exclusive: &gt; ₹10,000
+            </span>
+            <span>
+              Concessions exceeding ₹10,000 are critical exceptions requiring Super Admin sign-off.
+            </span>
           </div>
         </div>
 
@@ -1108,11 +1212,34 @@ export default function DiscountApprovals() {
                     );
                   }
 
-                  // Non-super-admin view
+                  // Campus Admin Authority: Direct Approval within permitted limit (Requirement 32)
+                  const requestedAmt = Number(row.discountRequestedAmount || row.discountAmount || 0);
+                  const isWithinAdminLimit = requestedAmt <= ADMIN_PERMITTED_DISCOUNT_LIMIT;
+
+                  if (isWithinAdminLimit) {
+                    return (
+                      <div className="d-flex align-items-center justify-content-end gap-1.5">
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => handleAdminApprove(row)}
+                          className="btn btn-sm btn-success text-white d-inline-flex align-items-center gap-1 px-2.5 py-1 fw-bold shadow-2xs"
+                          style={{ fontSize: '11.5px', borderRadius: '6px' }}
+                          title="Approve directly within Admin permitted limit of ₹10,000"
+                        >
+                          <CheckCircle2 size={13} />
+                          <span>Approve (Admin Limit)</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // Non-super-admin view for exceptional (> ₹10,000) requests
                   return (
                     <div className="text-end">
-                      <span className="badge bg-light text-secondary border px-2 py-1 small" style={{ fontSize: '11px' }}>
-                        Super Admin Authority Only
+                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small fw-semibold d-inline-flex align-items-center gap-1" style={{ fontSize: '10.5px' }} title="Exceeds Admin limit of ₹10,000. Super Admin approval required.">
+                        <AlertTriangle size={12} />
+                        <span>Exceeds Limit (&gt; ₹10k) • Super Admin Required</span>
                       </span>
                     </div>
                   );

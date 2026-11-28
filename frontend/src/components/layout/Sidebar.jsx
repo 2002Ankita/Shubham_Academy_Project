@@ -557,7 +557,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           >
             <img
               src="/assets/shubham-logo.png"
-              alt="Shubham Academy"
+              alt="Shubham Classes • Kolhapur"
               style={{
                 width: '100%',
                 maxWidth: usesPearlNavigation ? '175px' : '160px',
@@ -656,7 +656,7 @@ export default function Sidebar({ isOpen, onClose, width, isStudent: propIsStude
           >
             <img
               src="/assets/shubham-logo.png"
-              alt="Shubham Academy"
+              alt="Shubham Classes • Kolhapur"
               style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }}
             />
           </div>

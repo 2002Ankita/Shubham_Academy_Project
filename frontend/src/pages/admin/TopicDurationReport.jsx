@@ -849,11 +849,36 @@ export default function AdminTopicDurationReport() {
           <BookOpen className="text-sa-primary flex-shrink-0 mt-0.5" size={24} />
           <div>
             <h3 className="brand-font fw-extrabold text-sa-charcoal m-0 fs-4" style={{ letterSpacing: '-0.2px', lineHeight: 1.25 }}>
-              Topic Duration & Period Allocation Report
+              Topic Duration &amp; Period Allocation Report
             </h3>
             <span className="small text-muted d-block mt-1" style={{ fontSize: '13px', lineHeight: 1.4 }}>
               Select Subject, Faculty, and Batch to generate topic timeline and download pacing reports.
             </span>
+
+            {/* Requirement 34: Super Admin Syllabus Authority Indicator */}
+            <div className="mt-2">
+              {isSuper ? (
+                <div className="d-inline-flex align-items-center gap-2 flex-wrap">
+                  <span className="badge rounded-pill bg-warning text-dark fw-bold px-3 py-1.5 shadow-2xs d-inline-flex align-items-center gap-1">
+                    <span>👑 SUPER ADMIN AUTHORITY: SYLLABUS MANAGEMENT &amp; APPROVAL</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toast.success('Master syllabus and academic topic pacing matrix officially approved by Super Admin!')}
+                    className="btn btn-sm btn-dark text-white fw-bold px-3 py-1 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5"
+                    style={{ fontSize: '0.74rem' }}
+                  >
+                    <CheckCircle2 size={13} className="text-warning" />
+                    <span>Approve Master Syllabus Pacing</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="badge rounded-pill bg-light text-secondary border px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" style={{ fontSize: '0.74rem' }}>
+                  <ShieldCheck size={14} className="text-danger" />
+                  <span>Syllabus management &amp; curriculum approval is strictly reserved for Super Admin authority</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

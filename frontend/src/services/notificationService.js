@@ -248,6 +248,109 @@ export const notificationService = {
     }
   },
 
+  // Requirement 32: Notify Super Admin when an Admin approves a discount within permitted limit
+  notifyAdminDiscountApprovedToSuperAdmin: ({
+    studentId,
+    studentName = 'Student',
+    rollNumber = 'N/A',
+    discountAmount = 0,
+    discountPercentage = '',
+    adminName = 'Campus Admin',
+    branch = 'Kolhapur',
+    approvalDate = null,
+    approvalTime = null
+  } = {}) => {
+    try {
+      const current = getCustomNotifications();
+      const now = new Date();
+      const timeStr = approvalTime || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = approvalDate || now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const formattedAmt = Number(discountAmount || 0).toLocaleString();
+      const pctStr = discountPercentage ? ` (${discountPercentage})` : '';
+
+      const notif = {
+        id: `NTF-ADMIN-DISC-${studentId}-${Date.now()}`,
+        title: `✅ Admin Discount Approved: ${studentName} - ₹${formattedAmt}`,
+        time: timeStr,
+        date: dateStr,
+        formattedDateTime: `${dateStr}, ${timeStr}`,
+        type: 'admin_discount_approved',
+        category: 'Discount & Fees',
+        priority: 'Normal',
+        author: adminName,
+        details: `Campus Admin ${adminName} approved a fee concession of ₹${formattedAmt}${pctStr} for ${studentName} (Roll: ${rollNumber}) at ${branch} on ${dateStr} at ${timeStr} within the permitted limit. Student ledger updated.`,
+        read: false,
+        forSuperAdminOnly: true,
+        branch,
+        studentId,
+        studentName,
+        discountAmount: Number(discountAmount || 0),
+        discountPercentage,
+        adminName,
+        approvalDateTime: `${dateStr}, ${timeStr}`
+      };
+
+      saveCustomNotifications([notif, ...current]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: notif }));
+      }
+      return notif;
+    } catch (err) {
+      console.error('Error in notifyAdminDiscountApprovedToSuperAdmin:', err);
+      return null;
+    }
+  },
+
+  // Requirement 34: Super Admin Admission Approval Notification
+  notifySuperAdminAdmissionDecision: ({
+    studentId,
+    studentName = 'Student',
+    rollNumber = 'N/A',
+    branch = 'Kolhapur',
+    standard = '11th',
+    isApproved = true,
+    approverName = 'Shubham Sharma (Super Admin)'
+  } = {}) => {
+    try {
+      const current = getCustomNotifications();
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      const notif = {
+        id: `NTF-ADMIS-DECISION-${studentId}-${Date.now()}`,
+        title: isApproved
+          ? `🎓 Admission Officially Approved: ${studentName}`
+          : `⚠️ Admission Held / Rejected: ${studentName}`,
+        time: timeStr,
+        date: dateStr,
+        formattedDateTime: `${dateStr}, ${timeStr}`,
+        type: 'admission_approved',
+        category: 'Admissions',
+        priority: 'High',
+        author: approverName,
+        details: isApproved
+          ? `Super Admin (${approverName}) has officially approved the admission of ${studentName} (Roll: ${rollNumber}, ${standard}) for ${branch} Campus.`
+          : `Admission request for ${studentName} (Roll: ${rollNumber}) was reviewed and placed on hold by Super Admin (${approverName}).`,
+        read: false,
+        forSuperAdminOnly: false,
+        branch,
+        studentId,
+        studentName,
+        rollNumber
+      };
+
+      saveCustomNotifications([notif, ...current]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sa_notifications_updated', { detail: notif }));
+      }
+      return notif;
+    } catch (err) {
+      console.error('Error in notifySuperAdminAdmissionDecision:', err);
+      return null;
+    }
+  },
+
   notifyDailyFeeCollected: ({
     amount,
     studentName,

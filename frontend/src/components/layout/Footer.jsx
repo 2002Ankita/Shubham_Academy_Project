@@ -22,7 +22,7 @@ export default function Footer() {
         <div className="d-flex align-items-center gap-2.5 text-start">
           <img
             src="/assets/shubham-logo.png"
-            alt="Shubham Academy"
+            alt="Shubham Classes • Kolhapur"
             style={{ height: '26px', width: 'auto', objectFit: 'contain' }}
           />
           <div className="d-flex flex-column justify-content-center">
@@ -35,7 +35,7 @@ export default function Footer() {
                 letterSpacing: '-0.01em'
               }}
             >
-              Shubham Academy
+              Shubham Classes • Kolhapur
             </span>
             <span
               style={{
@@ -45,7 +45,7 @@ export default function Footer() {
                 marginTop: '1px'
               }}
             >
-              © 2026 Shubham Academy | Management System | All rights reserved.
+              © 2026 Shubham Classes • Kolhapur | Management System | All rights reserved.
             </span>
           </div>
         </div>
