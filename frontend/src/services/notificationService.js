@@ -1459,6 +1459,55 @@ export const notificationService = {
     return notif;
   },
 
+  // Notify Teacher & Super Admin about teacher salary details/hours/updates
+  notifyTeacherSalaryUpdate: ({
+    teacherName = 'Faculty Member',
+    month = '',
+    baseSalary = 0,
+    netPayable = 0,
+    amountPaid = 0,
+    amountPending = 0,
+    workingHours = 0,
+    accountType = 'Academy',
+    paymentMode = 'NEFT',
+    updatedBy = 'Academy Admin',
+    branch = ''
+  } = {}) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const branchVal = branch || getUserBranch() || 'Central Campus';
+
+    const notif = {
+      id: `NTF-TSAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: `💼 Teacher Salary Update: ${teacherName}${month ? ` (${month})` : ''}`,
+      time: timeStr,
+      date: dateStr,
+      formattedDateTime: `${dateStr}, ${timeStr}`,
+      type: 'salary_payment',
+      category: 'Faculty Payroll & Accounts',
+      priority: 'Normal',
+      author: updatedBy,
+      details: `Salary update for ${teacherName}${month ? ` (${month})` : ''}: Net Payable ₹${Number(netPayable || baseSalary || 0).toLocaleString()} | Hours: ${workingHours} hrs | Paid: ₹${Number(amountPaid || 0).toLocaleString()} | Pending: ₹${Number(amountPending || 0).toLocaleString()} | Account: ${accountType} | Mode: ${paymentMode}.`,
+      read: false,
+      forSuperAdminOnly: false,
+      branch: branchVal,
+      teacherName,
+      amount: Number(netPayable || baseSalary || 0),
+      workingHours: Number(workingHours || 0),
+      accountType,
+      paymentMode,
+      month,
+      paidBy: updatedBy
+    };
+
+    notificationService.addNotification(notif);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa_notifications_updated'));
+    }
+    return notif;
+  },
+
   // Academy Admin: Re-dispatch / resend notification
   resendNotification: async (logId) => {
     try {

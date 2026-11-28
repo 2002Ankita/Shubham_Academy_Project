@@ -7,6 +7,7 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import noticeService from '../../services/noticeService';
 import batchService from '../../services/batchService';
+import notificationService from '../../services/notificationService';
 import { Bell, Plus, ArrowLeft, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import useAuth from '../../hooks/useAuth';
@@ -48,8 +49,34 @@ export default function TeacherAnnouncements() {
     e.preventDefault();
     const authorName = user?.name || user?.full_name || 'Faculty Member';
     await noticeService.create({ ...newNotice, author: `${authorName} (${userBranch})` });
-    toast.success('Class announcement published!');
+    try {
+      notificationService.addNotification({
+        id: `NTF-TCH-ANN-${Date.now()}`,
+        title: `📢 Class Announced: ${newNotice.title}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        formattedDateTime: new Date().toLocaleString(),
+        type: 'teacher_class_announcement',
+        category: 'Class Announcements & Notices',
+        priority: newNotice.priority || 'Normal',
+        author: `${authorName} (Faculty)`,
+        details: `${authorName} announced a class for ${newNotice.targetAudience || 'Students'}: ${newNotice.title} — ${newNotice.content}`,
+        read: false,
+        forSuperAdminOnly: false,
+        branch: userBranch || 'Tarabai Park'
+      });
+    } catch (err) {
+      console.warn('Could not notify admin of class announcement:', err);
+    }
+    toast.success('Class announcement published & added to Admin!');
     setModalOpen(false);
+    setNewNotice({
+      title: '',
+      category: 'Academic',
+      priority: 'Normal',
+      targetAudience: 'Class 12th Students Only',
+      content: ''
+    });
     fetchNotices();
   };
 

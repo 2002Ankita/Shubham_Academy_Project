@@ -8,10 +8,13 @@ import Modal from '../../components/common/Modal';
 import attendanceService from '../../services/attendanceService';
 import teacherService from '../../services/teacherService';
 import salaryService from '../../services/salaryService';
+import leaveService from '../../services/leaveService';
 import {
   Users,
   Clock,
+  CheckCircle,
   CheckCircle2,
+  XCircle,
   AlertCircle,
   CalendarDays,
   Calendar,
@@ -32,10 +35,12 @@ import {
   ChevronRight,
   Briefcase,
   FileSpreadsheet,
+  FileText,
   Calculator,
   ArrowUpRight,
   Printer,
-  Building2
+  Building2,
+  Send
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -51,6 +56,113 @@ export default function TeacherAttendanceTracker() {
 
   // Branch filter state
   const [selectedBranch, setSelectedBranch] = useState(isSuperAdmin ? 'ALL' : userBranch);
+
+  // Staff Leave Requests & Approvals State
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [leaveStatusFilter, setLeaveStatusFilter] = useState('ALL');
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    teacher_name: '',
+    teacher_id: '',
+    leave_type: 'Casual Leave',
+    from_date: new Date().toISOString().split('T')[0],
+    to_date: new Date().toISOString().split('T')[0],
+    reason: ''
+  });
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+
+  const fetchLeaves = async () => {
+    setLeaveLoading(true);
+    try {
+      const data = await leaveService.getAllLeaveRequests({
+        branch: effectiveBranch === 'ALL' ? undefined : effectiveBranch
+      });
+      setLeaveRequests(Array.isArray(data) ? data : []);
+    } catch {
+      setLeaveRequests([]);
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [effectiveBranch]);
+
+  const pendingLeavesCount = useMemo(
+    () => leaveRequests.filter((l) => String(l.status || '').toLowerCase() === 'pending').length,
+    [leaveRequests]
+  );
+
+  const filteredLeaves = useMemo(() => {
+    return leaveRequests.filter((l) => {
+      if (leaveStatusFilter !== 'ALL' && String(l.status || '').toLowerCase() !== leaveStatusFilter.toLowerCase()) {
+        return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const hay = `${l.teacher_name || ''} ${l.leave_type || ''} ${l.reason || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [leaveRequests, leaveStatusFilter, searchQuery]);
+
+  const handleSubmitLeaveRequest = async (e) => {
+    e.preventDefault();
+    if (!leaveForm.teacher_name.trim() || !leaveForm.from_date || !leaveForm.to_date || !leaveForm.reason.trim()) {
+      toast.error('Please fill staff member, dates, and reason.');
+      return;
+    }
+    setLeaveSubmitting(true);
+    try {
+      await leaveService.applyLeave({
+        teacher_id: leaveForm.teacher_id || 'STAFF',
+        teacher_name: leaveForm.teacher_name.trim(),
+        branch: effectiveBranch === 'ALL' ? (userBranch || CAMPUS.TARABAI_PARK) : effectiveBranch,
+        leave_type: leaveForm.leave_type,
+        from_date: leaveForm.from_date,
+        to_date: leaveForm.to_date,
+        reason: leaveForm.reason.trim()
+      });
+      toast.success(`Leave request submitted for ${leaveForm.teacher_name}!`);
+      setLeaveModalOpen(false);
+      setLeaveForm({
+        teacher_name: '',
+        teacher_id: '',
+        leave_type: 'Casual Leave',
+        from_date: new Date().toISOString().split('T')[0],
+        to_date: new Date().toISOString().split('T')[0],
+        reason: ''
+      });
+      fetchLeaves();
+    } catch (err) {
+      toast.error('Failed to submit leave request.');
+    } finally {
+      setLeaveSubmitting(false);
+    }
+  };
+
+  const handleApproveLeave = async (leave) => {
+    try {
+      await leaveService.approveLeave(leave.id, `Approved by ${user?.full_name || 'Academy Admin'}`);
+      toast.success(`Leave approved for ${leave.teacher_name}`);
+      fetchLeaves();
+    } catch {
+      toast.error('Failed to approve leave.');
+    }
+  };
+
+  const handleRejectLeave = async (leave) => {
+    try {
+      await leaveService.rejectLeave(leave.id, `Rejected by ${user?.full_name || 'Academy Admin'}`);
+      toast.info(`Leave rejected for ${leave.teacher_name}`);
+      fetchLeaves();
+    } catch {
+      toast.error('Failed to reject leave.');
+    }
+  };
 
   useEffect(() => {
     if (!isSuperAdmin && userBranch) {
@@ -754,6 +866,25 @@ export default function TeacherAttendanceTracker() {
             <Calculator size={14} className={viewMode === 'monthly' ? 'text-sa-primary' : ''} />
             <span>Monthly Hours & Salary</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('leaves')}
+            className={`btn btn-sm d-inline-flex align-items-center justify-content-center gap-1.5 px-3 py-1.5 rounded-2 fw-semibold transition-all flex-grow-1 flex-lg-grow-0 text-nowrap ${
+              viewMode === 'leaves'
+                ? 'bg-white text-sa-charcoal shadow-xs border'
+                : 'text-sa-muted border-0'
+            }`}
+            style={{ fontSize: '12.5px' }}
+          >
+            <FileText size={14} className={viewMode === 'leaves' ? 'text-sa-primary' : ''} />
+            <span>Leave & Approvals</span>
+            {pendingLeavesCount > 0 && (
+              <span className="badge bg-danger text-white rounded-pill" style={{ fontSize: '10px', padding: '2px 6px' }}>
+                {pendingLeavesCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -761,7 +892,25 @@ export default function TeacherAttendanceTracker() {
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 bg-white border p-3 rounded-4 shadow-2xs">
         {/* Left: Current Filter & Target Label */}
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          {viewMode === 'daily' ? (
+          {viewMode === 'leaves' ? (
+            <>
+              <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                {['ALL', 'Pending', 'Approved', 'Rejected'].map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setLeaveStatusFilter(st)}
+                    className={`btn btn-sm rounded-pill px-3 py-1 fw-semibold ${
+                      leaveStatusFilter === st ? 'btn-dark text-white' : 'btn-light border text-sa-muted'
+                    }`}
+                    style={{ fontSize: '12px' }}
+                  >
+                    {st === 'ALL' ? `All (${leaveRequests.length})` : st}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : viewMode === 'daily' ? (
             <>
               <div className="d-flex align-items-center gap-2 bg-light border px-2.5 py-1.5 rounded-3">
                 <Calendar size={15} className="text-sa-primary" />
@@ -851,7 +1000,27 @@ export default function TeacherAttendanceTracker() {
 
         {/* Right: Actions */}
         <div className="d-flex align-items-center gap-2 flex-wrap">
-          {viewMode === 'monthly' ? (
+          {viewMode === 'leaves' ? (
+            <>
+              <Button
+                variant="outline"
+                icon={RefreshCw}
+                onClick={fetchLeaves}
+                disabled={leaveLoading}
+                style={{ fontSize: '13px', padding: '7px 13px', whiteSpace: 'nowrap' }}
+              >
+                Refresh Leaves
+              </Button>
+              <Button
+                variant="primary"
+                icon={PlusCircle}
+                onClick={() => setLeaveModalOpen(true)}
+                style={{ fontSize: '13px', padding: '7px 14px', whiteSpace: 'nowrap' }}
+              >
+                Apply Staff Leave
+              </Button>
+            </>
+          ) : viewMode === 'monthly' ? (
             <>
               {/* Sync With Payroll Register */}
               <Button
@@ -2240,6 +2409,219 @@ export default function TeacherAttendanceTracker() {
             </div>
           </div>
         )}
+      </Modal>
+      {/* ===================================================================== */}
+      {/* 5. VIEW MODE C: STAFF LEAVE REQUESTS & APPROVALS VIEW                 */}
+      {/* ===================================================================== */}
+      {viewMode === 'leaves' && (
+        <div className="d-flex flex-column gap-3">
+          <div className="row g-3">
+            <div className="col-6 col-md-3">
+              <div className="sa-card bg-white border p-3 rounded-4">
+                <div className="small text-muted fw-semibold">Total Leave Requests</div>
+                <div className="fw-bold fs-4 text-sa-charcoal">{leaveRequests.length}</div>
+              </div>
+            </div>
+            <div className="col-6 col-md-3">
+              <div className="sa-card bg-warning-subtle border border-warning-subtle p-3 rounded-4">
+                <div className="small text-warning-emphasis fw-semibold">Pending Approval</div>
+                <div className="fw-bold fs-4 text-warning-emphasis">{pendingLeavesCount}</div>
+              </div>
+            </div>
+            <div className="col-6 col-md-3">
+              <div className="sa-card bg-success-subtle border border-success-subtle p-3 rounded-4">
+                <div className="small text-success fw-semibold">Approved Leaves</div>
+                <div className="fw-bold fs-4 text-success">
+                  {leaveRequests.filter((l) => String(l.status || '').toLowerCase() === 'approved').length}
+                </div>
+              </div>
+            </div>
+            <div className="col-6 col-md-3">
+              <div className="sa-card bg-danger-subtle border border-danger-subtle p-3 rounded-4">
+                <div className="small text-danger fw-semibold">Rejected</div>
+                <div className="fw-bold fs-4 text-danger">
+                  {leaveRequests.filter((l) => String(l.status || '').toLowerCase() === 'rejected').length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sa-card p-3 p-md-4">
+            <Table
+              loading={leaveLoading}
+              data={filteredLeaves}
+              emptyMessage="No staff leave requests found."
+              columns={[
+                {
+                  key: 'teacher_name',
+                  title: 'Staff / Faculty',
+                  render: (v, row) => (
+                    <div>
+                      <div className="fw-bold text-sa-charcoal">{v}</div>
+                      <div className="small text-muted">{row.branch || effectiveBranch}</div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'leave_type',
+                  title: 'Leave Type',
+                  render: (v) => <span className="badge bg-light text-dark border">{v}</span>
+                },
+                {
+                  key: 'from_date',
+                  title: 'Duration',
+                  render: (_, row) => (
+                    <div className="small">
+                      <div className="fw-semibold">
+                        {String(row.from_date || '').split('T')[0]} → {String(row.to_date || '').split('T')[0]}
+                      </div>
+                      <div className="text-muted">{row.number_of_days || 1} day(s)</div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'reason',
+                  title: 'Reason',
+                  render: (v, row) => (
+                    <div className="small" style={{ maxWidth: '240px' }}>
+                      <div>{v}</div>
+                      {row.admin_comment && (
+                        <div className="text-muted fst-italic mt-0.5" style={{ fontSize: '0.72rem' }}>
+                          Note: {row.admin_comment}
+                        </div>
+                      )}
+                    </div>
+                  )
+                },
+                {
+                  key: 'status',
+                  title: 'Status',
+                  render: (v) => {
+                    const st = String(v || 'Pending').toLowerCase();
+                    return (
+                      <span
+                        className={`badge rounded-pill px-2.5 py-1 fw-semibold ${
+                          st === 'approved'
+                            ? 'bg-success-subtle text-success'
+                            : st === 'rejected'
+                            ? 'bg-danger-subtle text-danger'
+                            : 'bg-warning-subtle text-warning-emphasis'
+                        }`}
+                      >
+                        {v || 'Pending'}
+                      </span>
+                    );
+                  }
+                },
+                {
+                  key: 'actions',
+                  title: 'Approval',
+                  align: 'end',
+                  render: (_, row) => {
+                    const isPending = String(row.status || 'Pending').toLowerCase() === 'pending';
+                    if (!isPending) {
+                      return <span className="small text-muted fw-medium">Processed</span>;
+                    }
+                    return (
+                      <div className="d-flex justify-content-end gap-1.5">
+                        <Button size="sm" variant="primary" icon={CheckCircle} onClick={() => handleApproveLeave(row)}>
+                          Approve
+                        </Button>
+                        <Button size="sm" variant="outline" icon={XCircle} onClick={() => handleRejectLeave(row)}>
+                          Reject
+                        </Button>
+                      </div>
+                    );
+                  }
+                }
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Apply Staff Leave Modal */}
+      <Modal isOpen={leaveModalOpen} onClose={() => setLeaveModalOpen(false)} title="Apply Staff Leave Request">
+        <form onSubmit={handleSubmitLeaveRequest} className="d-flex flex-column gap-3">
+          <div>
+            <label className="form-label small fw-semibold">Staff / Faculty Member *</label>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              list="staff-leave-options"
+              required
+              placeholder="Select or type staff name..."
+              value={leaveForm.teacher_name}
+              onChange={(e) => {
+                const val = e.target.value;
+                const matched = teachers.find((t) => (t.name || t.full_name) === val);
+                setLeaveForm((prev) => ({
+                  ...prev,
+                  teacher_name: val,
+                  teacher_id: matched ? (matched.id || matched.teacher_id || '') : prev.teacher_id
+                }));
+              }}
+            />
+            <datalist id="staff-leave-options">
+              {teachers.map((t) => (
+                <option key={t.id} value={t.name || t.full_name} />
+              ))}
+            </datalist>
+          </div>
+          <div className="row g-2">
+            <div className="col-12 col-md-4">
+              <label className="form-label small fw-semibold">Leave Type</label>
+              <select
+                className="form-select form-select-sm"
+                value={leaveForm.leave_type}
+                onChange={(e) => setLeaveForm((prev) => ({ ...prev, leave_type: e.target.value }))}
+              >
+                <option value="Casual Leave">Casual Leave</option>
+                <option value="Sick Leave">Sick Leave</option>
+                <option value="Medical Leave">Medical Leave</option>
+                <option value="Earned Leave">Earned Leave</option>
+                <option value="Academic Leave">Academic Leave</option>
+              </select>
+            </div>
+            <div className="col-6 col-md-4">
+              <label className="form-label small fw-semibold">From Date *</label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                required
+                value={leaveForm.from_date}
+                onChange={(e) => setLeaveForm((prev) => ({ ...prev, from_date: e.target.value }))}
+              />
+            </div>
+            <div className="col-6 col-md-4">
+              <label className="form-label small fw-semibold">To Date *</label>
+              <input
+                type="date"
+                className="form-control form-control-sm"
+                required
+                value={leaveForm.to_date}
+                onChange={(e) => setLeaveForm((prev) => ({ ...prev, to_date: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="form-label small fw-semibold">Reason *</label>
+            <textarea
+              className="form-control form-control-sm"
+              rows={3}
+              required
+              placeholder="Enter leave purpose..."
+              value={leaveForm.reason}
+              onChange={(e) => setLeaveForm((prev) => ({ ...prev, reason: e.target.value }))}
+            />
+          </div>
+          <div className="d-flex justify-content-end gap-2 pt-2 border-top">
+            <Button variant="outline" type="button" onClick={() => setLeaveModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" type="submit" icon={Send} loading={leaveSubmitting}>
+              Submit Leave Request
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

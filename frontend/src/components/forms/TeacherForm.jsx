@@ -12,7 +12,7 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
     subject: initialData?.subject || 'Physics',
     qualification: initialData?.qualification || 'M.Sc, B.Ed',
     experience: initialData?.experience || '5 Years',
-    monthlySalary: initialData?.monthlySalary || 65000,
+    monthlySalary: initialData?.monthlySalary ?? 0,
     status: initialData?.status || 'Active',
     password: '',
   });
@@ -161,17 +161,6 @@ export default function TeacherForm({ initialData, onSubmit, loading, onCancel }
             placeholder="e.g. 8 Years"
             value={formData.experience}
             onChange={handleChange}
-          />
-        </div>
-
-        <div className="col-12 col-md-6">
-          <Input
-            label="Monthly Base Salary (₹)"
-            name="monthlySalary"
-            type="number"
-            value={formData.monthlySalary}
-            onChange={handleChange}
-            required
           />
         </div>
 
